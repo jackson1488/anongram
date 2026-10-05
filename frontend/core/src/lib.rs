@@ -11,6 +11,7 @@
 pub mod aead;
 pub mod error;
 pub mod kem;
+pub mod sign;
 
 /// Core version string.
 pub fn version() -> &'static str {

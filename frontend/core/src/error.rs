@@ -11,4 +11,6 @@ pub enum CoreError {
     Malformed,
     #[error("key encapsulation failed")]
     Kem,
+    #[error("signature verification failed")]
+    Signature,
 }
