@@ -11,6 +11,8 @@
 pub mod aead;
 pub mod error;
 pub mod kem;
+pub mod manifest;
+pub mod otp;
 pub mod passport;
 pub mod seed;
 pub mod sign;

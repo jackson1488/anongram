@@ -13,4 +13,10 @@ pub enum CoreError {
     Kem,
     #[error("signature verification failed")]
     Signature,
+    #[error("one-time pad exhausted or collision with reserved bounds")]
+    PadExhausted,
+    #[error("operation out of pad bounds or invalid offset")]
+    OutOfBounds,
+    #[error("io error")]
+    Io,
 }
