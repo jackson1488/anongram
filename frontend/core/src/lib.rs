@@ -1,12 +1,15 @@
 //! AnonGram core.
 //!
 //! Planned modules (each added in its own commit, with tests):
+//! - `aead`     XChaCha20-Poly1305 (done)
 //! - `kem`      hybrid X25519 + ML-KEM-1024
 //! - `sign`     hybrid Ed25519 + ML-DSA-87
-//! - `aead`     ChaCha20-Poly1305 / AES-256-GCM
 //! - `identity` BIP-39, key derivation, Passport Blob
 //! - `otp`      one-time pad: two-ended pointers, Wegman-Carter MAC, wiping
 //! - `manifest` Pad Manifest and protection level labels
+
+pub mod aead;
+pub mod error;
 
 /// Core version string.
 pub fn version() -> &'static str {
