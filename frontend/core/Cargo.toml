@@ -1,0 +1,12 @@
+[package]
+name = "anongram_core"
+version = "0.1.0"
+edition = "2021"
+description = "AnonGram core: hybrid PQ crypto, one-time pad, passport blob"
+license = "MIT"
+
+[lib]
+name = "anongram_core"
+path = "src/lib.rs"
+
+[dependencies]

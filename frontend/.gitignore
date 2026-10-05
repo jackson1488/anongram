@@ -1,0 +1,10 @@
+target/
+*.blob
+*.pad
+*.keystore
+*.jks
+local.properties
+.idea/
+.dart_tool/
+build/
+.env
