@@ -27,8 +27,8 @@ impl MasterSeed {
         };
         let mut entropy = Zeroizing::new(vec![0u8; entropy_len]);
         OsRng.fill_bytes(&mut entropy);
-        let mnemonic =
-            Mnemonic::from_entropy_in(Language::English, &entropy).map_err(|_| CoreError::Malformed)?;
+        let mnemonic = Mnemonic::from_entropy_in(Language::English, &entropy)
+            .map_err(|_| CoreError::Malformed)?;
         let phrase = Zeroizing::new(mnemonic.to_string());
         let seed = Self(Zeroizing::new(mnemonic.to_seed("")));
         Ok((phrase, seed))
