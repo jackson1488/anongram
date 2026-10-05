@@ -43,7 +43,9 @@ impl PadManifest {
     pub fn shield_level(&self) -> SecurityShieldLevel {
         match self.transfer_method {
             TransferMethod::Cable => SecurityShieldLevel::GoldAbsolute,
-            TransferMethod::WifiDirectQr | TransferMethod::BluetoothQr => SecurityShieldLevel::BlueHigh,
+            TransferMethod::WifiDirectQr | TransferMethod::BluetoothQr => {
+                SecurityShieldLevel::BlueHigh
+            }
         }
     }
 
@@ -58,7 +60,7 @@ impl PadManifest {
         out.extend_from_slice(&self.pad_id);
         out.extend_from_slice(&self.total_size.to_be_bytes());
         out.push(self.reserve_pct);
-        
+
         let p_bytes = self.partner_id.as_bytes();
         out.extend_from_slice(&(p_bytes.len() as u32).to_be_bytes());
         out.extend_from_slice(p_bytes);

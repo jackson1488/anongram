@@ -108,13 +108,17 @@ impl OtpStorage {
                 // Must not intrude into Side B's guaranteed reserve
                 let b_boundary = self.total_size.saturating_sub(reserve_bytes);
                 let limit = self.tail.min(b_boundary);
-                self.head.checked_add(needed).map_or(false, |next| next <= limit)
+                self.head
+                    .checked_add(needed)
+                    .map_or(false, |next| next <= limit)
             }
             PadSide::SideB => {
                 // Must not intrude into Side A's guaranteed reserve
                 let a_boundary = reserve_bytes;
                 let limit = self.head.max(a_boundary);
-                self.tail.checked_sub(needed).map_or(false, |next| next >= limit)
+                self.tail
+                    .checked_sub(needed)
+                    .map_or(false, |next| next >= limit)
             }
         }
     }
@@ -310,8 +314,10 @@ mod tests {
         let (file, _) = create_test_pad(size);
         let path = file.path().to_path_buf();
 
-        let mut side_a = OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
-        let mut side_b = OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
+        let mut side_a =
+            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
+        let mut side_b =
+            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
 
         let msg1 = b"Secret message from Alice to Bob";
         let encrypted1 = side_a.encrypt(msg1).unwrap();
@@ -334,8 +340,10 @@ mod tests {
         let (file, _) = create_test_pad(size);
         let path = file.path().to_path_buf();
 
-        let mut side_a = OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
-        let mut side_b = OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
+        let mut side_a =
+            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
+        let mut side_b =
+            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
 
         let mut enc = side_a.encrypt(b"Strict OTP message").unwrap();
         enc.ciphertext[0] ^= 0x01; // Tamper 1 bit
@@ -350,11 +358,15 @@ mod tests {
         let path = file.path().to_path_buf();
 
         // 20% reserve = 20 bytes reserved for Side B. Side A cannot pass byte 80.
-        let mut side_a = OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
+        let mut side_a =
+            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
 
         // Trying to encrypt 50 bytes + 32 bytes MAC = 82 bytes (exceeds 80 limit)
         let large_msg = vec![42u8; 50];
-        assert_eq!(side_a.encrypt(&large_msg).unwrap_err(), CoreError::PadExhausted);
+        assert_eq!(
+            side_a.encrypt(&large_msg).unwrap_err(),
+            CoreError::PadExhausted
+        );
     }
 
     #[test]
