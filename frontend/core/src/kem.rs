@@ -20,7 +20,7 @@ const LABEL: &[u8] = b"anongram/hybrid-kem/v1";
 pub const X25519_LEN: usize = 32;
 
 /// Public half: share it freely.
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HybridPublicKey {
     pub x25519: [u8; X25519_LEN],
     pub mlkem: Vec<u8>,
