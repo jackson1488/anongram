@@ -84,10 +84,10 @@ impl HybridSigningKey {
 
 impl HybridVerifyingKey {
     /// Returns `Ok(())` only if both signatures are valid.
-    pub fn verify(&self, msg: &[u8], sig: &HybridSignature) -> Result<(), CoreError> {
+    pub fn verify(&self, msg: &[u8], sig: &HybridSignature) -> Result<(), CryptoError> {
         let m = framed(msg);
 
-        let ed_vk = EdVerifyingKey::from_bytes(&self.ed25519).map_err(|_| CoreError::Malformed)?;
+        let ed_vk = EdVerifyingKey::from_bytes(&self.ed25519).map_err(|_| CryptoError::Malformed)?;
         let ed_sig = EdSignature::from_bytes(&sig.ed25519);
         let ed_ok = ed_vk.verify_strict(&m, &ed_sig).is_ok();
 
@@ -96,19 +96,19 @@ impl HybridVerifyingKey {
         if ed_ok && ml_ok {
             Ok(())
         } else {
-            Err(CoreError::Signature)
+            Err(CryptoError::Signature)
         }
     }
 
-    fn verify_mldsa(&self, framed_msg: &[u8], sig: &[u8]) -> Result<bool, CoreError> {
+    fn verify_mldsa(&self, framed_msg: &[u8], sig: &[u8]) -> Result<bool, CryptoError> {
         use ml_dsa::Verifier;
         let enc = self
             .mldsa
             .as_slice()
             .try_into()
-            .map_err(|_| CoreError::Malformed)?;
+            .map_err(|_| CryptoError::Malformed)?;
         let vk = MlVerifyingKey::<MlDsa87>::decode(&enc);
-        let sig = MlSignature::<MlDsa87>::try_from(sig).map_err(|_| CoreError::Malformed)?;
+        let sig = MlSignature::<MlDsa87>::try_from(sig).map_err(|_| CryptoError::Malformed)?;
         Ok(vk.verify(framed_msg, &sig).is_ok())
     }
 }
@@ -130,7 +130,7 @@ mod tests {
         let sig = sk.sign(b"hello");
         assert_eq!(
             sk.verifying_key().verify(b"hellp", &sig),
-            Err(CoreError::Signature)
+            Err(CryptoError::Signature)
         );
     }
 
@@ -141,7 +141,7 @@ mod tests {
         let sig = a.sign(b"m");
         assert_eq!(
             b.verifying_key().verify(b"m", &sig),
-            Err(CoreError::Signature)
+            Err(CryptoError::Signature)
         );
     }
 
@@ -176,6 +176,6 @@ mod tests {
         let sig = sk.sign(b"m");
         let mut vk = sk.verifying_key().clone();
         vk.mldsa.truncate(5);
-        assert_eq!(vk.verify(b"m", &sig), Err(CoreError::Malformed));
+        assert_eq!(vk.verify(b"m", &sig), Err(CryptoError::Malformed));
     }
 }

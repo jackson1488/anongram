@@ -54,17 +54,18 @@ impl PassportBody {
         version: u64,
         profile_key: &[u8; 32],
         profile: &[u8],
-    ) -> Result<Vec<u8>, CoreError> {
+    ) -> Result<Vec<u8>, IdentityError> {
         if profile.len() > MAX_PROFILE {
             return Err(IdentityError::Malformed);
         }
         aead::seal(profile_key, &profile_aad(master, version), profile)
+            .map_err(|e| IdentityError::Crypto(e.to_string()))
     }
 }
 
 impl Passport {
     /// Signs `body` with the master key. The key must match `body.master`.
-    pub fn sign(body: PassportBody, master: &HybridSigningKey) -> Result<Self, CoreError> {
+    pub fn sign(body: PassportBody, master: &HybridSigningKey) -> Result<Self, IdentityError> {
         if master.verifying_key() != &body.master {
             return Err(IdentityError::Signature);
         }
@@ -98,9 +99,9 @@ impl Passport {
         self.body.master == other.body.master && self.body.version > other.body.version
     }
 
-    pub fn decrypt_profile(&self, profile_key: &[u8; 32]) -> Result<Vec<u8>, CoreError> {
+    pub fn decrypt_profile(&self, profile_key: &[u8; 32]) -> Result<Vec<u8>, IdentityError> {
         let aad = profile_aad(&self.body.master, self.body.version);
-        aead::open(profile_key, &aad, &self.body.encrypted_profile)
+        aead::open(profile_key, &aad, &self.body.encrypted_profile).map_err(|_| IdentityError::Decrypt)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
@@ -114,7 +115,7 @@ impl Passport {
     }
 
     /// Parses and verifies. Any problem (format, size, signature) returns an error.
-    pub fn from_bytes(data: &[u8]) -> Result<Self, CoreError> {
+    pub fn from_bytes(data: &[u8]) -> Result<Self, IdentityError> {
         if data.len() > MAX_BLOB {
             return Err(IdentityError::Malformed);
         }
@@ -192,7 +193,7 @@ impl<'a> Reader<'a> {
     fn new(data: &'a [u8]) -> Self {
         Self { data, pos: 0 }
     }
-    fn take(&mut self, n: usize) -> Result<&'a [u8], CoreError> {
+    fn take(&mut self, n: usize) -> Result<&'a [u8], IdentityError> {
         let end = self.pos.checked_add(n).ok_or(IdentityError::Malformed)?;
         if end > self.data.len() {
             return Err(IdentityError::Malformed);
@@ -201,29 +202,29 @@ impl<'a> Reader<'a> {
         self.pos = end;
         Ok(s)
     }
-    fn u8(&mut self) -> Result<u8, CoreError> {
+    fn u8(&mut self) -> Result<u8, IdentityError> {
         Ok(self.take(1)?[0])
     }
-    fn u64(&mut self) -> Result<u64, CoreError> {
+    fn u64(&mut self) -> Result<u64, IdentityError> {
         let b: [u8; 8] = self
             .take(8)?
             .try_into()
             .map_err(|_| IdentityError::Malformed)?;
         Ok(u64::from_be_bytes(b))
     }
-    fn array<const N: usize>(&mut self) -> Result<[u8; N], CoreError> {
+    fn array<const N: usize>(&mut self) -> Result<[u8; N], IdentityError> {
         self.take(N)?
             .try_into()
             .map_err(|_| IdentityError::Malformed)
     }
-    fn bytes(&mut self, max: usize) -> Result<Vec<u8>, CoreError> {
+    fn bytes(&mut self, max: usize) -> Result<Vec<u8>, IdentityError> {
         let len = u32::from_be_bytes(self.array::<4>()?) as usize;
         if len > max {
             return Err(IdentityError::Malformed);
         }
         Ok(self.take(len)?.to_vec())
     }
-    fn finish(&self) -> Result<(), CoreError> {
+    fn finish(&self) -> Result<(), IdentityError> {
         if self.pos == self.data.len() {
             Ok(())
         } else {
@@ -237,7 +238,7 @@ fn put_vk(w: &mut Writer, k: &HybridVerifyingKey) {
     w.bytes(&k.mldsa);
 }
 
-fn get_vk(r: &mut Reader) -> Result<HybridVerifyingKey, CoreError> {
+fn get_vk(r: &mut Reader) -> Result<HybridVerifyingKey, IdentityError> {
     Ok(HybridVerifyingKey {
         ed25519: r.array::<32>()?,
         mldsa: r.bytes(MAX_BLOB)?,
@@ -262,7 +263,7 @@ fn encode_body(b: &PassportBody) -> Vec<u8> {
     w.0
 }
 
-fn decode_body(data: &[u8]) -> Result<PassportBody, CoreError> {
+fn decode_body(data: &[u8]) -> Result<PassportBody, IdentityError> {
     let mut r = Reader::new(data);
     let version = r.u64()?;
     let created_at = r.u64()?;

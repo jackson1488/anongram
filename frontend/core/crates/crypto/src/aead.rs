@@ -15,7 +15,7 @@ pub const NONCE_LEN: usize = 24;
 pub const TAG_LEN: usize = 16;
 
 /// Encrypts `plaintext` and binds `aad` (associated data) to the ciphertext.
-pub fn seal(key: &[u8; KEY_LEN], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, CoreError> {
+pub fn seal(key: &[u8; KEY_LEN], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, CryptoError> {
     let cipher = XChaCha20Poly1305::new(key.into());
     let mut nonce = [0u8; NONCE_LEN];
     OsRng.fill_bytes(&mut nonce);
@@ -27,7 +27,7 @@ pub fn seal(key: &[u8; KEY_LEN], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>
                 aad,
             },
         )
-        .map_err(|_| CoreError::Encrypt)?;
+        .map_err(|_| CryptoError::Encrypt)?;
     let mut out = Vec::with_capacity(NONCE_LEN + ct.len());
     out.extend_from_slice(&nonce);
     out.extend_from_slice(&ct);
@@ -35,15 +35,15 @@ pub fn seal(key: &[u8; KEY_LEN], aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>
 }
 
 /// Decrypts data produced by [`seal`]. Fails if the key, aad or data were changed.
-pub fn open(key: &[u8; KEY_LEN], aad: &[u8], sealed: &[u8]) -> Result<Vec<u8>, CoreError> {
+pub fn open(key: &[u8; KEY_LEN], aad: &[u8], sealed: &[u8]) -> Result<Vec<u8>, CryptoError> {
     if sealed.len() < NONCE_LEN + TAG_LEN {
-        return Err(CoreError::Malformed);
+        return Err(CryptoError::Malformed);
     }
     let (nonce, ct) = sealed.split_at(NONCE_LEN);
     let cipher = XChaCha20Poly1305::new(key.into());
     cipher
         .decrypt(XNonce::from_slice(nonce), Payload { msg: ct, aad })
-        .map_err(|_| CoreError::Decrypt)
+        .map_err(|_| CryptoError::Decrypt)
 }
 
 #[cfg(test)]
@@ -61,13 +61,13 @@ mod tests {
     #[test]
     fn wrong_key_fails() {
         let sealed = seal(&KEY, b"", b"hello").unwrap();
-        assert_eq!(open(&[8u8; KEY_LEN], b"", &sealed), Err(CoreError::Decrypt));
+        assert_eq!(open(&[8u8; KEY_LEN], b"", &sealed), Err(CryptoError::Decrypt));
     }
 
     #[test]
     fn wrong_aad_fails() {
         let sealed = seal(&KEY, b"a", b"hello").unwrap();
-        assert_eq!(open(&KEY, b"b", &sealed), Err(CoreError::Decrypt));
+        assert_eq!(open(&KEY, b"b", &sealed), Err(CryptoError::Decrypt));
     }
 
     #[test]
@@ -75,12 +75,12 @@ mod tests {
         let mut sealed = seal(&KEY, b"", b"hello").unwrap();
         let last = sealed.len() - 1;
         sealed[last] ^= 1;
-        assert_eq!(open(&KEY, b"", &sealed), Err(CoreError::Decrypt));
+        assert_eq!(open(&KEY, b"", &sealed), Err(CryptoError::Decrypt));
     }
 
     #[test]
     fn too_short_is_malformed() {
-        assert_eq!(open(&KEY, b"", &[0u8; 10]), Err(CoreError::Malformed));
+        assert_eq!(open(&KEY, b"", &[0u8; 10]), Err(CryptoError::Malformed));
     }
 
     #[test]

@@ -19,7 +19,7 @@ pub struct MasterSeed(Zeroizing<[u8; 64]>);
 
 impl MasterSeed {
     /// Generates a new phrase of 12 or 24 words and the matching seed.
-    pub fn generate(words: usize) -> Result<(Zeroizing<String>, Self), CoreError> {
+    pub fn generate(words: usize) -> Result<(Zeroizing<String>, Self), IdentityError> {
         let entropy_len = match words {
             12 => 16,
             24 => 32,
@@ -35,7 +35,7 @@ impl MasterSeed {
     }
 
     /// Restores the seed from a phrase. `passphrase` is the optional BIP-39 passphrase.
-    pub fn from_phrase(phrase: &str, passphrase: &str) -> Result<Self, CoreError> {
+    pub fn from_phrase(phrase: &str, passphrase: &str) -> Result<Self, IdentityError> {
         let mnemonic = Mnemonic::parse_in_normalized(Language::English, phrase)
             .map_err(|_| IdentityError::Malformed)?;
         Ok(Self(Zeroizing::new(mnemonic.to_seed(passphrase))))

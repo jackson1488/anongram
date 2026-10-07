@@ -102,7 +102,7 @@ pub struct SignedManifest {
 }
 
 impl SignedManifest {
-    pub fn verify(&self, verifying_key: &HybridVerifyingKey) -> Result<(), CoreError> {
+    pub fn verify(&self, verifying_key: &HybridVerifyingKey) -> Result<(), IdentityError> {
         let body = self.manifest.serialize_body();
         let mut msg = Vec::with_capacity(PREFIX.len() + body.len());
         msg.extend_from_slice(PREFIX);

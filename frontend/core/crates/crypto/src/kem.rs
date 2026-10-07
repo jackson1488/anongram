@@ -61,7 +61,7 @@ impl HybridSecretKey {
         &self.public
     }
 
-    pub fn decapsulate(&self, ct: &HybridCiphertext) -> Result<SharedSecret, CoreError> {
+    pub fn decapsulate(&self, ct: &HybridCiphertext) -> Result<SharedSecret, CryptoError> {
         let eph = XPublic::from(ct.x25519_ephemeral);
         let ss_x = self.x25519.diffie_hellman(&eph);
 
@@ -69,11 +69,11 @@ impl HybridSecretKey {
             .mlkem
             .as_slice()
             .try_into()
-            .map_err(|_| CoreError::Malformed)?;
+            .map_err(|_| CryptoError::Malformed)?;
         let ss_m = self
             .mlkem
             .decapsulate(&mlkem_ct)
-            .map_err(|_| CoreError::Kem)?;
+            .map_err(|_| CryptoError::Kem)?;
 
         Ok(combine(
             ss_x.as_bytes(),
@@ -86,7 +86,7 @@ impl HybridSecretKey {
 }
 
 /// Sender side: returns the ciphertext to send and the shared secret to keep.
-pub fn encapsulate(pk: &HybridPublicKey) -> Result<(HybridCiphertext, SharedSecret), CoreError> {
+pub fn encapsulate(pk: &HybridPublicKey) -> Result<(HybridCiphertext, SharedSecret), CryptoError> {
     let eph_secret = EphemeralSecret::random_from_rng(OsRng);
     let eph_public = XPublic::from(&eph_secret);
     let ss_x = eph_secret.diffie_hellman(&XPublic::from(pk.x25519));
@@ -95,9 +95,9 @@ pub fn encapsulate(pk: &HybridPublicKey) -> Result<(HybridCiphertext, SharedSecr
         .mlkem
         .as_slice()
         .try_into()
-        .map_err(|_| CoreError::Malformed)?;
+        .map_err(|_| CryptoError::Malformed)?;
     let ek = EncapsulationKey::<MlKem1024Params>::from_bytes(&encoded);
-    let (ct_m, ss_m) = ek.encapsulate(&mut OsRng).map_err(|_| CoreError::Kem)?;
+    let (ct_m, ss_m) = ek.encapsulate(&mut OsRng).map_err(|_| CryptoError::Kem)?;
 
     let ct = HybridCiphertext {
         x25519_ephemeral: eph_public.to_bytes(),
@@ -188,10 +188,10 @@ mod tests {
         let sk = generate_keypair();
         let (mut ct, _) = encapsulate(sk.public_key()).unwrap();
         ct.mlkem.truncate(10);
-        assert_eq!(sk.decapsulate(&ct).err(), Some(CoreError::Malformed));
+        assert_eq!(sk.decapsulate(&ct).err(), Some(CryptoError::Malformed));
 
         let mut pk = sk.public_key().clone();
         pk.mlkem.truncate(10);
-        assert_eq!(encapsulate(&pk).err(), Some(CoreError::Malformed));
+        assert_eq!(encapsulate(&pk).err(), Some(CryptoError::Malformed));
     }
 }
