@@ -11,3 +11,14 @@ pub enum IdentityError {
     #[error("decryption failed")]
     Decrypt,
 }
+
+impl From<crypto::CryptoError> for IdentityError {
+    fn from(err: crypto::CryptoError) -> Self {
+        match err {
+            crypto::CryptoError::Signature => IdentityError::Signature,
+            crypto::CryptoError::Malformed => IdentityError::Malformed,
+            crypto::CryptoError::Decrypt => IdentityError::Decrypt,
+            _ => IdentityError::Crypto(err.to_string()),
+        }
+    }
+}

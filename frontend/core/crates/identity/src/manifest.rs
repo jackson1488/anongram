@@ -107,7 +107,8 @@ impl SignedManifest {
         let mut msg = Vec::with_capacity(PREFIX.len() + body.len());
         msg.extend_from_slice(PREFIX);
         msg.extend_from_slice(&body);
-        verifying_key.verify(&msg, &self.signature)
+        verifying_key.verify(&msg, &self.signature)?;
+        Ok(())
     }
 
     pub fn manifest_fingerprint(&self) -> [u8; 32] {

@@ -10,7 +10,7 @@ use sha2::Sha512;
 use zeroize::Zeroizing;
 
 use crate::error::IdentityError;
-use crate::sign::HybridSigningKey;
+use crypto::sign::HybridSigningKey;
 
 const SALT: &[u8] = b"anongram/master/v1";
 
