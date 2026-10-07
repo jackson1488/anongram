@@ -61,7 +61,10 @@ mod tests {
     #[test]
     fn wrong_key_fails() {
         let sealed = seal(&KEY, b"", b"hello").unwrap();
-        assert_eq!(open(&[8u8; KEY_LEN], b"", &sealed), Err(CryptoError::Decrypt));
+        assert_eq!(
+            open(&[8u8; KEY_LEN], b"", &sealed),
+            Err(CryptoError::Decrypt)
+        );
     }
 
     #[test]

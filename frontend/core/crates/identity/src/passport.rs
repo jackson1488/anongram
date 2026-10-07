@@ -101,7 +101,8 @@ impl Passport {
 
     pub fn decrypt_profile(&self, profile_key: &[u8; 32]) -> Result<Vec<u8>, IdentityError> {
         let aad = profile_aad(&self.body.master, self.body.version);
-        aead::open(profile_key, &aad, &self.body.encrypted_profile).map_err(|_| IdentityError::Decrypt)
+        aead::open(profile_key, &aad, &self.body.encrypted_profile)
+            .map_err(|_| IdentityError::Decrypt)
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

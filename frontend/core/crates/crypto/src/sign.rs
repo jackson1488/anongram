@@ -87,7 +87,8 @@ impl HybridVerifyingKey {
     pub fn verify(&self, msg: &[u8], sig: &HybridSignature) -> Result<(), CryptoError> {
         let m = framed(msg);
 
-        let ed_vk = EdVerifyingKey::from_bytes(&self.ed25519).map_err(|_| CryptoError::Malformed)?;
+        let ed_vk =
+            EdVerifyingKey::from_bytes(&self.ed25519).map_err(|_| CryptoError::Malformed)?;
         let ed_sig = EdSignature::from_bytes(&sig.ed25519);
         let ed_ok = ed_vk.verify_strict(&m, &ed_sig).is_ok();
 
