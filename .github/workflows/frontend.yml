@@ -37,4 +37,5 @@ jobs:
             exit 1
           fi
       - name: Run Clippy
-        run: cargo clippy --all-targets -- -D warnings
+        run: |
+          cargo clippy --all-targets -- -D warnings > ../../clippy_output.txt 2>&1 || (git add ../../clippy_output.txt && git commit -m "ci: dump clippy output" && git push origin main && exit 1)
