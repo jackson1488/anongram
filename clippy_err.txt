@@ -1,0 +1,19 @@
+[1m[92m    Checking[0m anongram_core v0.1.0 (/home/runner/work/anongram/anongram/frontend/core)
+[1m[91merror[0m[1m: needlessly taken reference of both operands[0m
+   [1m[94m--> [0msrc/vpn/vless.rs:188:32
+    [1m[94m|[0m
+[1m[94m188[0m [1m[94m|[0m         if plain[0] != 0x00 || &plain[1..17] != &self.config.uuid {
+    [1m[94m|[0m                                [1m[91m^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#op_ref
+    [1m[94m= [0m[1mnote[0m: `-D clippy::op-ref` implied by `-D warnings`
+    [1m[94m= [0m[1mhelp[0m: to override `-D warnings` add `#[allow(clippy::op_ref)]`
+[1m[96mhelp[0m: use the values directly
+    [1m[94m|[0m
+[1m[94m188[0m [91m- [0m        if plain[0] != 0x00 || [91m&plain[1..17][0m != [91m&self.config.uuid[0m {
+[1m[94m188[0m [92m+ [0m        if plain[0] != 0x00 || [92mplain[1..17][0m != [92mself.config.uuid[0m {
+    [1m[94m|[0m
+
+[1m[91merror[0m: could not compile `anongram_core` (lib) due to 1 previous error
+[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
+[1m[91merror[0m: could not compile `anongram_core` (lib test) due to 1 previous error
