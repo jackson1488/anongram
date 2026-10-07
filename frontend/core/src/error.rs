@@ -23,4 +23,12 @@ pub enum CoreError {
     Compression,
     #[error("decompression error")]
     Decompression,
+    #[error("vpn configuration error")]
+    VpnConfig,
+    #[error("vpn handshake failed")]
+    VpnHandshake,
+    #[error("vpn timeout")]
+    VpnTimeout,
+    #[error("vpn disconnected")]
+    VpnDisconnected,
 }
