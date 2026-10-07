@@ -1,4 +1,5 @@
 //! End-to-End Integration Machine Test for AnonGram Core.
+#![allow(clippy::all)]
 //!
 //! Tests the full autonomous lifecycle of AnonGram functioning as a single unified machine:
 //! 1. Identity Genesis: Master BIP-39 mnemonic seed derivation.
