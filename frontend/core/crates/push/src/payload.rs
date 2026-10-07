@@ -20,9 +20,7 @@ pub enum PushAction {
         plaintext: Vec<u8>,
     },
     /// Silent command to rotate server network endpoint dynamically
-    RotateServerEndpoint {
-        new_endpoint: String,
-    },
+    RotateServerEndpoint { new_endpoint: String },
     /// Wake up app background worker to pull messages from relay
     WakeAndSync,
     /// Emergency remote wipe signal (e.g. sent from master cold key)
@@ -87,7 +85,8 @@ impl PushProcessor {
         encrypted_blob: &[u8],
     ) -> Result<PushAction, PushError> {
         let aad = b"anongram/push/v1";
-        let mut plain = aead::open(session_key, aad, encrypted_blob).map_err(|_| PushError::AuthFailed)?;
+        let mut plain =
+            aead::open(session_key, aad, encrypted_blob).map_err(|_| PushError::AuthFailed)?;
 
         if plain.len() < 9 {
             // 8 bytes nonce + 1 byte tag

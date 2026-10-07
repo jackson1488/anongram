@@ -94,13 +94,15 @@ impl EncryptedStorage {
         }
 
         let aad = b"anongram/encrypted-storage/v1";
-        let mut plaintext = aead::open(key, aad, &ciphertext).map_err(|_| StorageError::CipherError)?;
+        let mut plaintext =
+            aead::open(key, aad, &ciphertext).map_err(|_| StorageError::CipherError)?;
 
         let mut offset = 0;
         let mut new_cache = HashMap::new();
 
         while offset + 4 <= plaintext.len() {
-            let k_len = u32::from_be_bytes(plaintext[offset..offset + 4].try_into().unwrap()) as usize;
+            let k_len =
+                u32::from_be_bytes(plaintext[offset..offset + 4].try_into().unwrap()) as usize;
             offset += 4;
             if offset + k_len > plaintext.len() {
                 break;
@@ -111,7 +113,8 @@ impl EncryptedStorage {
             if offset + 4 > plaintext.len() {
                 break;
             }
-            let v_len = u32::from_be_bytes(plaintext[offset..offset + 4].try_into().unwrap()) as usize;
+            let v_len =
+                u32::from_be_bytes(plaintext[offset..offset + 4].try_into().unwrap()) as usize;
             offset += 4;
             if offset + v_len > plaintext.len() {
                 break;

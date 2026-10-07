@@ -47,7 +47,8 @@ mod tests {
     #[test]
     fn test_biometric_release_and_purge() {
         let challenge = [0x77u8; 32];
-        let mut key = BiometricAuth::release_enclave_key(BiometricType::Fingerprint, &challenge).unwrap();
+        let mut key =
+            BiometricAuth::release_enclave_key(BiometricType::Fingerprint, &challenge).unwrap();
         assert_ne!(key, [0u8; KEY_LEN]);
 
         BiometricAuth::purge_key(&mut key);

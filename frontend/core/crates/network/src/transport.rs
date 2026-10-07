@@ -102,7 +102,10 @@ mod tests {
     #[test]
     fn test_network_manager_lifecycle_and_rotation() {
         let mut net = NetworkManager::new();
-        assert_eq!(net.send_packet(b"ping").err(), Some(NetworkError::Unconfigured));
+        assert_eq!(
+            net.send_packet(b"ping").err(),
+            Some(NetworkError::Unconfigured)
+        );
 
         // Configure dynamic IP
         net.rotate_endpoint_from_str("130.162.254.32:443").unwrap();
@@ -121,7 +124,8 @@ mod tests {
         assert_eq!(pkt_tcp.channel, TransportChannel::TcpStream);
 
         // Rotate to domain with API path
-        net.rotate_endpoint_from_str("cloud.neongram.space/api/v1").unwrap();
+        net.rotate_endpoint_from_str("cloud.neongram.space/api/v1")
+            .unwrap();
         assert_eq!(net.endpoint().unwrap().host, "cloud.neongram.space");
         assert_eq!(net.endpoint().unwrap().path, "/api/v1");
     }

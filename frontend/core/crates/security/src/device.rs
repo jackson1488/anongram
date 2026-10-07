@@ -96,10 +96,16 @@ mod tests {
 
         // Revoke stolen tablet
         mgr.revoke_device(&dev2_id).unwrap();
-        assert_eq!(mgr.is_trusted(&dev2_id).err(), Some(SecurityError::DeviceRevoked));
+        assert_eq!(
+            mgr.is_trusted(&dev2_id).err(),
+            Some(SecurityError::DeviceRevoked)
+        );
 
         // Unauthorized device
         let unknown = [99u8; 16];
-        assert_eq!(mgr.is_trusted(&unknown).err(), Some(SecurityError::DeviceUnauthorized));
+        assert_eq!(
+            mgr.is_trusted(&unknown).err(),
+            Some(SecurityError::DeviceUnauthorized)
+        );
     }
 }

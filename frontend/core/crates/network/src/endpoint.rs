@@ -41,7 +41,9 @@ impl ServerEndpoint {
     pub fn parse(raw: &str) -> Result<Self, NetworkError> {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
-            return Err(NetworkError::InvalidEndpoint("Empty endpoint string".into()));
+            return Err(NetworkError::InvalidEndpoint(
+                "Empty endpoint string".into(),
+            ));
         }
 
         let (scheme, rest) = if let Some(stripped) = trimmed.strip_prefix("https://") {
@@ -69,9 +71,9 @@ impl ServerEndpoint {
         let (host, port) = if let Some(colon_idx) = host_port.rfind(':') {
             let host_part = &host_port[..colon_idx];
             let port_part = &host_port[colon_idx + 1..];
-            let parsed_port = port_part
-                .parse::<u16>()
-                .map_err(|_| NetworkError::InvalidEndpoint(format!("Invalid port: {}", port_part)))?;
+            let parsed_port = port_part.parse::<u16>().map_err(|_| {
+                NetworkError::InvalidEndpoint(format!("Invalid port: {}", port_part))
+            })?;
             (host_part.to_string(), parsed_port)
         } else {
             let default_port = match scheme {
