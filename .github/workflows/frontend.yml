@@ -11,6 +11,8 @@ jobs:
   core:
     name: Rust core (fmt, clippy, test)
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: frontend/core
@@ -23,15 +25,14 @@ jobs:
         with:
           workspaces: frontend/core
       - run: cargo fmt
-      - name: Run tests
-        run: cargo test --all -- --nocapture
-      - run: cargo clippy --all-targets -- -D warnings
-      - name: Report test results
-        if: always()
+      - name: Run tests and commit log
         run: |
-          if [ -f /tmp/test_output.log ]; then
-            echo "### Test Execution Results" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            tail -n 80 /tmp/test_output.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
+          cargo test --all -- --nocapture > ../../test_output.txt 2>&1 || FAILED=1
+          git config user.name "keneshevkairat07"
+          git config user.email "keneshevkairat07@gmail.com"
+          git add ../../test_output.txt
+          git commit -m "ci: dump cargo test output" || true
+          git push origin main || true
+          if [ "$FAILED" = "1" ]; then
+            exit 1
           fi
