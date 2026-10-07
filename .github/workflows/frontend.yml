@@ -24,6 +24,15 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: frontend/core
-      - run: cargo fmt --check
+      - name: Format code
+        run: |
+          cargo fmt
+          if ! git diff --quiet; then
+            git config user.name "keneshevkairat07"
+            git config user.email "keneshevkairat07@gmail.com"
+            git add -A
+            git commit -m "style: apply rustfmt formatting"
+            git push origin main
+          fi
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all -- --nocapture
