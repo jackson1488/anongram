@@ -13,7 +13,7 @@
 [1m[92m      Adding[0m x25519-dalek v2.0.1 [1m[33m(available: v3.0.0)[0m
 [1m[92m      Adding[0m zstd v0.13.3 [1m[33m(available: v0.14.0)[0m
 [1m[92m   Compiling[0m anongram_core v0.1.0 (/home/runner/work/anongram/anongram/frontend/core)
-[1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 27.78s
+[1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 13.92s
 [1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/anongram_core-156aa86c99bb71ff)
 
 running 43 tests
@@ -25,8 +25,8 @@ test aead::tests::wrong_aad_fails ... ok
 test aead::tests::wrong_key_fails ... ok
 test kem::tests::malformed_lengths_are_rejected ... ok
 test kem::tests::different_runs_give_different_secrets ... ok
-test kem::tests::both_sides_agree ... ok
 test kem::tests::tampered_mlkem_part_changes_secret ... ok
+test kem::tests::both_sides_agree ... ok
 test manifest::tests::test_wireless_shield_level ... ok
 test media::tests::test_heic_avif_stripping ... ok
 test media::tests::test_svg_xml_stripping ... ok
@@ -37,32 +37,32 @@ test otp::tests::test_tampering_rejected_by_mac ... ok
 test otp::tests::test_two_ended_allocation_and_roundtrip ... ok
 test otp::tests::test_xor_pad_buffers ... ok
 test kem::tests::wrong_recipient_gets_different_secret ... ok
-BENCHMARK: 2MB Seal in 34.188612ms, Open in 3.971868ms. Compressed from 2097225 to 308 bytes
+BENCHMARK: 2MB Seal in 33.45165ms, Open in 3.833353ms. Compressed from 2097225 to 308 bytes
 test media::tests::test_telegram_speed_and_compression_benchmark ... ok
 test manifest::tests::test_manifest_sign_and_shield_level ... ok
 test passport::tests::foreign_key_cannot_sign ... ok
-test passport::tests::profile_cannot_move_to_another_version ... ok
-test passport::tests::profile_decrypts_only_with_right_key ... ok
-test passport::tests::restore_on_new_device_gives_same_public_id ... ok
-test seed::tests::bad_checksum_and_word_count_rejected ... ok
 test passport::tests::newer_version_supersedes_older_only ... ok
+test passport::tests::profile_decrypts_only_with_right_key ... ok
+test passport::tests::profile_cannot_move_to_another_version ... ok
+test seed::tests::bad_checksum_and_word_count_rejected ... ok
 test seed::tests::bip39_official_test_vector ... ok
+test passport::tests::restore_on_new_device_gives_same_public_id ... ok
 test seed::tests::labels_are_independent ... ok
 test seed::tests::generated_phrase_restores_same_seed ... ok
 test passport::tests::roundtrip_and_verify ... ok
 test seed::tests::passphrase_changes_identity ... ok
 test seed::tests::same_phrase_same_identity ... ok
 test sign::tests::broken_ed25519_part_fails ... ok
-test sign::tests::broken_mldsa_part_fails ... ok
-test sign::tests::malformed_key_is_rejected ... ok
 test sign::tests::same_seeds_give_same_keys ... ok
+test sign::tests::malformed_key_is_rejected ... ok
+test sign::tests::broken_mldsa_part_fails ... ok
 test sign::tests::sign_and_verify ... ok
 test tests::version_is_not_empty ... ok
-test sign::tests::wrong_key_fails ... ok
 test sign::tests::wrong_message_fails ... ok
+test sign::tests::wrong_key_fails ... ok
 test passport::tests::tampering_is_always_detected ... ok
 
-test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.73s
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.68s
 
 [1m[92m   Doc-tests[0m anongram_core
 
