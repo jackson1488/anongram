@@ -13,103 +13,122 @@
 [1m[92m      Adding[0m x25519-dalek v2.0.1 [1m[33m(available: v3.0.0)[0m
 [1m[92m      Adding[0m zstd v0.13.3 [1m[33m(available: v0.14.0)[0m
 [1m[92m Downloading[0m crates ...
-[1m[92m  Downloaded[0m cc v1.6.0
 [1m[92m  Downloaded[0m errno v0.3.14
 [1m[92m  Downloaded[0m ctutils v0.4.3
 [1m[92m  Downloaded[0m find-msvc-tools v0.1.14
-[1m[92m  Downloaded[0m jobserver v0.1.35
 [1m[92m  Downloaded[0m fastrand v2.5.0
-[1m[92m  Downloaded[0m getrandom v0.4.3
 [1m[92m  Downloaded[0m bitflags v2.13.2
-[1m[92m  Downloaded[0m once_cell v1.21.4
+[1m[92m  Downloaded[0m getrandom v0.4.3
+[1m[92m  Downloaded[0m jobserver v0.1.35
 [1m[92m  Downloaded[0m pkg-config v0.3.34
-[1m[92m  Downloaded[0m rustix v1.1.5
-[1m[92m  Downloaded[0m linux-raw-sys v0.12.1
+[1m[92m  Downloaded[0m once_cell v1.21.4
+[1m[92m  Downloaded[0m cc v1.6.0
 [1m[92m  Downloaded[0m shlex v2.0.1
+[1m[92m  Downloaded[0m rustix v1.1.5
 [1m[92m  Downloaded[0m spki v0.8.1
 [1m[92m  Downloaded[0m tempfile v3.27.0
-[1m[92m  Downloaded[0m zerocopy v0.8.61
+[1m[92m  Downloaded[0m linux-raw-sys v0.12.1
+[1m[92m  Downloaded[0m zstd-safe v7.3.0
 [1m[92m  Downloaded[0m zeroize v1.9.1
 [1m[92m  Downloaded[0m zstd v0.13.3
-[1m[92m  Downloaded[0m zstd-safe v7.3.0
+[1m[92m  Downloaded[0m zerocopy v0.8.61
 [1m[92m  Downloaded[0m zstd-sys v2.1.0+zstd.1.5.7
 [1m[92m   Compiling[0m libc v0.2.190
 [1m[92m   Compiling[0m zeroize v1.9.1
 [1m[92m   Compiling[0m ctutils v0.4.3
 [1m[92m   Compiling[0m find-msvc-tools v0.1.14
 [1m[92m   Compiling[0m shlex v2.0.1
-[1m[92m   Compiling[0m hybrid-array v0.4.15
 [1m[92m   Compiling[0m pkg-config v0.3.34
+[1m[92m   Compiling[0m hybrid-array v0.4.15
 [1m[92m   Compiling[0m zerocopy v0.8.61
 [1m[92m   Compiling[0m zstd-safe v7.3.0
-[1m[92m   Compiling[0m crypto-common v0.2.2
 [1m[92m   Compiling[0m cipher v0.4.4
-[1m[92m   Compiling[0m digest v0.11.3
 [1m[92m   Compiling[0m curve25519-dalek v4.1.3
-[1m[92m   Compiling[0m getrandom v0.4.3
+[1m[92m   Compiling[0m crypto-common v0.2.2
+[1m[92m   Compiling[0m jobserver v0.1.35
+[1m[92m   Compiling[0m cc v1.6.0
+[1m[92m   Compiling[0m digest v0.11.3
 [1m[92m   Compiling[0m rustix v1.1.5
+[1m[92m   Compiling[0m getrandom v0.4.3
 [1m[92m   Compiling[0m shake v0.1.0
 [1m[92m   Compiling[0m module-lattice v0.2.3
 [1m[92m   Compiling[0m signature v3.0.0
 [1m[92m   Compiling[0m chacha20 v0.9.1
-[1m[92m   Compiling[0m jobserver v0.1.35
-[1m[92m   Compiling[0m cc v1.6.0
 [1m[92m   Compiling[0m kem v0.3.0-pre.0
-[1m[92m   Compiling[0m linux-raw-sys v0.12.1
 [1m[92m   Compiling[0m bitflags v2.13.2
+[1m[92m   Compiling[0m linux-raw-sys v0.12.1
 [1m[92m   Compiling[0m ml-kem v0.2.3
+[1m[92m   Compiling[0m zstd-sys v2.1.0+zstd.1.5.7
 [1m[92m   Compiling[0m chacha20poly1305 v0.10.1
 [1m[92m   Compiling[0m ed25519-dalek v2.2.0
-[1m[92m   Compiling[0m zstd-sys v2.1.0+zstd.1.5.7
-[1m[92m   Compiling[0m ppv-lite86 v0.2.21
-[1m[92m   Compiling[0m x25519-dalek v2.0.1
 [1m[92m   Compiling[0m ml-dsa v0.1.1
+[1m[92m   Compiling[0m ppv-lite86 v0.2.21
 [1m[92m   Compiling[0m rand_chacha v0.3.1
+[1m[92m   Compiling[0m rand v0.8.8
+[1m[92m   Compiling[0m x25519-dalek v2.0.1
 [1m[92m   Compiling[0m once_cell v1.21.4
 [1m[92m   Compiling[0m fastrand v2.5.0
-[1m[92m   Compiling[0m rand v0.8.8
 [1m[92m   Compiling[0m tempfile v3.27.0
 [1m[92m   Compiling[0m zstd v0.13.3
 [1m[92m   Compiling[0m anongram_core v0.1.0 (/home/runner/work/anongram/anongram/frontend/core)
-[1m[33mwarning[0m[1m: unused import: `File`[0m
-  [1m[94m--> [0msrc/otp.rs:15:15
-   [1m[94m|[0m
-[1m[94m15[0m [1m[94m|[0m use std::fs::{File, OpenOptions};
-   [1m[94m|[0m               [1m[33m^^^^[0m
-   [1m[94m|[0m
-   [1m[94m= [0m[1mnote[0m: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+[1m[92m    Finished[0m `test` profile [unoptimized + debuginfo] target(s) in 11.78s
+[1m[92m     Running[0m unittests src/lib.rs (target/debug/deps/anongram_core-156aa86c99bb71ff)
 
-[1m[91merror[E0502][0m[1m: cannot borrow `out` as mutable because it is also borrowed as immutable[0m
-   [1m[94m--> [0msrc/media.rs:431:21
-    [1m[94m|[0m
-[1m[94m424[0m [1m[94m|[0m                 let sub_type = &out[j + 4..j + 8];
-    [1m[94m|[0m                                 [1m[94m---[0m [1m[94mimmutable borrow occurs here[0m
-[1m[94m...[0m
-[1m[94m431[0m [1m[94m|[0m                     out[j + 4..j + 8].copy_from_slice(b"free");
-    [1m[94m|[0m                     [1m[91m^^^[0m [1m[91mmutable borrow occurs here[0m
-[1m[94m...[0m
-[1m[94m438[0m [1m[94m|[0m                 if sub_type == b"mvhd" && sub_size >= 24 {
-    [1m[94m|[0m                    [1m[94m--------[0m [1m[94mimmutable borrow later used here[0m
-    [1m[94m|[0m
-    [1m[94m= [0m[1mhelp[0m: use `.split_at_mut(position)` to obtain two mutable non-overlapping sub-slices
+running 43 tests
+test aead::tests::too_short_is_malformed ... ok
+test aead::tests::tampering_fails ... ok
+test aead::tests::nonces_are_unique ... ok
+test aead::tests::roundtrip ... ok
+test aead::tests::wrong_key_fails ... ok
+test aead::tests::wrong_aad_fails ... ok
+test kem::tests::malformed_lengths_are_rejected ... ok
+test kem::tests::different_runs_give_different_secrets ... ok
+test kem::tests::both_sides_agree ... ok
+test kem::tests::tampered_mlkem_part_changes_secret ... ok
+test manifest::tests::test_wireless_shield_level ... ok
+test media::tests::test_heic_avif_stripping ... ok
+test media::tests::test_svg_xml_stripping ... ok
+test kem::tests::tampered_x25519_part_changes_secret ... ok
+test media::tests::test_text_zero_width_watermark_stripping ... ok
+test otp::tests::test_reserve_limits_prevent_starvation ... ok
+test otp::tests::test_tampering_rejected_by_mac ... ok
 
-[1m[91merror[E0502][0m[1m: cannot borrow `out` as mutable because it is also borrowed as immutable[0m
-   [1m[94m--> [0msrc/media.rs:432:35
-    [1m[94m|[0m
-[1m[94m424[0m [1m[94m|[0m                 let sub_type = &out[j + 4..j + 8];
-    [1m[94m|[0m                                 [1m[94m---[0m [1m[94mimmutable borrow occurs here[0m
-[1m[94m...[0m
-[1m[94m432[0m [1m[94m|[0m                     for b in &mut out[j + 8..j + sub_size] {
-    [1m[94m|[0m                                   [1m[91m^^^[0m [1m[91mmutable borrow occurs here[0m
-[1m[94m...[0m
-[1m[94m438[0m [1m[94m|[0m                 if sub_type == b"mvhd" && sub_size >= 24 {
-    [1m[94m|[0m                    [1m[94m--------[0m [1m[94mimmutable borrow later used here[0m
-    [1m[94m|[0m
-    [1m[94m= [0m[1mhelp[0m: use `.split_at_mut(position)` to obtain two mutable non-overlapping sub-slices
+thread 'otp::tests::test_two_ended_allocation_and_roundtrip' (3102) panicked at src/otp.rs:322:54:
+called `Result::unwrap()` on an `Err` value: Decrypt
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test otp::tests::test_two_ended_allocation_and_roundtrip ... FAILED
+test otp::tests::test_xor_pad_buffers ... ok
+test kem::tests::wrong_recipient_gets_different_secret ... ok
+BENCHMARK: 2MB Seal in 35.571665ms, Open in 3.529509ms. Compressed from 2097225 to 308 bytes
+test media::tests::test_telegram_speed_and_compression_benchmark ... ok
+test manifest::tests::test_manifest_sign_and_shield_level ... ok
+test passport::tests::foreign_key_cannot_sign ... ok
+test passport::tests::profile_cannot_move_to_another_version ... ok
+test passport::tests::newer_version_supersedes_older_only ... ok
+test passport::tests::roundtrip_and_verify ... ok
+test seed::tests::bad_checksum_and_word_count_rejected ... ok
+test seed::tests::bip39_official_test_vector ... ok
+test passport::tests::profile_decrypts_only_with_right_key ... ok
+test passport::tests::restore_on_new_device_gives_same_public_id ... ok
+test seed::tests::labels_are_independent ... ok
+test seed::tests::generated_phrase_restores_same_seed ... ok
+test seed::tests::passphrase_changes_identity ... ok
+test sign::tests::broken_ed25519_part_fails ... ok
+test sign::tests::broken_mldsa_part_fails ... ok
+test seed::tests::same_phrase_same_identity ... ok
+test sign::tests::malformed_key_is_rejected ... ok
+test sign::tests::sign_and_verify ... ok
+test sign::tests::same_seeds_give_same_keys ... ok
+test tests::version_is_not_empty ... ok
+test sign::tests::wrong_message_fails ... ok
+test sign::tests::wrong_key_fails ... ok
+test passport::tests::tampering_is_always_detected ... ok
 
-[1mFor more information about this error, try `rustc --explain E0502`.[0m
-[1m[33mwarning[0m: `anongram_core` (lib) generated 1 warning
-[1m[91merror[0m: could not compile `anongram_core` (lib) due to 2 previous errors; 1 warning emitted
-[1m[33mwarning[0m: build failed, waiting for other jobs to finish...
-[1m[33mwarning[0m: `anongram_core` (lib test) generated 1 warning (1 duplicate)
-[1m[91merror[0m: could not compile `anongram_core` (lib test) due to 2 previous errors; 1 warning emitted
+failures:
+
+failures:
+    otp::tests::test_two_ended_allocation_and_roundtrip
+
+test result: FAILED. 42 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.89s
+
+[1m[91merror[0m: test failed, to rerun pass `--lib`
