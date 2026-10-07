@@ -1,0 +1,13 @@
+[package]
+name = "storage"
+version = "0.1.0"
+edition = "2021"
+description = "Encrypted Local Storage and Database with Hardware Panic Wipe"
+
+[dependencies]
+crypto = { path = "../crypto" }
+thiserror = "1"
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

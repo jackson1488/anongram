@@ -1,0 +1,10 @@
+[package]
+name = "network"
+version = "0.1.0"
+edition = "2021"
+description = "Dual-Channel TCP/UDP Network Transport with Dynamic Endpoints"
+
+[dependencies]
+crypto = { path = "../crypto" }
+thiserror = "1"
+zeroize = { version = "1", features = ["derive"] }

@@ -1,0 +1,11 @@
+[package]
+name = "push"
+version = "0.1.0"
+edition = "2021"
+description = "Stealth Push Notification Decryptor and Silent Command Executor"
+
+[dependencies]
+crypto = { path = "../crypto" }
+network = { path = "../network" }
+thiserror = "1"
+zeroize = { version = "1", features = ["derive"] }

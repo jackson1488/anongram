@@ -1,0 +1,13 @@
+[package]
+name = "security"
+version = "0.1.0"
+edition = "2021"
+description = "Biometrics, Argon2id Passwords, and Trusted Device Management"
+
+[dependencies]
+crypto = { path = "../crypto" }
+identity = { path = "../identity" }
+sha2 = "0.10"
+hkdf = "0.12"
+thiserror = "1"
+zeroize = { version = "1", features = ["derive"] }

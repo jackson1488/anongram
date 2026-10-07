@@ -12,6 +12,10 @@ members = [
     "crates/media",
     "crates/identity",
     "crates/vpn",
+    "crates/network",
+    "crates/push",
+    "crates/security",
+    "crates/storage",
 ]
 
 [lib]
@@ -24,6 +28,10 @@ otp = { path = "crates/otp" }
 media = { path = "crates/media" }
 identity = { path = "crates/identity" }
 vpn = { path = "crates/vpn" }
+network = { path = "crates/network" }
+push = { path = "crates/push" }
+security = { path = "crates/security" }
+storage = { path = "crates/storage" }
 thiserror = "1"
 
 [dev-dependencies]

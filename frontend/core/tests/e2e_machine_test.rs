@@ -198,5 +198,90 @@ fn test_full_autonomous_core_machine() {
         .expect("Unwrap Reality");
     assert_eq!(unwrapped_reality, sealed_media);
 
-    println!("=== ALL MODULES INTEGRATED AND FUNCTIONING AS ONE MACHINE ===");
+    println!("=== 8. NETWORK DUAL-CHANNEL & ZERO-HARDCODED ENDPOINTS ===");
+    use anongram_core::network::{NetworkManager, TransportChannel};
+    let mut network = NetworkManager::new();
+    // Configure dynamically from arbitrary string
+    network
+        .rotate_endpoint_from_str("130.162.254.32:8443")
+        .expect("Rotate IP");
+    assert_eq!(network.endpoint().unwrap().host, "130.162.254.32");
+    assert_eq!(network.endpoint().unwrap().port, 8443);
+
+    let udp_packet = network.send_packet(b"UDP_FAST_DATA").unwrap();
+    assert_eq!(udp_packet.channel, TransportChannel::UdpDatagram);
+
+    // DPI block UDP -> failover to TCP
+    network.failover_to_tcp();
+    let tcp_packet = network.send_packet(b"TCP_STREAM_DATA").unwrap();
+    assert_eq!(tcp_packet.channel, TransportChannel::TcpStream);
+
+    println!("=== 9. STEALTH PUSH NOTIFICATION & COMMAND DISPATCH ===");
+    use anongram_core::push::{PushAction, PushProcessor};
+    let mut push_proc = PushProcessor::new();
+    let push_session_key: [u8; KEY_LEN] = [0x7A; KEY_LEN];
+
+    // Push Action 1: Incoming message from Alice
+    let push_msg = PushAction::IncomingMessage {
+        sender_id: [0x01; 32],
+        plaintext: b"Alice: Meet at safehouse B".to_vec(),
+    };
+    let packed_push = PushProcessor::pack_push_payload(&push_session_key, 1, &push_msg).unwrap();
+    let unpacked_push = push_proc
+        .unpack_push_payload(&push_session_key, &packed_push)
+        .unwrap();
+    match unpacked_push {
+        PushAction::IncomingMessage { plaintext, .. } => {
+            assert_eq!(plaintext, b"Alice: Meet at safehouse B");
+        }
+        _ => panic!("Expected incoming message"),
+    }
+
+    // Push Action 2: Silent command to rotate server endpoint
+    let rotate_cmd = PushAction::RotateServerEndpoint {
+        new_endpoint: "cloud.neongram.space:443/api/v2".to_string(),
+    };
+    let packed_cmd = PushProcessor::pack_push_payload(&push_session_key, 2, &rotate_cmd).unwrap();
+    let unpacked_cmd = push_proc
+        .unpack_push_payload(&push_session_key, &packed_cmd)
+        .unwrap();
+    if let PushAction::RotateServerEndpoint { new_endpoint } = unpacked_cmd {
+        network.rotate_endpoint_from_str(&new_endpoint).unwrap();
+        assert_eq!(network.endpoint().unwrap().host, "cloud.neongram.space");
+        assert_eq!(network.endpoint().unwrap().path, "/api/v2");
+    } else {
+        panic!("Expected rotate endpoint command");
+    }
+
+    println!("=== 10. LOCAL SECURITY & TRUSTED DEVICE MANAGEMENT ===");
+    use anongram_core::security::{BiometricAuth, BiometricType, DeviceManager, PasswordKdf};
+    let salt = [0x55u8; 16];
+    let db_pass_key =
+        PasswordKdf::derive_key("UserSecureMasterPassword!", &salt).expect("KDF derive");
+    let bio_challenge = [0x33u8; 32];
+    let mut enclave_key =
+        BiometricAuth::release_enclave_key(BiometricType::Fingerprint, &bio_challenge)
+            .expect("Biometric release");
+    assert_ne!(enclave_key, [0u8; KEY_LEN]);
+    BiometricAuth::purge_key(&mut enclave_key);
+
+    let mut dev_mgr = DeviceManager::new();
+    let dev_phone = [1u8; 16];
+    dev_mgr.register_device(dev_phone, "Pixel 9", [0x11; 32], 1700000000);
+    assert_eq!(dev_mgr.is_trusted(&dev_phone).unwrap(), true);
+
+    println!("=== 11. ENCRYPTED DATABASE & PANIC WIPE ===");
+    use anongram_core::storage::EncryptedStorage;
+    let storage_file = NamedTempFile::new().unwrap();
+    let storage_path = storage_file.path().to_path_buf();
+
+    let mut db = EncryptedStorage::open(&storage_path, db_pass_key).expect("Open encrypted db");
+    db.put("secret_contact", b"Agent 007").unwrap();
+    assert_eq!(db.get("secret_contact").unwrap(), b"Agent 007");
+
+    // Execute Panic Wipe
+    db.panic_wipe().expect("Panic wipe");
+    assert!(!storage_path.exists());
+
+    println!("=== ALL 9 MODULES FULLY INTEGRATED AND FUNCTIONING AS ONE MACHINE ===");
 }

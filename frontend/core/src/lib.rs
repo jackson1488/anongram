@@ -6,11 +6,19 @@
 //! - `media`: 20+ format metadata sanitization, Zstd compression, and encrypted blobs.
 //! - `identity`: BIP-39 mnemonic engine and signed Passport Blob.
 //! - `vpn`: Multi-line anti-censorship VPN (AmneziaWG, Shadowsocks 2022, VLESS-Reality).
+//! - `network`: Dual-channel TCP/UDP transport with dynamic zero-hardcoded server endpoints.
+//! - `push`: Stealth background push decryptor and silent command executor (FCM/APNs).
+//! - `security`: Biometrics, Argon2id passwords, and trusted device registry with revocation.
+//! - `storage`: Encrypted page-level local database with hardware panic wipe.
 
 pub use crypto;
 pub use identity;
 pub use media;
+pub use network;
 pub use otp;
+pub use push;
+pub use security;
+pub use storage;
 pub use vpn;
 
 /// Core version string.
