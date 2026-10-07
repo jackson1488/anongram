@@ -418,13 +418,14 @@ fn strip_isobmff_metadata(data: &[u8]) -> Vec<u8> {
             let mut j = i + 8;
             while j + 8 <= atom_end {
                 let sub_size = u32::from_be_bytes(out[j..j + 4].try_into().unwrap()) as usize;
-                let sub_type = &out[j + 4..j + 8];
+                let mut sub_type = [0u8; 4];
+                sub_type.copy_from_slice(&out[j + 4..j + 8]);
                 if sub_size < 8 || j + sub_size > atom_end {
                     break;
                 }
 
                 // Neutralize udta (GPS, camera info, author tags) & meta
-                if sub_type == b"udta" || sub_type == b"meta" || sub_type == b"ilst" {
+                if &sub_type == b"udta" || &sub_type == b"meta" || &sub_type == b"ilst" {
                     out[j + 4..j + 8].copy_from_slice(b"free");
                     for b in &mut out[j + 8..j + sub_size] {
                         *b = 0;
@@ -432,7 +433,7 @@ fn strip_isobmff_metadata(data: &[u8]) -> Vec<u8> {
                 }
 
                 // Zero out creation/modification timestamps in mvhd (Movie Header)
-                if sub_type == b"mvhd" && sub_size >= 24 {
+                if &sub_type == b"mvhd" && sub_size >= 24 {
                     for b in &mut out[j + 12..j + 20] {
                         *b = 0;
                     }

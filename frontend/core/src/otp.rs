@@ -12,7 +12,7 @@
 //! - Strict Zeroize: Used pad bytes are securely wiped with zeroize/zeros in memory and storage.
 //! - Out-of-order tolerance: explicitly indexed chunks reject rewinds or re-use.
 
-use std::fs::{File, OpenOptions};
+use std::fs::OpenOptions;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use zeroize::Zeroize;
