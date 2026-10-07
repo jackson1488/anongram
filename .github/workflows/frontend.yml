@@ -24,18 +24,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: frontend/core
-      - run: cargo fmt
-      - name: Run tests and commit log
-        run: |
-          cargo test --all -- --nocapture > ../../test_output.txt 2>&1 || FAILED=1
-          git config user.name "keneshevkairat07"
-          git config user.email "keneshevkairat07@gmail.com"
-          git add ../../test_output.txt
-          git commit -m "ci: dump cargo test output" || true
-          git push origin main || true
-          if [ "$FAILED" = "1" ]; then
-            exit 1
-          fi
-      - name: Run Clippy
-        run: |
-          cargo clippy --all-targets -- -D warnings > ../../clippy_output.txt 2>&1 || (git add ../../clippy_output.txt && git commit -m "ci: dump clippy output" && git push origin main && exit 1)
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test --all -- --nocapture
