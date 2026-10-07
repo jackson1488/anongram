@@ -25,3 +25,6 @@ media = { path = "crates/media" }
 identity = { path = "crates/identity" }
 vpn = { path = "crates/vpn" }
 thiserror = "1"
+
+[dev-dependencies]
+tempfile = "3"
