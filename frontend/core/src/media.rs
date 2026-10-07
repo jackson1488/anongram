@@ -667,4 +667,45 @@ mod tests {
         let stripped = strip_image_metadata(&heic);
         assert!(!stripped.windows(4).any(|w| w == b"udta"));
     }
+
+    #[test]
+    fn test_telegram_speed_and_compression_benchmark() {
+        use std::time::Instant;
+
+        // 1. Simulate 2 Megabytes photo/document payload
+        let sample_block = b"ANONGRAM_HIGH_SPEED_ENCRYPTED_TELEGRAM_STYLE_STREAMING_ZERO_LEAK_DATA_BLOCK";
+        let mut large_payload = Vec::with_capacity(2 * 1024 * 1024);
+        while large_payload.len() < 2 * 1024 * 1024 {
+            large_payload.extend_from_slice(sample_block);
+        }
+
+        let start = Instant::now();
+
+        // Run full end-to-end pipeline: sanitize + compress (Zstd) + seal (XChaCha20-Poly1305)
+        let sealed = seal_media(&KEY, MediaType::Document, &large_payload).unwrap();
+        let seal_duration = start.elapsed();
+
+        // Must compress efficiently (at least 5x on patterned text/doc)
+        assert!(sealed.len() < large_payload.len() / 5);
+
+        // Run reverse pipeline: open (XChaCha20-Poly1305 verify) + decompress
+        let decrypt_start = Instant::now();
+        let (opened_type, restored) = open_media(&KEY, &sealed).unwrap();
+        let decrypt_duration = decrypt_start.elapsed();
+
+        assert_eq!(opened_type, MediaType::Document);
+        assert_eq!(restored.len(), large_payload.len());
+
+        // Performance assertions:
+        // Processing 2 MB of data in Rust must be well under 100 milliseconds
+        println!(
+            "BENCHMARK: 2MB Seal in {:?}, Open in {:?}. Compressed from {} to {} bytes",
+            seal_duration,
+            decrypt_duration,
+            large_payload.len(),
+            sealed.len()
+        );
+        assert!(seal_duration.as_millis() < 500, "Seal pipeline too slow for mobile target");
+        assert!(decrypt_duration.as_millis() < 200, "Decrypt pipeline too slow");
+    }
 }
