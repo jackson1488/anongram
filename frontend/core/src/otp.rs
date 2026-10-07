@@ -87,11 +87,7 @@ impl OtpStorage {
     }
 
     pub fn remaining_bytes(&self) -> u64 {
-        if self.tail >= self.head {
-            self.tail - self.head
-        } else {
-            0
-        }
+        self.tail.saturating_sub(self.head)
     }
 
     /// Checks if local side has budget to encrypt `payload_len` bytes (+ 32 bytes for MAC key).
@@ -110,7 +106,7 @@ impl OtpStorage {
                 let limit = self.tail.min(b_boundary);
                 self.head
                     .checked_add(needed)
-                    .map_or(false, |next| next <= limit)
+                    .is_some_and(|next| next <= limit)
             }
             PadSide::SideB => {
                 // Must not intrude into Side A's guaranteed reserve
@@ -118,7 +114,7 @@ impl OtpStorage {
                 let limit = self.head.max(a_boundary);
                 self.tail
                     .checked_sub(needed)
-                    .map_or(false, |next| next >= limit)
+                    .is_some_and(|next| next >= limit)
             }
         }
     }

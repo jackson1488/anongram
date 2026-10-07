@@ -549,12 +549,8 @@ fn strip_text_metadata(data: &[u8]) -> Vec<u8> {
     if cur.len() >= 3 && &cur[0..3] == b"\xEF\xBB\xBF" {
         cur = &cur[3..];
     }
-    // Strip UTF-16 LE BOM (0xFF 0xFE)
-    else if cur.len() >= 2 && &cur[0..2] == b"\xFF\xFE" {
-        cur = &cur[2..];
-    }
-    // Strip UTF-16 BE BOM (0xFE 0xFF)
-    else if cur.len() >= 2 && &cur[0..2] == b"\xFE\xFF" {
+    // Strip UTF-16 LE BOM (0xFF 0xFE) or UTF-16 BE BOM (0xFE 0xFF)
+    else if cur.len() >= 2 && (&cur[0..2] == b"\xFF\xFE" || &cur[0..2] == b"\xFE\xFF") {
         cur = &cur[2..];
     }
 
@@ -566,7 +562,7 @@ fn strip_text_metadata(data: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(cur.len());
     let mut i = 0;
     while i < cur.len() {
-        if i + 3 <= cur.len() && cur[i] == 0xE2 && cur[i + 1] == 0x80 && matches!(cur[i + 2], 0x8B | 0x8C | 0x8D) {
+        if i + 3 <= cur.len() && cur[i] == 0xE2 && cur[i + 1] == 0x80 && matches!(cur[i + 2], 0x8B..=0x8D) {
             i += 3; // Skip invisible watermark
             continue;
         }
