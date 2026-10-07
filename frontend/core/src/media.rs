@@ -74,12 +74,68 @@ pub fn strip_audio_metadata(data: &[u8]) -> Vec<u8> {
     current.to_vec()
 }
 
+/// Strips all MP4/MOV/WebM video metadata (udta atom, meta atom, timestamps in mvhd/tkhd).
+pub fn strip_video_metadata(data: &[u8]) -> Vec<u8> {
+    if data.len() < 8 {
+        return data.to_vec();
+    }
+
+    let mut out = data.to_vec();
+    let mut i = 0;
+
+    // Traverse top-level ISO BMFF (MP4/MOV) atoms
+    while i + 8 <= out.len() {
+        let size = u32::from_be_bytes(out[i..i + 4].try_into().unwrap()) as usize;
+        let atom_type = &out[i + 4..i + 8];
+
+        if size < 8 || i + size > out.len() {
+            break;
+        }
+
+        // If 'moov' atom is found, neutralize user-data 'udta' and wipe creation timestamps
+        if atom_type == b"moov" {
+            let moov_end = i + size;
+            let mut j = i + 8;
+            while j + 8 <= moov_end {
+                let sub_size = u32::from_be_bytes(out[j..j + 4].try_into().unwrap()) as usize;
+                let sub_type = &out[j + 4..j + 8];
+                if sub_size < 8 || j + sub_size > moov_end {
+                    break;
+                }
+
+                // If 'udta' (User Data with GPS ©xyz, camera model), overwrite with zeroes / free atom
+                if sub_type == b"udta" || sub_type == b"meta" {
+                    // Turn atom into 'free' atom so container layout stays valid without metadata
+                    out[j + 4..j + 8].copy_from_slice(b"free");
+                    for b in &mut out[j + 8..j + sub_size] {
+                        *b = 0;
+                    }
+                }
+
+                // If 'mvhd' (Movie Header), zero out creation_time and modification_time (bytes 12..20)
+                if sub_type == b"mvhd" && sub_size >= 24 {
+                    for b in &mut out[j + 12..j + 20] {
+                        *b = 0;
+                    }
+                }
+
+                j += sub_size;
+            }
+        }
+
+        i += size;
+    }
+
+    out
+}
+
 /// Sanitizes any media depending on its type before compression and encryption.
 pub fn sanitize_media_payload(media_type: MediaType, raw: &[u8]) -> Vec<u8> {
     match media_type {
         MediaType::Image => strip_image_metadata(raw),
         MediaType::Voice => strip_audio_metadata(raw),
-        MediaType::Video | MediaType::Document => raw.to_vec(),
+        MediaType::Video => strip_video_metadata(raw),
+        MediaType::Document => raw.to_vec(),
     }
 }
 
