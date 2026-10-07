@@ -185,7 +185,7 @@ impl VlessRealityEngine {
         }
 
         // Verify UUID & Short ID
-        if plain[0] != 0x00 || &plain[1..17] != &self.config.uuid {
+        if plain[0] != 0x00 || plain[1..17] != self.config.uuid {
             plain.zeroize();
             return Err(CoreError::VpnHandshake);
         }
