@@ -23,5 +23,16 @@ jobs:
         with:
           workspaces: frontend/core
       - run: cargo fmt
-      - run: cargo test --all -- --nocapture
+      - name: Run tests and save log
+        run: |
+          cargo test --all -- --nocapture > /tmp/test_output.log 2>&1 || (cp /tmp/test_output.log test_result.log && exit 1)
       - run: cargo clippy --all-targets -- -D warnings
+      - name: Save failed log
+        if: failure()
+        run: |
+          git config user.name "keneshevkairat07"
+          git config user.email "keneshevkairat07@gmail.com"
+          git checkout -B test-log-branch
+          git add test_result.log || true
+          git commit -m "ci: test failures log" || true
+          git push -f origin test-log-branch || true
