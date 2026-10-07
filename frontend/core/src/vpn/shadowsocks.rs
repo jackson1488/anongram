@@ -8,8 +8,8 @@
 //! - Zero memory footprint (< 120 KB RAM).
 
 use hkdf::Hkdf;
-use sha2::Sha256;
 use rand::RngCore;
+use sha2::Sha256;
 use zeroize::Zeroize;
 
 use crate::aead::{self, KEY_LEN};

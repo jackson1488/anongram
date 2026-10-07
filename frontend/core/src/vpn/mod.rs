@@ -171,7 +171,10 @@ mod tests {
         .unwrap();
 
         let orchestrator_size = std::mem::size_of_val(&orch);
-        println!("VPN Orchestrator memory footprint: {} bytes", orchestrator_size);
+        println!(
+            "VPN Orchestrator memory footprint: {} bytes",
+            orchestrator_size
+        );
 
         // Even with active buffers, orchestrator is < 50 KB, orders of magnitude under the 9 MB budget
         assert!(orchestrator_size < 1024 * 1024);

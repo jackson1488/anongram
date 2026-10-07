@@ -160,7 +160,10 @@ fn strip_png_metadata(data: &[u8]) -> Vec<u8> {
         }
 
         // Drop ancillary chunks (tEXt, zTXt, iTXt, eXIf, tIME, pHYs)
-        let is_meta = matches!(chunk_type, b"tEXt" | b"zTXt" | b"iTXt" | b"eXIf" | b"tIME" | b"pHYs");
+        let is_meta = matches!(
+            chunk_type,
+            b"tEXt" | b"zTXt" | b"iTXt" | b"eXIf" | b"tIME" | b"pHYs"
+        );
         if !is_meta {
             out.extend_from_slice(&data[i..chunk_end]);
         }
@@ -493,7 +496,12 @@ pub fn strip_document_metadata(data: &[u8]) -> Vec<u8> {
 
 fn strip_pdf_metadata(data: &[u8]) -> Vec<u8> {
     let mut out = data.to_vec();
-    let targets = [b"/Info ".as_slice(), b"/Metadata ".as_slice(), b"/CreationDate".as_slice(), b"/ModDate".as_slice()];
+    let targets = [
+        b"/Info ".as_slice(),
+        b"/Metadata ".as_slice(),
+        b"/CreationDate".as_slice(),
+        b"/ModDate".as_slice(),
+    ];
     for target in targets {
         let mut i = 0;
         while i + target.len() <= out.len() {
@@ -511,7 +519,11 @@ fn strip_pdf_metadata(data: &[u8]) -> Vec<u8> {
 fn strip_zip_metadata(data: &[u8]) -> Vec<u8> {
     let mut out = data.to_vec();
     // Neutralize docProps/core.xml, docProps/app.xml (Office author / timestamps)
-    let meta_names = [b"docProps/core.xml".as_slice(), b"docProps/app.xml".as_slice(), b"meta.xml".as_slice()];
+    let meta_names = [
+        b"docProps/core.xml".as_slice(),
+        b"docProps/app.xml".as_slice(),
+        b"meta.xml".as_slice(),
+    ];
     for name in meta_names {
         let mut i = 0;
         while i + name.len() <= out.len() {
@@ -529,7 +541,14 @@ fn strip_zip_metadata(data: &[u8]) -> Vec<u8> {
 
 fn strip_rtf_metadata(data: &[u8]) -> Vec<u8> {
     let mut text = String::from_utf8_lossy(data).to_string();
-    let tags = ["\\author", "\\operator", "\\creatim", "\\revtim", "\\printim", "\\version"];
+    let tags = [
+        "\\author",
+        "\\operator",
+        "\\creatim",
+        "\\revtim",
+        "\\printim",
+        "\\version",
+    ];
     for tag in tags {
         while let Some(pos) = text.find(tag) {
             if let Some(end) = text[pos..].find('}') {
@@ -562,7 +581,11 @@ fn strip_text_metadata(data: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(cur.len());
     let mut i = 0;
     while i < cur.len() {
-        if i + 3 <= cur.len() && cur[i] == 0xE2 && cur[i + 1] == 0x80 && matches!(cur[i + 2], 0x8B..=0x8D) {
+        if i + 3 <= cur.len()
+            && cur[i] == 0xE2
+            && cur[i + 1] == 0x80
+            && matches!(cur[i + 2], 0x8B..=0x8D)
+        {
             i += 3; // Skip invisible watermark
             continue;
         }
@@ -610,7 +633,10 @@ pub fn seal_media(
     aead::seal(key, aad, &plain)
 }
 
-pub fn open_media(key: &[u8; KEY_LEN], encrypted_blob: &[u8]) -> Result<(MediaType, Vec<u8>), CoreError> {
+pub fn open_media(
+    key: &[u8; KEY_LEN],
+    encrypted_blob: &[u8],
+) -> Result<(MediaType, Vec<u8>), CoreError> {
     let aad = b"anongram/media/v1";
     let plain = aead::open(key, aad, encrypted_blob)?;
 
@@ -670,7 +696,8 @@ mod tests {
         use std::time::Instant;
 
         // 1. Simulate 2 Megabytes photo/document payload
-        let sample_block = b"ANONGRAM_HIGH_SPEED_ENCRYPTED_TELEGRAM_STYLE_STREAMING_ZERO_LEAK_DATA_BLOCK";
+        let sample_block =
+            b"ANONGRAM_HIGH_SPEED_ENCRYPTED_TELEGRAM_STYLE_STREAMING_ZERO_LEAK_DATA_BLOCK";
         let mut large_payload = Vec::with_capacity(2 * 1024 * 1024);
         while large_payload.len() < 2 * 1024 * 1024 {
             large_payload.extend_from_slice(sample_block);
@@ -703,7 +730,13 @@ mod tests {
             sealed.len()
         );
         // Performance assertions (with headroom for slow shared CI runners)
-        assert!(seal_duration.as_millis() < 2500, "Seal pipeline too slow for mobile target");
-        assert!(decrypt_duration.as_millis() < 1000, "Decrypt pipeline too slow");
+        assert!(
+            seal_duration.as_millis() < 2500,
+            "Seal pipeline too slow for mobile target"
+        );
+        assert!(
+            decrypt_duration.as_millis() < 1000,
+            "Decrypt pipeline too slow"
+        );
     }
 }

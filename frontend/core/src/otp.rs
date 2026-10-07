@@ -123,9 +123,7 @@ impl OtpStorage {
     /// Immediately burns and zeroes out the used pad bytes on disk.
     pub fn encrypt(&mut self, plaintext: &[u8]) -> Result<OtpMessage, CoreError> {
         let len = plaintext.len();
-        let total_needed = len
-            .checked_add(MAC_KEY_LEN)
-            .ok_or(CoreError::OutOfBounds)?;
+        let total_needed = len.checked_add(MAC_KEY_LEN).ok_or(CoreError::OutOfBounds)?;
 
         if !self.can_encrypt(len) {
             return Err(CoreError::PadExhausted);
@@ -173,9 +171,7 @@ impl OtpStorage {
     /// Decrypts OTP message, verifies MAC, and securely wipes the pad bytes.
     pub fn decrypt(&mut self, msg: &OtpMessage) -> Result<Vec<u8>, CoreError> {
         let len = msg.ciphertext.len();
-        let total_needed = len
-            .checked_add(MAC_KEY_LEN)
-            .ok_or(CoreError::OutOfBounds)?;
+        let total_needed = len.checked_add(MAC_KEY_LEN).ok_or(CoreError::OutOfBounds)?;
 
         // Verify bounds against overall pad
         let end_offset = msg
@@ -264,8 +260,8 @@ impl OtpStorage {
 /// Computes Poly1305 MAC over data using a 32-byte one-time key.
 fn compute_poly1305(key: &[u8; MAC_KEY_LEN], data: &[u8]) -> [u8; MAC_TAG_LEN] {
     use chacha20poly1305::aead::generic_array::GenericArray;
-    use chacha20poly1305::ChaCha20Poly1305;
     use chacha20poly1305::aead::{AeadInPlace, KeyInit};
+    use chacha20poly1305::ChaCha20Poly1305;
 
     // Poly1305 with zero nonce via ChaCha20Poly1305 authenticated payload on empty text
     let cipher = ChaCha20Poly1305::new(GenericArray::from_slice(key));
@@ -274,7 +270,7 @@ fn compute_poly1305(key: &[u8; MAC_KEY_LEN], data: &[u8]) -> [u8; MAC_TAG_LEN] {
     let tag = cipher
         .encrypt_in_place_detached(nonce, data, &mut buffer)
         .expect("authentication tag computation");
-    
+
     let mut out = [0u8; MAC_TAG_LEN];
     out.copy_from_slice(tag.as_slice());
     out

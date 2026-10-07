@@ -142,8 +142,7 @@ impl VlessRealityEngine {
 
         // Fix up record length
         let record_len = (client_hello.len() - record_len_pos - 2) as u16;
-        client_hello[record_len_pos..record_len_pos + 2]
-            .copy_from_slice(&record_len.to_be_bytes());
+        client_hello[record_len_pos..record_len_pos + 2].copy_from_slice(&record_len.to_be_bytes());
 
         let mut derived_key = [0u8; KEY_LEN];
         derived_key.copy_from_slice(shared_secret.as_bytes());

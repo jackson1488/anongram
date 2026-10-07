@@ -9,8 +9,8 @@
 //! - Deterministic entropy padding matching standard TLS/random noise.
 //! - Low memory footprint (< 100 KB RAM allocation).
 
-use rand::RngCore;
 use crate::error::CoreError;
+use rand::RngCore;
 
 /// Header and junk parameters for AmneziaWG obfuscation.
 #[derive(Debug, Clone, PartialEq, Eq)]

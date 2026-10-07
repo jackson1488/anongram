@@ -4,10 +4,10 @@
 //! - Cable (Direct USB/OTG): Gold Shield (Level 3 Absolute Information-Theoretic)
 //! - Wireless Direct (WiFi-Direct / Bluetooth with QR secret handshake): Blue Shield (High Security PQ-Hybrid)
 
-use sha2::{Digest, Sha256};
 use crate::error::CoreError;
 use crate::otp::PadSide;
 use crate::sign::{HybridSignature, HybridSigningKey, HybridVerifyingKey};
+use sha2::{Digest, Sha256};
 
 const MANIFEST_MAGIC: &[u8; 4] = b"AGPM";
 const MANIFEST_VERSION: u8 = 1;
@@ -15,9 +15,9 @@ const PREFIX: &[u8] = b"anongram/manifest/v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TransferMethod {
-    Cable,           // Absolute Level 3 (Gold)
-    WifiDirectQr,    // High Level PQ (Blue)
-    BluetoothQr,     // High Level PQ (Blue)
+    Cable,        // Absolute Level 3 (Gold)
+    WifiDirectQr, // High Level PQ (Blue)
+    BluetoothQr,  // High Level PQ (Blue)
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
