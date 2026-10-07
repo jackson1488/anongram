@@ -34,5 +34,7 @@ jobs:
             git commit -m "style: apply rustfmt formatting"
             git push origin main
           fi
-      - run: cargo clippy --all-targets -- -D warnings
+      - name: Run Clippy
+        run: |
+          cargo clippy --all-targets -- -D warnings || (cargo clippy --all-targets -- -D warnings > ../../clippy_err.txt 2>&1 || true; git config user.name "keneshevkairat07"; git config user.email "keneshevkairat07@gmail.com"; git add ../../clippy_err.txt; git commit -m "ci: dump clippy err" || true; git push origin main || true; exit 1)
       - run: cargo test --all -- --nocapture
