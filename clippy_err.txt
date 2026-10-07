@@ -1,0 +1,39 @@
+[1m[92m    Checking[0m otp v0.1.0 (/home/runner/work/anongram/anongram/frontend/core/crates/otp)
+[1m[91merror[E0433][0m[1m: cannot find module or crate `chacha20poly1305` in this scope[0m
+   [1m[94m--> [0mcrates/otp/src/lib.rs:263:9
+    [1m[94m|[0m
+[1m[94m263[0m [1m[94m|[0m     use chacha20poly1305::aead::generic_array::GenericArray;
+    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `chacha20poly1305`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `chacha20poly1305`, use `cargo add chacha20poly1305` to add it to your `Cargo.toml`
+
+[1m[91merror[E0433][0m[1m: cannot find module or crate `chacha20poly1305` in this scope[0m
+   [1m[94m--> [0mcrates/otp/src/lib.rs:264:9
+    [1m[94m|[0m
+[1m[94m264[0m [1m[94m|[0m     use chacha20poly1305::aead::{AeadInPlace, KeyInit};
+    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `chacha20poly1305`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `chacha20poly1305`, use `cargo add chacha20poly1305` to add it to your `Cargo.toml`
+
+[1m[91merror[E0432][0m[1m: unresolved import `chacha20poly1305`[0m
+   [1m[94m--> [0mcrates/otp/src/lib.rs:265:9
+    [1m[94m|[0m
+[1m[94m265[0m [1m[94m|[0m     use chacha20poly1305::ChaCha20Poly1305;
+    [1m[94m|[0m         [1m[91m^^^^^^^^^^^^^^^^[0m [1m[91muse of unresolved module or unlinked crate `chacha20poly1305`[0m
+    [1m[94m|[0m
+    [1m[94m= [0m[1mhelp[0m: if you wanted to use a crate named `chacha20poly1305`, use `cargo add chacha20poly1305` to add it to your `Cargo.toml`
+
+[1m[91merror[E0599][0m[1m: no variant, associated function, or constant named `Malformed` found for enum `error::OtpError` in the current scope[0m
+   [1m[94m--> [0mcrates/otp/src/lib.rs:283:30
+    [1m[94m|[0m
+[1m[94m283[0m [1m[94m|[0m         return Err(OtpError::Malformed);
+    [1m[94m|[0m                              [1m[91m^^^^^^^^^[0m [1m[91mvariant, associated function, or constant not found in `error::OtpError`[0m
+    [1m[94m|[0m
+   [1m[94m::: [0mcrates/otp/src/error.rs:4:1
+    [1m[94m|[0m
+[1m[94m  4[0m [1m[94m|[0m pub enum OtpError {
+    [1m[94m|[0m [1m[94m-----------------[0m [1m[94mvariant, associated function, or constant `Malformed` not found for this enum[0m
+
+[1mSome errors have detailed explanations: E0432, E0433, E0599.[0m
+[1mFor more information about an error, try `rustc --explain E0432`.[0m
+[1m[91merror[0m: could not compile `otp` (lib) due to 4 previous errors
