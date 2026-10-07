@@ -311,13 +311,19 @@ mod tests {
     #[test]
     fn test_two_ended_allocation_and_roundtrip() {
         let size = 1024 * 10;
-        let (file, _) = create_test_pad(size);
-        let path = file.path().to_path_buf();
+        let (file_a, raw) = create_test_pad(size);
+        let path_a = file_a.path().to_path_buf();
+
+        // Create independent duplicate pad file for Side B (representing Bob's device)
+        let mut file_b = tempfile::NamedTempFile::new().unwrap();
+        file_b.write_all(&raw).unwrap();
+        file_b.flush().unwrap();
+        let path_b = file_b.path().to_path_buf();
 
         let mut side_a =
-            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
+            OtpStorage::open(&path_a, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
         let mut side_b =
-            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
+            OtpStorage::open(&path_b, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
 
         let msg1 = b"Secret message from Alice to Bob";
         let encrypted1 = side_a.encrypt(msg1).unwrap();
@@ -337,13 +343,18 @@ mod tests {
     #[test]
     fn test_tampering_rejected_by_mac() {
         let size = 1024;
-        let (file, _) = create_test_pad(size);
-        let path = file.path().to_path_buf();
+        let (file_a, raw) = create_test_pad(size);
+        let path_a = file_a.path().to_path_buf();
+
+        let mut file_b = tempfile::NamedTempFile::new().unwrap();
+        file_b.write_all(&raw).unwrap();
+        file_b.flush().unwrap();
+        let path_b = file_b.path().to_path_buf();
 
         let mut side_a =
-            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
+            OtpStorage::open(&path_a, size as u64, 20, 0, size as u64, PadSide::SideA).unwrap();
         let mut side_b =
-            OtpStorage::open(&path, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
+            OtpStorage::open(&path_b, size as u64, 20, 0, size as u64, PadSide::SideB).unwrap();
 
         let mut enc = side_a.encrypt(b"Strict OTP message").unwrap();
         enc.ciphertext[0] ^= 0x01; // Tamper 1 bit
