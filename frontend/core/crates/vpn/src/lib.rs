@@ -13,8 +13,8 @@ pub mod error;
 pub mod shadowsocks;
 pub mod vless;
 
-pub use error::VpnError;
 use amnezia::{AmneziaWgConfig, AmneziaWgEngine};
+pub use error::VpnError;
 use shadowsocks::{Shadowsocks2022Engine, ShadowsocksConfig};
 use vless::{VlessRealityConfig, VlessRealityEngine};
 

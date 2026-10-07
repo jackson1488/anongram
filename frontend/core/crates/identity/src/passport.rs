@@ -9,8 +9,8 @@
 
 use sha2::{Digest, Sha256};
 
-use crypto::aead;
 use crate::error::IdentityError;
+use crypto::aead;
 use crypto::kem::HybridPublicKey;
 use crypto::sign::{HybridSignature, HybridSigningKey, HybridVerifyingKey};
 
@@ -205,11 +205,16 @@ impl<'a> Reader<'a> {
         Ok(self.take(1)?[0])
     }
     fn u64(&mut self) -> Result<u64, CoreError> {
-        let b: [u8; 8] = self.take(8)?.try_into().map_err(|_| IdentityError::Malformed)?;
+        let b: [u8; 8] = self
+            .take(8)?
+            .try_into()
+            .map_err(|_| IdentityError::Malformed)?;
         Ok(u64::from_be_bytes(b))
     }
     fn array<const N: usize>(&mut self) -> Result<[u8; N], CoreError> {
-        self.take(N)?.try_into().map_err(|_| IdentityError::Malformed)
+        self.take(N)?
+            .try_into()
+            .map_err(|_| IdentityError::Malformed)
     }
     fn bytes(&mut self, max: usize) -> Result<Vec<u8>, CoreError> {
         let len = u32::from_be_bytes(self.array::<4>()?) as usize;

@@ -10,8 +10,8 @@ use rand::RngCore;
 use x25519_dalek::{EphemeralSecret, PublicKey};
 use zeroize::Zeroize;
 
-use crypto::aead::{self, KEY_LEN};
 use crate::error::VpnError;
+use crypto::aead::{self, KEY_LEN};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VlessRealityConfig {

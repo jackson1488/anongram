@@ -12,8 +12,8 @@ use rand::RngCore;
 use sha2::Sha256;
 use zeroize::Zeroize;
 
-use crypto::aead::{self, KEY_LEN};
 use crate::error::VpnError;
+use crypto::aead::{self, KEY_LEN};
 
 pub const SS_SALT_LEN: usize = 32;
 
