@@ -22,6 +22,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
         with:
           workspaces: frontend/core
+      - run: cargo fmt --check || cargo fmt -- --check
       - run: cargo test --all -- --nocapture
       - run: cargo clippy --all-targets -- -D warnings
-      - run: cargo fmt --check

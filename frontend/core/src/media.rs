@@ -655,7 +655,7 @@ mod tests {
 
     #[test]
     fn test_heic_avif_stripping() {
-        let mut heic = vec![0, 0, 0, 20];
+        let mut heic = vec![0, 0, 0, 16];
         heic.extend_from_slice(b"ftypheic");
         heic.extend_from_slice(&[0, 0, 0, 0]);
         // Add moov with udta
