@@ -27,12 +27,12 @@ jobs:
         run: |
           cargo test --all -- --nocapture > /tmp/test_output.log 2>&1 || (cp /tmp/test_output.log test_result.log && exit 1)
       - run: cargo clippy --all-targets -- -D warnings
-      - name: Save failed log
-        if: failure()
+      - name: Report test results
+        if: always()
         run: |
-          git config user.name "keneshevkairat07"
-          git config user.email "keneshevkairat07@gmail.com"
-          git checkout -B test-log-branch
-          git add test_result.log || true
-          git commit -m "ci: test failures log" || true
-          git push -f origin test-log-branch || true
+          if [ -f /tmp/test_output.log ]; then
+            echo "### Test Execution Results" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -n 80 /tmp/test_output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
