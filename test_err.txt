@@ -1,0 +1,9 @@
+[1m[92m   Compiling[0m identity v0.1.0 (/home/runner/work/anongram/anongram/frontend/core/crates/identity)
+[1m[91merror[E0432][0m[1m: unresolved import `crate::kem`[0m
+   [1m[94m--> [0mcrates/identity/src/passport.rs:312:16
+    [1m[94m|[0m
+[1m[94m312[0m [1m[94m|[0m     use crate::kem::generate_keypair;
+    [1m[94m|[0m                [1m[91m^^^[0m [1m[91mcould not find `kem` in the crate root[0m
+
+[1mFor more information about this error, try `rustc --explain E0432`.[0m
+[1m[91merror[0m: could not compile `identity` (lib test) due to 1 previous error
