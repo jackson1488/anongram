@@ -119,15 +119,8 @@ fn test_full_autonomous_core_machine() {
     )
     .unwrap();
 
-    let mut storage_bob = OtpStorage::open(
-        pad_file_bob.path(),
-        pad_len,
-        20,
-        0,
-        pad_len,
-        PadSide::SideB,
-    )
-    .unwrap();
+    let mut storage_bob =
+        OtpStorage::open(pad_file_bob.path(), pad_len, 20, 0, pad_len, PadSide::SideB).unwrap();
 
     // Alice sends OTP message (head towards tail)
     let secret_msg = b"TOP_SECRET_COORDINATES_55.75_37.61";
@@ -146,12 +139,12 @@ fn test_full_autonomous_core_machine() {
 
     println!("=== 5. MEDIA SANITIZATION, ZSTD COMPRESSION & SEALING ===");
     // Photo with dirty EXIF metadata
-    let dirty_photo = b"\xFF\xD8\xFF\xE1\x00\x18Exif\x00\x00II*\x00GPS:LAT_LON_SERIAL_NUMBER\xFF\xD9";
+    let dirty_photo =
+        b"\xFF\xD8\xFF\xE1\x00\x18Exif\x00\x00II*\x00GPS:LAT_LON_SERIAL_NUMBER\xFF\xD9";
     let media_key: [u8; KEY_LEN] = [0x99; KEY_LEN];
 
     let sealed_media = seal_media(&media_key, MediaType::Photo, dirty_photo).expect("Seal media");
-    let (opened_type, sanitized_photo) =
-        open_media(&media_key, &sealed_media).expect("Open media");
+    let (opened_type, sanitized_photo) = open_media(&media_key, &sealed_media).expect("Open media");
 
     assert_eq!(opened_type, MediaType::Photo);
     assert!(!sanitized_photo.windows(4).any(|w| w == b"Exif"));
@@ -160,9 +153,7 @@ fn test_full_autonomous_core_machine() {
     println!("=== 6. POST-QUANTUM KEM SESSION DERIVATION ===");
     let (kem_ct, alice_shared_secret) =
         kem::encapsulate(alice_prekey.public_key()).expect("KEM encapsulate");
-    let bob_derived_secret = alice_prekey
-        .decapsulate(&kem_ct)
-        .expect("KEM decapsulate");
+    let bob_derived_secret = alice_prekey.decapsulate(&kem_ct).expect("KEM decapsulate");
     assert_eq!(*alice_shared_secret, *bob_derived_secret);
 
     println!("=== 7. MULTI-PROTOCOL VPN TRANSPORT ENCAPSULATION ===");
