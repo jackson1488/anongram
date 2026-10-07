@@ -19,4 +19,8 @@ pub enum CoreError {
     OutOfBounds,
     #[error("io error")]
     Io,
+    #[error("compression error")]
+    Compression,
+    #[error("decompression error")]
+    Decompression,
 }
