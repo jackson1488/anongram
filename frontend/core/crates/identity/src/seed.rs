@@ -9,7 +9,7 @@ use rand::{rngs::OsRng, RngCore};
 use sha2::Sha512;
 use zeroize::Zeroizing;
 
-use crate::error::CoreError;
+use crate::error::IdentityError;
 use crate::sign::HybridSigningKey;
 
 const SALT: &[u8] = b"anongram/master/v1";
@@ -23,12 +23,12 @@ impl MasterSeed {
         let entropy_len = match words {
             12 => 16,
             24 => 32,
-            _ => return Err(CoreError::Malformed),
+            _ => return Err(IdentityError::Malformed),
         };
         let mut entropy = Zeroizing::new(vec![0u8; entropy_len]);
         OsRng.fill_bytes(&mut entropy);
         let mnemonic = Mnemonic::from_entropy_in(Language::English, &entropy)
-            .map_err(|_| CoreError::Malformed)?;
+            .map_err(|_| IdentityError::Malformed)?;
         let phrase = Zeroizing::new(mnemonic.to_string());
         let seed = Self(Zeroizing::new(mnemonic.to_seed("")));
         Ok((phrase, seed))
@@ -37,7 +37,7 @@ impl MasterSeed {
     /// Restores the seed from a phrase. `passphrase` is the optional BIP-39 passphrase.
     pub fn from_phrase(phrase: &str, passphrase: &str) -> Result<Self, CoreError> {
         let mnemonic = Mnemonic::parse_in_normalized(Language::English, phrase)
-            .map_err(|_| CoreError::Malformed)?;
+            .map_err(|_| IdentityError::Malformed)?;
         Ok(Self(Zeroizing::new(mnemonic.to_seed(passphrase))))
     }
 

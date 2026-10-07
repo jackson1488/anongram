@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 use x25519_dalek::{EphemeralSecret, PublicKey as XPublic, StaticSecret};
 use zeroize::Zeroizing;
 
-use crate::error::CoreError;
+use crate::error::CryptoError;
 
 const LABEL: &[u8] = b"anongram/hybrid-kem/v1";
 pub const X25519_LEN: usize = 32;

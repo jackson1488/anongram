@@ -12,8 +12,8 @@ use rand::RngCore;
 use sha2::Sha256;
 use zeroize::Zeroize;
 
-use crate::aead::{self, KEY_LEN};
-use crate::error::CoreError;
+use crypto::aead::{self, KEY_LEN};
+use crate::error::VpnError;
 
 pub const SS_SALT_LEN: usize = 32;
 
@@ -58,13 +58,13 @@ impl Shadowsocks2022Engine {
 
     /// Encapsulates a payload into Shadowsocks 2022 AEAD frame:
     /// `[Salt (32 bytes)] || [XChaCha20-Poly1305 Sealed Ciphertext]`
-    pub fn seal_packet(&self, plaintext: &[u8]) -> Result<Vec<u8>, CoreError> {
+    pub fn seal_packet(&self, plaintext: &[u8]) -> Result<Vec<u8>, VpnError> {
         let mut salt = [0u8; SS_SALT_LEN];
         rand::thread_rng().fill_bytes(&mut salt);
 
         let mut subkey = self.derive_subkey(&salt);
         let aad = b"shadowsocks-2022";
-        let sealed = aead::seal(&subkey, aad, plaintext);
+        let sealed = aead::seal(&subkey, aad, plaintext).map_err(|_| VpnError::Crypto);
         subkey.zeroize();
 
         let encrypted = sealed?;
@@ -76,9 +76,9 @@ impl Shadowsocks2022Engine {
     }
 
     /// Decapsulates a Shadowsocks 2022 AEAD frame with anti-replay check.
-    pub fn open_packet(&mut self, frame: &[u8]) -> Result<Vec<u8>, CoreError> {
+    pub fn open_packet(&mut self, frame: &[u8]) -> Result<Vec<u8>, VpnError> {
         if frame.len() <= SS_SALT_LEN {
-            return Err(CoreError::Malformed);
+            return Err(VpnError::Malformed);
         }
 
         let mut salt = [0u8; SS_SALT_LEN];
@@ -86,7 +86,7 @@ impl Shadowsocks2022Engine {
 
         // Anti-replay check: ensure salt hasn't been re-used in active sliding window
         if self.recent_salts.contains(&salt) {
-            return Err(CoreError::Decrypt);
+            return Err(VpnError::Crypto);
         }
 
         if self.recent_salts.len() >= 64 {
@@ -96,7 +96,7 @@ impl Shadowsocks2022Engine {
 
         let mut subkey = self.derive_subkey(&salt);
         let aad = b"shadowsocks-2022";
-        let opened = aead::open(&subkey, aad, &frame[SS_SALT_LEN..]);
+        let opened = aead::open(&subkey, aad, &frame[SS_SALT_LEN..]).map_err(|_| VpnError::Crypto);
         subkey.zeroize();
 
         opened
@@ -122,6 +122,6 @@ mod tests {
 
         // Replay attack must be immediately rejected
         let replay_result = engine.open_packet(&sealed_packet);
-        assert_eq!(replay_result.unwrap_err(), CoreError::Decrypt);
+        assert_eq!(replay_result.unwrap_err(), VpnError::Crypto);
     }
 }

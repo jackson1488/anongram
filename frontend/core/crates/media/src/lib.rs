@@ -25,8 +25,10 @@
 //! 2. High-ratio Zstandard compression (reduces One-Time Pad exhaustion).
 //! 3. Encrypted binary container: XChaCha20-Poly1305 with random 192-bit nonce.
 
-use crate::aead::{self, KEY_LEN};
-use crate::error::CoreError;
+pub mod error;
+pub use error::MediaError;
+
+use crypto::aead::{self, KEY_LEN};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MediaType {
@@ -46,13 +48,13 @@ impl MediaType {
         }
     }
 
-    pub fn from_u8(v: u8) -> Result<Self, CoreError> {
+    pub fn from_u8(v: u8) -> Result<Self, MediaError> {
         match v {
             1 => Ok(MediaType::Image),
             2 => Ok(MediaType::Voice),
             3 => Ok(MediaType::Video),
             4 => Ok(MediaType::Document),
-            _ => Err(CoreError::Malformed),
+            _ => Err(MediaError::Malformed),
         }
     }
 }
@@ -609,19 +611,19 @@ pub fn sanitize_media_payload(media_type: MediaType, raw: &[u8]) -> Vec<u8> {
     }
 }
 
-pub fn compress_payload(data: &[u8]) -> Result<Vec<u8>, CoreError> {
-    zstd::encode_all(data, 3).map_err(|_| CoreError::Compression)
+pub fn compress_payload(data: &[u8]) -> Result<Vec<u8>, MediaError> {
+    zstd::encode_all(data, 3).map_err(|_| MediaError::Compression)
 }
 
-pub fn decompress_payload(compressed: &[u8]) -> Result<Vec<u8>, CoreError> {
-    zstd::decode_all(compressed).map_err(|_| CoreError::Decompression)
+pub fn decompress_payload(compressed: &[u8]) -> Result<Vec<u8>, MediaError> {
+    zstd::decode_all(compressed).map_err(|_| MediaError::Decompression)
 }
 
 pub fn seal_media(
     key: &[u8; KEY_LEN],
     media_type: MediaType,
     raw_payload: &[u8],
-) -> Result<Vec<u8>, CoreError> {
+) -> Result<Vec<u8>, MediaError> {
     let sanitized = sanitize_media_payload(media_type, raw_payload);
     let compressed = compress_payload(&sanitized)?;
 
@@ -630,18 +632,18 @@ pub fn seal_media(
     plain.extend_from_slice(&compressed);
 
     let aad = b"anongram/media/v1";
-    aead::seal(key, aad, &plain)
+    aead::seal(key, aad, &plain).map_err(|_| MediaError::Encrypt)
 }
 
 pub fn open_media(
     key: &[u8; KEY_LEN],
     encrypted_blob: &[u8],
-) -> Result<(MediaType, Vec<u8>), CoreError> {
+) -> Result<(MediaType, Vec<u8>), MediaError> {
     let aad = b"anongram/media/v1";
-    let plain = aead::open(key, aad, encrypted_blob)?;
+    let plain = aead::open(key, aad, encrypted_blob).map_err(|_| MediaError::Decrypt)?;
 
     if plain.is_empty() {
-        return Err(CoreError::Malformed);
+        return Err(MediaError::Malformed);
     }
 
     let media_type = MediaType::from_u8(plain[0])?;

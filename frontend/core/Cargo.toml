@@ -2,26 +2,26 @@
 name = "anongram_core"
 version = "0.1.0"
 edition = "2021"
-description = "AnonGram core: hybrid PQ crypto, one-time pad, passport blob"
+description = "AnonGram Unified Modular Core Facade"
 license = "MIT"
+
+[workspace]
+members = [
+    "crates/crypto",
+    "crates/otp",
+    "crates/media",
+    "crates/identity",
+    "crates/vpn",
+]
 
 [lib]
 name = "anongram_core"
 path = "src/lib.rs"
 
 [dependencies]
-chacha20poly1305 = "0.10"
-x25519-dalek = { version = "2", features = ["static_secrets"] }
-ml-kem = "0.2"
-ed25519-dalek = "2"
-bip39 = "2"
-ml-dsa = { version = "0.1", default-features = false, features = ["alloc", "zeroize"] }
-hkdf = "0.12"
-sha2 = "0.10"
-rand = "0.8"
-zeroize = { version = "1", features = ["derive"] }
+crypto = { path = "crates/crypto" }
+otp = { path = "crates/otp" }
+media = { path = "crates/media" }
+identity = { path = "crates/identity" }
+vpn = { path = "crates/vpn" }
 thiserror = "1"
-zstd = "0.13"
-
-[dev-dependencies]
-tempfile = "3"

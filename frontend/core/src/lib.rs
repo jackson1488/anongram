@@ -1,23 +1,17 @@
-//! AnonGram core.
+//! AnonGram Modular Core Facade.
 //!
-//! Planned modules (each added in its own commit, with tests):
-//! - `aead`     XChaCha20-Poly1305 (done)
-//! - `kem`      hybrid X25519 + ML-KEM-1024
-//! - `sign`     hybrid Ed25519 + ML-DSA-87
-//! - `identity` BIP-39, key derivation, Passport Blob
-//! - `otp`      one-time pad: two-ended pointers, Wegman-Carter MAC, wiping
-//! - `manifest` Pad Manifest and protection level labels
+//! Re-exports autonomous sub-crates:
+//! - `crypto`: Hybrid Post-Quantum KEM, X25519, ML-DSA, Ed25519, XChaCha20-Poly1305.
+//! - `otp`: Two-ended One-Time Pad engine with Wegman-Carter Poly1305 MAC and zeroize.
+//! - `media`: 20+ format metadata sanitization, Zstd compression, and encrypted blobs.
+//! - `identity`: BIP-39 mnemonic engine and signed Passport Blob.
+//! - `vpn`: Multi-line anti-censorship VPN (AmneziaWG, Shadowsocks 2022, VLESS-Reality).
 
-pub mod aead;
-pub mod error;
-pub mod kem;
-pub mod manifest;
-pub mod media;
-pub mod otp;
-pub mod passport;
-pub mod seed;
-pub mod sign;
-pub mod vpn;
+pub use crypto;
+pub use identity;
+pub use media;
+pub use otp;
+pub use vpn;
 
 /// Core version string.
 pub fn version() -> &'static str {

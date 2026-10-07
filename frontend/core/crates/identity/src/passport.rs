@@ -9,10 +9,10 @@
 
 use sha2::{Digest, Sha256};
 
-use crate::aead;
-use crate::error::CoreError;
-use crate::kem::HybridPublicKey;
-use crate::sign::{HybridSignature, HybridSigningKey, HybridVerifyingKey};
+use crypto::aead;
+use crate::error::IdentityError;
+use crypto::kem::HybridPublicKey;
+use crypto::sign::{HybridSignature, HybridSigningKey, HybridVerifyingKey};
 
 const MAGIC: &[u8; 4] = b"AGPB";
 const FORMAT: u8 = 1;
@@ -56,7 +56,7 @@ impl PassportBody {
         profile: &[u8],
     ) -> Result<Vec<u8>, CoreError> {
         if profile.len() > MAX_PROFILE {
-            return Err(CoreError::Malformed);
+            return Err(IdentityError::Malformed);
         }
         aead::seal(profile_key, &profile_aad(master, version), profile)
     }
@@ -66,10 +66,10 @@ impl Passport {
     /// Signs `body` with the master key. The key must match `body.master`.
     pub fn sign(body: PassportBody, master: &HybridSigningKey) -> Result<Self, CoreError> {
         if master.verifying_key() != &body.master {
-            return Err(CoreError::Signature);
+            return Err(IdentityError::Signature);
         }
         if body.devices.len() > MAX_DEVICES {
-            return Err(CoreError::Malformed);
+            return Err(IdentityError::Malformed);
         }
         let body_bytes = encode_body(&body);
         let signature = master.sign(&signed_message(&body_bytes));
@@ -116,11 +116,11 @@ impl Passport {
     /// Parses and verifies. Any problem (format, size, signature) returns an error.
     pub fn from_bytes(data: &[u8]) -> Result<Self, CoreError> {
         if data.len() > MAX_BLOB {
-            return Err(CoreError::Malformed);
+            return Err(IdentityError::Malformed);
         }
         let mut r = Reader::new(data);
         if r.take(4)? != MAGIC || r.u8()? != FORMAT {
-            return Err(CoreError::Malformed);
+            return Err(IdentityError::Malformed);
         }
         let body_bytes = r.bytes(MAX_BLOB)?;
         let signature = HybridSignature {
@@ -193,9 +193,9 @@ impl<'a> Reader<'a> {
         Self { data, pos: 0 }
     }
     fn take(&mut self, n: usize) -> Result<&'a [u8], CoreError> {
-        let end = self.pos.checked_add(n).ok_or(CoreError::Malformed)?;
+        let end = self.pos.checked_add(n).ok_or(IdentityError::Malformed)?;
         if end > self.data.len() {
-            return Err(CoreError::Malformed);
+            return Err(IdentityError::Malformed);
         }
         let s = &self.data[self.pos..end];
         self.pos = end;
@@ -205,16 +205,16 @@ impl<'a> Reader<'a> {
         Ok(self.take(1)?[0])
     }
     fn u64(&mut self) -> Result<u64, CoreError> {
-        let b: [u8; 8] = self.take(8)?.try_into().map_err(|_| CoreError::Malformed)?;
+        let b: [u8; 8] = self.take(8)?.try_into().map_err(|_| IdentityError::Malformed)?;
         Ok(u64::from_be_bytes(b))
     }
     fn array<const N: usize>(&mut self) -> Result<[u8; N], CoreError> {
-        self.take(N)?.try_into().map_err(|_| CoreError::Malformed)
+        self.take(N)?.try_into().map_err(|_| IdentityError::Malformed)
     }
     fn bytes(&mut self, max: usize) -> Result<Vec<u8>, CoreError> {
         let len = u32::from_be_bytes(self.array::<4>()?) as usize;
         if len > max {
-            return Err(CoreError::Malformed);
+            return Err(IdentityError::Malformed);
         }
         Ok(self.take(len)?.to_vec())
     }
@@ -222,7 +222,7 @@ impl<'a> Reader<'a> {
         if self.pos == self.data.len() {
             Ok(())
         } else {
-            Err(CoreError::Malformed)
+            Err(IdentityError::Malformed)
         }
     }
 }
@@ -264,7 +264,7 @@ fn decode_body(data: &[u8]) -> Result<PassportBody, CoreError> {
     let master = get_vk(&mut r)?;
     let count = r.u8()? as usize;
     if count > MAX_DEVICES {
-        return Err(CoreError::Malformed);
+        return Err(IdentityError::Malformed);
     }
     let mut devices = Vec::with_capacity(count);
     for _ in 0..count {
@@ -274,7 +274,7 @@ fn decode_body(data: &[u8]) -> Result<PassportBody, CoreError> {
         let revoked = match r.u8()? {
             0 => false,
             1 => true,
-            _ => return Err(CoreError::Malformed),
+            _ => return Err(IdentityError::Malformed),
         };
         devices.push(DeviceEntry {
             device_id,
@@ -352,7 +352,7 @@ mod tests {
     fn profile_decrypts_only_with_right_key() {
         let (p, seed) = make(1, b"alice");
         assert_eq!(p.decrypt_profile(&seed.profile_key()).unwrap(), b"alice");
-        assert_eq!(p.decrypt_profile(&[1u8; 32]), Err(CoreError::Decrypt));
+        assert_eq!(p.decrypt_profile(&[1u8; 32]), Err(IdentityError::Decrypt));
     }
 
     #[test]

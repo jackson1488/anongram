@@ -15,7 +15,7 @@ use ml_dsa::{
 use rand::{rngs::OsRng, RngCore};
 use zeroize::Zeroizing;
 
-use crate::error::CoreError;
+use crate::error::CryptoError;
 
 const DOMAIN: &[u8] = b"anongram/sig/v1";
 pub const ED25519_PK_LEN: usize = 32;

@@ -9,7 +9,7 @@
 //! - Deterministic entropy padding matching standard TLS/random noise.
 //! - Low memory footprint (< 100 KB RAM allocation).
 
-use crate::error::CoreError;
+use crate::error::VpnError;
 use rand::RngCore;
 
 /// Header and junk parameters for AmneziaWG obfuscation.
@@ -56,9 +56,9 @@ pub struct AmneziaWgEngine {
 }
 
 impl AmneziaWgEngine {
-    pub fn new(config: AmneziaWgConfig) -> Result<Self, CoreError> {
+    pub fn new(config: AmneziaWgConfig) -> Result<Self, VpnError> {
         if config.jmin > config.jmax {
-            return Err(CoreError::VpnConfig);
+            return Err(VpnError::Config);
         }
         Ok(Self { config })
     }
@@ -85,9 +85,9 @@ impl AmneziaWgEngine {
     }
 
     /// Obfuscates an outgoing WireGuard packet by replacing standard 4-byte header with custom H1..H4.
-    pub fn obfuscate_outgoing(&self, packet: &[u8]) -> Result<Vec<u8>, CoreError> {
+    pub fn obfuscate_outgoing(&self, packet: &[u8]) -> Result<Vec<u8>, VpnError> {
         if packet.len() < 4 {
-            return Err(CoreError::Malformed);
+            return Err(VpnError::Malformed);
         }
 
         let standard_type = u32::from_le_bytes(packet[0..4].try_into().unwrap());
@@ -96,7 +96,7 @@ impl AmneziaWgEngine {
             2 => self.config.h2, // Handshake Response
             3 => self.config.h3, // Cookie Reply
             4 => self.config.h4, // Transport Data
-            _ => return Err(CoreError::Malformed),
+            _ => return Err(VpnError::Malformed),
         };
 
         let mut obfuscated = packet.to_vec();
@@ -105,9 +105,9 @@ impl AmneziaWgEngine {
     }
 
     /// De-obfuscates an incoming AmneziaWG packet back to standard WireGuard format.
-    pub fn deobfuscate_incoming(&self, packet: &[u8]) -> Result<Vec<u8>, CoreError> {
+    pub fn deobfuscate_incoming(&self, packet: &[u8]) -> Result<Vec<u8>, VpnError> {
         if packet.len() < 4 {
-            return Err(CoreError::Malformed);
+            return Err(VpnError::Malformed);
         }
 
         let custom_header = u32::from_le_bytes(packet[0..4].try_into().unwrap());
@@ -120,7 +120,7 @@ impl AmneziaWgEngine {
         } else if custom_header == self.config.h4 {
             4
         } else {
-            return Err(CoreError::VpnHandshake);
+            return Err(VpnError::Handshake);
         };
 
         let mut restored = packet.to_vec();

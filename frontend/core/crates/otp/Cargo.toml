@@ -1,0 +1,13 @@
+[package]
+name = "otp"
+version = "0.1.0"
+edition = "2021"
+description = "Two-ended One-Time Pad engine with Wegman-Carter MAC and zeroization"
+
+[dependencies]
+crypto = { path = "../crypto" }
+zeroize = { version = "1", features = ["derive"] }
+thiserror = "1"
+
+[dev-dependencies]
+tempfile = "3"

@@ -8,7 +8,7 @@ use chacha20poly1305::{
 };
 use rand::{rngs::OsRng, RngCore};
 
-use crate::error::CoreError;
+use crate::error::CryptoError;
 
 pub const KEY_LEN: usize = 32;
 pub const NONCE_LEN: usize = 24;

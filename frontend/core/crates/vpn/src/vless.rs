@@ -10,8 +10,8 @@ use rand::RngCore;
 use x25519_dalek::{EphemeralSecret, PublicKey};
 use zeroize::Zeroize;
 
-use crate::aead::{self, KEY_LEN};
-use crate::error::CoreError;
+use crypto::aead::{self, KEY_LEN};
+use crate::error::VpnError;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VlessRealityConfig {
@@ -155,7 +155,7 @@ impl VlessRealityEngine {
         &self,
         session_key: &[u8; KEY_LEN],
         data: &[u8],
-    ) -> Result<Vec<u8>, CoreError> {
+    ) -> Result<Vec<u8>, VpnError> {
         let mut header = Vec::with_capacity(32 + self.config.short_id.len());
         header.push(0x00); // VLESS Version 0
         header.extend_from_slice(&self.config.uuid); // 16 bytes UUID
@@ -166,7 +166,7 @@ impl VlessRealityEngine {
         let mut plaintext = header;
         plaintext.extend_from_slice(data);
 
-        aead::seal(session_key, aad, &plaintext)
+        aead::seal(session_key, aad, &plaintext).map_err(|_| VpnError::Crypto)
     }
 
     /// Unseals and authenticates a received VLESS packet.
@@ -174,26 +174,26 @@ impl VlessRealityEngine {
         &self,
         session_key: &[u8; KEY_LEN],
         ciphertext: &[u8],
-    ) -> Result<Vec<u8>, CoreError> {
+    ) -> Result<Vec<u8>, VpnError> {
         let aad = b"vless-reality-auth";
-        let mut plain = aead::open(session_key, aad, ciphertext)?;
+        let mut plain = aead::open(session_key, aad, ciphertext).map_err(|_| VpnError::Crypto)?;
 
         let min_header = 1 + 16 + 1 + self.config.short_id.len();
         if plain.len() < min_header {
             plain.zeroize();
-            return Err(CoreError::Malformed);
+            return Err(VpnError::Malformed);
         }
 
         // Verify UUID & Short ID
         if plain[0] != 0x00 || plain[1..17] != self.config.uuid {
             plain.zeroize();
-            return Err(CoreError::VpnHandshake);
+            return Err(VpnError::Handshake);
         }
 
         let sid_len = plain[17] as usize;
         if &plain[18..18 + sid_len] != self.config.short_id.as_slice() {
             plain.zeroize();
-            return Err(CoreError::VpnHandshake);
+            return Err(VpnError::Handshake);
         }
 
         let payload = plain[min_header..].to_vec();

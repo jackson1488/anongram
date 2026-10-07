@@ -1,0 +1,15 @@
+[package]
+name = "identity"
+version = "0.1.0"
+edition = "2021"
+description = "BIP-39 mnemonic phrase and cryptographic Passport Blob identity"
+
+[dependencies]
+crypto = { path = "../crypto" }
+otp = { path = "../otp" }
+bip39 = "2"
+sha2 = "0.10"
+hkdf = "0.12"
+rand = "0.8"
+zeroize = { version = "1", features = ["derive"] }
+thiserror = "1"

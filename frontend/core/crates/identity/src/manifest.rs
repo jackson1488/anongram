@@ -4,9 +4,9 @@
 //! - Cable (Direct USB/OTG): Gold Shield (Level 3 Absolute Information-Theoretic)
 //! - Wireless Direct (WiFi-Direct / Bluetooth with QR secret handshake): Blue Shield (High Security PQ-Hybrid)
 
-use crate::error::CoreError;
-use crate::otp::PadSide;
-use crate::sign::{HybridSignature, HybridSigningKey, HybridVerifyingKey};
+use crate::error::IdentityError;
+use otp::PadSide;
+use crypto::sign::{HybridSignature, HybridSigningKey, HybridVerifyingKey};
 use sha2::{Digest, Sha256};
 
 const MANIFEST_MAGIC: &[u8; 4] = b"AGPM";

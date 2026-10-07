@@ -17,7 +17,8 @@ use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use zeroize::Zeroize;
 
-use crate::error::CoreError;
+pub mod error;
+pub use error::OtpError;
 
 pub const MAC_KEY_LEN: usize = 32;
 pub const MAC_TAG_LEN: usize = 16;
@@ -54,10 +55,10 @@ impl OtpStorage {
         head: u64,
         tail: u64,
         local_side: PadSide,
-    ) -> Result<Self, CoreError> {
+    ) -> Result<Self, OtpError> {
         let path_buf = path.as_ref().to_path_buf();
         if head > tail || tail > total_size || reserve_pct > 50 {
-            return Err(CoreError::OutOfBounds);
+            return Err(OtpError::OutOfBounds);
         }
 
         Ok(Self {
@@ -121,12 +122,12 @@ impl OtpStorage {
 
     /// Encrypts plaintext using pure OTP and generates a Wegman-Carter Poly1305 MAC.
     /// Immediately burns and zeroes out the used pad bytes on disk.
-    pub fn encrypt(&mut self, plaintext: &[u8]) -> Result<OtpMessage, CoreError> {
+    pub fn encrypt(&mut self, plaintext: &[u8]) -> Result<OtpMessage, OtpError> {
         let len = plaintext.len();
-        let total_needed = len.checked_add(MAC_KEY_LEN).ok_or(CoreError::OutOfBounds)?;
+        let total_needed = len.checked_add(MAC_KEY_LEN).ok_or(OtpError::OutOfBounds)?;
 
         if !self.can_encrypt(len) {
-            return Err(CoreError::PadExhausted);
+            return Err(OtpError::PadExhausted);
         }
 
         let offset = match self.local_side {
@@ -169,18 +170,18 @@ impl OtpStorage {
     }
 
     /// Decrypts OTP message, verifies MAC, and securely wipes the pad bytes.
-    pub fn decrypt(&mut self, msg: &OtpMessage) -> Result<Vec<u8>, CoreError> {
+    pub fn decrypt(&mut self, msg: &OtpMessage) -> Result<Vec<u8>, OtpError> {
         let len = msg.ciphertext.len();
-        let total_needed = len.checked_add(MAC_KEY_LEN).ok_or(CoreError::OutOfBounds)?;
+        let total_needed = len.checked_add(MAC_KEY_LEN).ok_or(OtpError::OutOfBounds)?;
 
         // Verify bounds against overall pad
         let end_offset = msg
             .offset
             .checked_add(total_needed as u64)
-            .ok_or(CoreError::OutOfBounds)?;
+            .ok_or(OtpError::OutOfBounds)?;
 
         if end_offset > self.total_size {
-            return Err(CoreError::OutOfBounds);
+            return Err(OtpError::OutOfBounds);
         }
 
         // Advance pointers if appropriate to prevent reuse
@@ -189,7 +190,7 @@ impl OtpStorage {
                 // Incoming from Side B (tailwards)
                 if msg.offset < self.head {
                     // Collision with our own head!
-                    return Err(CoreError::OutOfBounds);
+                    return Err(OtpError::OutOfBounds);
                 }
                 if msg.offset < self.tail {
                     self.tail = msg.offset;
@@ -199,7 +200,7 @@ impl OtpStorage {
                 // Incoming from Side A (headwards)
                 if end_offset > self.tail {
                     // Collision with our own tail!
-                    return Err(CoreError::OutOfBounds);
+                    return Err(OtpError::OutOfBounds);
                 }
                 if end_offset > self.head {
                     self.head = end_offset;
@@ -219,7 +220,7 @@ impl OtpStorage {
         if expected_tag != msg.tag {
             pad_bytes.zeroize();
             mac_key.zeroize();
-            return Err(CoreError::Decrypt);
+            return Err(OtpError::AuthFailed);
         }
 
         // Pure OTP XOR
@@ -235,23 +236,23 @@ impl OtpStorage {
     }
 
     /// Reads pad segment into buffer and overwrites storage with zeroes immediately.
-    fn read_and_wipe(&self, offset: u64, buf: &mut [u8]) -> Result<(), CoreError> {
+    fn read_and_wipe(&self, offset: u64, buf: &mut [u8]) -> Result<(), OtpError> {
         let mut file = OpenOptions::new()
             .read(true)
             .write(true)
             .open(&self.path)
-            .map_err(|_| CoreError::Io)?;
+            .map_err(|_| OtpError::Io)?;
 
         file.seek(SeekFrom::Start(offset))
-            .map_err(|_| CoreError::Io)?;
-        file.read_exact(buf).map_err(|_| CoreError::Io)?;
+            .map_err(|_| OtpError::Io)?;
+        file.read_exact(buf).map_err(|_| OtpError::Io)?;
 
         // Secure wipe on disk with zeroes
         let zeroes = vec![0u8; buf.len()];
         file.seek(SeekFrom::Start(offset))
-            .map_err(|_| CoreError::Io)?;
-        file.write_all(&zeroes).map_err(|_| CoreError::Io)?;
-        file.sync_data().map_err(|_| CoreError::Io)?;
+            .map_err(|_| OtpError::Io)?;
+        file.write_all(&zeroes).map_err(|_| OtpError::Io)?;
+        file.sync_data().map_err(|_| OtpError::Io)?;
 
         Ok(())
     }
@@ -277,9 +278,9 @@ fn compute_poly1305(key: &[u8; MAC_KEY_LEN], data: &[u8]) -> [u8; MAC_TAG_LEN] {
 }
 
 /// Combines two equal-sized pad chunks using XOR (physical entropy mutual generation).
-pub fn xor_pad_buffers(a: &mut [u8], b: &[u8]) -> Result<(), CoreError> {
+pub fn xor_pad_buffers(a: &mut [u8], b: &[u8]) -> Result<(), OtpError> {
     if a.len() != b.len() {
-        return Err(CoreError::Malformed);
+        return Err(OtpError::Malformed);
     }
     for i in 0..a.len() {
         a[i] ^= b[i];
@@ -351,7 +352,7 @@ mod tests {
         let mut enc = side_a.encrypt(b"Strict OTP message").unwrap();
         enc.ciphertext[0] ^= 0x01; // Tamper 1 bit
 
-        assert_eq!(side_b.decrypt(&enc).unwrap_err(), CoreError::Decrypt);
+        assert_eq!(side_b.decrypt(&enc).unwrap_err(), OtpError::AuthFailed);
     }
 
     #[test]
@@ -368,7 +369,7 @@ mod tests {
         let large_msg = vec![42u8; 50];
         assert_eq!(
             side_a.encrypt(&large_msg).unwrap_err(),
-            CoreError::PadExhausted
+            OtpError::PadExhausted
         );
     }
 
