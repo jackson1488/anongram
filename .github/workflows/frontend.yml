@@ -36,3 +36,5 @@ jobs:
           if [ "$FAILED" = "1" ]; then
             exit 1
           fi
+      - name: Run Clippy
+        run: cargo clippy --all-targets -- -D warnings
