@@ -8,6 +8,8 @@ pub enum OtpError {
     OutOfBounds,
     #[error("authentication or verification failed")]
     AuthFailed,
+    #[error("malformed buffer or input")]
+    Malformed,
     #[error("io error")]
     Io,
 }
