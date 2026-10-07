@@ -309,7 +309,7 @@ fn decode_body(data: &[u8]) -> Result<PassportBody, IdentityError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::kem::generate_keypair;
+    use crypto::kem::generate_keypair;
     use crate::seed::MasterSeed;
 
     const PHRASE: &str =

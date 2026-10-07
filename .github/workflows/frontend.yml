@@ -35,6 +35,4 @@ jobs:
             git push origin main
           fi
       - run: cargo clippy --all-targets -- -D warnings
-      - name: Run Tests
-        run: |
-          cargo test --all -- --nocapture || (cargo test --all -- --nocapture > ../../test_err.txt 2>&1 || true; git config user.name "keneshevkairat07"; git config user.email "keneshevkairat07@gmail.com"; git add ../../test_err.txt; git commit -m "ci: dump workspace test err" || true; git push origin main || true; exit 1)
+      - run: cargo test --all -- --nocapture
