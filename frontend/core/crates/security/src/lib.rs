@@ -10,6 +10,7 @@ pub mod duress;
 pub mod error;
 pub mod kdf;
 pub mod tamper;
+pub mod verification;
 
 pub use biometrics::{BiometricAuth, BiometricType};
 pub use brute_force::BruteForcePolicy;
@@ -19,3 +20,8 @@ pub use duress::{DuressAction, DuressConfig};
 pub use error::SecurityError;
 pub use kdf::PasswordKdf;
 pub use tamper::{TamperConfig, TamperDetector};
+pub use verification::{
+    KeyChangeGuard, KeyChangePolicy, KeyCheckResult, NumericFingerprint, QrSafetyScanner,
+    QrVerificationResult, ServerTransparencyWitness, TransparencyRecord, VerifiedContactRecord,
+};
+

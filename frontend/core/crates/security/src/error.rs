@@ -14,4 +14,11 @@ pub enum SecurityError {
     EnclaveError,
     #[error("Identity error: {0}")]
     Identity(#[from] identity::IdentityError),
+    #[error("Verification failed: fingerprint mismatch")]
+    FingerprintMismatch,
+    #[error("Key change detected: potential MITM attack")]
+    KeyChangeDetected,
+    #[error("Invalid QR code payload")]
+    InvalidQrPayload,
 }
+

@@ -392,6 +392,84 @@ pub unsafe extern "C" fn anongram_call_sframe_seal(
     }
 }
 
+// ==========================================
+// 8. VERIFICATION FFI (ANTI-MITM)
+// ==========================================
+
+/// Computes the 60-digit canonical safety number (12 blocks of 5 digits).
+/// Caller must free returned string using `anongram_free_string`.
+///
+/// # Safety
+/// Pointers must point to valid 32-byte arrays.
+#[no_mangle]
+pub unsafe extern "C" fn anongram_verify_get_numeric_fingerprint(
+    local_key_ptr: *const u8,
+    local_id_ptr: *const u8,
+    remote_key_ptr: *const u8,
+    remote_id_ptr: *const u8,
+) -> *mut c_char {
+    if local_key_ptr.is_null() || local_id_ptr.is_null() || remote_key_ptr.is_null() || remote_id_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let mut local_key = [0u8; 32];
+    local_key.copy_from_slice(std::slice::from_raw_parts(local_key_ptr, 32));
+    let mut local_id = [0u8; 32];
+    local_id.copy_from_slice(std::slice::from_raw_parts(local_id_ptr, 32));
+
+    let mut remote_key = [0u8; 32];
+    remote_key.copy_from_slice(std::slice::from_raw_parts(remote_key_ptr, 32));
+    let mut remote_id = [0u8; 32];
+    remote_id.copy_from_slice(std::slice::from_raw_parts(remote_id_ptr, 32));
+
+    let code = security::NumericFingerprint::compute(&local_key, &local_id, &remote_key, &remote_id);
+    CString::new(code).unwrap().into_raw()
+}
+
+/// Generates compact binary QR code payload for display.
+///
+/// # Safety
+/// Pointers must point to valid 32-byte arrays.
+#[no_mangle]
+pub unsafe extern "C" fn anongram_verify_generate_qr_payload(
+    local_id_ptr: *const u8,
+    public_key_ptr: *const u8,
+    timestamp: u64,
+) -> ByteBuffer {
+    if local_id_ptr.is_null() || public_key_ptr.is_null() {
+        return ByteBuffer::empty();
+    }
+    let mut local_id = [0u8; 32];
+    local_id.copy_from_slice(std::slice::from_raw_parts(local_id_ptr, 32));
+    let mut public_key = [0u8; 32];
+    public_key.copy_from_slice(std::slice::from_raw_parts(public_key_ptr, 32));
+
+    let payload = security::QrSafetyScanner::generate_payload(&local_id, &public_key, timestamp);
+    ByteBuffer::from_vec(payload)
+}
+
+/// Validates QR code scanned from peer's device camera. Returns true if valid and matches.
+///
+/// # Safety
+/// Valid byte pointers must be provided.
+#[no_mangle]
+pub unsafe extern "C" fn anongram_verify_validate_qr_payload(
+    scanned_ptr: *const u8,
+    scanned_len: usize,
+    expected_peer_id_ptr: *const u8,
+    expected_public_key_ptr: *const u8,
+) -> bool {
+    if scanned_ptr.is_null() || expected_peer_id_ptr.is_null() || expected_public_key_ptr.is_null() {
+        return false;
+    }
+    let scanned = std::slice::from_raw_parts(scanned_ptr, scanned_len);
+    let mut peer_id = [0u8; 32];
+    peer_id.copy_from_slice(std::slice::from_raw_parts(expected_peer_id_ptr, 32));
+    let mut pub_key = [0u8; 32];
+    pub_key.copy_from_slice(std::slice::from_raw_parts(expected_public_key_ptr, 32));
+
+    security::QrSafetyScanner::validate_scanned(scanned, &peer_id, &pub_key).is_ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
