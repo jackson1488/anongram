@@ -6,4 +6,3 @@ pub mod stream;
 
 pub use error::CryptoError;
 pub use stream::StreamingAead;
-

@@ -36,19 +36,29 @@ impl StreamingAead {
         mut writer: W,
         chunk_size: usize,
     ) -> Result<u64, CryptoError> {
-        let chunk_size = if chunk_size == 0 { DEFAULT_CHUNK_SIZE } else { chunk_size };
+        let chunk_size = if chunk_size == 0 {
+            DEFAULT_CHUNK_SIZE
+        } else {
+            chunk_size
+        };
 
         // 1. Generate base nonce (24 bytes)
         let mut base_nonce = [0u8; NONCE_LEN];
         OsRng.fill_bytes(&mut base_nonce);
 
         // 2. Write Stream Header: MAGIC (8) + VERSION (1) + CHUNK_SIZE (4) + BASE_NONCE (24)
-        writer.write_all(STREAM_MAGIC).map_err(|e| CryptoError::Io(e.to_string()))?;
-        writer.write_all(&[STREAM_VERSION]).map_err(|e| CryptoError::Io(e.to_string()))?;
+        writer
+            .write_all(STREAM_MAGIC)
+            .map_err(|e| CryptoError::Io(e.to_string()))?;
+        writer
+            .write_all(&[STREAM_VERSION])
+            .map_err(|e| CryptoError::Io(e.to_string()))?;
         writer
             .write_all(&(chunk_size as u32).to_be_bytes())
             .map_err(|e| CryptoError::Io(e.to_string()))?;
-        writer.write_all(&base_nonce).map_err(|e| CryptoError::Io(e.to_string()))?;
+        writer
+            .write_all(&base_nonce)
+            .map_err(|e| CryptoError::Io(e.to_string()))?;
 
         let cipher = XChaCha20Poly1305::new(key.into());
         let mut read_buf = vec![0u8; chunk_size];
@@ -70,7 +80,9 @@ impl StreamingAead {
 
             // Peek next byte to see if this is the final chunk
             let mut peek_buf = [0u8; 1];
-            let next_n = reader.read(&mut peek_buf).map_err(|e| CryptoError::Io(e.to_string()))?;
+            let next_n = reader
+                .read(&mut peek_buf)
+                .map_err(|e| CryptoError::Io(e.to_string()))?;
             let is_last = next_n == 0;
 
             total_plain_bytes += bytes_read as u64;
@@ -103,7 +115,9 @@ impl StreamingAead {
             writer
                 .write_all(&[if is_last { 1 } else { 0 }])
                 .map_err(|e| CryptoError::Io(e.to_string()))?;
-            writer.write_all(&ct).map_err(|e| CryptoError::Io(e.to_string()))?;
+            writer
+                .write_all(&ct)
+                .map_err(|e| CryptoError::Io(e.to_string()))?;
 
             if is_last {
                 break;
@@ -123,7 +137,9 @@ impl StreamingAead {
                 next_read += n;
             }
 
-            let next_peek = reader.read(&mut peek_buf).map_err(|e| CryptoError::Io(e.to_string()))?;
+            let next_peek = reader
+                .read(&mut peek_buf)
+                .map_err(|e| CryptoError::Io(e.to_string()))?;
             let next_is_last = next_peek == 0;
 
             total_plain_bytes += next_read as u64;
@@ -174,23 +190,31 @@ impl StreamingAead {
     ) -> Result<u64, CryptoError> {
         // 1. Read and validate Stream Header (37 bytes)
         let mut magic = [0u8; 8];
-        reader.read_exact(&mut magic).map_err(|_| CryptoError::Malformed)?;
+        reader
+            .read_exact(&mut magic)
+            .map_err(|_| CryptoError::Malformed)?;
         if &magic != STREAM_MAGIC {
             return Err(CryptoError::Malformed);
         }
 
         let mut version = [0u8; 1];
-        reader.read_exact(&mut version).map_err(|_| CryptoError::Malformed)?;
+        reader
+            .read_exact(&mut version)
+            .map_err(|_| CryptoError::Malformed)?;
         if version[0] != STREAM_VERSION {
             return Err(CryptoError::Malformed);
         }
 
         let mut chunk_size_bytes = [0u8; 4];
-        reader.read_exact(&mut chunk_size_bytes).map_err(|_| CryptoError::Malformed)?;
+        reader
+            .read_exact(&mut chunk_size_bytes)
+            .map_err(|_| CryptoError::Malformed)?;
         let _chunk_size = u32::from_be_bytes(chunk_size_bytes) as usize;
 
         let mut base_nonce = [0u8; NONCE_LEN];
-        reader.read_exact(&mut base_nonce).map_err(|_| CryptoError::Malformed)?;
+        reader
+            .read_exact(&mut base_nonce)
+            .map_err(|_| CryptoError::Malformed)?;
 
         let cipher = XChaCha20Poly1305::new(key.into());
         let mut chunk_index: u64 = 0;
@@ -212,12 +236,16 @@ impl StreamingAead {
             }
 
             let mut is_last_byte = [0u8; 1];
-            reader.read_exact(&mut is_last_byte).map_err(|_| CryptoError::Malformed)?;
+            reader
+                .read_exact(&mut is_last_byte)
+                .map_err(|_| CryptoError::Malformed)?;
             let is_last = is_last_byte[0] == 1;
 
             // Read ciphertext + tag
             let mut ct_buf = vec![0u8; ct_len];
-            reader.read_exact(&mut ct_buf).map_err(|_| CryptoError::Malformed)?;
+            reader
+                .read_exact(&mut ct_buf)
+                .map_err(|_| CryptoError::Malformed)?;
 
             // Reconstruct chunk nonce and AAD
             let chunk_nonce = derive_chunk_nonce(&base_nonce, chunk_index);
@@ -238,7 +266,9 @@ impl StreamingAead {
                 .map_err(|_| CryptoError::Decrypt)?;
 
             total_decrypted_bytes += pt.len() as u64;
-            writer.write_all(&pt).map_err(|e| CryptoError::Io(e.to_string()))?;
+            writer
+                .write_all(&pt)
+                .map_err(|e| CryptoError::Io(e.to_string()))?;
 
             if is_last {
                 break;
@@ -357,11 +387,8 @@ mod tests {
         // Truncate stream by cutting off the last chunk
         let truncated = &encrypted_output[..encrypted_output.len() - 30];
         let mut decrypted_output = Vec::new();
-        let res = StreamingAead::decrypt_stream(
-            &TEST_KEY,
-            Cursor::new(truncated),
-            &mut decrypted_output,
-        );
+        let res =
+            StreamingAead::decrypt_stream(&TEST_KEY, Cursor::new(truncated), &mut decrypted_output);
         assert!(res.is_err(), "Truncated stream must be rejected");
     }
 }

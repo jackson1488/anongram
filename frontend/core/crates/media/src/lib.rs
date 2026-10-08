@@ -674,7 +674,6 @@ pub fn open_large_file_stream<P: AsRef<std::path::Path>, Q: AsRef<std::path::Pat
         .map_err(|_| MediaError::Decrypt)
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -801,4 +800,3 @@ mod tests {
         let _ = std::fs::remove_file(dec_path);
     }
 }
-

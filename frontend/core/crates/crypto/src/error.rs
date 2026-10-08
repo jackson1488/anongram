@@ -15,4 +15,3 @@ pub enum CryptoError {
     #[error("io error: {0}")]
     Io(String),
 }
-
