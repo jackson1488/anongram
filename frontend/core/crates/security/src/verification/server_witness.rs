@@ -53,9 +53,16 @@ mod tests {
         let version = 42;
 
         let leaf = ServerTransparencyWitness::compute_leaf_hash(&bob_id, &bob_key, version);
-        assert!(ServerTransparencyWitness::audit_directory_entry(&bob_id, &bob_key, version, &leaf));
+        assert!(ServerTransparencyWitness::audit_directory_entry(
+            &bob_id, &bob_key, version, &leaf
+        ));
 
         // Tampering version or key fails audit
-        assert!(!ServerTransparencyWitness::audit_directory_entry(&bob_id, &bob_key, version + 1, &leaf));
+        assert!(!ServerTransparencyWitness::audit_directory_entry(
+            &bob_id,
+            &bob_key,
+            version + 1,
+            &leaf
+        ));
     }
 }

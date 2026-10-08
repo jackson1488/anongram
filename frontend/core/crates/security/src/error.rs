@@ -21,4 +21,3 @@ pub enum SecurityError {
     #[error("Invalid QR code payload")]
     InvalidQrPayload,
 }
-

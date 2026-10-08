@@ -393,7 +393,8 @@ fn test_full_autonomous_core_machine() {
     let bob_peer_id = [0xBBu8; 32];
 
     // 1. 60-digit numeric safety code
-    let safety_code = NumericFingerprint::compute(&alice_pub, &alice_peer_id, &bob_pub, &bob_peer_id);
+    let safety_code =
+        NumericFingerprint::compute(&alice_pub, &alice_peer_id, &bob_pub, &bob_peer_id);
     assert_eq!(safety_code.len(), 71); // 12 blocks of 5 digits + 11 spaces
     assert!(NumericFingerprint::verify(&safety_code, &safety_code));
 
@@ -411,10 +412,17 @@ fn test_full_autonomous_core_machine() {
 
     // 4. Server transparency log leaf audit
     let leaf = ServerTransparencyWitness::compute_leaf_hash(&bob_peer_id, &bob_pub, 1);
-    assert!(ServerTransparencyWitness::audit_directory_entry(&bob_peer_id, &bob_pub, 1, &leaf));
+    assert!(ServerTransparencyWitness::audit_directory_entry(
+        &bob_peer_id,
+        &bob_pub,
+        1,
+        &leaf
+    ));
 
     println!("=== 16. HYBRID GROUP CHAT (DOUBLE RATCHET + SENDER KEYS AT 31 MEMBERS) ===");
-    use anongram_core::crypto::group::{GroupEncryptionSession, GroupMode, MAX_PAIRWISE_PARTICIPANTS};
+    use anongram_core::crypto::group::{
+        GroupEncryptionSession, GroupMode, MAX_PAIRWISE_PARTICIPANTS,
+    };
 
     let group_id = [0x77u8; 32];
     let mut group = GroupEncryptionSession::new(group_id, alice_peer_id, GroupMode::Adaptive);
@@ -434,13 +442,21 @@ fn test_full_autonomous_core_machine() {
     group.add_participant(member_31, [0x55; 32]);
 
     assert_eq!(group.participants.len(), 31);
-    assert_eq!(group.pairwise_sessions.len(), 0, "Old pairwise keys must be destroyed");
-    let notice = group.pending_system_notification.take().expect("Notice must be present");
+    assert_eq!(
+        group.pairwise_sessions.len(),
+        0,
+        "Old pairwise keys must be destroyed"
+    );
+    let notice = group
+        .pending_system_notification
+        .take()
+        .expect("Notice must be present");
     assert!(notice.contains("30 участников"));
 
-    let group_encrypted = group.seal_message(b"Broadcast to 31 members via Sender Keys").unwrap();
+    let group_encrypted = group
+        .seal_message(b"Broadcast to 31 members via Sender Keys")
+        .unwrap();
     assert_eq!(group_encrypted.mode, GroupMode::SenderKeys);
 
     println!("=== ALL MODULES + VERIFICATION + HYBRID GROUP CHATS FULLY OPERATIONAL ===");
 }
-

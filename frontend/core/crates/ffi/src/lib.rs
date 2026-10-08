@@ -408,7 +408,11 @@ pub unsafe extern "C" fn anongram_verify_get_numeric_fingerprint(
     remote_key_ptr: *const u8,
     remote_id_ptr: *const u8,
 ) -> *mut c_char {
-    if local_key_ptr.is_null() || local_id_ptr.is_null() || remote_key_ptr.is_null() || remote_id_ptr.is_null() {
+    if local_key_ptr.is_null()
+        || local_id_ptr.is_null()
+        || remote_key_ptr.is_null()
+        || remote_id_ptr.is_null()
+    {
         return std::ptr::null_mut();
     }
     let mut local_key = [0u8; 32];
@@ -421,7 +425,8 @@ pub unsafe extern "C" fn anongram_verify_get_numeric_fingerprint(
     let mut remote_id = [0u8; 32];
     remote_id.copy_from_slice(std::slice::from_raw_parts(remote_id_ptr, 32));
 
-    let code = security::NumericFingerprint::compute(&local_key, &local_id, &remote_key, &remote_id);
+    let code =
+        security::NumericFingerprint::compute(&local_key, &local_id, &remote_key, &remote_id);
     CString::new(code).unwrap().into_raw()
 }
 
@@ -458,7 +463,8 @@ pub unsafe extern "C" fn anongram_verify_validate_qr_payload(
     expected_peer_id_ptr: *const u8,
     expected_public_key_ptr: *const u8,
 ) -> bool {
-    if scanned_ptr.is_null() || expected_peer_id_ptr.is_null() || expected_public_key_ptr.is_null() {
+    if scanned_ptr.is_null() || expected_peer_id_ptr.is_null() || expected_public_key_ptr.is_null()
+    {
         return false;
     }
     let scanned = std::slice::from_raw_parts(scanned_ptr, scanned_len);

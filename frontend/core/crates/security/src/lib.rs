@@ -24,4 +24,3 @@ pub use verification::{
     KeyChangeGuard, KeyChangePolicy, KeyCheckResult, NumericFingerprint, QrSafetyScanner,
     QrVerificationResult, ServerTransparencyWitness, TransparencyRecord, VerifiedContactRecord,
 };
-

@@ -33,10 +33,7 @@ pub struct DoubleRatchet {
 
 impl DoubleRatchet {
     /// Initializes Alice's side of the Double Ratchet (initiator).
-    pub fn new_initiator(
-        shared_master_key: [u8; KEY_LEN],
-        remote_dh_public: [u8; 32],
-    ) -> Self {
+    pub fn new_initiator(shared_master_key: [u8; KEY_LEN], remote_dh_public: [u8; 32]) -> Self {
         let local_secret = StaticSecret::random_from_rng(OsRng);
         let local_public = XPublic::from(&local_secret).to_bytes();
 
@@ -59,10 +56,7 @@ impl DoubleRatchet {
     }
 
     /// Initializes Bob's side of the Double Ratchet (responder).
-    pub fn new_responder(
-        shared_master_key: [u8; KEY_LEN],
-        local_dh_secret: StaticSecret,
-    ) -> Self {
+    pub fn new_responder(shared_master_key: [u8; KEY_LEN], local_dh_secret: StaticSecret) -> Self {
         let local_public = XPublic::from(&local_dh_secret).to_bytes();
 
         Self {
@@ -176,8 +170,10 @@ fn kdf_chain_step(chain_key: &[u8; KEY_LEN]) -> ([u8; KEY_LEN], [u8; KEY_LEN]) {
     let mut next_chain = [0u8; KEY_LEN];
     let mut message_key = [0u8; KEY_LEN];
 
-    hk.expand(b"ANONGRAM/chain-advance", &mut next_chain).expect("HKDF expand");
-    hk.expand(b"ANONGRAM/message-key", &mut message_key).expect("HKDF expand");
+    hk.expand(b"ANONGRAM/chain-advance", &mut next_chain)
+        .expect("HKDF expand");
+    hk.expand(b"ANONGRAM/message-key", &mut message_key)
+        .expect("HKDF expand");
 
     (next_chain, message_key)
 }
@@ -188,8 +184,10 @@ fn kdf_root_step(root_key: &[u8; KEY_LEN], dh_out: &[u8]) -> ([u8; KEY_LEN], [u8
     let mut next_root = [0u8; KEY_LEN];
     let mut chain_key = [0u8; KEY_LEN];
 
-    hk.expand(b"ANONGRAM/root-advance", &mut next_root).expect("HKDF expand");
-    hk.expand(b"ANONGRAM/chain-init", &mut chain_key).expect("HKDF expand");
+    hk.expand(b"ANONGRAM/root-advance", &mut next_root)
+        .expect("HKDF expand");
+    hk.expand(b"ANONGRAM/chain-init", &mut chain_key)
+        .expect("HKDF expand");
 
     (next_root, chain_key)
 }
@@ -228,7 +226,9 @@ mod tests {
         assert_eq!(d3, b"Hello Bob 3");
 
         // 2. Bob replies to Alice -> triggers DH Ratchet step!
-        let bob_reply = bob.ratchet_encrypt(b"Hey Alice, got your 3 messages!", b"aad").unwrap();
+        let bob_reply = bob
+            .ratchet_encrypt(b"Hey Alice, got your 3 messages!", b"aad")
+            .unwrap();
         let alice_decrypted = alice.ratchet_decrypt(&bob_reply, b"aad").unwrap();
         assert_eq!(alice_decrypted, b"Hey Alice, got your 3 messages!");
     }

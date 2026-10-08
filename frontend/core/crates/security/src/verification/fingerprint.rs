@@ -84,7 +84,10 @@ mod tests {
         // Bob computes code with Alice (reversed arguments)
         let code_from_bob = NumericFingerprint::compute(&key_bob, &id_bob, &key_alice, &id_alice);
 
-        assert_eq!(code_from_alice, code_from_bob, "Safety numbers must be identical symmetrically");
+        assert_eq!(
+            code_from_alice, code_from_bob,
+            "Safety numbers must be identical symmetrically"
+        );
         assert_eq!(code_from_alice.len(), 71); // 12 * 5 digits + 11 spaces = 71 chars
 
         // Split into 12 blocks

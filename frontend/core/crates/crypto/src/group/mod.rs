@@ -63,7 +63,8 @@ impl SenderKeyChain {
         let mut next_chain = [0u8; KEY_LEN];
         let mut msg_key = [0u8; KEY_LEN];
 
-        hk.expand(b"ANONGRAM/SK/chain", &mut next_chain).expect("HKDF");
+        hk.expand(b"ANONGRAM/SK/chain", &mut next_chain)
+            .expect("HKDF");
         hk.expand(b"ANONGRAM/SK/msg", &mut msg_key).expect("HKDF");
 
         self.chain_key = next_chain;
@@ -141,7 +142,8 @@ impl GroupEncryptionSession {
         self.our_sender_key = SenderKeyChain::new(self.our_sender_key.chain_id + 1);
 
         // If in Adaptive mode and count drops <= 30, enable potential downgrade
-        if self.mode == GroupMode::Adaptive && self.participants.len() <= MAX_PAIRWISE_PARTICIPANTS {
+        if self.mode == GroupMode::Adaptive && self.participants.len() <= MAX_PAIRWISE_PARTICIPANTS
+        {
             self.pending_system_notification = Some(
                 "Участников стало <= 30. Доступен режим максимальной паранойи (StrictPairwise)."
                     .to_string(),
@@ -211,10 +213,7 @@ impl GroupEncryptionSession {
     }
 
     /// Decrypts an incoming group message.
-    pub fn open_message(
-        &mut self,
-        payload: &GroupMessagePayload,
-    ) -> Result<Vec<u8>, CryptoError> {
+    pub fn open_message(&mut self, payload: &GroupMessagePayload) -> Result<Vec<u8>, CryptoError> {
         if let Some(sk_msg) = &payload.sender_key_message {
             let chain = self
                 .remote_sender_keys
@@ -256,7 +255,8 @@ mod tests {
         let alice_id = [0x01u8; 32];
         let bob_id = [0x02u8; 32];
 
-        let mut alice_session = GroupEncryptionSession::new(group_id, alice_id, GroupMode::SenderKeys);
+        let mut alice_session =
+            GroupEncryptionSession::new(group_id, alice_id, GroupMode::SenderKeys);
         let mut bob_session = GroupEncryptionSession::new(group_id, bob_id, GroupMode::SenderKeys);
 
         // Alice shares her initial sender key with Bob
@@ -266,7 +266,9 @@ mod tests {
         );
 
         // Alice sends message to group
-        let msg = alice_session.seal_message(b"Hello Group via Sender Keys!").unwrap();
+        let msg = alice_session
+            .seal_message(b"Hello Group via Sender Keys!")
+            .unwrap();
 
         // Bob opens it
         let dec = bob_session.open_message(&msg).unwrap();

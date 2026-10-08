@@ -12,9 +12,7 @@ use rand::rngs::OsRng;
 use x25519_dalek::{PublicKey as XPublic, StaticSecret};
 
 use crypto::aead::KEY_LEN;
-use crypto::group::{
-    GroupEncryptionSession, GroupMode, SenderKeyChain, MAX_PAIRWISE_PARTICIPANTS,
-};
+use crypto::group::{GroupEncryptionSession, GroupMode, SenderKeyChain, MAX_PAIRWISE_PARTICIPANTS};
 use crypto::ratchet::DoubleRatchet;
 
 // =========================================================================
@@ -33,7 +31,9 @@ fn test_double_ratchet_per_message_key_isolation() {
     let mut messages = Vec::new();
     for i in 0..5 {
         let text = format!("Message sequence index: {}", i);
-        let msg = alice.ratchet_encrypt(text.as_bytes(), b"room-1").expect("Encrypt");
+        let msg = alice
+            .ratchet_encrypt(text.as_bytes(), b"room-1")
+            .expect("Encrypt");
         assert_eq!(msg.sequence_counter, i);
         messages.push((text, msg));
     }
@@ -75,7 +75,9 @@ fn test_double_ratchet_dh_advancement() {
     assert_eq!(d2, b"Pong from Bob");
 
     // Alice -> Bob again (triggers next DH ratchet step)
-    let m3 = alice.ratchet_encrypt(b"Follow-up from Alice", b"room").unwrap();
+    let m3 = alice
+        .ratchet_encrypt(b"Follow-up from Alice", b"room")
+        .unwrap();
     let d3 = bob.ratchet_decrypt(&m3, b"room").unwrap();
     assert_eq!(d3, b"Follow-up from Alice");
 }
@@ -91,7 +93,8 @@ fn test_strict_pairwise_group_encryption() {
 
     let master_shared = [0x33u8; KEY_LEN];
 
-    let mut alice_group = GroupEncryptionSession::new(group_id, alice_id, GroupMode::StrictPairwise);
+    let mut alice_group =
+        GroupEncryptionSession::new(group_id, alice_id, GroupMode::StrictPairwise);
     let mut bob_group = GroupEncryptionSession::new(group_id, bob_id, GroupMode::StrictPairwise);
 
     // Pairwise setup between Alice and Bob
@@ -101,8 +104,12 @@ fn test_strict_pairwise_group_encryption() {
     let alice_to_bob_ratchet = DoubleRatchet::new_initiator(master_shared, bob_pub);
     let bob_to_alice_ratchet = DoubleRatchet::new_responder(master_shared, bob_sec);
 
-    alice_group.pairwise_sessions.insert(bob_id, alice_to_bob_ratchet);
-    bob_group.pairwise_sessions.insert(alice_id, bob_to_alice_ratchet);
+    alice_group
+        .pairwise_sessions
+        .insert(bob_id, alice_to_bob_ratchet);
+    bob_group
+        .pairwise_sessions
+        .insert(alice_id, bob_to_alice_ratchet);
 
     // Alice seals pairwise message
     let payload = alice_group.seal_message(b"Secret group message").unwrap();
@@ -133,7 +140,9 @@ fn test_sender_keys_100_members_single_encryption() {
     assert_eq!(alice_group.participants.len(), 100);
 
     // Alice encrypts ONCE for all 100 members
-    let msg_payload = alice_group.seal_message(b"Message to 100 members simultaneously!").unwrap();
+    let msg_payload = alice_group
+        .seal_message(b"Message to 100 members simultaneously!")
+        .unwrap();
     assert_eq!(msg_payload.mode, GroupMode::SenderKeys);
     assert!(msg_payload.sender_key_message.is_some());
 
@@ -178,7 +187,10 @@ fn test_adaptive_threshold_transition_and_key_destruction() {
     assert_eq!(session.pairwise_sessions.len(), 0);
 
     // Chat alert generated
-    let alert = session.pending_system_notification.take().expect("Alert must exist");
+    let alert = session
+        .pending_system_notification
+        .take()
+        .expect("Alert must exist");
     assert!(alert.contains("В группе более 30 участников"));
     assert!(alert.contains("Sender Keys"));
     assert!(alert.contains("Старые ключи уничтожены"));
