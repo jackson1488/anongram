@@ -299,8 +299,11 @@ fn test_full_autonomous_core_machine() {
 
     // Push triggers cascading panic wipe across ALL modules
     let commander_push_key: [u8; KEY_LEN] = [0x55; KEY_LEN];
-    let wipe_push = PushProcessor::pack_push_payload(&commander_push_key, 99, &PushAction::PanicWipe).unwrap();
-    let processed_action = commander.handle_encrypted_push(&commander_push_key, &wipe_push).unwrap();
+    let wipe_push =
+        PushProcessor::pack_push_payload(&commander_push_key, 99, &PushAction::PanicWipe).unwrap();
+    let processed_action = commander
+        .handle_encrypted_push(&commander_push_key, &wipe_push)
+        .unwrap();
     assert_eq!(processed_action, PushAction::PanicWipe);
 
     assert_eq!(commander.state(), CoreLifecycleState::Purged);
