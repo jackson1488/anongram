@@ -1,0 +1,22 @@
+[package]
+name = "anongram_ffi"
+version = "0.1.0"
+edition = "2021"
+description = "High-Performance Unified C-ABI & Dart/Flutter FFI Bridge for AnonGram Core"
+
+[lib]
+name = "anongram_ffi"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+crypto = { path = "../crypto" }
+identity = { path = "../identity" }
+otp = { path = "../otp" }
+media = { path = "../media" }
+vpn = { path = "../vpn" }
+network = { path = "../network" }
+push = { path = "../push" }
+security = { path = "../security" }
+storage = { path = "../storage" }
+libc = "0.2"
+zeroize = { version = "1", features = ["derive"] }

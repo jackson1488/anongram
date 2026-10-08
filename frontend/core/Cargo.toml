@@ -16,6 +16,7 @@ members = [
     "crates/push",
     "crates/security",
     "crates/storage",
+    "crates/ffi",
 ]
 
 [lib]

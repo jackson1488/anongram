@@ -6,5 +6,6 @@ description = "Dual-Channel TCP/UDP Network Transport with Dynamic Endpoints"
 
 [dependencies]
 crypto = { path = "../crypto" }
+tokio = { version = "1", default-features = false, features = ["net", "rt", "sync", "time", "io-util", "macros"] }
 thiserror = "1"
 zeroize = { version = "1", features = ["derive"] }
