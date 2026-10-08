@@ -310,5 +310,44 @@ fn test_full_autonomous_core_machine() {
     assert!(!test_db_path.exists(), "DB must be wiped by commander");
     assert!(!test_pad_path.exists(), "Pad must be wiped by commander");
 
-    println!("=== ALL MODULES FULLY ORCHESTRATED AND FUNCTIONING AS ONE MACHINE ===");
+    println!("=== 13. WEBRTC SFrame E2EE VOICE/VIDEO & DYNAMIC GROUP UPGRADE ===");
+    use anongram_core::network::voice::{
+        CallSession, CallTransportState, CallType, MediaType, SFrameEngine,
+    };
+    let call_id = [0x77u8; 16];
+    let peer_bob = [0x02u8; 32];
+    let peer_charlie = [0x03u8; 32];
+    let call_shared_key = [0x33u8; KEY_LEN];
+
+    // 1. Private 1-on-1 Call (P2P with STUN/TURN fallback)
+    let mut call = CallSession::new_one_on_one(call_id, peer_bob, call_shared_key);
+    assert_eq!(call.call_type, CallType::OneOnOne);
+    assert_eq!(call.participant_count(), 2);
+
+    let encrypted_audio = call
+        .produce_outgoing_frame(MediaType::AudioOpus, b"Alice speaking to Bob: Secure Voice")
+        .expect("Produce audio frame");
+    let bob_heard = call
+        .consume_incoming_frame(&peer_bob, &encrypted_audio)
+        .expect("Decrypt audio frame");
+    assert_eq!(bob_heard, b"Alice speaking to Bob: Secure Voice");
+
+    // 2. Dynamic Upgrade to Multi-Party Group Call
+    let charlie_key = [0x44u8; KEY_LEN];
+    call.add_participant(peer_charlie, 2, charlie_key);
+    assert_eq!(call.call_type, CallType::GroupCall);
+    assert_eq!(call.transport_state, CallTransportState::UpgradedToGroupSfu);
+    assert_eq!(call.participant_count(), 3);
+
+    // Charlie transmits video frame to the group
+    let mut charlie_engine = SFrameEngine::new(2, charlie_key);
+    let charlie_video = charlie_engine
+        .seal_frame(MediaType::VideoH264, b"Charlie 1080p Video Keyframe")
+        .expect("Seal video");
+    let alice_saw = call
+        .consume_incoming_frame(&peer_charlie, &charlie_video)
+        .expect("Alice opens video");
+    assert_eq!(alice_saw, b"Charlie 1080p Video Keyframe");
+
+    println!("=== ALL MODULES + REAL-TIME VOICE/VIDEO E2EE FULLY OPERATIONAL ===");
 }

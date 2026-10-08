@@ -1,0 +1,23 @@
+# System & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Secrets & Service Accounts
+*.json
+!package.json
+!tsconfig.json
+!backend/package.json
+!backend/tsconfig.json
+!frontend/package.json
+
+# Rust & Node builds
+target/
+node_modules/
+dist/
+*.log
+*.db
+*.db-journal
+.env
+.env.*
