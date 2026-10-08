@@ -30,8 +30,7 @@ pub enum CallTransportState {
 use sha2::{Digest, Sha256};
 
 pub const SAS_EMOJI_ALPHABET: [&str; 16] = [
-    "🛡️", "🔑", "🚀", "🌟", "🦊", "🌊", "💎", "🦅",
-    "⚡", "🍀", "🔥", "🪐", "🍎", "⚓", "🛸", "🎯",
+    "🛡️", "🔑", "🚀", "🌟", "🦊", "🌊", "💎", "🦅", "⚡", "🍀", "🔥", "🪐", "🍎", "⚓", "🛸", "🎯",
 ];
 
 pub struct CallParticipant {

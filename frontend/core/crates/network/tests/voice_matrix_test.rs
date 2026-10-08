@@ -99,7 +99,10 @@ fn test_sframe_tamper_rejection() {
 
     let decrypt_engine = SFrameEngine::new(1, ALICE_KEY);
     let result = decrypt_engine.open_frame(&frame);
-    assert!(result.is_err(), "Corrupted ciphertext must be rejected by Poly1305 MAC");
+    assert!(
+        result.is_err(),
+        "Corrupted ciphertext must be rejected by Poly1305 MAC"
+    );
 }
 
 // =========================================================================
@@ -146,7 +149,10 @@ fn test_dynamic_upgrade_1on1_to_group_3_parties() {
     alice_session.add_participant(CHARLIE_ID, 3, CHARLIE_KEY);
 
     assert_eq!(alice_session.call_type, CallType::GroupCall);
-    assert_eq!(alice_session.transport_state, CallTransportState::UpgradedToGroupSfu);
+    assert_eq!(
+        alice_session.transport_state,
+        CallTransportState::UpgradedToGroupSfu
+    );
     assert_eq!(alice_session.participant_count(), 3);
 
     // Charlie transmits his own encrypted voice frame
@@ -227,8 +233,14 @@ fn test_turns_tls_443_fallback_simulation() {
     assert_eq!(ice.ice_servers[0].urls[0], "stun:stun.l.google.com:19302");
 
     // TURN UDP & Censorship-resistant TURNS over TLS 443 TCP
-    assert_eq!(ice.ice_servers[1].urls[0], "turn:cloud.neongram.space:3478?transport=udp");
-    assert_eq!(ice.ice_servers[1].urls[1], "turns:cloud.neongram.space:443?transport=tcp");
+    assert_eq!(
+        ice.ice_servers[1].urls[0],
+        "turn:cloud.neongram.space:3478?transport=udp"
+    );
+    assert_eq!(
+        ice.ice_servers[1].urls[1],
+        "turns:cloud.neongram.space:443?transport=tcp"
+    );
 
     // Privacy Relay-Only policy hides IP
     let privacy_ice = IceConfiguration::privacy_relay_only();
@@ -269,8 +281,14 @@ fn test_call_control_mute_pip_and_sas() {
     // SAS (Short Authentication String) fingerprint
     let sas1 = call.get_sas_fingerprint();
     let sas2 = call.get_sas_fingerprint();
-    assert_eq!(sas1, sas2, "SAS fingerprint must be deterministic for identical session");
-    assert_eq!(sas1.chars().filter(|c| !c.is_whitespace()).count() > 0, true);
+    assert_eq!(
+        sas1, sas2,
+        "SAS fingerprint must be deterministic for identical session"
+    );
+    assert_eq!(
+        sas1.chars().filter(|c| !c.is_whitespace()).count() > 0,
+        true
+    );
 
     // Hangup cleans memory and terminates
     call.hangup();

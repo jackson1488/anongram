@@ -35,7 +35,6 @@ impl MediaType {
     }
 }
 
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncryptedMediaFrame {
     pub key_id: u32,
