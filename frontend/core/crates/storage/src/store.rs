@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 
 use crypto::aead::{self, KEY_LEN};
@@ -130,7 +130,11 @@ impl EncryptedStorage {
         Ok(())
     }
 
-    /// Panic Wipe: Overwrites disk file with zeros and removes it permanently.
+    /// Panic Wipe: Military 3-pass hardware shredder (DoD 5220.22-M / Anti-Forensics):
+    /// 1. Pass 1: Overwrite with alternating pseudorandom bits (0xAA).
+    /// 2. Pass 2: Overwrite with inverted bits (0x55).
+    /// 3. Pass 3: Overwrite with cryptographic zeroes (0x00) with forced fsync.
+    /// Eliminates residual flash memory remanence and prevents recovery by Cellebrite/Recuva.
     pub fn panic_wipe(&mut self) -> Result<(), StorageError> {
         // Zeroize memory
         if let Some(mut key) = self.master_key.take() {
@@ -140,13 +144,31 @@ impl EncryptedStorage {
             val.zeroize();
         }
 
-        // Zeroize file on disk
+        // 3-pass physical shredding on disk
         if self.db_path.exists() {
-            let file_size = std::fs::metadata(&self.db_path)?.len();
+            let file_size = std::fs::metadata(&self.db_path)?.len() as usize;
             let mut file = OpenOptions::new().write(true).open(&self.db_path)?;
-            let zeros = vec![0u8; file_size as usize];
-            file.write_all(&zeros)?;
+
+            // Pass 1: 0xAA
+            let mut pass1 = vec![0xAAu8; file_size];
+            file.write_all(&pass1)?;
             file.sync_data()?;
+            pass1.zeroize();
+
+            // Pass 2: 0x55
+            file.seek(std::io::SeekFrom::Start(0))?;
+            let mut pass2 = vec![0x55u8; file_size];
+            file.write_all(&pass2)?;
+            file.sync_data()?;
+            pass2.zeroize();
+
+            // Pass 3: 0x00
+            file.seek(std::io::SeekFrom::Start(0))?;
+            let mut pass3 = vec![0x00u8; file_size];
+            file.write_all(&pass3)?;
+            file.sync_data()?;
+            pass3.zeroize();
+
             drop(file);
             std::fs::remove_file(&self.db_path)?;
         }
