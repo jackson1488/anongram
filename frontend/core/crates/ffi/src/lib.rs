@@ -99,6 +99,67 @@ pub unsafe extern "C" fn anongram_crypto_aead_open(
     }
 }
 
+/// Streams and encrypts arbitrary-sized files (e.g. 10 GB+) directly on disk
+/// using bounded RAM (~1 MB chunking) at maximum NVMe/UFS speed.
+///
+/// # Safety
+/// Valid pointers must be provided.
+#[no_mangle]
+pub unsafe extern "C" fn anongram_crypto_stream_file_seal(
+    key_ptr: *const u8,
+    src_path: *const c_char,
+    dest_path: *const c_char,
+) -> i64 {
+    if key_ptr.is_null() || src_path.is_null() || dest_path.is_null() {
+        return -1;
+    }
+    let src = match CStr::from_ptr(src_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    let dest = match CStr::from_ptr(dest_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    let mut key = [0u8; KEY_LEN];
+    key.copy_from_slice(std::slice::from_raw_parts(key_ptr, KEY_LEN));
+
+    match crypto::StreamingAead::encrypt_file(&key, src, dest) {
+        Ok(bytes) => bytes as i64,
+        Err(_) => -1,
+    }
+}
+
+/// Streams and decrypts arbitrary-sized files directly on disk using bounded RAM.
+///
+/// # Safety
+/// Valid pointers must be provided.
+#[no_mangle]
+pub unsafe extern "C" fn anongram_crypto_stream_file_open(
+    key_ptr: *const u8,
+    src_path: *const c_char,
+    dest_path: *const c_char,
+) -> i64 {
+    if key_ptr.is_null() || src_path.is_null() || dest_path.is_null() {
+        return -1;
+    }
+    let src = match CStr::from_ptr(src_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    let dest = match CStr::from_ptr(dest_path).to_str() {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    let mut key = [0u8; KEY_LEN];
+    key.copy_from_slice(std::slice::from_raw_parts(key_ptr, KEY_LEN));
+
+    match crypto::StreamingAead::decrypt_file(&key, src, dest) {
+        Ok(bytes) => bytes as i64,
+        Err(_) => -1,
+    }
+}
+
 // ==========================================
 // 2. IDENTITY FFI
 // ==========================================

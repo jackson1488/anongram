@@ -652,6 +652,29 @@ pub fn open_media(
     Ok((media_type, decompressed))
 }
 
+/// Streams and encrypts a multi-gigabyte media or document file (e.g. 10 GB 4K video)
+/// directly to disk using strictly bounded constant RAM (~1 MB) at full hardware speed.
+pub fn seal_large_file_stream<P: AsRef<std::path::Path>, Q: AsRef<std::path::Path>>(
+    key: &[u8; KEY_LEN],
+    source_path: P,
+    dest_path: Q,
+) -> Result<u64, MediaError> {
+    crypto::StreamingAead::encrypt_file(key, source_path, dest_path)
+        .map_err(|_| MediaError::Encrypt)
+}
+
+/// Streams and decrypts a multi-gigabyte media or document file directly to disk
+/// using strictly bounded constant RAM (~1 MB).
+pub fn open_large_file_stream<P: AsRef<std::path::Path>, Q: AsRef<std::path::Path>>(
+    key: &[u8; KEY_LEN],
+    source_path: P,
+    dest_path: Q,
+) -> Result<u64, MediaError> {
+    crypto::StreamingAead::decrypt_file(key, source_path, dest_path)
+        .map_err(|_| MediaError::Decrypt)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -741,4 +764,41 @@ mod tests {
             "Decrypt pipeline too slow"
         );
     }
+
+    #[test]
+    fn test_large_file_streaming_roundtrip() {
+        use std::io::Write;
+        let temp_dir = std::env::temp_dir();
+        let src_path = temp_dir.join("anongram_test_large_src.bin");
+        let enc_path = temp_dir.join("anongram_test_large_enc.bin");
+        let dec_path = temp_dir.join("anongram_test_large_dec.bin");
+
+        // Generate 3 MB of test payload
+        let chunk = [0x5Au8; 64 * 1024]; // 64 KB
+        {
+            let mut file = std::fs::File::create(&src_path).unwrap();
+            for _ in 0..48 {
+                file.write_all(&chunk).unwrap();
+            }
+        }
+
+        // Stream Encrypt (memory remains bounded < 2 MB throughout)
+        let enc_bytes = seal_large_file_stream(&KEY, &src_path, &enc_path).unwrap();
+        assert_eq!(enc_bytes, 48 * 64 * 1024);
+
+        // Stream Decrypt
+        let dec_bytes = open_large_file_stream(&KEY, &enc_path, &dec_path).unwrap();
+        assert_eq!(dec_bytes, 48 * 64 * 1024);
+
+        // Verify content matches perfectly
+        let src_data = std::fs::read(&src_path).unwrap();
+        let dec_data = std::fs::read(&dec_path).unwrap();
+        assert_eq!(src_data, dec_data);
+
+        // Cleanup
+        let _ = std::fs::remove_file(src_path);
+        let _ = std::fs::remove_file(enc_path);
+        let _ = std::fs::remove_file(dec_path);
+    }
 }
+

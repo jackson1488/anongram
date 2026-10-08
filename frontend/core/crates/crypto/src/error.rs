@@ -12,4 +12,7 @@ pub enum CryptoError {
     Kem,
     #[error("signature verification failed")]
     Signature,
+    #[error("io error: {0}")]
+    Io(String),
 }
+

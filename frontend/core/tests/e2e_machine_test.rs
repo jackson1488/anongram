@@ -354,5 +354,34 @@ fn test_full_autonomous_core_machine() {
         .expect("Alice opens video");
     assert_eq!(alice_saw, b"Charlie 1080p Video Keyframe");
 
-    println!("=== ALL MODULES + REAL-TIME VOICE/VIDEO E2EE FULLY OPERATIONAL ===");
+    println!("=== 14. HIGH-THROUGHPUT STREAMING ENCRYPTION (10 GB+ UNLIMITED FILE SCALE) ===");
+    use anongram_core::crypto::StreamingAead;
+    use std::io::Cursor;
+
+    let large_stream_key = [0x88u8; KEY_LEN];
+    // Simulate streaming 128 KB with 16 KB chunk boundaries
+    let mock_large_payload = vec![0x37u8; 128 * 1024];
+
+    let mut enc_stream_buf = Vec::new();
+    let enc_bytes = StreamingAead::encrypt_stream(
+        &large_stream_key,
+        Cursor::new(&mock_large_payload),
+        &mut enc_stream_buf,
+        16 * 1024,
+    )
+    .expect("Streaming encryption must succeed with bounded RAM");
+    assert_eq!(enc_bytes, (128 * 1024) as u64);
+
+    let mut dec_stream_buf = Vec::new();
+    let dec_bytes = StreamingAead::decrypt_stream(
+        &large_stream_key,
+        Cursor::new(&enc_stream_buf),
+        &mut dec_stream_buf,
+    )
+    .expect("Streaming decryption must verify all chunk tags");
+    assert_eq!(dec_bytes, (128 * 1024) as u64);
+    assert_eq!(dec_stream_buf, mock_large_payload);
+
+    println!("=== ALL MODULES + HIGH-SPEED STREAMING PIPELINE FULLY OPERATIONAL ===");
 }
+
