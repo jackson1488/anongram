@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnonGram - Полный прототип интерфейса</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    /* Плавные переходы экранов */
+    .screen-fade {
+      transition: opacity 0.2s ease-in-out, transform 0.2s ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-[#0b0e14] text-slate-100 antialiased min-h-screen flex items-center justify-center p-4 selection:bg-amber-500 selection:text-black">
+
+  <!-- МОБИЛЬНЫЙ КОНТЕЙНЕР (СТИЛИЗОВАННЫЙ СМАРТФОН) -->
+  <div class="w-full max-w-sm h-[740px] bg-[#121722] border border-slate-800 rounded-[36px] shadow-2xl flex flex-col overflow-hidden relative border-t-slate-700">
+    
+    <!-- ВЕРХНИЙ СТАТУС-БАР ТЕЛЕФОНА -->
+    <div class="h-10 px-6 flex items-center justify-between text-[11px] font-mono text-slate-400 select-none border-b border-slate-800/60 bg-[#0e121b]">
+      <span id="phone-time">22:17</span>
+      <div class="flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span class="text-[10px] text-slate-500">AIR-GAP SAFE</span>
+      </div>
+    </div>
+
+    <!-- КОНТЕЙНЕР ЭКРАНОВ (DYNAMIC VIEW) -->
+    <main class="flex-1 overflow-hidden relative">
+
+      <!-- ========================================== -->
+      <!-- 1. ЭКРАН ПРИВЕТСТВИЯ / ВЫБОРА (WELCOME) -->
+      <!-- ========================================== -->
+      <section id="screen-welcome" class="absolute inset-0 p-6 flex flex-col justify-between screen-fade">
+        <div class="text-center pt-8 space-y-3">
+          <div class="w-16 h-16 mx-auto rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-3xl shadow-inner">
+            🛡️
+          </div>
+          <h1 class="text-2xl font-bold tracking-tight text-white">AnonGram</h1>
+          <p class="text-xs text-slate-400 leading-relaxed px-2">
+            Абсолютная приватность. Без серверов, телефонов и SMS. Личность принадлежит только математике.
+          </p>
+          <div class="inline-block bg-slate-800/80 border border-slate-700 text-[10px] font-mono text-amber-400 px-3 py-1 rounded-full">
+            Zero-Knowledge • OTP Level 3 • Post-Quantum
+          </div>
+        </div>
+
+        <div class="space-y-3 pb-6">
+          <button onclick="navTo('seed-generate')" class="w-full py-3.5 px-4 bg-amber-500 hover:bg-amber-400 active:scale-[0.98] text-slate-950 font-semibold text-xs rounded-xl transition shadow-lg shadow-amber-500/20">
+            Создать новый аккаунт (Seed 24 слова)
+          </button>
+          <button onclick="navTo('seed-restore')" class="w-full py-3.5 px-4 bg-slate-800 hover:bg-slate-750 active:scale-[0.98] text-slate-200 font-medium text-xs rounded-xl border border-slate-700 transition">
+            Восстановить по Seed-фразе
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 2. ГЕНЕРАЦИЯ SEED-ФРАЗЫ (100% ЛОКАЛЬНО) -->
+      <!-- ========================================== -->
+      <section id="screen-seed-generate" class="absolute inset-0 p-6 flex flex-col justify-between hidden screen-fade">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <button onclick="navTo('welcome')" class="text-xs text-slate-400 hover:text-white">← Назад</button>
+            <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">100% Offline Generation</span>
+          </div>
+
+          <div>
+            <h2 class="text-base font-semibold text-white">Мастер Seed-фраза</h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">
+              Сервер никогда не узнает эти слова. Запишите их на бумаге.
+            </p>
+          </div>
+
+          <!-- Сетка 12/24 слов -->
+          <div class="grid grid-cols-3 gap-2 bg-[#0e121b] p-3 rounded-xl border border-slate-800 text-[11px] font-mono select-all">
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">1.</span> quantum</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">2.</span> shield</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">3.</span> cipher</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">4.</span> matrix</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">5.</span> velvet</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">6.</span> silent</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">7.</span> beacon</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">8.</span> harbor</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">9.</span> kernel</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">10.</span> arctic</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">11.</span> orbit</div>
+            <div class="p-1.5 rounded bg-slate-900 border border-slate-800 text-slate-300"><span class="text-slate-600">12.</span> shadow</div>
+          </div>
+
+          <div class="bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg text-[10px] text-amber-300 flex items-start gap-2">
+            <span>⚠️</span>
+            <span>Без этих слов аккаунт невозможно восстановить. Никто в мире не сможет сбросить доступ.</span>
+          </div>
+        </div>
+
+        <div class="space-y-2 pb-4">
+          <button onclick="navTo('pin-setup')" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs rounded-xl transition">
+            Я записал фразу → Далее
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 3. НАСТРОЙКА ПАРОЛЕЙ И DURESS (ПАРОЛЬ ПОД УГРОЗОЙ) -->
+      <!-- ========================================== -->
+      <section id="screen-pin-setup" class="absolute inset-0 p-6 flex flex-col justify-between hidden screen-fade">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <button onclick="navTo('seed-generate')" class="text-xs text-slate-400 hover:text-white">← Назад</button>
+            <span class="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Deniable Encryption</span>
+          </div>
+
+          <div>
+            <h2 class="text-base font-semibold text-white">Защита хранилища</h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">
+              Два независимых PIN-кода для защиты при принудительном разблокировании.
+            </p>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div class="space-y-1">
+              <label class="text-slate-300 font-medium">Основной пароль / PIN</label>
+              <input type="password" value="8492" placeholder="4-8 цифр" class="w-full bg-[#0e121b] border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:border-amber-500 outline-none font-mono" />
+              <p class="text-[10px] text-slate-500">Открывает реальные переписки и ключи.</p>
+            </div>
+
+            <div class="space-y-1 pt-2">
+              <div class="flex items-center justify-between">
+                <label class="text-red-400 font-medium">Duress PIN (Под принуждением)</label>
+                <span class="text-[9px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded border border-red-500/20">Экстренный</span>
+              </div>
+              <input type="password" value="0000" placeholder="Фейковый пароль" class="w-full bg-[#0e121b] border border-red-500/30 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:border-red-500 outline-none font-mono" />
+              <p class="text-[10px] text-slate-500">Если ввести его: откроется пустой decoy-чат или ключи сотрутся насовсем.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pb-4">
+          <button onclick="navTo('chat-list')" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs rounded-xl transition shadow-lg shadow-amber-500/15">
+            Завершить создание аккаунта
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 4. СПИСОК ЧАТОВ (CHATS LIST) -->
+      <!-- ========================================== -->
+      <section id="screen-chat-list" class="absolute inset-0 flex flex-col hidden screen-fade">
+        <!-- Шапка списка чатов -->
+        <div class="p-4 border-b border-slate-800 bg-[#0e121b] flex items-center justify-between">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-xs font-mono font-bold text-amber-400">
+              ID
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-white">0x8F3A...B921</div>
+              <div class="text-[10px] text-slate-400">Слепой релей: Онлайн</div>
+            </div>
+          </div>
+          <button onclick="navTo('pad-exchange')" class="p-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[10px] font-mono border border-slate-700 flex items-center gap-1">
+            <span>+</span> Обмен падом
+          </button>
+        </div>
+
+        <!-- Список диалогов -->
+        <div class="flex-1 overflow-y-auto divide-y divide-slate-800/60 text-xs">
+          
+          <!-- Диалог 1: Gold Shield (Абсолютный OTP) -->
+          <div onclick="navTo('chat-room')" class="p-3.5 hover:bg-slate-800/40 cursor-pointer flex items-center gap-3 transition">
+            <div class="relative">
+              <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-mono text-xs font-bold text-slate-300">
+                0x7C
+              </div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-amber-400 text-black text-[9px] flex items-center justify-center font-bold" title="Gold Shield OTP">
+                ★
+              </span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-slate-200 truncate">Контакт #7c12</span>
+                <span class="text-[10px] text-slate-500 font-mono">22:15</span>
+              </div>
+              <div class="flex items-center justify-between mt-1">
+                <p class="text-[11px] text-slate-400 truncate">Да, я вижу Gold Shield. Наш блокнот...</p>
+                <span class="text-[9px] font-mono text-amber-400 bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/20">OTP 3.9G</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Диалог 2: Blue Shield (P2P Wi-Fi Direct) -->
+          <div class="p-3.5 hover:bg-slate-800/40 cursor-pointer flex items-center gap-3 transition">
+            <div class="relative">
+              <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-mono text-xs font-bold text-slate-300">
+                0x3B
+              </div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-sky-400 text-black text-[9px] flex items-center justify-center font-bold" title="Blue Shield P2P">
+                ◆
+              </span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-slate-200 truncate">Контакт #3b90</span>
+                <span class="text-[10px] text-slate-500 font-mono">Вчера</span>
+              </div>
+              <div class="flex items-center justify-between mt-1">
+                <p class="text-[11px] text-slate-400 truncate">Передали 500 МБ через Wi-Fi Direct QR</p>
+                <span class="text-[9px] font-mono text-sky-400 bg-sky-500/10 px-1.5 py-0.2 rounded border border-sky-500/20">P2P 480M</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Диалог 3: Стандартный Hybrid PQ (Без физического пада) -->
+          <div class="p-3.5 hover:bg-slate-800/40 cursor-pointer flex items-center gap-3 transition">
+            <div class="relative">
+              <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-mono text-xs font-bold text-slate-300">
+                0x1E
+              </div>
+              <span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-slate-600 text-white text-[9px] flex items-center justify-center font-bold" title="PQ Hybrid">
+                ●
+              </span>
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center justify-between">
+                <span class="font-medium text-slate-200 truncate">Новый контакт #1e44</span>
+                <span class="text-[10px] text-slate-500 font-mono">18:40</span>
+              </div>
+              <div class="flex items-center justify-between mt-1">
+                <p class="text-[11px] text-slate-500 truncate">ML-KEM-1024 + X25519 сессия готова</p>
+                <span class="text-[9px] font-mono text-slate-400 bg-slate-800 px-1.5 py-0.2 rounded">PQ Hybrid</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Нижняя панель навигации -->
+        <div class="p-2 border-t border-slate-800 bg-[#0e121b] flex items-center justify-around text-[10px] text-slate-400 font-mono">
+          <button class="text-amber-400 font-bold flex flex-col items-center">
+            <span>💬</span> Чаты
+          </button>
+          <button onclick="navTo('pad-exchange')" class="hover:text-slate-200 flex flex-col items-center">
+            <span>📦</span> OTP Бандлы
+          </button>
+          <button onclick="navTo('welcome')" class="hover:text-red-400 flex flex-col items-center">
+            <span>🔒</span> Блокировка
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 5. ЭКРАН АКТИВНОГО ЧАТА (CHAT ROOM) -->
+      <!-- ========================================== -->
+      <section id="screen-chat-room" class="absolute inset-0 flex flex-col hidden screen-fade">
+        <!-- Шапка чата -->
+        <div class="p-3 border-b border-slate-800 bg-[#0e121b] flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <button onclick="navTo('chat-list')" class="text-slate-400 hover:text-white text-xs px-1">←</button>
+            <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-mono font-bold text-amber-400">
+              0x7C
+            </div>
+            <div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-xs font-semibold text-white">#7c12</span>
+                <span class="text-[9px] font-mono px-1.5 py-0.2 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  GOLD SHIELD
+                </span>
+              </div>
+              <p class="text-[10px] text-slate-400">Физический USB Pad (5 GB)</p>
+            </div>
+          </div>
+          <button onclick="burnPad()" class="text-[10px] font-mono text-red-400 hover:bg-red-500/10 px-2 py-1 rounded border border-red-500/30">
+            Сжечь пад
+          </button>
+        </div>
+
+        <!-- Полоса свободного места блокнота -->
+        <div class="px-3 py-1.5 bg-[#0b0e14] border-b border-slate-800 flex items-center justify-between text-[10px] font-mono text-slate-400">
+          <span>Остаток:</span>
+          <div class="flex-1 mx-2 bg-slate-800 rounded-full h-1 overflow-hidden">
+            <div id="room-pad-bar" class="bg-amber-400 h-1 rounded-full transition-all duration-300" style="width: 78%;"></div>
+          </div>
+          <span id="room-pad-text" class="text-amber-400">3.90 GB</span>
+        </div>
+
+        <!-- Сообщения -->
+        <div id="room-messages" class="flex-1 overflow-y-auto p-3 space-y-2.5 text-xs">
+          <div class="flex flex-col items-start max-w-[85%]">
+            <div class="p-2.5 rounded-xl rounded-tl-xs bg-[#0e121b] border border-slate-800 text-slate-200 space-y-1">
+              <p>Привет! Канал защищен чистым одноразовым блокнотом.</p>
+              <div class="flex items-center justify-between text-[9px] text-slate-500 pt-1 border-t border-slate-800">
+                <span>Offset: 0x001004</span>
+                <span class="text-amber-400 font-mono">Poly1305 ✓</span>
+              </div>
+            </div>
+            <span class="text-[9px] text-slate-500 mt-0.5 ml-1 font-mono">22:10</span>
+          </div>
+
+          <div class="flex flex-col items-end max-w-[85%] ml-auto">
+            <div class="p-2.5 rounded-xl rounded-tr-xs bg-amber-500/10 border border-amber-500/30 text-slate-100 space-y-1">
+              <p>Ни квантовые компьютеры, ни бесконечные мощности не расшифруют это сообщение.</p>
+              <div class="flex items-center justify-between text-[9px] text-slate-500 pt-1 border-t border-amber-500/20">
+                <span>Offset: 0x001088</span>
+                <span class="text-amber-400 font-mono">Wiped on disk ✓</span>
+              </div>
+            </div>
+            <span class="text-[9px] text-slate-500 mt-0.5 mr-1 font-mono">22:12</span>
+          </div>
+        </div>
+
+        <!-- Поле ввода -->
+        <div class="p-2.5 border-t border-slate-800 bg-[#0e121b] flex items-center gap-1.5">
+          <input id="room-input" type="text" placeholder="Текст сообщения (XOR с падом)..." 
+                 class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white outline-none focus:border-amber-400 transition"
+                 onkeydown="if(event.key === 'Enter') sendRoomMessage()" />
+          <button onclick="sendRoomMessage()" class="px-3 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs rounded-lg transition">
+            →
+          </button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 6. ЭКРАН ОБМЕНА ФИЗИЧЕСКИМ ПАДОМ (PAD EXCHANGE) -->
+      <!-- ========================================== -->
+      <section id="screen-pad-exchange" class="absolute inset-0 p-5 flex flex-col justify-between hidden screen-fade">
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <button onclick="navTo('chat-list')" class="text-xs text-slate-400 hover:text-white">← Назад</button>
+            <span class="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">Offline Bridge</span>
+          </div>
+
+          <div>
+            <h2 class="text-base font-semibold text-white">Обмен One-Time Pad</h2>
+            <p class="text-[11px] text-slate-400 mt-0.5">
+              Сгенерируйте и передайте общий массив случайности при личной встрече.
+            </p>
+          </div>
+
+          <!-- Выбор метода передачи -->
+          <div class="space-y-2 text-xs">
+            <div class="p-3 rounded-xl border border-amber-500/40 bg-amber-500/5 cursor-pointer">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-amber-400">USB-C OTG Кабель (Прямой провод)</span>
+                <span class="text-[9px] bg-amber-400 text-black font-bold px-1.5 py-0.2 rounded">Gold Level 3</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">
+                Абсолютная теоретическая стойкость. Никаких радиоволн, физическая передача 1-5 ГБ.
+              </p>
+            </div>
+
+            <div class="p-3 rounded-xl border border-slate-800 bg-[#0e121b] cursor-pointer hover:border-slate-700">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold text-sky-400">Wi-Fi Direct / Bluetooth + QR</span>
+                <span class="text-[9px] bg-sky-500/20 text-sky-400 font-bold px-1.5 py-0.2 rounded border border-sky-500/30">Blue Level</span>
+              </div>
+              <p class="text-[11px] text-slate-400 mt-1">
+                P2P канал шифруется гибридом (ML-KEM-1024 + X25519) со случайным секретом из QR.
+              </p>
+            </div>
+          </div>
+
+          <!-- Совместная генерация (XOR шума двух устройств) -->
+          <div class="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5 text-[11px] font-mono text-slate-400">
+            <div class="text-slate-200 font-bold">Алгоритм генерации:</div>
+            <div>• Шум сенсоров Устройства А: 50%</div>
+            <div>• Шум сенсоров Устройства Б: 50%</div>
+            <div class="text-emerald-400">• Итоговый пад: A ⊕ B (Криптостойкий XOR)</div>
+          </div>
+        </div>
+
+        <div class="space-y-2 pb-2">
+          <button onclick="alert('Эмуляция: кабель обнаружен, создание пада 1 ГБ...'); navTo('chat-list')" class="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-xs rounded-xl transition">
+            Сгенерировать и синхронизировать пад
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    // Навигатор экранов
+    function navTo(screenId) {
+      const screens = [
+        'welcome', 'seed-generate', 'pin-setup', 
+        'chat-list', 'chat-room', 'pad-exchange'
+      ];
+      screens.forEach(id => {
+        const el = document.getElementById('screen-' + id);
+        if (id === screenId) {
+          el.classList.remove('hidden');
+        } else {
+          el.classList.add('hidden');
+        }
+      });
+    }
+
+    // Интерактивная отправка в чате
+    let padLeft = 3.90;
+    function sendRoomMessage() {
+      const input = document.getElementById('room-input');
+      const text = input.value.trim();
+      if (!text) return;
+
+      const container = document.getElementById('room-messages');
+      const div = document.createElement('div');
+      div.className = "flex flex-col items-end max-w-[85%] ml-auto";
+      div.innerHTML = `
+        <div class="p-2.5 rounded-xl rounded-tr-xs bg-amber-500/10 border border-amber-500/30 text-slate-100 space-y-1">
+          <p>${escapeHtml(text)}</p>
+          <div class="flex items-center justify-between text-[9px] text-slate-500 pt-1 border-t border-amber-500/20">
+            <span>Offset: 0x0010${Math.floor(Math.random()*90 + 10)}</span>
+            <span class="text-amber-400 font-mono">Wiped on disk ✓</span>
+          </div>
+        </div>
+        <span class="text-[9px] text-slate-500 mt-0.5 mr-1 font-mono">Только что</span>
+      `;
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      input.value = "";
+
+      // Расходуем пад
+      padLeft = Math.max(0, padLeft - 0.04);
+      document.getElementById('room-pad-text').innerText = padLeft.toFixed(2) + " GB";
+      document.getElementById('room-pad-bar').style.width = ((padLeft / 5.0) * 100) + "%";
+    }
+
+    function burnPad() {
+      if (confirm("ВНИМАНИЕ: Стереть физический OTP-пад прямо сейчас?")) {
+        padLeft = 0;
+        document.getElementById('room-pad-text').innerText = "0.00 GB (Исчерпан)";
+        document.getElementById('room-pad-bar').style.width = "0%";
+        alert("Пад полностью перезаписан нулями на носителе.");
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    .transition-smooth { transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
+  </style>
+</head>
+<body class="bg-transparent text-gray-100 antialiased p-3 select-none">
+  <div class="max-w-md mx-auto bg-[#16181D] text-gray-100 rounded-3xl p-3.5 shadow-2xl border border-gray-800">
+    
+    <!-- 1. System Header with Master Expand Button on the right -->
+    <div class="flex items-center justify-between px-1 mb-2">
+      <div class="flex items-center gap-2 text-xs">
+        <span class="text-emerald-400 font-bold">🛡️ AnonGram</span>
+        <span class="text-gray-500">•</span>
+        <span class="text-gray-400 text-[11px]">Шторка уведомлений</span>
+      </div>
+
+      <!-- Кнопка СПРАВА: Развернуть/Свернуть масштаб (Побольше / Компактно) -->
+      <button id="masterScaleBtn" onclick="toggleMasterScale()" class="flex items-center gap-1.5 text-[11px] font-semibold bg-gray-800 hover:bg-gray-700 text-emerald-400 px-3 py-1 rounded-full border border-gray-700 transition-smooth">
+        <span id="masterScaleText">Развернуть побольше</span>
+        <span id="masterChevron" class="text-[9px]">▼</span>
+      </button>
+    </div>
+
+    <!-- 2. Main Summary Badge: показывает общее число и "+1" если больше 5 -->
+    <div class="flex items-center justify-between bg-gray-900/80 px-3 py-2 rounded-xl border border-gray-800 mb-2.5">
+      <div class="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+        <span>Всего 14 сообщений</span>
+        <span class="text-[10px] text-gray-400">(в 6 чатах)</span>
+      </div>
+      <!-- Бейдж +1 (так как максимум 5 списков в одном уведомлении, а шестой спрятан) -->
+      <div class="flex items-center gap-1">
+        <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full font-mono font-semibold">5 в списке</span>
+        <span class="text-[10px] bg-amber-500/20 text-amber-300 px-1.5 py-0.5 rounded-full font-mono font-bold" title="Еще 1 чат свернут">+1</span>
+      </div>
+    </div>
+
+    <!-- 3. ТОЧНО 5 СПИСКОВ В ОДНОМ УВЕДОМЛЕНИИ -->
+    <div id="listsContainer" class="space-y-1.5 transition-smooth">
+      
+      <!-- СПИСОК 1 -->
+      <div class="chat-row bg-gray-900/50 rounded-xl p-2.5 border border-gray-800/80 hover:border-gray-700 transition-smooth">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleItem(1)">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs">👥</span>
+            <span class="text-xs font-semibold text-gray-200 truncate">SecOps Core</span>
+            <span class="text-[10px] bg-indigo-500/30 text-indigo-300 px-1.5 py-0.2 rounded-full font-mono">3</span>
+            <span class="text-gray-500 text-[10px]">•</span>
+            <span id="preview1" class="text-[11px] text-gray-400 truncate">Алиса: Ключи обновлены</span>
+          </div>
+          <button class="w-5 h-5 flex items-center justify-center rounded bg-gray-800 text-gray-400 text-[10px] hover:text-white ml-2 flex-shrink-0">
+            <span id="chev1" class="transition-transform">▼</span>
+          </button>
+        </div>
+        <!-- Индивидуальное разворачивание списка 1 -->
+        <div id="fullList1" class="hidden mt-2 pt-2 border-t border-gray-800 space-y-1.5 text-xs">
+          <div class="text-[11px] text-gray-300 pl-4 border-l-2 border-indigo-500">
+            <b class="text-indigo-400">Алиса:</b> Ключи квантовой защиты обновлены до ML-KEM-1024.
+          </div>
+          <div class="text-[11px] text-gray-300 pl-4 border-l-2 border-gray-700">
+            <b class="text-gray-400">Боб:</b> Принял, туннель VLESS-Reality стабилен.
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button class="bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 text-[10px] py-1 px-2.5 rounded-lg">Ответить</button>
+            <button class="bg-gray-800 text-gray-400 text-[10px] py-1 px-2.5 rounded-lg">Прочитано</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- СПИСОК 2 -->
+      <div class="chat-row bg-gray-900/50 rounded-xl p-2.5 border border-gray-800/80 hover:border-gray-700 transition-smooth">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleItem(2)">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs">👤</span>
+            <span class="text-xs font-semibold text-gray-200 truncate">Майкл</span>
+            <span class="text-[10px] bg-emerald-500/30 text-emerald-300 px-1.5 py-0.2 rounded-full font-mono">2</span>
+            <span class="text-gray-500 text-[10px]">•</span>
+            <span id="preview2" class="text-[11px] text-gray-400 truncate">📷 [Фото] Посмотри схему</span>
+          </div>
+          <button class="w-5 h-5 flex items-center justify-center rounded bg-gray-800 text-gray-400 text-[10px] hover:text-white ml-2 flex-shrink-0">
+            <span id="chev2" class="transition-transform">▼</span>
+          </button>
+        </div>
+        <!-- Индивидуальное разворачивание списка 2 -->
+        <div id="fullList2" class="hidden mt-2 pt-2 border-t border-gray-800 space-y-1.5 text-xs">
+          <div class="text-[11px] text-gray-300 pl-4 border-l-2 border-emerald-500">
+            <b class="text-emerald-400">Майкл:</b> Привет, прикрепил схему безопасного маршрута.
+          </div>
+          <div class="bg-gray-950 p-2 rounded-lg border border-gray-800 flex items-center gap-2 text-xs">
+            <span class="text-lg">🗺️</span>
+            <div>
+              <div class="text-[11px] font-semibold text-emerald-300">Схема_маршрута.blob</div>
+              <div class="text-[10px] text-gray-400">Зашифрованное превью (EXIF удален)</div>
+            </div>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button class="bg-emerald-600/30 text-emerald-300 text-[10px] py-1 px-2.5 rounded-lg">Ответить</button>
+            <button class="bg-gray-800 text-gray-400 text-[10px] py-1 px-2.5 rounded-lg">Прочитано</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- СПИСОК 3 -->
+      <div class="chat-row bg-gray-900/50 rounded-xl p-2.5 border border-gray-800/80 hover:border-gray-700 transition-smooth">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleItem(3)">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs">👥</span>
+            <span class="text-xs font-semibold text-gray-200 truncate">Разработка Ядра</span>
+            <span class="text-[10px] bg-purple-500/30 text-purple-300 px-1.5 py-0.2 rounded-full font-mono">4</span>
+            <span class="text-gray-500 text-[10px]">•</span>
+            <span id="preview3" class="text-[11px] text-gray-400 truncate">Дэвид: CI тесты 100% зеленые</span>
+          </div>
+          <button class="w-5 h-5 flex items-center justify-center rounded bg-gray-800 text-gray-400 text-[10px] hover:text-white ml-2 flex-shrink-0">
+            <span id="chev3" class="transition-transform">▼</span>
+          </button>
+        </div>
+        <!-- Индивидуальное разворачивание списка 3 -->
+        <div id="fullList3" class="hidden mt-2 pt-2 border-t border-gray-800 space-y-1.5 text-xs">
+          <div class="text-[11px] text-gray-300 pl-4 border-l-2 border-purple-500">
+            <b class="text-purple-400">Дэвид:</b> CI тесты 100% зеленые, все 11 крейтов в порядке.
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button class="bg-purple-600/30 text-purple-300 text-[10px] py-1 px-2.5 rounded-lg">Ответить</button>
+            <button class="bg-gray-800 text-gray-400 text-[10px] py-1 px-2.5 rounded-lg">Прочитано</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- СПИСОК 4 -->
+      <div class="chat-row bg-gray-900/50 rounded-xl p-2.5 border border-gray-800/80 hover:border-gray-700 transition-smooth">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleItem(4)">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs">👤</span>
+            <span class="text-xs font-semibold text-gray-200 truncate">Ольга</span>
+            <span class="text-[10px] bg-pink-500/30 text-pink-300 px-1.5 py-0.2 rounded-full font-mono">1</span>
+            <span class="text-gray-500 text-[10px]">•</span>
+            <span id="preview4" class="text-[11px] text-gray-400 truncate">Скинула новый OTP блокнот</span>
+          </div>
+          <button class="w-5 h-5 flex items-center justify-center rounded bg-gray-800 text-gray-400 text-[10px] hover:text-white ml-2 flex-shrink-0">
+            <span id="chev4" class="transition-transform">▼</span>
+          </button>
+        </div>
+        <!-- Индивидуальное разворачивание списка 4 -->
+        <div id="fullList4" class="hidden mt-2 pt-2 border-t border-gray-800 space-y-1.5 text-xs">
+          <div class="text-[11px] text-gray-300 pl-4 border-l-2 border-pink-500">
+            <b class="text-pink-400">Ольга:</b> Скинула новый OTP блокнот на 100 МБ через Gold Shield кабель.
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button class="bg-pink-600/30 text-pink-300 text-[10px] py-1 px-2.5 rounded-lg">Ответить</button>
+            <button class="bg-gray-800 text-gray-400 text-[10px] py-1 px-2.5 rounded-lg">Прочитано</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- СПИСОК 5 -->
+      <div class="chat-row bg-gray-900/50 rounded-xl p-2.5 border border-gray-800/80 hover:border-gray-700 transition-smooth">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleItem(5)">
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs">🤖</span>
+            <span class="text-xs font-semibold text-gray-200 truncate">Сервер Relay</span>
+            <span class="text-[10px] bg-cyan-500/30 text-cyan-300 px-1.5 py-0.2 rounded-full font-mono">4</span>
+            <span class="text-gray-500 text-[10px]">•</span>
+            <span id="preview5" class="text-[11px] text-gray-400 truncate">Пинг сокета: 42ms, TLS 1.3</span>
+          </div>
+          <button class="w-5 h-5 flex items-center justify-center rounded bg-gray-800 text-gray-400 text-[10px] hover:text-white ml-2 flex-shrink-0">
+            <span id="chev5" class="transition-transform">▼</span>
+          </button>
+        </div>
+        <!-- Индивидуальное разворачивание списка 5 -->
+        <div id="fullList5" class="hidden mt-2 pt-2 border-t border-gray-800 space-y-1.5 text-xs">
+          <div class="text-[11px] text-gray-300 pl-4 border-l-2 border-cyan-500">
+            <b class="text-cyan-400">Сервер Relay:</b> Пинг сокета 42ms, канал UDP активен, эндпоинт 130.162.254.32.
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button class="bg-cyan-600/30 text-cyan-300 text-[10px] py-1 px-2.5 rounded-lg">Проверить</button>
+            <button class="bg-gray-800 text-gray-400 text-[10px] py-1 px-2.5 rounded-lg">ОК</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Индикатор того, что чатов больше 5 (+1 скрыт в приложении) -->
+    <div class="mt-2 text-center text-[10px] text-gray-500 bg-gray-900/40 py-1 rounded-lg border border-gray-800/50">
+      Еще 1 чат доступен в приложении AnonGram (+1)
+    </div>
+
+  </div>
+
+  <script>
+    let isScaledUp = false;
+    let itemsState = { 1: false, 2: false, 3: false, 4: false, 5: false };
+
+    // Кнопка СПРАВА: Развернуть побольше (масштабирование карточек)
+    function toggleMasterScale() {
+      isScaledUp = !isScaledUp;
+      const text = document.getElementById('masterScaleText');
+      const chev = document.getElementById('masterChevron');
+      const rows = document.querySelectorAll('.chat-row');
+
+      if (isScaledUp) {
+        text.innerText = 'Свернуть компактно';
+        chev.style.transform = 'rotate(180deg)';
+        rows.forEach(r => {
+          r.classList.remove('p-2.5');
+          r.classList.add('p-3.5', 'bg-gray-900/90');
+        });
+      } else {
+        text.innerText = 'Развернуть побольше';
+        chev.style.transform = 'rotate(0deg)';
+        rows.forEach(r => {
+          r.classList.add('p-2.5');
+          r.classList.remove('p-3.5', 'bg-gray-900/90');
+        });
+      }
+    }
+
+    // Индивидуальное разворачивание каждого из 5 списков
+    function toggleItem(id) {
+      itemsState[id] = !itemsState[id];
+      const list = document.getElementById(`fullList${id}`);
+      const chev = document.getElementById(`chev${id}`);
+      const preview = document.getElementById(`preview${id}`);
+
+      if (itemsState[id]) {
+        list.classList.remove('hidden');
+        chev.style.transform = 'rotate(180deg)';
+        if (preview) preview.classList.add('opacity-40');
+      } else {
+        list.classList.add('hidden');
+        chev.style.transform = 'rotate(0deg)';
+        if (preview) preview.classList.remove('opacity-40');
+      }
+    }
+  </script>
+</body>
+</html>

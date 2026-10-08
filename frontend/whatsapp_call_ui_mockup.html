@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnonGram - WhatsApp-Style Call UI & PiP Overlay</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    .pulse-ring {
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: .6; transform: scale(1.08); }
+    }
+    .draggable {
+      cursor: grab;
+      user-select: none;
+    }
+    .draggable:active {
+      cursor: grabbing;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] min-h-screen p-4 flex flex-col items-center justify-center font-sans antialiased">
+
+  <!-- Control Header -->
+  <header class="w-full max-w-md mb-4 flex items-center justify-between p-3 rounded-2xl bg-[var(--card)] border border-[var(--border)] shadow-sm">
+    <div class="flex items-center space-x-2">
+      <span class="text-xl">📞</span>
+      <h1 class="text-sm font-semibold tracking-wide">AnonGram Voice Engine</h1>
+    </div>
+    <div class="flex items-center space-x-2">
+      <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+        SFrame E2EE
+      </span>
+      <button onclick="resetDemo()" class="text-xs px-2.5 py-1 rounded-lg bg-[var(--secondary)] text-[var(--secondary-foreground)] hover:opacity-80 transition">
+        Сброс
+      </button>
+    </div>
+  </header>
+
+  <!-- Mobile Phone Mockup Container -->
+  <div class="relative w-full max-w-sm h-[700px] bg-neutral-900 rounded-[44px] border-[6px] border-neutral-700 shadow-2xl overflow-hidden flex flex-col justify-between">
+
+    <!-- Phone Status Bar -->
+    <div class="w-full h-8 px-6 pt-3 flex justify-between items-center text-xs text-neutral-400 z-50 select-none">
+      <span class="font-semibold text-neutral-200">14:48</span>
+      <div class="w-20 h-4 bg-black rounded-full mx-auto"></div>
+      <div class="flex items-center space-x-1.5">
+        <span>5G</span>
+        <span>100%</span>
+      </div>
+    </div>
+
+    <!-- BACKGROUND APP SIMULATION (e.g. User is reading Web Article / Telegram / Browser) -->
+    <div id="background-app" class="absolute inset-0 pt-12 p-5 bg-neutral-950 text-neutral-300 flex flex-col space-y-4 overflow-hidden select-none">
+      <div class="flex items-center justify-between pb-3 border-b border-neutral-800">
+        <div class="flex items-center space-x-2">
+          <div class="w-6 h-6 rounded-md bg-blue-600 flex items-center justify-center text-white text-xs font-bold">W</div>
+          <span class="text-xs font-medium text-neutral-400">Браузер / Новости</span>
+        </div>
+        <span class="text-xs text-neutral-500">HTTPS</span>
+      </div>
+      <div class="space-y-2">
+        <div class="h-4 bg-neutral-800 rounded w-3/4 animate-pulse"></div>
+        <div class="h-3 bg-neutral-800/60 rounded w-full"></div>
+        <div class="h-3 bg-neutral-800/60 rounded w-5/6"></div>
+        <div class="h-3 bg-neutral-800/60 rounded w-2/3"></div>
+      </div>
+      <div class="p-3 rounded-xl bg-neutral-900/80 border border-neutral-800 text-xs text-neutral-400">
+        💡 <strong>Демонстрация работы:</strong> Входящий звонок всплывает поверх открытого приложения. Можно ответить прямо из уведомления или перейти в режим плавающего окна (PiP), не прерывая чтение!
+      </div>
+      <div class="space-y-2 pt-4">
+        <div class="h-3 bg-neutral-800/40 rounded w-full"></div>
+        <div class="h-3 bg-neutral-800/40 rounded w-4/5"></div>
+      </div>
+    </div>
+
+    <!-- 1. HEADS-UP INCOMING CALL NOTIFICATION (WhatsApp Style) -->
+    <div id="incoming-notification" class="absolute top-10 left-3 right-3 z-40 bg-neutral-800/95 backdrop-blur-md rounded-2xl p-4 border border-neutral-700 shadow-2xl transition-all duration-300 transform translate-y-0">
+      <div class="flex items-center space-x-3 mb-3">
+        <div class="relative">
+          <div class="w-12 h-12 rounded-full bg-emerald-700 flex items-center justify-center text-white text-lg font-bold shadow-md">
+            A
+          </div>
+          <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-neutral-800"></div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center justify-between">
+            <h3 class="text-sm font-bold text-white truncate">Alice (Алиса)</h3>
+            <span class="text-[10px] text-emerald-400 font-mono">E2EE</span>
+          </div>
+          <p class="text-xs text-neutral-300 flex items-center space-x-1">
+            <span>📹</span>
+            <span>Входящий защищенный вызов...</span>
+          </p>
+        </div>
+      </div>
+
+      <!-- Quick Action Buttons: Answer directly without opening chat! -->
+      <div class="grid grid-cols-2 gap-2 pt-1">
+        <button onclick="declineCall()" class="w-full py-2.5 rounded-xl bg-red-600/90 hover:bg-red-600 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition active:scale-95">
+          <span>🔴</span>
+          <span>Отклонить</span>
+        </button>
+        <button onclick="answerCall()" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center space-x-1.5 transition active:scale-95 shadow-lg shadow-emerald-900/50">
+          <span>🟢</span>
+          <span>Ответить</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. FULL-SCREEN ACTIVE CALL MODAL -->
+    <div id="active-call-screen" class="absolute inset-0 z-30 bg-neutral-950 flex flex-col justify-between p-6 transition-all duration-300 opacity-0 pointer-events-none">
+      
+      <!-- Top Bar: Network state & SAS code -->
+      <div class="pt-8 flex flex-col items-center space-y-2">
+        <div class="flex items-center space-x-2 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-[11px] text-neutral-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span id="transport-badge">P2P Direct • 18ms</span>
+        </div>
+        
+        <!-- SAS Verification Emojis -->
+        <div class="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300">
+          <span class="text-xs">🔒 Код SAS:</span>
+          <span class="font-mono text-sm tracking-widest font-bold">🦊 🛡️ 🚀 🌊</span>
+        </div>
+        <p class="text-[10px] text-neutral-500">Сверьте 4 эмодзи голосом для гарантии защиты от MITM</p>
+      </div>
+
+      <!-- Center: Video Stream / Avatar & Timer -->
+      <div class="flex flex-col items-center justify-center my-auto space-y-4">
+        <div class="relative">
+          <div id="avatar-pulse" class="w-28 h-28 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center text-white text-4xl font-bold shadow-2xl pulse-ring">
+            A
+          </div>
+          <div id="video-off-badge" class="hidden absolute inset-0 bg-neutral-900/90 rounded-full flex items-center justify-center text-xs text-neutral-400">
+            Камера выкл
+          </div>
+        </div>
+
+        <div class="text-center">
+          <h2 id="call-participants-title" class="text-lg font-bold text-white">Alice</h2>
+          <p id="call-timer" class="text-xs font-mono text-neutral-400">00:24</p>
+          <div id="group-badge" class="hidden mt-1 px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 text-[10px] font-medium border border-blue-500/30">
+            Групповой звонок (3 участника • SFU Blind)
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Controls: WhatsApp-style bar -->
+      <div class="flex flex-col space-y-3 pb-4">
+        <div class="flex items-center justify-around bg-neutral-900/90 backdrop-blur-md rounded-2xl p-3 border border-neutral-800">
+          <!-- Mute -->
+          <button onclick="toggleMute()" id="btn-mute" class="flex flex-col items-center space-y-1 text-neutral-300 hover:text-white">
+            <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-base">
+              🎤
+            </div>
+            <span class="text-[10px]" id="lbl-mute">Микрофон</span>
+          </button>
+
+          <!-- Video -->
+          <button onclick="toggleVideo()" id="btn-video" class="flex flex-col items-center space-y-1 text-neutral-300 hover:text-white">
+            <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-base">
+              📹
+            </div>
+            <span class="text-[10px]" id="lbl-video">Камера</span>
+          </button>
+
+          <!-- Dynamic Upgrade to Group -->
+          <button onclick="upgradeToGroup()" id="btn-upgrade" class="flex flex-col items-center space-y-1 text-blue-400 hover:text-blue-300">
+            <div class="w-10 h-10 rounded-full bg-blue-950/60 border border-blue-500/40 flex items-center justify-center text-base">
+              👥+
+            </div>
+            <span class="text-[10px]">+Группа</span>
+          </button>
+
+          <!-- Minimize to PiP -->
+          <button onclick="enterPiP()" class="flex flex-col items-center space-y-1 text-neutral-300 hover:text-white">
+            <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-base">
+              🗗
+            </div>
+            <span class="text-[10px]">PiP окно</span>
+          </button>
+        </div>
+
+        <!-- Hangup Button -->
+        <button onclick="hangupCall()" class="w-full py-3.5 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm flex items-center justify-center space-x-2 shadow-xl shadow-red-950/50 active:scale-95 transition">
+          <span>🔴</span>
+          <span>Завершить вызов</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. DRAGGABLE FLOATING PIP WINDOW (Over other apps) -->
+    <div id="pip-window" class="draggable hidden absolute bottom-16 right-4 z-50 w-44 bg-neutral-900/95 backdrop-blur-md rounded-2xl border border-neutral-700 shadow-2xl p-2.5 flex flex-col space-y-2">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-1.5 min-w-0">
+          <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+          <span class="text-[11px] font-bold text-white truncate" id="pip-name">Alice</span>
+        </div>
+        <button onclick="expandFromPiP()" class="text-neutral-400 hover:text-white text-xs p-0.5">
+          ⤢
+        </button>
+      </div>
+
+      <!-- Mini Live Video Area -->
+      <div class="w-full h-20 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-center text-center p-1">
+        <div class="flex flex-col items-center space-y-1">
+          <span class="text-xl">🦊</span>
+          <span class="text-[9px] font-mono text-emerald-400" id="pip-timer">00:24</span>
+        </div>
+      </div>
+
+      <!-- Mini Controls -->
+      <div class="flex items-center justify-between px-1">
+        <button onclick="toggleMute()" class="p-1 rounded-lg bg-neutral-800 text-xs" id="pip-mute-btn">🎤</button>
+        <button onclick="toggleVideo()" class="p-1 rounded-lg bg-neutral-800 text-xs" id="pip-video-btn">📹</button>
+        <button onclick="hangupCall()" class="p-1.5 rounded-lg bg-red-600 text-xs text-white">🔴</button>
+      </div>
+    </div>
+
+    <!-- Phone Bottom Navigation Bar -->
+    <div class="w-full h-6 pb-2 flex justify-center items-center z-50 select-none">
+      <div class="w-32 h-1 bg-neutral-600 rounded-full"></div>
+    </div>
+  </div>
+
+  <!-- Interactive Controls Guide -->
+  <footer class="w-full max-w-md mt-4 p-3 rounded-2xl bg-[var(--card)] border border-[var(--border)] text-xs text-[var(--muted-foreground)] space-y-1">
+    <div class="font-semibold text-[var(--foreground)]">Интерактивный сценарий:</div>
+    <ul class="list-disc pl-4 space-y-0.5">
+      <li><strong>Ответить прямо из шторки:</strong> Нажмите «🟢 Ответить», не открывая приложение.</li>
+      <li><strong>Режим PiP (Плавающее окно):</strong> Нажмите «🗗 PiP окно» — разговор сожмется в перетаскиваемый оверлей поверх браузера.</li>
+      <li><strong>+Группа:</strong> Нажмите «👥+», чтобы на лету пригласить Charlie без обрыва связи.</li>
+    </ul>
+  </footer>
+
+  <script>
+    let isMuted = false;
+    let isVideoEnabled = true;
+    let isGroup = false;
+    let inCall = false;
+    let seconds = 24;
+    let timerInterval = null;
+
+    function startTimer() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        seconds++;
+        const mins = String(Math.floor(seconds / 60)).padStart(2, '0');
+        const secs = String(seconds % 60).padStart(2, '0');
+        const formatted = `${mins}:${secs}`;
+        document.getElementById('call-timer').innerText = formatted;
+        document.getElementById('pip-timer').innerText = formatted;
+      }, 1000);
+    }
+
+    function answerCall() {
+      inCall = true;
+      document.getElementById('incoming-notification').classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+      const screen = document.getElementById('active-call-screen');
+      screen.classList.remove('opacity-0', 'pointer-events-none');
+      startTimer();
+    }
+
+    function declineCall() {
+      document.getElementById('incoming-notification').classList.add('opacity-0', 'pointer-events-none', '-translate-y-4');
+    }
+
+    function hangupCall() {
+      inCall = false;
+      clearInterval(timerInterval);
+      document.getElementById('active-call-screen').classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('pip-window').classList.add('hidden');
+      document.getElementById('incoming-notification').classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    function toggleMute() {
+      isMuted = !isMuted;
+      const muteBtn = document.getElementById('btn-mute');
+      const pipMuteBtn = document.getElementById('pip-mute-btn');
+      const lblMute = document.getElementById('lbl-mute');
+
+      if (isMuted) {
+        muteBtn.querySelector('div').className = 'w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center text-base';
+        pipMuteBtn.className = 'p-1 rounded-lg bg-red-600 text-xs text-white';
+        lblMute.innerText = 'Muted';
+      } else {
+        muteBtn.querySelector('div').className = 'w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-base';
+        pipMuteBtn.className = 'p-1 rounded-lg bg-neutral-800 text-xs';
+        lblMute.innerText = 'Микрофон';
+      }
+    }
+
+    function toggleVideo() {
+      isVideoEnabled = !isVideoEnabled;
+      const badge = document.getElementById('video-off-badge');
+      const videoBtn = document.getElementById('btn-video');
+      const pipVideoBtn = document.getElementById('pip-video-btn');
+      const lblVideo = document.getElementById('lbl-video');
+
+      if (!isVideoEnabled) {
+        badge.classList.remove('hidden');
+        videoBtn.querySelector('div').className = 'w-10 h-10 rounded-full bg-red-600 text-white flex items-center justify-center text-base';
+        pipVideoBtn.className = 'p-1 rounded-lg bg-red-600 text-xs text-white';
+        lblVideo.innerText = 'Выкл';
+      } else {
+        badge.classList.add('hidden');
+        videoBtn.querySelector('div').className = 'w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-base';
+        pipVideoBtn.className = 'p-1 rounded-lg bg-neutral-800 text-xs';
+        lblVideo.innerText = 'Камера';
+      }
+    }
+
+    function upgradeToGroup() {
+      isGroup = true;
+      document.getElementById('call-participants-title').innerText = 'Alice, Charlie, Вы';
+      document.getElementById('pip-name').innerText = 'Группа (3)';
+      document.getElementById('group-badge').classList.remove('hidden');
+      document.getElementById('transport-badge').innerText = 'SFU Blind Relay • 24ms';
+    }
+
+    function enterPiP() {
+      document.getElementById('active-call-screen').classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('pip-window').classList.remove('hidden');
+    }
+
+    function expandFromPiP() {
+      document.getElementById('pip-window').classList.add('hidden');
+      document.getElementById('active-call-screen').classList.remove('opacity-0', 'pointer-events-none');
+    }
+
+    function resetDemo() {
+      inCall = false;
+      isMuted = false;
+      isVideoEnabled = true;
+      isGroup = false;
+      seconds = 24;
+      if (timerInterval) clearInterval(timerInterval);
+
+      document.getElementById('active-call-screen').classList.add('opacity-0', 'pointer-events-none');
+      document.getElementById('pip-window').classList.add('hidden');
+      document.getElementById('group-badge').classList.add('hidden');
+      document.getElementById('video-off-badge').classList.add('hidden');
+      document.getElementById('call-participants-title').innerText = 'Alice';
+      document.getElementById('pip-name').innerText = 'Alice';
+      document.getElementById('transport-badge').innerText = 'P2P Direct • 18ms';
+
+      const notif = document.getElementById('incoming-notification');
+      notif.classList.remove('opacity-0', 'pointer-events-none', '-translate-y-4');
+    }
+
+    // Drag support for PiP Window
+    const pip = document.getElementById('pip-window');
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
+    pip.addEventListener('mousedown', (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = pip.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      pip.style.left = `${initialLeft + dx}px`;
+      pip.style.top = `${initialTop + dy}px`;
+      pip.style.right = 'auto';
+      pip.style.bottom = 'auto';
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+  </script>
+</body>
+</html>
