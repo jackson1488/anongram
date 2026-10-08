@@ -106,7 +106,10 @@ mod tests {
         let k1 = CredentialProcessor::derive_database_key(&pw1, &SALT).unwrap();
         let k2 = CredentialProcessor::derive_database_key(&pw2, &SALT).unwrap();
 
-        assert_eq!(k1, k2, "Identical Unicode combo passwords must produce identical keys");
+        assert_eq!(
+            k1, k2,
+            "Identical Unicode combo passwords must produce identical keys"
+        );
         assert_ne!(k1, [0u8; KEY_LEN]);
     }
 
