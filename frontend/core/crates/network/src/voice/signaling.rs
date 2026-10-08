@@ -11,10 +11,7 @@ pub enum CallSignal {
         is_video: bool,
     },
     /// Response with SDP Answer
-    Answer {
-        call_id: [u8; 16],
-        sdp: String,
-    },
+    Answer { call_id: [u8; 16], sdp: String },
     /// NAT Traversal Candidate
     IceCandidate {
         call_id: [u8; 16],
@@ -29,8 +26,5 @@ pub enum CallSignal {
         new_participant_id: [u8; 32],
     },
     /// Call Termination
-    Hangup {
-        call_id: [u8; 16],
-        reason: String,
-    },
+    Hangup { call_id: [u8; 16], reason: String },
 }

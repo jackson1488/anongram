@@ -69,10 +69,7 @@ impl SFrameEngine {
     }
 
     /// Decrypts received SFrame after depacketization from WebRTC.
-    pub fn open_frame(
-        &self,
-        frame: &EncryptedMediaFrame,
-    ) -> Result<Vec<u8>, NetworkError> {
+    pub fn open_frame(&self, frame: &EncryptedMediaFrame) -> Result<Vec<u8>, NetworkError> {
         let mut aad = Vec::with_capacity(16);
         aad.extend_from_slice(&frame.key_id.to_be_bytes());
         aad.extend_from_slice(&frame.frame_seq.to_be_bytes());

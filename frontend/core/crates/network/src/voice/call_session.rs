@@ -159,7 +159,9 @@ mod tests {
         let audio_frame = session
             .produce_outgoing_frame(MediaType::AudioOpus, b"Alice speaking to Bob")
             .unwrap();
-        let bob_heard = session.consume_incoming_frame(&bob_id, &audio_frame).unwrap();
+        let bob_heard = session
+            .consume_incoming_frame(&bob_id, &audio_frame)
+            .unwrap();
         assert_eq!(bob_heard, b"Alice speaking to Bob");
 
         // 2. Mid-call upgrade: Bob or Alice invites Charlie to join!
@@ -167,7 +169,10 @@ mod tests {
         session.add_participant(charlie_id, 2, charlie_key);
 
         assert_eq!(session.call_type, CallType::GroupCall);
-        assert_eq!(session.transport_state, CallTransportState::UpgradedToGroupSfu);
+        assert_eq!(
+            session.transport_state,
+            CallTransportState::UpgradedToGroupSfu
+        );
         assert_eq!(session.participant_count(), 3); // Alice + Bob + Charlie
 
         // Charlie's frame decryption
