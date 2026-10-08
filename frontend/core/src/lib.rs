@@ -10,7 +10,9 @@
 //! - `push`: Stealth background push decryptor and silent command executor (FCM/APNs).
 //! - `security`: Biometrics, Argon2id passwords, and trusted device registry with revocation.
 //! - `storage`: Encrypted page-level local database with hardware panic wipe.
+//! - `control`: Central KernelCommander orchestrating push dispatch and cascading panic purge.
 
+pub use control;
 pub use crypto;
 pub use identity;
 pub use media;

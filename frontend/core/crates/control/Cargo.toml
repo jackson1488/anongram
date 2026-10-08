@@ -1,0 +1,21 @@
+[package]
+name = "control"
+version = "0.1.0"
+edition = "2021"
+description = "Central Kernel Orchestrator and Cascading Emergency Wipe Bus"
+
+[dependencies]
+crypto = { path = "../crypto" }
+identity = { path = "../identity" }
+otp = { path = "../otp" }
+media = { path = "../media" }
+vpn = { path = "../vpn" }
+network = { path = "../network" }
+push = { path = "../push" }
+security = { path = "../security" }
+storage = { path = "../storage" }
+thiserror = "1"
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+tempfile = "3"

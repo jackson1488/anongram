@@ -16,6 +16,7 @@ members = [
     "crates/push",
     "crates/security",
     "crates/storage",
+    "crates/control",
     "crates/ffi",
 ]
 
@@ -33,6 +34,7 @@ network = { path = "crates/network" }
 push = { path = "crates/push" }
 security = { path = "crates/security" }
 storage = { path = "crates/storage" }
+control = { path = "crates/control" }
 thiserror = "1"
 
 [dev-dependencies]

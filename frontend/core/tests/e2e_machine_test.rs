@@ -283,5 +283,29 @@ fn test_full_autonomous_core_machine() {
     db.panic_wipe().expect("Panic wipe");
     assert!(!storage_path.exists());
 
-    println!("=== ALL 9 MODULES FULLY INTEGRATED AND FUNCTIONING AS ONE MACHINE ===");
+    println!("=== 12. CENTRAL CONTROL ORCHESTRATOR & PUSH CASCADE WIPE ===");
+    use anongram_core::control::{CoreLifecycleState, KernelCommander};
+    let test_db_file = NamedTempFile::new().unwrap();
+    let test_db_path = test_db_file.path().to_path_buf();
+    let test_db = EncryptedStorage::open(&test_db_path, [0x44; KEY_LEN]).unwrap();
+
+    let mut test_pad_file = NamedTempFile::new().unwrap();
+    test_pad_file.write_all(&[0xFF; 256]).unwrap();
+    test_pad_file.flush().unwrap();
+    let test_pad_path = test_pad_file.path().to_path_buf();
+
+    let mut commander = KernelCommander::new(network, dev_mgr, Some(test_db));
+    commander.register_pad_path(test_pad_path.clone());
+
+    // Push triggers cascading panic wipe across ALL modules
+    let commander_push_key: [u8; KEY_LEN] = [0x55; KEY_LEN];
+    let wipe_push = PushProcessor::pack_push_payload(&commander_push_key, 99, &PushAction::PanicWipe).unwrap();
+    let processed_action = commander.handle_encrypted_push(&commander_push_key, &wipe_push).unwrap();
+    assert_eq!(processed_action, PushAction::PanicWipe);
+
+    assert_eq!(commander.state(), CoreLifecycleState::Purged);
+    assert!(!test_db_path.exists(), "DB must be wiped by commander");
+    assert!(!test_pad_path.exists(), "Pad must be wiped by commander");
+
+    println!("=== ALL MODULES FULLY ORCHESTRATED AND FUNCTIONING AS ONE MACHINE ===");
 }
