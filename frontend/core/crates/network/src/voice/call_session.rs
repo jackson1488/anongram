@@ -27,6 +27,13 @@ pub enum CallTransportState {
     Ended,
 }
 
+use sha2::{Digest, Sha256};
+
+pub const SAS_EMOJI_ALPHABET: [&str; 16] = [
+    "🛡️", "🔑", "🚀", "🌟", "🦊", "🌊", "💎", "🦅",
+    "⚡", "🍀", "🔥", "🪐", "🍎", "⚓", "🛸", "🎯",
+];
+
 pub struct CallParticipant {
     pub participant_id: [u8; 32],
     pub is_muted: bool,
@@ -41,6 +48,11 @@ pub struct CallSession {
     pub ice_config: IceConfiguration,
     pub local_encryptor: SFrameEngine,
     pub participants: HashMap<[u8; 32], CallParticipant>,
+    pub is_muted: bool,
+    pub is_video_enabled: bool,
+    pub is_speaker_on: bool,
+    pub pip_mode: bool,
+    session_key: [u8; KEY_LEN],
 }
 
 impl CallSession {
@@ -71,7 +83,58 @@ impl CallSession {
             ice_config: IceConfiguration::default(),
             local_encryptor,
             participants,
+            is_muted: false,
+            is_video_enabled: true,
+            is_speaker_on: false,
+            pip_mode: false,
+            session_key: shared_session_key,
         }
+    }
+
+    /// Toggles local microphone mute status.
+    pub fn toggle_mute(&mut self) -> bool {
+        self.is_muted = !self.is_muted;
+        self.is_muted
+    }
+
+    /// Toggles local camera video status.
+    pub fn toggle_video(&mut self) -> bool {
+        self.is_video_enabled = !self.is_video_enabled;
+        self.is_video_enabled
+    }
+
+    /// Toggles speakerphone on/off.
+    pub fn toggle_speaker(&mut self) -> bool {
+        self.is_speaker_on = !self.is_speaker_on;
+        self.is_speaker_on
+    }
+
+    /// Sets Picture-in-Picture floating window mode.
+    pub fn set_pip_mode(&mut self, enabled: bool) {
+        self.pip_mode = enabled;
+    }
+
+    /// Computes Short Authentication String (SAS) fingerprint emojis
+    /// for manual verbal verification between parties against MITM attacks.
+    pub fn get_sas_fingerprint(&self) -> String {
+        let mut hasher = Sha256::new();
+        hasher.update(&self.call_id);
+        hasher.update(&self.session_key);
+        let digest = hasher.finalize();
+
+        let e1 = SAS_EMOJI_ALPHABET[(digest[0] & 0x0F) as usize];
+        let e2 = SAS_EMOJI_ALPHABET[((digest[0] >> 4) & 0x0F) as usize];
+        let e3 = SAS_EMOJI_ALPHABET[(digest[1] & 0x0F) as usize];
+        let e4 = SAS_EMOJI_ALPHABET[((digest[1] >> 4) & 0x0F) as usize];
+
+        format!("{} {} {} {}", e1, e2, e3, e4)
+    }
+
+    /// Terminates call and sanitizes cryptographic memory.
+    pub fn hangup(&mut self) {
+        self.transport_state = CallTransportState::Ended;
+        self.participants.clear();
+        self.session_key.zeroize();
     }
 
     /// Dynamically upgrades a private 1-on-1 call into a multi-party Group Call room.

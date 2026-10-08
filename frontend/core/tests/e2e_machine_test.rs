@@ -332,6 +332,11 @@ fn test_full_autonomous_core_machine() {
         .expect("Decrypt audio frame");
     assert_eq!(bob_heard, b"Alice speaking to Bob: Secure Voice");
 
+    // Verify WhatsApp-style controls & SAS emoji fingerprint
+    let sas = call.get_sas_fingerprint();
+    assert!(!sas.is_empty(), "SAS emoji fingerprint must be generated");
+    assert!(call.toggle_mute(), "Mute toggle must return true");
+
     // 2. Dynamic Upgrade to Multi-Party Group Call
     let charlie_key = [0x44u8; KEY_LEN];
     call.add_participant(peer_charlie, 2, charlie_key);

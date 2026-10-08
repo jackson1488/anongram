@@ -20,6 +20,7 @@ use buffer::ByteBuffer;
 use crypto::aead::{self, KEY_LEN};
 use identity::seed::MasterSeed;
 use media::{open_media, seal_media, MediaType};
+use network::voice::{CallSession, MediaType as VoiceMediaType, SFrameEngine};
 use network::ServerEndpoint;
 use push::{PushAction, PushProcessor};
 use security::PasswordKdf;
@@ -271,6 +272,65 @@ pub unsafe extern "C" fn anongram_security_derive_key(
     }
 }
 
+// ==========================================
+// 7. VOICE & VIDEO CALL FFI
+// ==========================================
+
+/// Computes a 4-emoji SAS verification fingerprint from call ID (16 bytes) and session key (32 bytes).
+/// Returns null-terminated C-string (e.g., "🦊 🛡️ 🚀 🌊").
+///
+/// # Safety
+/// Valid byte pointers must be provided. Caller must free with `anongram_free_string`.
+#[no_mangle]
+pub unsafe extern "C" fn anongram_call_get_sas_fingerprint(
+    call_id_ptr: *const u8,
+    key_ptr: *const u8,
+) -> *mut c_char {
+    if call_id_ptr.is_null() || key_ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let mut call_id = [0u8; 16];
+    call_id.copy_from_slice(std::slice::from_raw_parts(call_id_ptr, 16));
+
+    let mut key = [0u8; KEY_LEN];
+    key.copy_from_slice(std::slice::from_raw_parts(key_ptr, KEY_LEN));
+
+    let session = CallSession::new_one_on_one(call_id, [0u8; 32], key);
+    let sas = session.get_sas_fingerprint();
+    CString::new(sas).unwrap().into_raw()
+}
+
+/// Seals an outgoing audio/video frame with SFrame RFC 9605 authenticated encryption.
+///
+/// # Safety
+/// Valid byte pointers must be provided.
+#[no_mangle]
+pub unsafe extern "C" fn anongram_call_sframe_seal(
+    key_ptr: *const u8,
+    key_id: u32,
+    media_type_u8: u8,
+    frame_ptr: *const u8,
+    frame_len: usize,
+) -> ByteBuffer {
+    if key_ptr.is_null() || frame_ptr.is_null() {
+        return ByteBuffer::empty();
+    }
+    let mut key = [0u8; KEY_LEN];
+    key.copy_from_slice(std::slice::from_raw_parts(key_ptr, KEY_LEN));
+
+    let media_type = match VoiceMediaType::from_u8(media_type_u8) {
+        Ok(t) => t,
+        Err(_) => return ByteBuffer::empty(),
+    };
+
+    let mut engine = SFrameEngine::new(key_id, key);
+    let raw = std::slice::from_raw_parts(frame_ptr, frame_len);
+    match engine.seal_frame(media_type, raw) {
+        Ok(frame) => ByteBuffer::from_vec(frame.ciphertext),
+        Err(_) => ByteBuffer::empty(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -325,6 +385,33 @@ mod tests {
             let parsed_str = CStr::from_ptr(res).to_str().unwrap();
             assert_eq!(parsed_str, "https://130.162.254.32:8443");
             anongram_free_string(res);
+        }
+    }
+
+    #[test]
+    fn test_ffi_voice_call_sas_and_sframe() {
+        let call_id = [0x55u8; 16];
+        let key = [0x77u8; KEY_LEN];
+        let pcm = b"Raw Opus audio 20ms frame";
+
+        unsafe {
+            // 1. SAS Emoji verification
+            let sas_ptr = anongram_call_get_sas_fingerprint(call_id.as_ptr(), key.as_ptr());
+            assert!(!sas_ptr.is_null());
+            let sas_str = CStr::from_ptr(sas_ptr).to_str().unwrap();
+            assert!(!sas_str.is_empty());
+            anongram_free_string(sas_ptr);
+
+            // 2. SFrame Frame Seal
+            let sealed_frame = anongram_call_sframe_seal(
+                key.as_ptr(),
+                1,
+                VoiceMediaType::AudioOpus.to_u8(),
+                pcm.as_ptr(),
+                pcm.len(),
+            );
+            assert!(sealed_frame.len > pcm.len()); // Ciphertext contains Poly1305 tag
+            buffer::anongram_free_buffer(sealed_frame);
         }
     }
 }

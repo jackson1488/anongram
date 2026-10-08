@@ -1,4 +1,4 @@
-import type { EncryptedEnvelope, IRelayRouter } from "../core/interfaces/i_relay_router.js";
+import type { CallSignalMessage, EncryptedEnvelope, IRelayRouter } from "../core/interfaces/i_relay_router.js";
 
 interface ActiveSession {
   publicId: string;
@@ -51,6 +51,19 @@ export class BlindRelayRouter implements IRelayRouter {
       queue.shift(); // Drop oldest message if queue is full
     }
     queue.push(envelope);
+    return false;
+  }
+
+  public routeCallSignal(signal: CallSignalMessage): boolean {
+    const client = this.activeClients.get(signal.recipientId);
+    if (client) {
+      try {
+        client.socket.send(JSON.stringify(signal));
+        return true;
+      } catch {
+        this.activeClients.delete(signal.recipientId);
+      }
+    }
     return false;
   }
 }

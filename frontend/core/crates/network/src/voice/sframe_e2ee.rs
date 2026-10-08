@@ -16,6 +16,26 @@ pub enum MediaType {
     VideoH264,
 }
 
+impl MediaType {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            MediaType::AudioOpus => 1,
+            MediaType::VideoVp8 => 2,
+            MediaType::VideoH264 => 3,
+        }
+    }
+
+    pub fn from_u8(v: u8) -> Result<Self, NetworkError> {
+        match v {
+            1 => Ok(MediaType::AudioOpus),
+            2 => Ok(MediaType::VideoVp8),
+            3 => Ok(MediaType::VideoH264),
+            _ => Err(NetworkError::MalformedFrame),
+        }
+    }
+}
+
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct EncryptedMediaFrame {
     pub key_id: u32,

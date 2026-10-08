@@ -3,7 +3,7 @@ import websocket from "@fastify/websocket";
 import { SqlitePassportStorage } from "./infrastructure/storage/sqlite_passport_storage.js";
 import { BlindRelayRouter } from "./domain/services/blind_relay_router.js";
 import type { PassportRecord } from "./core/interfaces/i_passport_storage.js";
-import type { EncryptedEnvelope } from "./core/interfaces/i_relay_router.js";
+import type { CallSignalMessage, EncryptedEnvelope } from "./core/interfaces/i_relay_router.js";
 
 const app = Fastify({ logger: false });
 await app.register(websocket);
@@ -75,6 +75,22 @@ app.register(async function (fastify) {
           };
           const delivered = relayRouter.routeEnvelope(envelope);
           socket.send(JSON.stringify({ type: "ack", delivered }));
+          return;
+        }
+
+        if (msg.type === "call_signal") {
+          const signal: CallSignalMessage = {
+            type: "call_signal",
+            callId: msg.callId,
+            senderId: authenticatedId ?? msg.senderId,
+            recipientId: msg.recipientId,
+            signalType: msg.signalType,
+            payloadJson: msg.payloadJson,
+            timestamp: Math.floor(Date.now() / 1000),
+          };
+          const delivered = relayRouter.routeCallSignal(signal);
+          socket.send(JSON.stringify({ type: "call_ack", callId: msg.callId, delivered }));
+          return;
         }
       } catch {
         socket.send(JSON.stringify({ error: "Malformed payload" }));

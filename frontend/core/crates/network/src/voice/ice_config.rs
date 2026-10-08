@@ -50,3 +50,13 @@ impl Default for IceConfiguration {
         }
     }
 }
+
+impl IceConfiguration {
+    /// Forces all traffic exclusively through encrypted TURN relays to prevent IP address exposure.
+    pub fn privacy_relay_only() -> Self {
+        let mut config = Self::default();
+        config.transport_policy = IceTransportPolicy::RelayOnly;
+        config
+    }
+}
+
