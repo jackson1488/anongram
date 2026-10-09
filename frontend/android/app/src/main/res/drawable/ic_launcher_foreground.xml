@@ -1,0 +1,23 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group android:translateX="18" android:translateY="18" android:scaleX="3.0" android:scaleY="3.0">
+        <!-- Cryptographic Shield -->
+        <path
+            android:pathData="M12,22 C12,22 20,18 20,12 V5 L12,2 L4,5 V12 C4,18 12,22 12,22 Z"
+            android:strokeColor="#00F2FE"
+            android:strokeWidth="1.8"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+        <!-- Stealth Origami Airplane -->
+        <path
+            android:pathData="M7,11 L17,7 L13,17 L11,13 L7,11 Z"
+            android:fillColor="#10B981"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="1.2"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"/>
+    </group>
+</vector>

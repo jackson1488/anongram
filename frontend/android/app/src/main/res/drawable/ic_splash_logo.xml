@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="192dp"
+    android:height="192dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Master Splash Shield -->
+    <path
+        android:pathData="M50,90 C50,90 84,73 84,48 V20 L50,8 L16,20 V48 C16,73 50,90 50,90 Z"
+        android:strokeColor="#00F2FE"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Stealth Plane Left Wing -->
+    <path
+        android:pathData="M50,26 L28,52 L46,47 Z"
+        android:fillColor="#10B981"/>
+    <!-- Stealth Plane Right Wing -->
+    <path
+        android:pathData="M50,26 L72,52 L50,72 L46,47 Z"
+        android:fillColor="#FFFFFF"/>
+</vector>

@@ -1,0 +1,19 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Shield -->
+    <path
+        android:pathData="M12,22 C12,22 20,18 20,12 V5 L12,2 L4,5 V12 C4,18 12,22 12,22 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
+    <!-- Secure Phone Handset -->
+    <path
+        android:pathData="M14.5,13.2 C13.8,13.2 13.2,13.1 12.6,12.8 C12.3,12.7 12,12.8 11.8,13 L10.9,13.9 C9.3,12.8 8.2,11.7 7.1,10.1 L8,9.2 C8.2,9 8.3,8.7 8.2,8.4 C7.9,7.8 7.8,7.2 7.8,6.5 C7.8,5.9 7.4,5.5 6.8,5.5 L5.5,5.5 C4.9,5.5 4.5,5.9 4.5,6.5 C4.5,12 8.9,16.5 14.5,16.5 C15.1,16.5 15.5,16.1 15.5,15.5 L15.5,14.2 C15.5,13.6 15.1,13.2 14.5,13.2 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="#FFFFFFFF"
+        android:strokeWidth="0.8"/>
+</vector>

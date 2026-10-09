@@ -1,0 +1,16 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Deep AMOLED obsidian background -->
+    <path
+        android:pathData="M0,0 H108 V108 H0 Z"
+        android:fillColor="#0A0D14"/>
+    <!-- Subtle Hex Grid Circles -->
+    <path
+        android:pathData="M54,18 L85,36 V72 L54,90 L23,72 V36 Z"
+        android:strokeColor="#1F2937"
+        android:strokeWidth="1"
+        android:strokeAlpha="0.4"/>
+</vector>

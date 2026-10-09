@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  <!-- Phone Handset inside -->
+  <path d="M15 13.5c-.7 0-1.4-.1-2-.4-.3-.1-.6 0-.8.2l-.9.9a7.8 7.8 0 0 1-3.5-3.5l.9-.9c.2-.2.3-.5.2-.8-.3-.6-.4-1.3-.4-2 0-.6-.4-1-1-1H6c-.6 0-1 .4-1 1 0 5.5 4.5 10 10 10 .6 0 1-.4 1-1v-1.5c0-.6-.4-1-1-1z" fill="#10b981" stroke="#ffffff" stroke-width="1.2" />
+</svg>

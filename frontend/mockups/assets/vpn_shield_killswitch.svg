@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" fill="none">
+  <!-- Red Shield for Zero-Leak KillSwitch -->
+  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Heavy Padlock inside -->
+  <rect x="8" y="11" width="8" height="6" rx="1.5" fill="#ef4444" stroke="#fca5a5" stroke-width="1" />
+  <path d="M9.5 11V8.5a2.5 2.5 0 0 1 5 0V11" stroke="#fca5a5" stroke-width="1.6" stroke-linecap="round" />
+  <circle cx="12" cy="14" r="0.8" fill="#ffffff" />
+</svg>

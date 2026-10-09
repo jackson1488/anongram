@@ -3,264 +3,522 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AnonGram - Концепты Логотипа, Сплэш-экрана и Иконки Уведомлений</title>
+  <title>AnonGram - Полный Мастер Бренд-Пак (Иконки, Уведомления, VPN, Сплэш)</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
+    @keyframes pulse-subtle {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.85; transform: scale(1.03); }
+    }
+    .animate-pulse-subtle {
+      animation: pulse-subtle 2.5s infinite ease-in-out;
+    }
     .glow-cyan {
       box-shadow: 0 0 35px -5px rgba(6, 182, 212, 0.45);
     }
     .glow-emerald {
       box-shadow: 0 0 35px -5px rgba(16, 185, 129, 0.45);
     }
+    .glow-red {
+      box-shadow: 0 0 35px -5px rgba(239, 68, 68, 0.45);
+    }
   </style>
 </head>
-<body class="bg-[#0a0d14] text-neutral-100 min-h-screen p-4 md:p-8 font-sans antialiased">
+<body class="bg-[#07090e] text-neutral-100 min-h-screen p-4 md:p-8 font-sans antialiased">
 
   <!-- Header -->
-  <header class="max-w-5xl mx-auto mb-8 text-center space-y-2">
-    <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 text-xs font-mono tracking-wider">
-      <span>🛡️</span>
-      <span>ANONGRAM IDENTITY & BRANDING SUITE</span>
+  <header class="max-w-6xl mx-auto mb-10 text-center space-y-3">
+    <div class="inline-flex items-center space-x-2 px-3.5 py-1 rounded-full bg-cyan-950/70 border border-cyan-500/40 text-cyan-300 text-xs font-mono tracking-wider shadow-lg">
+      <span class="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1"></span>
+      <span>ANONGRAM MASTER BRAND IDENTITY &amp; ASSET SUITE</span>
     </div>
-    <h1 class="text-3xl md:text-4xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 via-emerald-400 to-teal-300 bg-clip-text text-transparent">
-      Референсы Логотипа, Сплэш-экрана и Уведомлений
+    <h1 class="text-3xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-cyan-400 via-teal-300 to-emerald-400 bg-clip-text text-transparent">
+      Утвержденный Бренд-Пак и Все Вариации
     </h1>
-    <p class="text-sm text-neutral-400 max-w-2xl mx-auto">
-      Оцени концепты логотипа для мессенджера AnonGram. Выбери понравившийся вариант для утверждения и интеграции во Flutter-клиент.
+    <p class="text-sm md:text-base text-neutral-400 max-w-2xl mx-auto">
+      Каноничный дизайн «Криптографический Щит + Стелс-Самолет» во всех системных воплощениях: статус-бар Android, уведомления, состояния VPN, адаптивные иконки и Splash Screen.
     </p>
   </header>
 
   <!-- Main Content Grid -->
-  <main class="max-w-5xl mx-auto space-y-12">
+  <main class="max-w-6xl mx-auto space-y-12">
 
-    <!-- 1. TWO MAIN LOGO CONCEPTS COMPARISON -->
-    <section class="space-y-4">
-      <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
-        <h2 class="text-lg font-bold text-neutral-200 flex items-center space-x-2">
-          <span>🎨</span>
-          <span>1. Основные Концепты Иконки Приложения</span>
-        </h2>
-        <span class="text-xs text-neutral-500 font-mono">App Icon (1024x1024)</span>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-        <!-- CONCEPT 1 (RECOMMENDED) -->
-        <div id="card-concept-1" class="relative p-6 rounded-3xl bg-neutral-900/90 border-2 border-emerald-500/60 shadow-2xl flex flex-col justify-between space-y-4 transition-all duration-300 hover:border-emerald-400 glow-emerald">
-          <div class="absolute top-4 right-4 px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[11px] font-bold">
-            РЕКОМЕНДУЕМЫЙ
+    <!-- 1. MASTER APP LAUNCHER ICON -->
+    <section class="p-6 md:p-8 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-2xl space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">🚀</span>
+            <h2 class="text-xl font-bold text-white">1. Основная Иконка Приложения (Master Launcher Icon)</h2>
           </div>
-
-          <div class="space-y-3">
-            <h3 class="text-base font-bold text-white flex items-center space-x-2">
-              <span class="text-emerald-400">Концепт 1:</span>
-              <span>«Неоновый Щит и Стелс-Самолет»</span>
-            </h3>
-            <p class="text-xs text-neutral-400 leading-relaxed">
-              <strong>Смысл:</strong> Синергия свободы общения (оригами бумажного самолетика) и абсолютной квантовой брони (многогранный кибер-щит). Неоновый градиент циан/изумруд на матовом титановом фоне.
-            </p>
-          </div>
-
-          <!-- Image Preview -->
-          <div class="flex justify-center p-3 rounded-2xl bg-neutral-950/80 border border-neutral-800">
-            <img src="assets/anongram_app_icon_concept_1791552292803.jpg" alt="Concept 1: Neon Shield Origami Plane" class="w-64 h-64 rounded-2xl object-cover shadow-2xl transition transform hover:scale-105 duration-300">
-          </div>
-
-          <div class="pt-2">
-            <button onclick="selectConcept(1)" class="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-lg transition active:scale-95 flex items-center justify-center space-x-2">
-              <span>✅</span>
-              <span>Выбрать и Утвердить Концепт 1</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- CONCEPT 2 -->
-        <div id="card-concept-2" class="relative p-6 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-xl flex flex-col justify-between space-y-4 transition-all duration-300 hover:border-cyan-500/60">
-          <div class="absolute top-4 right-4 px-2.5 py-0.5 rounded-full bg-neutral-800 text-neutral-400 border border-neutral-700 text-[11px] font-medium">
-            ВАРИАНТ 2
-          </div>
-
-          <div class="space-y-3">
-            <h3 class="text-base font-bold text-white flex items-center space-x-2">
-              <span class="text-cyan-400">Концепт 2:</span>
-              <span>«Кибер-Монограмма 'A' с Замком»</span>
-            </h3>
-            <p class="text-xs text-neutral-400 leading-relaxed">
-              <strong>Смысл:</strong> Строгая футуристическая буква «A» (AnonGram), сформированная из линий микросхем, замочной скважины и криптографической дужки замка. Металлический отблеск индиго/циан.
-            </p>
-          </div>
-
-          <!-- Image Preview -->
-          <div class="flex justify-center p-3 rounded-2xl bg-neutral-950/80 border border-neutral-800">
-            <img src="assets/anongram_monogram_concept_1791552313256.jpg" alt="Concept 2: Cyber Monogram A Lock" class="w-64 h-64 rounded-2xl object-cover shadow-2xl transition transform hover:scale-105 duration-300">
-          </div>
-
-          <div class="pt-2">
-            <button onclick="selectConcept(2)" class="w-full py-3 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-semibold text-xs border border-neutral-700 transition active:scale-95 flex items-center justify-center space-x-2">
-              <span>Выбрать Концепт 2</span>
-            </button>
-          </div>
-        </div>
-
-      </div>
-    </section>
-
-    <!-- 2. SPLASH SCREEN MOCKUP -->
-    <section class="space-y-4">
-      <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
-        <h2 class="text-lg font-bold text-neutral-200 flex items-center space-x-2">
-          <span>📱</span>
-          <span>2. Сплэш-экран (Заставка при запуске приложения)</span>
-        </h2>
-        <span class="text-xs text-neutral-500 font-mono">Launch Screen Mockup</span>
-      </div>
-
-      <div class="p-6 rounded-3xl bg-neutral-900/90 border border-neutral-800 flex flex-col md:flex-row items-center gap-8">
-        <div class="flex-shrink-0 flex justify-center">
-          <img src="assets/anongram_splash_screen_mockup_1791552329580.jpg" alt="AnonGram Splash Screen" class="w-64 h-auto rounded-3xl shadow-2xl border border-neutral-700">
-        </div>
-        <div class="space-y-4 max-w-lg">
-          <div class="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs border border-emerald-500/20">
-            <span>✨</span>
-            <span>Мгновенный холодный старт</span>
-          </div>
-          <h3 class="text-xl font-bold text-white">Элегантная минималистичная заставка</h3>
-          <p class="text-xs text-neutral-400 leading-relaxed">
-            При запуске AnonGram на экране смартфона появляется глубокий обсидиановый фон с тонкой голографической сеткой. По центру мягко пульсирует неоновый символ, под которым отображается название <strong>ANONGRAM</strong> и статус: <em>«Zero-Knowledge Cryptographic Network»</em>.
+          <p class="text-xs text-neutral-400 mt-1">
+            Сгенерировано в векторном формате и растрировано для всех плотностей Android (mdpi..xxxhdpi) и Play Store (512x512).
           </p>
-          <div class="space-y-2 text-xs text-neutral-300">
-            <div class="flex items-center space-x-2">
-              <span class="text-emerald-400">✓</span>
-              <span>Без мерцания и белых вспышек в темноте (True AMOLED Black).</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <span class="text-emerald-400">✓</span>
-              <span>Совместимо с Android 12+ SplashScreen API и iOS LaunchScreen.storyboard.</span>
-            </div>
-            <div class="flex items-center space-x-2">
-              <span class="text-emerald-400">✓</span>
-              <span>Пока горит заставка, Rust Core в фоне расшифровывает SQLite базу за 0.05 сек.</span>
-            </div>
+        </div>
+        <div class="flex items-center space-x-2 text-xs font-mono">
+          <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">1024x1024 Master</span>
+          <span class="px-2.5 py-1 rounded-lg bg-cyan-500/20 text-cyan-400 border border-cyan-500/30">Adaptive Vector XML</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+        <!-- Squircle Preview -->
+        <div class="flex flex-col items-center p-6 rounded-2xl bg-neutral-950/80 border border-neutral-800 text-center space-y-3">
+          <img src="assets/play_store_512.png" alt="Squircle Launcher Icon" class="w-36 h-36 rounded-[28%] shadow-2xl hover:scale-105 transition duration-300">
+          <div class="space-y-1">
+            <span class="text-xs font-bold text-neutral-200">Android Squircle (512px)</span>
+            <p class="text-[11px] text-neutral-500">Play Store &amp; Стандартная форма</p>
+          </div>
+        </div>
+
+        <!-- Circular Preview -->
+        <div class="flex flex-col items-center p-6 rounded-2xl bg-neutral-950/80 border border-neutral-800 text-center space-y-3">
+          <img src="assets/play_store_512.png" alt="Round Launcher Icon" class="w-36 h-36 rounded-full shadow-2xl hover:scale-105 transition duration-300">
+          <div class="space-y-1">
+            <span class="text-xs font-bold text-neutral-200">Android Round (ic_launcher_round)</span>
+            <p class="text-[11px] text-neutral-500">Google Pixel &amp; Круглые лаунчеры</p>
+          </div>
+        </div>
+
+        <!-- Foreground & Background Adaptive Stack -->
+        <div class="flex flex-col items-center p-6 rounded-2xl bg-neutral-950/80 border border-neutral-800 text-center space-y-3">
+          <div class="relative w-36 h-36 rounded-2xl bg-[#0a0d14] border border-neutral-700 flex items-center justify-center overflow-hidden">
+            <div class="absolute inset-0 opacity-20 bg-[radial-gradient(#00f2fe_1px,transparent_1px)] [background-size:12px_12px]"></div>
+            <img src="assets/anongram_logo_color.svg" alt="Adaptive Foreground" class="w-24 h-24 relative z-10 animate-pulse-subtle">
+          </div>
+          <div class="space-y-1">
+            <span class="text-xs font-bold text-neutral-200">Adaptive Foreground + Background</span>
+            <p class="text-[11px] text-neutral-500">Бесшовный параллакс при свайпе</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 3. NOTIFICATION ICON (MONOCHROME SILHOUETTE) -->
-    <section class="space-y-4">
-      <div class="flex items-center justify-between border-b border-neutral-800 pb-2">
-        <h2 class="text-lg font-bold text-neutral-200 flex items-center space-x-2">
-          <span>🔔</span>
-          <span>3. Иконка для Уведомлений Android (Монохромный силуэт)</span>
-        </h2>
-        <span class="text-xs text-neutral-500 font-mono">Notification Tray Icon</span>
+    <!-- 2. ANDROID NOTIFICATION VARIATIONS (24x24dp VECTOR SUITE) -->
+    <section class="p-6 md:p-8 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-2xl space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">🔔</span>
+            <h2 class="text-xl font-bold text-white">2. Строгие Иконки Уведомлений Android (24×24 dp Вектор)</h2>
+          </div>
+          <p class="text-xs text-neutral-400 mt-1">
+            100% соответствие Google Android CDD: чистый белый силуэт (<code class="text-neutral-300">#FFFFFF</code>) на прозрачном фоне без цветных заливок.
+          </p>
+        </div>
+        <span class="text-xs font-mono text-emerald-400 bg-emerald-950/60 border border-emerald-500/30 px-3 py-1 rounded-full">
+          Все 6 типов реализованы в drawable/
+        </span>
       </div>
 
-      <div class="p-6 rounded-3xl bg-neutral-900/90 border border-neutral-800 space-y-6">
-        <div class="text-xs text-neutral-400 max-w-2xl leading-relaxed">
-          <strong>Важное требование Google Android:</strong> Иконка в статус-баре уведомлений <em>обязана</em> быть чисто белым силуэтом на прозрачном фоне (без цветов и цветных градиентов). Android автоматически перекрашивает её в зависимости от системной темы.
+      <!-- Grid of all 6 Notification Types -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+
+        <!-- 1. Message -->
+        <div onclick="selectNotification('message')" class="cursor-pointer p-4 rounded-2xl bg-neutral-950/80 border border-neutral-800 hover:border-emerald-500/60 transition duration-200 flex flex-col items-center text-center space-y-3 group">
+          <div class="w-14 h-14 rounded-xl bg-neutral-900 border border-neutral-700 flex items-center justify-center group-hover:scale-110 transition">
+            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M7 11l10-4-4 10-2-4-4-2z"/>
+            </svg>
+          </div>
+          <div class="space-y-0.5">
+            <span class="text-xs font-bold text-white block">Сообщение</span>
+            <code class="text-[10px] text-neutral-500 font-mono">ic_stat_anongram</code>
+          </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-          
-          <!-- Vector Silhouette Display -->
-          <div class="p-6 rounded-2xl bg-neutral-950 border border-neutral-800 flex flex-col items-center justify-center space-y-4 text-center">
-            <span class="text-xs text-neutral-500 font-mono">Векторный силуэт (24x24 dp):</span>
-            
-            <!-- SVG Icon Silhouette -->
-            <div class="w-20 h-20 rounded-2xl bg-neutral-900 border border-neutral-700 flex items-center justify-center shadow-lg">
-              <svg class="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <!-- Shield -->
+        <!-- 2. VPN -->
+        <div onclick="selectNotification('vpn')" class="cursor-pointer p-4 rounded-2xl bg-neutral-950/80 border border-neutral-800 hover:border-cyan-500/60 transition duration-200 flex flex-col items-center text-center space-y-3 group">
+          <div class="w-14 h-14 rounded-xl bg-neutral-900 border border-neutral-700 flex items-center justify-center group-hover:scale-110 transition">
+            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M7 11l10-4-4 10-2-4-4-2z"/>
+              <path d="M19 8a5 5 0 0 1 0 7" stroke-width="1.6"/>
+              <path d="M5 8a5 5 0 0 0 0 7" stroke-width="1.6"/>
+            </svg>
+          </div>
+          <div class="space-y-0.5">
+            <span class="text-xs font-bold text-white block">VPN Туннель</span>
+            <code class="text-[10px] text-neutral-500 font-mono">ic_stat_anongram_vpn</code>
+          </div>
+        </div>
+
+        <!-- 3. Secure Call -->
+        <div onclick="selectNotification('call')" class="cursor-pointer p-4 rounded-2xl bg-neutral-950/80 border border-neutral-800 hover:border-emerald-500/60 transition duration-200 flex flex-col items-center text-center space-y-3 group">
+          <div class="w-14 h-14 rounded-xl bg-neutral-900 border border-neutral-700 flex items-center justify-center group-hover:scale-110 transition">
+            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M14.5 13.2c-.7 0-1.3-.1-1.9-.4-.3-.1-.6 0-.8.2l-.9.9a7.8 7.8 0 0 1-3.5-3.5l.9-.9c.2-.2.3-.5.2-.8-.3-.6-.4-1.2-.4-1.9 0-.6-.4-1-1-1H5.8c-.6 0-1 .4-1 1 0 5.5 4.5 10 10 10 .6 0 1-.4 1-1v-1.3c0-.6-.4-1-1-1z" fill="white"/>
+            </svg>
+          </div>
+          <div class="space-y-0.5">
+            <span class="text-xs font-bold text-white block">Звонок E2EE</span>
+            <code class="text-[10px] text-neutral-500 font-mono">ic_stat_anongram_call</code>
+          </div>
+        </div>
+
+        <!-- 4. Security / Lock -->
+        <div onclick="selectNotification('lock')" class="cursor-pointer p-4 rounded-2xl bg-neutral-950/80 border border-neutral-800 hover:border-amber-500/60 transition duration-200 flex flex-col items-center text-center space-y-3 group">
+          <div class="w-14 h-14 rounded-xl bg-neutral-900 border border-neutral-700 flex items-center justify-center group-hover:scale-110 transition">
+            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <rect x="8.5" y="11" width="7" height="5.5" rx="1" fill="white"/>
+              <path d="M10 11V8.5a2 2 0 1 1 4 0v2.5" stroke-width="1.6"/>
+            </svg>
+          </div>
+          <div class="space-y-0.5">
+            <span class="text-xs font-bold text-white block">Anti-MITM Ключи</span>
+            <code class="text-[10px] text-neutral-500 font-mono">ic_stat_anongram_lock</code>
+          </div>
+        </div>
+
+        <!-- 5. Group Secret Chat -->
+        <div onclick="selectNotification('group')" class="cursor-pointer p-4 rounded-2xl bg-neutral-950/80 border border-neutral-800 hover:border-teal-500/60 transition duration-200 flex flex-col items-center text-center space-y-3 group">
+          <div class="w-14 h-14 rounded-xl bg-neutral-900 border border-neutral-700 flex items-center justify-center group-hover:scale-110 transition">
+            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M6 10l8-3-3 8-1.5-3-3.5-2z" stroke-width="1.6"/>
+              <path d="M12 13.5l5.5-2.5-2 5.5-1-2-2.5-1z" stroke-width="1.3"/>
+            </svg>
+          </div>
+          <div class="space-y-0.5">
+            <span class="text-xs font-bold text-white block">Групповой Чат</span>
+            <code class="text-[10px] text-neutral-500 font-mono">ic_stat_anongram_group</code>
+          </div>
+        </div>
+
+        <!-- 6. Burn / Timer -->
+        <div onclick="selectNotification('burn')" class="cursor-pointer p-4 rounded-2xl bg-neutral-950/80 border border-neutral-800 hover:border-red-500/60 transition duration-200 flex flex-col items-center text-center space-y-3 group">
+          <div class="w-14 h-14 rounded-xl bg-neutral-900 border border-neutral-700 flex items-center justify-center group-hover:scale-110 transition">
+            <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="M12 7c1 2 3 3 3 5a3 3 0 0 1-6 0c0-1.5 1-2.5 3-5z" fill="white"/>
+            </svg>
+          </div>
+          <div class="space-y-0.5">
+            <span class="text-xs font-bold text-white block">Самоуничтожение</span>
+            <code class="text-[10px] text-neutral-500 font-mono">ic_stat_anongram_burn</code>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Real-time Android Notification Drawer Simulator -->
+      <div class="p-6 rounded-2xl bg-black border border-neutral-800 space-y-4">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-mono text-neutral-400">СИМУЛЯТОР СТАТУС-БАРА И ШТОРКИ ANDROID</span>
+          <span class="text-[11px] text-emerald-400">Нажмите на карточку выше для смены уведомления 👆</span>
+        </div>
+
+        <!-- Phone Status Bar -->
+        <div class="h-8 px-4 rounded-xl bg-neutral-900/90 flex items-center justify-between text-xs text-neutral-300">
+          <div class="flex items-center space-x-3">
+            <span class="font-bold">19:42</span>
+            <!-- Active Notification Icon in Status Bar -->
+            <div id="sim-status-icon" class="text-white">
+              <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                 <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                <!-- Origami paper plane inside -->
                 <path d="M7 11l10-4-4 10-2-4-4-2z"/>
               </svg>
             </div>
-
-            <div class="text-[11px] text-neutral-400">
-              <code>ic_stat_anongram.xml</code> (Android Vector Drawable)
+            <span class="text-neutral-600">•</span>
+            <!-- Active VPN status pill -->
+            <div class="flex items-center space-x-1 text-[11px] text-emerald-400 font-mono">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M7 11l10-4-4 10-2-4-4-2z"/>
+              </svg>
+              <span>ANONGRAM VPN ON</span>
             </div>
           </div>
 
-          <!-- Notification Shade Mockup -->
-          <div class="p-4 rounded-2xl bg-black border border-neutral-800 space-y-3">
-            <span class="text-xs text-neutral-500 font-mono">Как это выглядит в шторке Android:</span>
+          <div class="flex items-center space-x-2 text-[11px]">
+            <span>VoLTE</span>
+            <span>5G</span>
+            <span>100% 🔋</span>
+          </div>
+        </div>
 
-            <!-- Status Bar Simulation -->
-            <div class="h-7 px-3 rounded-lg bg-neutral-900 flex items-center justify-between text-xs text-neutral-300">
-              <div class="flex items-center space-x-2">
-                <span>19:42</span>
-                <!-- Mini Notification Icon in Status Bar -->
-                <svg class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <!-- Expanded Notification Card in Shade -->
+        <div id="sim-notification-card" class="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-3 shadow-xl transition-all duration-300">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2.5">
+              <div class="w-6 h-6 rounded-full bg-emerald-600 flex items-center justify-center p-1 shadow">
+                <svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                   <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                   <path d="M7 11l10-4-4 10-2-4-4-2z"/>
                 </svg>
-                <span class="text-[10px] text-neutral-500">•</span>
-                <span class="text-[10px] text-emerald-400">VPN ON</span>
               </div>
-              <div class="flex items-center space-x-1.5 text-[10px]">
-                <span>5G</span>
-                <span>98%</span>
-              </div>
+              <span class="font-bold text-white text-xs">AnonGram</span>
+              <span class="text-[11px] text-neutral-500">• сейчас • E2EE</span>
             </div>
-
-            <!-- Expanded Notification Card -->
-            <div class="p-3 rounded-xl bg-neutral-900 border border-neutral-800 space-y-2">
-              <div class="flex items-center justify-between text-xs">
-                <div class="flex items-center space-x-2">
-                  <!-- Small White Silhouette -->
-                  <div class="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center p-0.5">
-                    <svg class="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                      <path d="M7 11l10-4-4 10-2-4-4-2z"/>
-                    </svg>
-                  </div>
-                  <span class="font-bold text-white text-[11px]">AnonGram</span>
-                  <span class="text-[10px] text-neutral-500">• сейчас</span>
-                </div>
-                <span class="text-[10px] text-emerald-400 font-mono">E2EE</span>
-              </div>
-              <div class="text-xs text-neutral-200 font-medium">
-                Алиса: «Документ зашифрован и отправлен»
-              </div>
-            </div>
-
+            <span class="text-[10px] text-neutral-500 font-mono">DoubleRatchet-v1</span>
           </div>
 
+          <div id="sim-card-content" class="space-y-1 pl-8">
+            <h4 class="text-sm font-semibold text-white">Алиса (0x7F2A...9C)</h4>
+            <p class="text-xs text-neutral-300">Файл отчета зашифрован ключом ChaCha20-Poly1305. Жду подтверждения SAS-кода.</p>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div id="sim-card-actions" class="flex items-center space-x-3 pl-8 pt-1">
+            <button class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs">Ответить</button>
+            <button class="px-3 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs">Прочитано</button>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- 4. APPROVAL STATUS BOX -->
-    <section class="p-6 rounded-3xl bg-neutral-900/90 border border-neutral-800 text-center space-y-3">
-      <h3 class="text-base font-bold text-white">Выбор и утверждение брендинга</h3>
-      <p class="text-xs text-neutral-400" id="status-text">
-        Сейчас выбран: <strong class="text-emerald-400">Концепт 1 («Неоновый Щит и Стелс-Самолет»)</strong>. Напиши в чат подтверждение, и мы сгенерируем все иконки (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi) и внедрим их во Flutter-фронтенд!
-      </p>
+    <!-- 3. VPN SYSTEM & IN-APP STATE SWITCHER -->
+    <section class="p-6 md:p-8 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-2xl space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-neutral-800 pb-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">🛡️</span>
+            <h2 class="text-xl font-bold text-white">3. VPN &amp; Луковое Проксирование: Все Состояния</h2>
+          </div>
+          <p class="text-xs text-neutral-400 mt-1">
+            Интерактивный переключатель состояний фонового сервиса шифрования трафика AnonGram.
+          </p>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="setVpnState('connected')" id="btn-vpn-connected" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-lg transition">Connected</button>
+          <button onclick="setVpnState('connecting')" id="btn-vpn-connecting" class="px-3 py-1.5 rounded-xl bg-neutral-800 text-neutral-400 text-xs font-semibold transition">Connecting</button>
+          <button onclick="setVpnState('disconnected')" id="btn-vpn-disconnected" class="px-3 py-1.5 rounded-xl bg-neutral-800 text-neutral-400 text-xs font-semibold transition">Disconnected</button>
+          <button onclick="setVpnState('killswitch')" id="btn-vpn-killswitch" class="px-3 py-1.5 rounded-xl bg-neutral-800 text-neutral-400 text-xs font-semibold transition">Kill-Switch</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+        <!-- Big Animated Shield Display -->
+        <div class="flex flex-col items-center justify-center p-8 rounded-2xl bg-black border border-neutral-800 min-h-[260px] text-center space-y-4">
+          <div id="vpn-shield-visual" class="w-32 h-32 flex items-center justify-center transition-all duration-300">
+            <!-- Rendered dynamically -->
+          </div>
+          <div class="space-y-1">
+            <h3 id="vpn-state-title" class="text-lg font-bold text-emerald-400">VPN Подключен (Защищено)</h3>
+            <p id="vpn-state-desc" class="text-xs text-neutral-400 max-w-sm">
+              Весь трафик AnonGram проходит через многослойные луковые туннели с ротацией ключей каждые 15 секунд.
+            </p>
+          </div>
+        </div>
+
+        <!-- Telemetry & Security Metrics -->
+        <div class="space-y-4">
+          <div class="p-4 rounded-xl bg-neutral-950/80 border border-neutral-800 space-y-2">
+            <span class="text-xs font-mono text-neutral-500">ТЕКУЩИЕ ПАРАМЕТРЫ ЗАЩИТЫ</span>
+            <div class="grid grid-cols-2 gap-3 pt-1 text-xs">
+              <div class="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800">
+                <span class="text-neutral-500 block text-[10px]">Крипто-алгоритм</span>
+                <span class="text-cyan-400 font-mono font-bold">ChaCha20-Poly1305</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800">
+                <span class="text-neutral-500 block text-[10px]">Защита от утечек</span>
+                <span id="vpn-leak-status" class="text-emerald-400 font-bold">100% KillSwitch ON</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800">
+                <span class="text-neutral-500 block text-[10px]">Количество узлов</span>
+                <span class="text-white font-mono">3 Onion Hops (Tor-like)</span>
+              </div>
+              <div class="p-2.5 rounded-lg bg-neutral-900 border border-neutral-800">
+                <span class="text-neutral-500 block text-[10px]">Задержка туннеля</span>
+                <span id="vpn-ping" class="text-emerald-400 font-mono">24 ms</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center space-x-2 text-[11px] text-neutral-400">
+            <span>Файлы ассетов:</span>
+            <code class="px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">vpn_shield_connected.svg</code>
+            <code class="px-2 py-0.5 rounded bg-neutral-800 text-neutral-300">vpn_shield_killswitch.svg</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. SPLASH SCREEN PREVIEW -->
+    <section class="p-6 md:p-8 rounded-3xl bg-neutral-900/90 border border-neutral-800 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between border-b border-neutral-800 pb-4">
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="text-xl">📱</span>
+            <h2 class="text-xl font-bold text-white">4. Сплэш-Экран (Android 12+ SplashScreen API &amp; Flutter)</h2>
+          </div>
+          <p class="text-xs text-neutral-400 mt-1">
+            Абсолютный AMOLED Black (без белых вспышек в темноте) с векторным логотипом <code class="text-neutral-300">ic_splash_logo.xml</code>.
+          </p>
+        </div>
+      </div>
+
+      <div class="flex flex-col md:flex-row items-center justify-center gap-8 py-4">
+        <div class="w-64 h-[440px] rounded-[36px] bg-[#05070a] border-4 border-neutral-700 shadow-2xl flex flex-col items-center justify-between p-8 relative overflow-hidden">
+          <div class="w-24 h-5 rounded-full bg-neutral-900 mx-auto"></div>
+
+          <div class="flex flex-col items-center space-y-4 animate-pulse-subtle">
+            <div class="w-24 h-24 flex items-center justify-center">
+              <svg class="w-24 h-24 text-cyan-400 filter drop-shadow-[0_0_15px_rgba(6,182,212,0.6)]" viewBox="0 0 100 100" fill="none">
+                <path d="M50 90S84 73 84 48V20L50 8 16 20v28c0 25 34 42 34 42z" stroke="#00f2fe" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+                <polygon points="50,26 28,52 46,47" fill="#10b981"/>
+                <polygon points="50,26 72,52 50,72 46,47" fill="#ffffff"/>
+              </svg>
+            </div>
+            <div class="text-center space-y-1">
+              <h3 class="text-base font-black tracking-widest text-white">ANONGRAM</h3>
+              <p class="text-[9px] text-cyan-400/80 font-mono tracking-wider uppercase">Zero-Knowledge Network</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col items-center space-y-1 text-center">
+            <div class="w-6 h-6 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+            <span class="text-[10px] text-neutral-500 font-mono pt-1">Initializing Secure Enclave...</span>
+          </div>
+        </div>
+
+        <div class="space-y-4 max-w-md">
+          <h4 class="text-base font-bold text-white">Ключевые преимущества сплэша:</h4>
+          <ul class="space-y-2 text-xs text-neutral-300">
+            <li class="flex items-center space-x-2">
+              <span class="text-emerald-400">✓</span>
+              <span>Полная поддержка нового окна холодного запуска Android 12+.</span>
+            </li>
+            <li class="flex items-center space-x-2">
+              <span class="text-emerald-400">✓</span>
+              <span>Векторная масштабируемость от телефонов до планшетов и десктопов.</span>
+            </li>
+            <li class="flex items-center space-x-2">
+              <span class="text-emerald-400">✓</span>
+              <span>Мгновенный переход во Flutter-сцену без лагов и белых экранов.</span>
+            </li>
+          </ul>
+        </div>
+      </div>
     </section>
 
   </main>
 
+  <!-- Interactive Logic -->
   <script>
-    function selectConcept(num) {
-      const c1 = document.getElementById('card-concept-1');
-      const c2 = document.getElementById('card-concept-2');
-      const text = document.getElementById('status-text');
-
-      if (num === 1) {
-        c1.classList.add('border-emerald-500/60', 'glow-emerald');
-        c1.classList.remove('border-neutral-800');
-        c2.classList.remove('border-cyan-500/60', 'glow-cyan');
-        c2.classList.add('border-neutral-800');
-        text.innerHTML = 'Выбран: <strong class="text-emerald-400">Концепт 1 («Неоновый Щит и Стелс-Самолет»)</strong>. Напиши подтверждение в чат!';
-      } else {
-        c2.classList.add('border-cyan-500/60', 'glow-cyan');
-        c2.classList.remove('border-neutral-800');
-        c1.classList.remove('border-emerald-500/60', 'glow-emerald');
-        c1.classList.add('border-neutral-800');
-        text.innerHTML = 'Выбран: <strong class="text-cyan-400">Концепт 2 («Кибер-Монограмма \'A\' с Замком»)</strong>. Напиши подтверждение в чат!';
+    // 1. Notification Interactive Switcher
+    const notifications = {
+      message: {
+        title: "Алиса (0x7F2A...9C)",
+        text: "Файл отчета зашифрован ключом ChaCha20-Poly1305. Жду подтверждения SAS-кода.",
+        icon: `<svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M7 11l10-4-4 10-2-4-4-2z"/></svg>`,
+        badgeColor: "bg-emerald-600",
+        actions: `<button class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs">Ответить</button><button class="px-3 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs">Прочитано</button>`
+      },
+      vpn: {
+        title: "AnonGram VPN Активен",
+        text: "Защищенный туннель: 3 луковых прыжка. Трафик замаскирован под HTTPS.",
+        icon: `<svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M7 11l10-4-4 10-2-4-4-2z"/><path d="M19 8a5 5 0 0 1 0 7" stroke-width="1.6"/><path d="M5 8a5 5 0 0 0 0 7" stroke-width="1.6"/></svg>`,
+        badgeColor: "bg-cyan-600",
+        actions: `<button class="px-3 py-1 rounded-lg bg-neutral-800 hover:bg-neutral-700 text-neutral-300 text-xs">Сменить ноду</button><button class="px-3 py-1 rounded-lg bg-red-600/30 text-red-400 hover:bg-red-600/50 text-xs">Отключить</button>`
+      },
+      call: {
+        title: "Входящий E2EE Звонок: Боб",
+        text: "Квантово-стойкий SAS код: 🦊 🛡️ 🚀 🌊 (Аудио и Видео защищены)",
+        icon: `<svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M14.5 13.2c-.7 0-1.3-.1-1.9-.4-.3-.1-.6 0-.8.2l-.9.9a7.8 7.8 0 0 1-3.5-3.5l.9-.9c.2-.2.3-.5.2-.8-.3-.6-.4-1.2-.4-1.9 0-.6-.4-1-1-1H5.8c-.6 0-1 .4-1 1 0 5.5 4.5 10 10 10 .6 0 1-.4 1-1v-1.3c0-.6-.4-1-1-1z" fill="white"/></svg>`,
+        badgeColor: "bg-green-600",
+        actions: `<button class="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs">Принять</button><button class="px-3 py-1 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium text-xs">Отклонить</button>`
+      },
+      lock: {
+        title: "Проверка Безопасности (Anti-MITM)",
+        text: "Публичный ключ контакта верифицирован в смарт-контракте нод (60 цифр совпали).",
+        icon: `<svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><rect x="8.5" y="11" width="7" height="5.5" rx="1" fill="white"/><path d="M10 11V8.5a2 2 0 1 1 4 0v2.5" stroke-width="1.6"/></svg>`,
+        badgeColor: "bg-amber-600",
+        actions: `<button class="px-3 py-1 rounded-lg bg-amber-600 text-white text-xs font-semibold">Посмотреть хэш</button>`
+      },
+      group: {
+        title: "Группа: «Cypherpunk Alpha» (24 уч.)",
+        text: "Режим: StrictPairwise (до 30 уч.) — индивидуальный Double Ratchet для каждого участника.",
+        icon: `<svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M6 10l8-3-3 8-1.5-3-3.5-2z" stroke-width="1.6"/><path d="M12 13.5l5.5-2.5-2 5.5-1-2-2.5-1z" stroke-width="1.3"/></svg>`,
+        badgeColor: "bg-teal-600",
+        actions: `<button class="px-3 py-1 rounded-lg bg-emerald-600 text-white text-xs">Открыть группу</button>`
+      },
+      burn: {
+        title: "Самоуничтожающееся Сообщение",
+        text: "Таймер запущен: удаление сообщения через 10 секунд после прочтения без следов в БД.",
+        icon: `<svg class="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 7c1 2 3 3 3 5a3 3 0 0 1-6 0c0-1.5 1-2.5 3-5z" fill="white"/></svg>`,
+        badgeColor: "bg-red-600",
+        actions: `<button class="px-3 py-1 rounded-lg bg-red-600/40 text-red-300 text-xs">Сжечь сейчас</button>`
       }
+    };
+
+    function selectNotification(type) {
+      const data = notifications[type];
+      if (!data) return;
+      document.getElementById("sim-status-icon").innerHTML = data.icon;
+      document.getElementById("sim-card-content").innerHTML = `
+        <h4 class="text-sm font-semibold text-white">${data.title}</h4>
+        <p class="text-xs text-neutral-300">${data.text}</p>
+      `;
+      document.getElementById("sim-card-actions").innerHTML = data.actions;
     }
+
+    // 2. VPN Interactive Switcher
+    const vpnStates = {
+      connected: {
+        title: "VPN Подключен (Защищено)",
+        desc: "Весь трафик AnonGram проходит через многослойные луковые туннели с ротацией ключей каждые 15 секунд.",
+        leak: "100% KillSwitch ON",
+        ping: "24 ms",
+        color: "text-emerald-400",
+        svg: `<svg class="w-28 h-28 filter drop-shadow-[0_0_20px_rgba(16,185,129,0.5)]" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#10b981" stroke-width="2" stroke-linecap="round"/><path d="M7 11l10-4-4 10-2-4-4-2z" fill="#10b981" stroke="#ffffff" stroke-width="1.2"/><path d="M19 8a5 5 0 0 1 0 7" stroke="#00f2fe" stroke-width="1.8"/><path d="M5 8a5 5 0 0 0 0 7" stroke="#00f2fe" stroke-width="1.8"/></svg>`
+      },
+      connecting: {
+        title: "Выполняется подключение...",
+        desc: "Генерация эфемерных квантово-стойких ключей и луковое рукопожатие с ретрансляторами.",
+        leak: "Защита активна (трафик ждет)",
+        ping: "— ms",
+        color: "text-sky-400",
+        svg: `<svg class="w-28 h-28 filter drop-shadow-[0_0_20px_rgba(56,189,248,0.5)] animate-spin" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#38bdf8" stroke-width="2" stroke-dasharray="3 2"/><path d="M7 11l10-4-4 10-2-4-4-2z" stroke="#e0f2fe" stroke-width="1.8"/></svg>`
+      },
+      disconnected: {
+        title: "VPN Отключен",
+        desc: "Прямое соединение без маскировки трафика. Включите VPN для максимальной анонимности.",
+        leak: "KillSwitch ВЫКЛЮЧЕН",
+        ping: "Offline",
+        color: "text-neutral-500",
+        svg: `<svg class="w-28 h-28" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" opacity="0.5"/><path d="M7 11l10-4-4 10-2-4-4-2z" opacity="0.4"/><line x1="3" y1="3" x2="21" y2="21" stroke="#ef4444" stroke-width="2"/></svg>`
+      },
+      killswitch: {
+        title: "Аварийный Режим (Kill-Switch)",
+        desc: "Обнаружен сбой внешней сети. Вся передача данных моментально заблокирована во избежание утечки реального IP.",
+        leak: "БЛОКИРОВКА 100% УТЕЧЕК",
+        ping: "BLOCKED",
+        color: "text-red-400",
+        svg: `<svg class="w-28 h-28 filter drop-shadow-[0_0_20px_rgba(239,68,68,0.6)]" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="#ef4444" stroke-width="2.2"/><rect x="8" y="11" width="8" height="6" rx="1.5" fill="#ef4444" stroke="#fca5a5" stroke-width="1"/><path d="M9.5 11V8.5a2.5 2.5 0 0 1 5 0V11" stroke="#fca5a5" stroke-width="1.6"/><circle cx="12" cy="14" r="0.8" fill="#ffffff"/></svg>`
+      }
+    };
+
+    function setVpnState(state) {
+      const data = vpnStates[state];
+      if (!data) return;
+
+      document.getElementById("vpn-shield-visual").innerHTML = data.svg;
+      document.getElementById("vpn-state-title").textContent = data.title;
+      document.getElementById("vpn-state-title").className = `text-lg font-bold ${data.color}`;
+      document.getElementById("vpn-state-desc").textContent = data.desc;
+      document.getElementById("vpn-leak-status").textContent = data.leak;
+      document.getElementById("vpn-ping").textContent = data.ping;
+
+      // Update button highlights
+      ['connected', 'connecting', 'disconnected', 'killswitch'].forEach(s => {
+        const btn = document.getElementById(`btn-vpn-${s}`);
+        if (s === state) {
+          btn.className = "px-3 py-1.5 rounded-xl bg-emerald-600 text-white text-xs font-bold shadow-lg transition";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-xl bg-neutral-800 text-neutral-400 text-xs font-semibold transition hover:text-white";
+        }
+      });
+    }
+
+    // Initialize defaults on load
+    window.addEventListener("DOMContentLoaded", () => {
+      setVpnState('connected');
+      selectNotification('message');
+    });
   </script>
 </body>
 </html>
