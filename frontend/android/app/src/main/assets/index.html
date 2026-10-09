@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>AnonGram</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body, html {
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background-color: #07090e;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .scanner-laser {
+      animation: scanLaser 2s infinite ease-in-out;
+    }
+    @keyframes scanLaser {
+      0% { top: 10%; opacity: 0.2; }
+      50% { top: 85%; opacity: 1; }
+      100% { top: 10%; opacity: 0.2; }
+    }
+  </style>
+</head>
+<body class="bg-[#07090e] text-neutral-100 flex flex-col h-full font-sans antialiased">
+
+  <!-- TOP APP BAR -->
+  <header id="app-header" class="h-14 px-4 flex items-center justify-between border-b border-neutral-800/80 bg-neutral-950/80 backdrop-blur z-20">
+    <div class="flex items-center space-x-2.5">
+      <div id="header-logo-badge" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-emerald-400 flex items-center justify-center p-0.5 shadow">
+        <svg class="w-5 h-5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M7 11l10-4-4 10-2-4-4-2z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 id="header-title" class="text-sm font-bold text-white tracking-wide">AnonGram</h1>
+        <span id="header-subtitle" class="text-[10px] text-emerald-400 font-mono flex items-center space-x-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>E2EE Active &bull; Onion 3-hop</span>
+        </span>
+      </div>
+    </div>
+    <div class="flex items-center space-x-2 text-xs">
+      <button onclick="openRegistrationModal()" class="px-2.5 py-1 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 font-mono text-[11px] hover:text-white">
+        🔑 Seed
+      </button>
+    </div>
+  </header>
+
+  <!-- SCREEN CONTAINER (Dynamic views) -->
+  <main class="flex-1 relative overflow-hidden bg-[#07090e]">
+
+    <!-- 1. TAB: CHATS -->
+    <div id="screen-chats" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto">
+      <!-- Filter Chips -->
+      <div class="px-4 py-2.5 flex space-x-2 overflow-x-auto text-[11px] font-medium border-b border-neutral-800/50">
+        <span class="px-3 py-1 rounded-full bg-emerald-600 text-white font-bold cursor-pointer">Все (14)</span>
+        <span class="px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 cursor-pointer">Секретные 🔒</span>
+        <span class="px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 cursor-pointer">Группы (до 300)</span>
+        <span class="px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 cursor-pointer">Каналы</span>
+      </div>
+
+      <!-- Chat List Items -->
+      <div class="divide-y divide-neutral-900/60 pb-20">
+        <!-- Item 1: Alice -->
+        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
+          <div class="relative">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center font-bold text-white text-base shadow">
+              А
+            </div>
+            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-600 border border-black flex items-center justify-center text-[9px] text-white">🛡️</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white truncate flex items-center space-x-1">
+                <span>Алиса</span>
+                <span class="text-[10px] text-emerald-400 font-mono">Verified</span>
+              </span>
+              <span class="text-[10px] text-neutral-500">19:41</span>
+            </div>
+            <p class="text-[11px] text-neutral-300 truncate mt-0.5">Файл отчета зашифрован. Жду проверки SAS 🦊🚀</p>
+          </div>
+          <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
+        </div>
+
+        <!-- Item 2: Secret Group -->
+        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
+          <div class="relative">
+            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white text-base shadow">
+              👥
+            </div>
+            <span class="absolute -bottom-0.5 -right-0.5 px-1 rounded-full bg-cyan-900 border border-black text-[8px] font-mono text-cyan-300">28</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white truncate">Cypherpunk Alpha 🛡️</span>
+              <span class="text-[10px] text-neutral-500">18:20</span>
+            </div>
+            <p class="text-[11px] text-neutral-400 truncate mt-0.5"><span class="text-cyan-400 font-medium">Боб:</span> Режим StrictPairwise активен (&le;30)</p>
+          </div>
+        </div>
+
+        <!-- Item 3: Burn OTP -->
+        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-neutral-900 border border-red-500/40 flex items-center justify-center text-lg shadow">
+            🔥
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white truncate">Аноним #409</span>
+              <span class="text-[10px] text-red-400 font-mono">00:45 ⏱️</span>
+            </div>
+            <p class="text-[11px] text-neutral-400 truncate mt-0.5">Сообщение исчезнет после открытия...</p>
+          </div>
+        </div>
+
+        <!-- Item 4: VoIP -->
+        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-neutral-900 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-lg">
+            📞
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white truncate">Ева (VoIP E2EE)</span>
+              <span class="text-[10px] text-neutral-500">Вчера</span>
+            </div>
+            <p class="text-[11px] text-emerald-400 truncate mt-0.5">Входящий вызов (14 мин, SAS проверен)</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. TAB: SERVICES (VPN) -->
+    <div id="screen-services" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
+      <div class="p-4 space-y-4 pb-20">
+        <!-- VPN Card -->
+        <div class="p-4 rounded-2xl bg-neutral-900 border border-emerald-500/40 shadow-xl space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M7 11l10-4-4 10-2-4-4-2z"/>
+              </svg>
+              <span class="text-xs font-bold text-white">AnonGram VPN</span>
+            </div>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">ПОДКЛЮЧЕНО</span>
+          </div>
+
+          <div class="flex items-center justify-between py-2 border-y border-neutral-800 text-xs">
+            <div>
+              <span class="text-[10px] text-neutral-500 block">Шифрование</span>
+              <span class="text-white font-mono">ChaCha20-Poly1305</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-neutral-500 block">Трасса</span>
+              <span class="text-white font-mono">3 Ноды (Роттердам)</span>
+            </div>
+            <div>
+              <span class="text-[10px] text-neutral-500 block">Пинг</span>
+              <span class="text-emerald-400 font-mono">24 ms</span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between text-xs pt-1">
+            <div>
+              <span class="text-neutral-200 block font-semibold text-[11px]">Аварийный Kill-Switch</span>
+              <span class="text-[10px] text-neutral-400">Блокировать утечки IP при сбое</span>
+            </div>
+            <input type="checkbox" checked class="w-4 h-4 accent-emerald-500 rounded">
+          </div>
+        </div>
+
+        <span class="text-[11px] font-mono text-neutral-500 uppercase block">Децентрализованные Инструменты</span>
+        <div class="space-y-2">
+          <div class="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <span class="text-lg">🗄️</span>
+              <div>
+                <h4 class="text-xs font-bold text-white">Zero-Knowledge Хранилище</h4>
+                <p class="text-[10px] text-neutral-400">P2P зашифрованные файлы до 10 ГБ</p>
+              </div>
+            </div>
+            <span class="text-neutral-500 text-xs">&rarr;</span>
+          </div>
+          <div class="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+              <span class="text-lg">🤖</span>
+              <div>
+                <h4 class="text-xs font-bold text-white">Анонимные AI-Боты</h4>
+                <p class="text-[10px] text-neutral-400">Локальный запуск без передачи данных</p>
+              </div>
+            </div>
+            <span class="text-neutral-500 text-xs">&rarr;</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. TAB: SCANNER -->
+    <div id="screen-scanner" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
+      <div class="p-4 flex flex-col items-center space-y-4 pb-20">
+        <div class="relative w-64 h-64 rounded-3xl bg-neutral-950 border-2 border-emerald-500/60 overflow-hidden flex items-center justify-center shadow-2xl">
+          <div class="scanner-laser absolute left-4 right-4 h-0.5 bg-gradient-to-r from-cyan-400 via-emerald-400 to-teal-300 shadow-[0_0_12px_#10b981]"></div>
+          <div class="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg"></div>
+          <div class="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg"></div>
+          <div class="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg"></div>
+          <div class="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-emerald-400 rounded-br-lg"></div>
+
+          <div class="text-center p-4 space-y-2">
+            <svg class="w-12 h-12 text-neutral-600 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M8 8h.01M16 8h.01M8 16h.01M16 16h.01"/>
+            </svg>
+            <p class="text-[11px] text-neutral-400">Наведите камеру на QR-код AnonGram</p>
+          </div>
+        </div>
+
+        <div class="w-full space-y-2 pt-1">
+          <span class="text-[10px] text-neutral-500 font-mono block text-center uppercase">Быстрый тест парсера QR:</span>
+          <button onclick="simulateScanResult('user')" class="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-left flex items-center justify-between text-xs">
+            <span>👤 Добавить Контакт</span>
+            <span class="text-cyan-400 text-[10px]">Тест &rarr;</span>
+          </button>
+          <button onclick="simulateScanResult('device')" class="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-left flex items-center justify-between text-xs">
+            <span>💻 Связать Desktop</span>
+            <span class="text-emerald-400 text-[10px]">Тест &rarr;</span>
+          </button>
+          <button onclick="simulateScanResult('verify')" class="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-left flex items-center justify-between text-xs">
+            <span>🛡️ Anti-MITM Проверка</span>
+            <span class="text-amber-400 text-[10px]">Тест &rarr;</span>
+          </button>
+        </div>
+
+        <div id="scan-result-card" class="w-full p-3.5 rounded-2xl bg-neutral-900 border border-emerald-500/50 space-y-2 hidden"></div>
+      </div>
+    </div>
+
+    <!-- 4. TAB: SETTINGS (PRO LIVE THEME ENGINE) -->
+    <div id="screen-settings" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
+      <div class="p-4 space-y-4 pb-20 text-xs">
+        <!-- Appearance & Themes -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-cyan-500/40 space-y-3 shadow-lg">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span class="text-base">🎨</span>
+              <div>
+                <span class="text-white block font-bold text-xs">Оформление и Темы</span>
+                <span class="text-[9px] text-cyan-400 font-mono">Live Theme Engine</span>
+              </div>
+            </div>
+            <span id="current-theme-badge" class="px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono">Cyber Obsidian</span>
+          </div>
+
+          <span class="text-[10px] text-neutral-400 font-mono uppercase block pt-1">Пресеты (Кликайте для живой смены):</span>
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="applyAppTheme('cyber')" class="p-2 rounded-xl bg-neutral-950 border border-cyan-400 text-left flex items-center space-x-2">
+              <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
+              <span class="text-[10px] font-bold text-white">Cyber Obsidian</span>
+            </button>
+            <button onclick="applyAppTheme('matrix')" class="p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-left flex items-center space-x-2 hover:border-green-500">
+              <span class="w-3 h-3 rounded-full bg-green-500"></span>
+              <span class="text-[10px] font-bold text-white">Matrix Terminal</span>
+            </button>
+            <button onclick="applyAppTheme('cobalt')" class="p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-left flex items-center space-x-2 hover:border-blue-500">
+              <span class="w-3 h-3 rounded-full bg-blue-500"></span>
+              <span class="text-[10px] font-bold text-white">Midnight Cobalt</span>
+            </button>
+            <button onclick="applyAppTheme('amber')" class="p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-left flex items-center space-x-2 hover:border-amber-500">
+              <span class="w-3 h-3 rounded-full bg-amber-500"></span>
+              <span class="text-[10px] font-bold text-white">Solar Amber</span>
+            </button>
+          </div>
+
+          <span class="text-[10px] text-neutral-400 font-mono uppercase block pt-2 border-t border-neutral-800">Неоновый Акцент:</span>
+          <div class="flex items-center space-x-3">
+            <button onclick="setAccentColor('#00f2fe')" class="w-6 h-6 rounded-full bg-[#00f2fe] ring-2 ring-white/50 shadow"></button>
+            <button onclick="setAccentColor('#10b981')" class="w-6 h-6 rounded-full bg-[#10b981] shadow"></button>
+            <button onclick="setAccentColor('#a855f7')" class="w-6 h-6 rounded-full bg-[#a855f7] shadow"></button>
+            <button onclick="setAccentColor('#f97316')" class="w-6 h-6 rounded-full bg-[#f97316] shadow"></button>
+            <button onclick="setAccentColor('#ffffff')" class="w-6 h-6 rounded-full bg-white shadow"></button>
+          </div>
+        </div>
+
+        <!-- Security -->
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
+          <span class="text-white block font-bold text-xs">Безопасность и Приватность</span>
+          <div class="flex items-center justify-between">
+            <span class="text-neutral-300">Биометрия / PIN</span>
+            <input type="checkbox" checked class="w-4 h-4 accent-emerald-500 rounded">
+          </div>
+          <div class="flex items-center justify-between pt-1 border-t border-neutral-800">
+            <span class="text-neutral-300">Пароль под принуждением (Dumb PIN)</span>
+            <span class="text-emerald-400 font-mono">ВКЛ</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. TAB: PROFILE -->
+    <div id="screen-profile" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
+      <div class="p-4 space-y-4 pb-20 text-xs">
+        <div class="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 text-center space-y-3">
+          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-600 to-emerald-600 mx-auto flex items-center justify-center text-3xl shadow-xl">
+            🦊
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Cypherpunk #77</h3>
+            <code class="text-[10px] text-cyan-400 font-mono block pt-0.5">0x7F2A...9C14</code>
+          </div>
+          <span class="inline-block px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono">
+            Kyber-1024 + Ed25519
+          </span>
+        </div>
+
+        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
+          <span class="text-[10px] font-mono text-neutral-500 uppercase">60-ЗНАЧНЫЙ ОТПЕЧАТОК БЕЗОПАСНОСТИ</span>
+          <p class="text-[11px] font-mono text-emerald-300 leading-relaxed bg-black/60 p-2.5 rounded-xl border border-neutral-800">
+            12894 00921 77312 99401<br>
+            44021 88319 23145 90124<br>
+            55120 78192 34109 88127
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- BOTTOM NAVIGATION BAR (5 Items) -->
+  <nav class="h-16 bg-neutral-950/95 border-t border-neutral-800 px-2 flex items-center justify-around z-30 relative">
+    <button onclick="switchTab('chats')" id="tab-chats" class="flex flex-col items-center justify-center flex-1 py-1 text-emerald-400 transition">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+      <span class="text-[10px] font-medium mt-0.5">Чаты</span>
+    </button>
+
+    <button onclick="switchTab('services')" id="tab-services" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      <span class="text-[10px] font-medium mt-0.5">Сервисы</span>
+    </button>
+
+    <!-- Center Elevated QR Button -->
+    <div class="relative -top-4 flex items-center justify-center px-1">
+      <button onclick="switchTab('scanner')" id="tab-scanner" class="w-13 h-13 p-3 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.6)] active:scale-95 transition flex items-center justify-center">
+        <svg class="w-7 h-7 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M7 11l10-4-4 10-2-4-4-2z"/>
+        </svg>
+      </button>
+    </div>
+
+    <button onclick="switchTab('settings')" id="tab-settings" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+      <span class="text-[10px] font-medium mt-0.5">Настройки</span>
+    </button>
+
+    <button onclick="switchTab('profile')" id="tab-profile" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
+      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+        <circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span class="text-[10px] font-medium mt-0.5">Профиль</span>
+    </button>
+  </nav>
+
+  <script>
+    const tabs = ['chats', 'services', 'scanner', 'settings', 'profile'];
+    function switchTab(t) {
+      tabs.forEach(tab => {
+        document.getElementById(`screen-${tab}`).classList.toggle('hidden', tab !== t);
+        const btn = document.getElementById(`tab-${tab}`);
+        if (tab !== 'scanner') {
+          btn.className = `flex flex-col items-center justify-center flex-1 py-1 ${tab === t ? 'text-emerald-400' : 'text-neutral-400'} transition`;
+        }
+      });
+    }
+
+    function simulateScanResult(type) {
+      const card = document.getElementById('scan-result-card');
+      card.classList.remove('hidden');
+      if (type === 'user') {
+        card.innerHTML = `<span class="text-cyan-400 font-bold text-xs block">👤 Контакт: Боб</span><p class="text-[11px] text-neutral-300">Ключ: 0x98A1...F302</p>`;
+      } else if (type === 'device') {
+        card.innerHTML = `<span class="text-emerald-400 font-bold text-xs block">💻 Связка: Desktop</span><p class="text-[11px] text-neutral-300">Токен сессии активен</p>`;
+      } else {
+        card.innerHTML = `<span class="text-amber-400 font-bold text-xs block">🛡️ Anti-MITM Проверен</span><p class="text-[11px] text-emerald-400 font-bold">✓ 60 цифр совпали!</p>`;
+      }
+    }
+
+    const themes = {
+      cyber: { name: "Cyber Obsidian", accent: "#00f2fe", badge: "bg-cyan-950 text-cyan-300 border-cyan-500/40" },
+      matrix: { name: "Matrix Terminal", accent: "#22c55e", badge: "bg-green-950 text-green-300 border-green-500/40" },
+      cobalt: { name: "Midnight Cobalt", accent: "#3b82f6", badge: "bg-blue-950 text-blue-300 border-blue-500/40" },
+      amber: { name: "Solar Amber", accent: "#f59e0b", badge: "bg-amber-950 text-amber-300 border-amber-500/40" }
+    };
+
+    function applyAppTheme(key) {
+      const t = themes[key];
+      if (!t) return;
+      document.getElementById('current-theme-badge').textContent = t.name;
+      setAccentColor(t.accent);
+    }
+
+    function setAccentColor(color) {
+      document.getElementById('tab-scanner').style.background = color;
+      document.getElementById('tab-chats').style.color = color;
+    }
+  </script>
+</body>
+</html>
