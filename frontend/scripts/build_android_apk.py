@@ -129,9 +129,8 @@ print(f"📦 Final APK Size: {apk_size:.1f} KB")
 
 print("\n=== [6/6] Installing & Launching in Waydroid ===")
 try:
-    subprocess.run(["adb", "connect", "192.168.240.112:5555"], check=False)
-    install_res = subprocess.run(["adb", "-s", "192.168.240.112:5555", "install", "-r", final_apk], capture_output=True, text=True)
-    print("ADB Install Result:", install_res.stdout.strip())
+    install_res = subprocess.run(["waydroid", "app", "install", final_apk], capture_output=True, text=True)
+    print("Waydroid Install Result:", install_res.stdout.strip())
     
     launch_res = subprocess.run(["waydroid", "app", "launch", "com.anongram.app"], capture_output=True, text=True)
     print("Waydroid Launch Result:", launch_res.stdout.strip())

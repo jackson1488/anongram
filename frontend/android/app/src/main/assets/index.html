@@ -23,397 +23,2029 @@
       50% { top: 85%; opacity: 1; }
       100% { top: 10%; opacity: 0.2; }
     }
+    /* Day Mode overrides */
+    body.day-mode {
+      background-color: #f8fafc !important;
+      color: #0f1724 !important;
+    }
+    body.day-mode #app-header,
+    body.day-mode #floating-nav-island,
+    body.day-mode .bg-neutral-950,
+    body.day-mode .bg-neutral-900,
+    body.day-mode .bg-\[\#0d141f\],
+    body.day-mode .bg-\[\#131c2a\],
+    body.day-mode .bg-\[\#0f1724\],
+    body.day-mode .bg-\[\#161f2e\] {
+      background-color: #ffffff !important;
+      color: #0f1724 !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.day-mode .text-white { color: #0f1724 !important; }
+    body.day-mode .text-neutral-400 { color: #64748b !important; }
+    body.day-mode .text-neutral-300 { color: #334155 !important; }
+    body.day-mode .bg-\[\#1a293f\] { background-color: #e0f2fe !important; }
+    body.day-mode .bg-\[\#1b2b3f\] { background-color: #bae6fd !important; }
+
+    /* Custom Checkbox */
+    .custom-check {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #64748b;
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+      display: inline-grid;
+      place-content: center;
+      transition: all 0.15s ease-in-out;
+    }
+    .custom-check:checked {
+      background-color: #0284c7;
+      border-color: #0284c7;
+    }
+    .custom-check:checked::before {
+      content: "";
+      width: 10px;
+      height: 6px;
+      border-left: 2px solid #ffffff;
+      border-bottom: 2px solid #ffffff;
+      transform: rotate(-45deg) translate(1px, -1px);
+    }
   </style>
 </head>
-<body class="bg-[#07090e] text-neutral-100 flex flex-col h-full font-sans antialiased">
+<body id="app-body" class="bg-[#07090e] text-neutral-100 flex flex-col h-full font-sans antialiased">
 
-  <!-- TOP APP BAR -->
-  <header id="app-header" class="h-14 px-4 flex items-center justify-between border-b border-neutral-800/80 bg-neutral-950/80 backdrop-blur z-20">
-    <div class="flex items-center space-x-2.5">
-      <div id="header-logo-badge" class="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-400 to-emerald-400 flex items-center justify-center p-0.5 shadow">
-        <svg class="w-5 h-5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <path d="M7 11l10-4-4 10-2-4-4-2z"/>
-        </svg>
+  <!-- TOP APP BAR (Dual Mode: Standard Telegram vs Selection Action Bar) -->
+  <header id="app-header" class="h-14 px-3 flex items-center justify-between border-b border-neutral-800/80 bg-neutral-950/90 backdrop-blur z-20 select-none transition-all">
+    
+    <!-- 1. STANDARD MAIN MENU HEADER (Pure Telegram style: AnonGram on left, Search + More on right) -->
+    <div id="standard-header-content" class="flex items-center justify-between w-full">
+      <div class="flex items-center space-x-2">
+        <h1 class="text-lg font-bold text-white tracking-wide">AnonGram</h1>
+        <span id="ghost-mode-badge" class="hidden px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-500/40 text-[9px] font-mono text-cyan-400">ПРИЗРАК</span>
       </div>
-      <div>
-        <h1 id="header-title" class="text-sm font-bold text-white tracking-wide">AnonGram</h1>
-        <span id="header-subtitle" class="text-[10px] text-emerald-400 font-mono flex items-center space-x-1">
-          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>E2EE Active &bull; Onion 3-hop</span>
-        </span>
+
+      <!-- Right Action Icons: Search & Three-Dots -->
+      <div class="flex items-center space-x-1">
+        <button onclick="openSearchSection()" class="p-2 text-neutral-300 hover:text-white rounded-xl active:bg-neutral-800 transition" title="Поиск">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+        </button>
+        <button onclick="toggleThreeDotsMenu()" class="p-2 text-neutral-300 hover:text-white rounded-xl active:bg-neutral-800 transition" title="Меню">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="1.5"/>
+            <circle cx="12" cy="5" r="1.5"/>
+            <circle cx="12" cy="19" r="1.5"/>
+          </svg>
+        </button>
       </div>
     </div>
-    <div class="flex items-center space-x-2 text-xs">
-      <button onclick="openRegistrationModal()" class="px-2.5 py-1 rounded-lg bg-neutral-900 border border-neutral-800 text-neutral-300 font-mono text-[11px] hover:text-white">
-        🔑 Seed
-      </button>
+
+    <!-- 2. SELECTION ACTION BAR (Matches Image 2: ✕, 1, Pin, Mute, Delete, More) -->
+    <div id="selection-header-content" class="hidden flex items-center justify-between w-full animate-fadeIn">
+      <div class="flex items-center space-x-3">
+        <button onclick="exitSelectionMode()" class="p-2 text-neutral-300 hover:text-white rounded-xl active:bg-neutral-800 transition" title="Отмена">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <span id="selection-count-badge" class="text-base font-bold text-white">1</span>
+      </div>
+
+      <div class="flex items-center space-x-0.5">
+        <!-- Pin Button -->
+        <button onclick="togglePinSelected()" class="p-2 text-neutral-300 hover:text-white rounded-xl active:bg-neutral-800 transition" title="Закрепить">
+          <svg id="selection-pin-icon" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 17v5M9 2h6l-1 7h3l-5 8-5-8h3l-1-7z"/>
+          </svg>
+        </button>
+        <!-- Mute Button (Opens Notifications Bottom Sheet) -->
+        <button onclick="openMuteBottomSheet()" class="p-2 text-neutral-300 hover:text-sky-400 rounded-xl active:bg-neutral-800 transition" title="Уведомления">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+            <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        </button>
+        <!-- Delete Button (Opens Delete Dialog) -->
+        <button onclick="openDeleteChatDialog()" class="p-2 text-neutral-300 hover:text-rose-400 rounded-xl active:bg-neutral-800 transition" title="Удалить">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            <line x1="10" y1="11" x2="10" y2="17"/>
+            <line x1="14" y1="11" x2="14" y2="17"/>
+          </svg>
+        </button>
+        <!-- More Options Button (Opens Selection More Menu) -->
+        <button onclick="toggleSelectionMoreMenu()" class="p-2 text-neutral-300 hover:text-white rounded-xl active:bg-neutral-800 transition" title="Еще">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="1.5"/>
+            <circle cx="12" cy="5" r="1.5"/>
+            <circle cx="12" cy="19" r="1.5"/>
+          </svg>
+        </button>
+      </div>
     </div>
+
   </header>
+
+  <!-- STANDARD THREE-DOTS POPUP MENU -->
+  <div id="three-dots-backdrop" onclick="closeThreeDotsMenu()" class="fixed inset-0 z-40 hidden"></div>
+  <div id="three-dots-menu" class="absolute top-14 right-3 w-56 bg-[#161f2e] border border-neutral-700/60 rounded-2xl shadow-2xl z-50 overflow-hidden hidden select-none">
+    <div class="divide-y divide-neutral-800/60 text-xs text-white">
+      <!-- 1. Дневной режим -->
+      <div onclick="toggleDayMode()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800">
+        <svg id="daymode-svg" class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <span id="daymode-text" class="font-medium">Дневной режим</span>
+      </div>
+      <!-- 2. Включить призрака -->
+      <div onclick="toggleGhostMode()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800">
+        <svg id="ghostmode-svg" class="w-4 h-4 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>
+        <span id="ghostmode-text" class="font-medium">Включить призрака</span>
+      </div>
+      <!-- 3. Архив чатов -->
+      <div onclick="openArchiveView()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800">
+        <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="21 8 21 21 3 21 3 8"/>
+          <rect x="1" y="3" width="22" height="5"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+        </svg>
+        <span class="font-medium">Архив чатов</span>
+      </div>
+      <!-- 4. Создать группу -->
+      <div onclick="openNewGroupModal()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800">
+        <svg class="w-4 h-4 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="9" cy="7" r="4"/>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+        <span class="font-medium">Создать группу</span>
+      </div>
+      <!-- 5. Избранное -->
+      <div onclick="openSavedMessages()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800">
+        <svg class="w-4 h-4 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span class="font-medium">Избранное</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SELECTION MORE MENU (Contextual: Archive, Clear History, Block or Leave Group) -->
+  <div id="selection-more-backdrop" onclick="closeSelectionMoreMenu()" class="fixed inset-0 z-40 hidden"></div>
+  <div id="selection-more-menu" class="absolute top-14 right-3 w-56 bg-[#161f2e] border border-neutral-700/60 rounded-2xl shadow-2xl z-50 overflow-hidden hidden select-none">
+    <div class="divide-y divide-neutral-800/60 text-xs text-white">
+      <!-- 1. В архив -->
+      <div onclick="archiveSelectedChats()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800">
+        <svg class="w-4 h-4 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="21 8 21 21 3 21 3 8"/>
+          <rect x="1" y="3" width="22" height="5"/>
+          <line x1="10" y1="12" x2="14" y2="12"/>
+        </svg>
+        <span class="font-medium">В архив</span>
+      </div>
+      <!-- 2. Очистить историю -->
+      <div onclick="openClearHistoryDialog()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800">
+        <svg class="w-4 h-4 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+        <span class="font-medium">Очистить историю</span>
+      </div>
+      <!-- 3. Dynamic Conditional Action: "Заблокировать" for Direct Chats vs "Выйти из группы" for Groups -->
+      <div id="selection-more-conditional-action" onclick="handleSelectionConditionalAction()" class="px-4 py-3 flex items-center space-x-3 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800 text-rose-400">
+        <svg id="selection-more-conditional-icon" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+        </svg>
+        <span id="selection-more-conditional-text" class="font-medium">Заблокировать</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FULL GLOBAL SEARCH OVERLAY -->
+  <div id="search-section" class="absolute inset-0 bg-[#0d141f] z-45 flex flex-col hidden select-none">
+    <!-- Top Search Bar -->
+    <div class="p-2.5 flex items-center space-x-2 border-b border-neutral-800/80">
+      <button onclick="closeSearchSection()" class="p-1.5 text-neutral-400 hover:text-white rounded-lg active:bg-neutral-800">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
+        </svg>
+      </button>
+      <div class="flex-1 h-9 px-3 rounded-full bg-[#1a2230] border border-neutral-800 flex items-center space-x-2">
+        <svg class="w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input type="text" id="search-input" placeholder="Поиск чатов и контактов" oninput="handleSearchInput(this.value)" class="flex-1 bg-transparent text-xs text-white focus:outline-none">
+        <button onclick="clearSearchInput()" id="search-clear-btn" class="text-neutral-500 hover:text-white hidden text-xs">✕</button>
+      </div>
+    </div>
+
+    <!-- Category Filter Chips -->
+    <div class="px-3 py-2 flex space-x-2 overflow-x-auto text-xs border-b border-neutral-800/40">
+      <span onclick="setSearchCategory('all')" id="scat-all" class="scat-btn px-3 py-1 rounded-full bg-[#253347] text-sky-400 border border-sky-400/40 font-medium cursor-pointer">Все</span>
+      <span onclick="setSearchCategory('chats')" id="scat-chats" class="scat-btn px-3 py-1 rounded-full bg-neutral-900/60 text-neutral-400 cursor-pointer">Чаты</span>
+      <span onclick="setSearchCategory('contacts')" id="scat-contacts" class="scat-btn px-3 py-1 rounded-full bg-neutral-900/60 text-neutral-400 cursor-pointer">Контакты</span>
+      <span onclick="setSearchCategory('media')" id="scat-media" class="scat-btn px-3 py-1 rounded-full bg-neutral-900/60 text-neutral-400 cursor-pointer">Медиа</span>
+      <span onclick="setSearchCategory('files')" id="scat-files" class="scat-btn px-3 py-1 rounded-full bg-neutral-900/60 text-neutral-400 cursor-pointer">Файлы</span>
+    </div>
+
+    <!-- Recent Contacts Row -->
+    <div id="search-recent-contacts" class="p-3 border-b border-neutral-800/40">
+      <div class="flex space-x-4 overflow-x-auto py-1">
+        <div onclick="openActiveChat('alice')" class="flex flex-col items-center space-y-1 cursor-pointer">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-blue-700 border border-sky-500/40 flex items-center justify-center text-xs font-bold text-white shadow">
+            А
+          </div>
+          <span class="text-[10px] text-neutral-400 truncate w-14 text-center">Алиса</span>
+        </div>
+        <div onclick="openActiveChat('bob')" class="flex flex-col items-center space-y-1 cursor-pointer">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-800 border border-emerald-500/40 flex items-center justify-center text-xs font-bold text-white shadow">
+            Б
+          </div>
+          <span class="text-[10px] text-neutral-400 truncate w-14 text-center">Боб</span>
+        </div>
+        <div onclick="openActiveChat('cypherpunk')" class="flex flex-col items-center space-y-1 cursor-pointer">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-purple-600 to-indigo-800 border border-purple-500/40 flex items-center justify-center text-xs font-bold text-white shadow">
+            CP
+          </div>
+          <span class="text-[10px] text-neutral-400 truncate w-14 text-center">Cypher</span>
+        </div>
+        <div onclick="openActiveChat('relay')" class="flex flex-col items-center space-y-1 cursor-pointer">
+          <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-amber-600 to-orange-700 border border-amber-500/40 flex items-center justify-center text-xs font-bold text-white shadow">
+            D
+          </div>
+          <span class="text-[10px] text-neutral-400 truncate w-14 text-center">Dave</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Search Results Dynamic List -->
+    <div id="search-results-list" class="flex-1 overflow-y-auto pb-20">
+    </div>
+  </div>
 
   <!-- SCREEN CONTAINER (Dynamic views) -->
   <main class="flex-1 relative overflow-hidden bg-[#07090e]">
 
-    <!-- 1. TAB: CHATS -->
+    <!-- 1. TAB: CHATS (Seamless List: NO Divider Lines, Base Избранное, Dynamic Архив) -->
     <div id="screen-chats" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto">
-      <!-- Filter Chips -->
-      <div class="px-4 py-2.5 flex space-x-2 overflow-x-auto text-[11px] font-medium border-b border-neutral-800/50">
-        <span class="px-3 py-1 rounded-full bg-emerald-600 text-white font-bold cursor-pointer">Все (14)</span>
-        <span class="px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 cursor-pointer">Секретные 🔒</span>
-        <span class="px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 cursor-pointer">Группы (до 300)</span>
-        <span class="px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 cursor-pointer">Каналы</span>
-      </div>
-
-      <!-- Chat List Items -->
-      <div class="divide-y divide-neutral-900/60 pb-20">
-        <!-- Item 1: Alice -->
-        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
-          <div class="relative">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-pink-500 to-rose-600 flex items-center justify-center font-bold text-white text-base shadow">
-              А
-            </div>
-            <span class="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-emerald-600 border border-black flex items-center justify-center text-[9px] text-white">🛡️</span>
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-white truncate flex items-center space-x-1">
-                <span>Алиса</span>
-                <span class="text-[10px] text-emerald-400 font-mono">Verified</span>
-              </span>
-              <span class="text-[10px] text-neutral-500">19:41</span>
-            </div>
-            <p class="text-[11px] text-neutral-300 truncate mt-0.5">Файл отчета зашифрован. Жду проверки SAS 🦊🚀</p>
-          </div>
-          <span class="w-5 h-5 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center">1</span>
-        </div>
-
-        <!-- Item 2: Secret Group -->
-        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
-          <div class="relative">
-            <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-bold text-white text-base shadow">
-              👥
-            </div>
-            <span class="absolute -bottom-0.5 -right-0.5 px-1 rounded-full bg-cyan-900 border border-black text-[8px] font-mono text-cyan-300">28</span>
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-white truncate">Cypherpunk Alpha 🛡️</span>
-              <span class="text-[10px] text-neutral-500">18:20</span>
-            </div>
-            <p class="text-[11px] text-neutral-400 truncate mt-0.5"><span class="text-cyan-400 font-medium">Боб:</span> Режим StrictPairwise активен (&le;30)</p>
-          </div>
-        </div>
-
-        <!-- Item 3: Burn OTP -->
-        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
-          <div class="w-12 h-12 rounded-full bg-neutral-900 border border-red-500/40 flex items-center justify-center text-lg shadow">
-            🔥
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-white truncate">Аноним #409</span>
-              <span class="text-[10px] text-red-400 font-mono">00:45 ⏱️</span>
-            </div>
-            <p class="text-[11px] text-neutral-400 truncate mt-0.5">Сообщение исчезнет после открытия...</p>
-          </div>
-        </div>
-
-        <!-- Item 4: VoIP -->
-        <div class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
-          <div class="w-12 h-12 rounded-full bg-neutral-900 border border-emerald-500/30 flex items-center justify-center text-emerald-400 text-lg">
-            📞
-          </div>
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-white truncate">Ева (VoIP E2EE)</span>
-              <span class="text-[10px] text-neutral-500">Вчера</span>
-            </div>
-            <p class="text-[11px] text-emerald-400 truncate mt-0.5">Входящий вызов (14 мин, SAS проверен)</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 2. TAB: SERVICES (VPN) -->
-    <div id="screen-services" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
-      <div class="p-4 space-y-4 pb-20">
-        <!-- VPN Card -->
-        <div class="p-4 rounded-2xl bg-neutral-900 border border-emerald-500/40 shadow-xl space-y-3">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <svg class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                <path d="M7 11l10-4-4 10-2-4-4-2z"/>
-              </svg>
-              <span class="text-xs font-bold text-white">AnonGram VPN</span>
-            </div>
-            <span class="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold">ПОДКЛЮЧЕНО</span>
-          </div>
-
-          <div class="flex items-center justify-between py-2 border-y border-neutral-800 text-xs">
-            <div>
-              <span class="text-[10px] text-neutral-500 block">Шифрование</span>
-              <span class="text-white font-mono">ChaCha20-Poly1305</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-neutral-500 block">Трасса</span>
-              <span class="text-white font-mono">3 Ноды (Роттердам)</span>
-            </div>
-            <div>
-              <span class="text-[10px] text-neutral-500 block">Пинг</span>
-              <span class="text-emerald-400 font-mono">24 ms</span>
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between text-xs pt-1">
-            <div>
-              <span class="text-neutral-200 block font-semibold text-[11px]">Аварийный Kill-Switch</span>
-              <span class="text-[10px] text-neutral-400">Блокировать утечки IP при сбое</span>
-            </div>
-            <input type="checkbox" checked class="w-4 h-4 accent-emerald-500 rounded">
-          </div>
-        </div>
-
-        <span class="text-[11px] font-mono text-neutral-500 uppercase block">Децентрализованные Инструменты</span>
-        <div class="space-y-2">
-          <div class="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <span class="text-lg">🗄️</span>
-              <div>
-                <h4 class="text-xs font-bold text-white">Zero-Knowledge Хранилище</h4>
-                <p class="text-[10px] text-neutral-400">P2P зашифрованные файлы до 10 ГБ</p>
-              </div>
-            </div>
-            <span class="text-neutral-500 text-xs">&rarr;</span>
-          </div>
-          <div class="p-3 rounded-xl bg-neutral-900 border border-neutral-800 flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <span class="text-lg">🤖</span>
-              <div>
-                <h4 class="text-xs font-bold text-white">Анонимные AI-Боты</h4>
-                <p class="text-[10px] text-neutral-400">Локальный запуск без передачи данных</p>
-              </div>
-            </div>
-            <span class="text-neutral-500 text-xs">&rarr;</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 3. TAB: SCANNER -->
-    <div id="screen-scanner" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
-      <div class="p-4 flex flex-col items-center space-y-4 pb-20">
-        <div class="relative w-64 h-64 rounded-3xl bg-neutral-950 border-2 border-emerald-500/60 overflow-hidden flex items-center justify-center shadow-2xl">
-          <div class="scanner-laser absolute left-4 right-4 h-0.5 bg-gradient-to-r from-cyan-400 via-emerald-400 to-teal-300 shadow-[0_0_12px_#10b981]"></div>
-          <div class="absolute top-3 left-3 w-6 h-6 border-t-2 border-l-2 border-emerald-400 rounded-tl-lg"></div>
-          <div class="absolute top-3 right-3 w-6 h-6 border-t-2 border-r-2 border-emerald-400 rounded-tr-lg"></div>
-          <div class="absolute bottom-3 left-3 w-6 h-6 border-b-2 border-l-2 border-emerald-400 rounded-bl-lg"></div>
-          <div class="absolute bottom-3 right-3 w-6 h-6 border-b-2 border-r-2 border-emerald-400 rounded-br-lg"></div>
-
-          <div class="text-center p-4 space-y-2">
-            <svg class="w-12 h-12 text-neutral-600 mx-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M8 8h.01M16 8h.01M8 16h.01M16 16h.01"/>
+      
+      <!-- Container for Chat Items (No divide-y / No borders) -->
+      <div id="chat-list-container" class="pb-28 select-none">
+        
+        <!-- Pinned: АРХИВ ЧАТОВ (Dynamic: Hidden by default when 0, appears when chats are archived) -->
+        <div id="archive-folder-item" style="display: none;" onclick="openArchiveView()" class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-[#23354c] flex items-center justify-center text-white shadow">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="21 8 21 21 3 21 3 8"/>
+              <rect x="1" y="3" width="22" height="5"/>
+              <line x1="10" y1="12" x2="14" y2="12"/>
             </svg>
-            <p class="text-[11px] text-neutral-400">Наведите камеру на QR-код AnonGram</p>
           </div>
-        </div>
-
-        <div class="w-full space-y-2 pt-1">
-          <span class="text-[10px] text-neutral-500 font-mono block text-center uppercase">Быстрый тест парсера QR:</span>
-          <button onclick="simulateScanResult('user')" class="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-left flex items-center justify-between text-xs">
-            <span>👤 Добавить Контакт</span>
-            <span class="text-cyan-400 text-[10px]">Тест &rarr;</span>
-          </button>
-          <button onclick="simulateScanResult('device')" class="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-left flex items-center justify-between text-xs">
-            <span>💻 Связать Desktop</span>
-            <span class="text-emerald-400 text-[10px]">Тест &rarr;</span>
-          </button>
-          <button onclick="simulateScanResult('verify')" class="w-full p-2.5 rounded-xl bg-neutral-900 border border-neutral-700 text-left flex items-center justify-between text-xs">
-            <span>🛡️ Anti-MITM Проверка</span>
-            <span class="text-amber-400 text-[10px]">Тест &rarr;</span>
-          </button>
-        </div>
-
-        <div id="scan-result-card" class="w-full p-3.5 rounded-2xl bg-neutral-900 border border-emerald-500/50 space-y-2 hidden"></div>
-      </div>
-    </div>
-
-    <!-- 4. TAB: SETTINGS (PRO LIVE THEME ENGINE) -->
-    <div id="screen-settings" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
-      <div class="p-4 space-y-4 pb-20 text-xs">
-        <!-- Appearance & Themes -->
-        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-cyan-500/40 space-y-3 shadow-lg">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-2">
-              <span class="text-base">🎨</span>
-              <div>
-                <span class="text-white block font-bold text-xs">Оформление и Темы</span>
-                <span class="text-[9px] text-cyan-400 font-mono">Live Theme Engine</span>
-              </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white truncate">Архив чатов</span>
+              <span id="archive-counter-badge" class="px-2 py-0.5 rounded-full bg-[#23354c] text-white/80 text-[10px] font-bold">0</span>
             </div>
-            <span id="current-theme-badge" class="px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-500/40 text-[9px] font-mono">Cyber Obsidian</span>
-          </div>
-
-          <span class="text-[10px] text-neutral-400 font-mono uppercase block pt-1">Пресеты (Кликайте для живой смены):</span>
-          <div class="grid grid-cols-2 gap-2">
-            <button onclick="applyAppTheme('cyber')" class="p-2 rounded-xl bg-neutral-950 border border-cyan-400 text-left flex items-center space-x-2">
-              <span class="w-3 h-3 rounded-full bg-cyan-400"></span>
-              <span class="text-[10px] font-bold text-white">Cyber Obsidian</span>
-            </button>
-            <button onclick="applyAppTheme('matrix')" class="p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-left flex items-center space-x-2 hover:border-green-500">
-              <span class="w-3 h-3 rounded-full bg-green-500"></span>
-              <span class="text-[10px] font-bold text-white">Matrix Terminal</span>
-            </button>
-            <button onclick="applyAppTheme('cobalt')" class="p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-left flex items-center space-x-2 hover:border-blue-500">
-              <span class="w-3 h-3 rounded-full bg-blue-500"></span>
-              <span class="text-[10px] font-bold text-white">Midnight Cobalt</span>
-            </button>
-            <button onclick="applyAppTheme('amber')" class="p-2 rounded-xl bg-neutral-950 border border-neutral-800 text-left flex items-center space-x-2 hover:border-amber-500">
-              <span class="w-3 h-3 rounded-full bg-amber-500"></span>
-              <span class="text-[10px] font-bold text-white">Solar Amber</span>
-            </button>
-          </div>
-
-          <span class="text-[10px] text-neutral-400 font-mono uppercase block pt-2 border-t border-neutral-800">Неоновый Акцент:</span>
-          <div class="flex items-center space-x-3">
-            <button onclick="setAccentColor('#00f2fe')" class="w-6 h-6 rounded-full bg-[#00f2fe] ring-2 ring-white/50 shadow"></button>
-            <button onclick="setAccentColor('#10b981')" class="w-6 h-6 rounded-full bg-[#10b981] shadow"></button>
-            <button onclick="setAccentColor('#a855f7')" class="w-6 h-6 rounded-full bg-[#a855f7] shadow"></button>
-            <button onclick="setAccentColor('#f97316')" class="w-6 h-6 rounded-full bg-[#f97316] shadow"></button>
-            <button onclick="setAccentColor('#ffffff')" class="w-6 h-6 rounded-full bg-white shadow"></button>
+            <p class="text-[11px] text-neutral-400 truncate mt-0.5">Зашифрованные сессии, P2P архив...</p>
           </div>
         </div>
 
-        <!-- Security -->
-        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
-          <span class="text-white block font-bold text-xs">Безопасность и Приватность</span>
-          <div class="flex items-center justify-between">
-            <span class="text-neutral-300">Биометрия / PIN</span>
-            <input type="checkbox" checked class="w-4 h-4 accent-emerald-500 rounded">
+        <!-- Pinned: ИЗБРАННОЕ (Permanent Base Item, Always Visible) -->
+        <div id="saved-messages-item" onclick="openSavedMessages()" class="p-3.5 flex items-center space-x-3 hover:bg-neutral-900/50 active:bg-neutral-900 cursor-pointer transition">
+          <div class="w-12 h-12 rounded-full bg-[#4ca5ff] flex items-center justify-center text-white shadow">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>
+            </svg>
           </div>
-          <div class="flex items-center justify-between pt-1 border-t border-neutral-800">
-            <span class="text-neutral-300">Пароль под принуждением (Dumb PIN)</span>
-            <span class="text-emerald-400 font-mono">ВКЛ</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white truncate">Избранное</span>
+              <span class="text-[10px] text-neutral-500">ВС</span>
+            </div>
+            <p class="text-[11px] text-sky-400 truncate mt-0.5 flex items-center space-x-1">
+              <svg class="w-3.5 h-3.5 inline mr-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <span>Зашифрованные заметки</span>
+            </p>
+          </div>
+        </div>
+
+        <!-- Active Chats Render Target -->
+        <div id="active-chats-list">
+          <!-- Rendered dynamically without divider lines -->
+        </div>
+
+      </div>
+
+      <!-- FLOATING ACTION BUTTON (Opens "Новое сообщение" / Contacts Screen) -->
+      <button onclick="openNewMessageScreen()" style="position: fixed; bottom: 84px; right: 20px; width: 54px; height: 54px; z-index: 35;" class="rounded-2xl bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-2xl flex items-center justify-center active:scale-95 transition" title="Новое сообщение">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 20h9"/>
+          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- 2. SCREEN: ARCHIVED CHATS (Allows viewing & unarchiving) -->
+    <div id="screen-archived-chats" class="absolute inset-0 bg-[#07090e] z-42 flex flex-col translate-x-full transition-transform duration-250 ease-out select-none">
+      <div class="h-14 px-3 flex items-center justify-between border-b border-neutral-800/80 bg-[#0d141f]">
+        <div class="flex items-center space-x-3">
+          <button onclick="closeArchiveView()" class="p-1.5 text-neutral-400 hover:text-white rounded-lg active:bg-neutral-800">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <h2 class="text-base font-bold text-white">Архив чатов</h2>
+        </div>
+      </div>
+      <div id="archived-chats-list" class="flex-1 overflow-y-auto p-2 pb-20">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+
+    <!-- 3. SCREEN: НОВОЕ СООБЩЕНИЕ / КОНТАКТЫ (Opened via FAB) -->
+    <div id="screen-new-message" class="absolute inset-0 bg-[#07090e] z-40 flex flex-col translate-x-full transition-transform duration-250 ease-out select-none">
+      <!-- Top Bar -->
+      <div class="h-14 px-3 flex items-center justify-between border-b border-neutral-800/80 bg-[#0d141f]">
+        <div class="flex items-center space-x-3">
+          <button onclick="closeNewMessageScreen()" class="p-1.5 text-neutral-400 hover:text-white rounded-lg active:bg-neutral-800">
+            <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="19" y1="12" x2="5" y2="12"/>
+              <polyline points="12 19 5 12 12 5"/>
+            </svg>
+          </button>
+          <h2 class="text-base font-bold text-white">Новое сообщение</h2>
+        </div>
+        <div class="flex items-center space-x-1">
+          <button class="p-2 text-neutral-300 hover:text-white" title="Сортировка">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="6" x2="16" y2="6"/>
+              <line x1="4" y1="12" x2="11" y2="12"/>
+              <line x1="4" y1="18" x2="14" y2="18"/>
+              <polyline points="18 15 21 18 18 21"/>
+              <line x1="21" y1="9" x2="21" y2="18"/>
+            </svg>
+          </button>
+          <button class="p-2 text-neutral-300 hover:text-white" title="Опции">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="1.5"/>
+              <circle cx="12" cy="5" r="1.5"/>
+              <circle cx="12" cy="19" r="1.5"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- In-Contacts Search Bar -->
+      <div class="p-3 border-b border-neutral-800/60 bg-[#07090e]">
+        <div class="h-10 px-3.5 rounded-full bg-[#131c2a] border border-neutral-800 flex items-center space-x-2">
+          <svg class="w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input type="text" id="contacts-search-input" placeholder="Поиск контактов" oninput="filterSavedContacts(this.value)" class="flex-1 bg-transparent text-xs text-white focus:outline-none">
+          <button onclick="clearContactsSearch()" id="contacts-clear-btn" class="text-neutral-500 hover:text-white hidden text-xs">✕</button>
+        </div>
+      </div>
+
+      <!-- Quick Action Card: Создать группу / Создать P2P канал -->
+      <div class="p-3">
+        <div class="rounded-2xl bg-[#0f1724] border border-neutral-800/80 divide-y divide-neutral-800/60 overflow-hidden">
+          <div onclick="openNewGroupModal()" class="p-3 flex items-center space-x-3.5 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800 transition">
+            <div class="w-9 h-9 rounded-full bg-blue-600 flex items-center justify-center text-white">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                <circle cx="9" cy="7" r="4"/>
+                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+              </svg>
+            </div>
+            <span class="text-xs font-semibold text-white">Создать группу</span>
+          </div>
+          <div onclick="openNewGroupModal()" class="p-3 flex items-center space-x-3.5 hover:bg-neutral-800/50 cursor-pointer active:bg-neutral-800 transition">
+            <div class="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center text-white">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <span class="text-xs font-semibold text-white">Создать секретный P2P чат</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section Header -->
+      <div class="px-4 py-1.5 flex items-center justify-between text-xs text-sky-400 font-medium">
+        <span>Сортировка по времени захода</span>
+        <span id="saved-contacts-count" class="text-neutral-500 font-mono text-[11px]">4 контакта</span>
+      </div>
+
+      <!-- Contacts List -->
+      <div id="saved-contacts-list" class="flex-1 overflow-y-auto divide-y divide-neutral-900/60 pb-20">
+      </div>
+
+      <!-- FAB on Contacts Screen: Add contact (👤+) -->
+      <button onclick="openAddContactModal()" class="fixed bottom-6 right-5 w-14 h-14 rounded-2xl bg-[#0284c7] hover:bg-[#0369a1] text-white shadow-2xl flex items-center justify-center active:scale-95 transition z-50" title="Добавить контакт">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+          <circle cx="8.5" cy="7" r="4"/>
+          <line x1="20" y1="8" x2="20" y2="14"/>
+          <line x1="23" y1="11" x2="17" y2="11"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- 4. TAB: СЕРВИСЫ (Services / VPN / Mesh Hub) -->
+    <div id="screen-services" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden select-none p-4 pb-28">
+      <h2 class="text-base font-bold text-white mb-4">Безопасность и Сеть</h2>
+      <div class="space-y-3">
+        <!-- VPN Card -->
+        <div class="p-4 rounded-2xl bg-[#0f1724] border border-neutral-800 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-cyan-950/80 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-white">P2P Mesh VPN</div>
+              <div class="text-[11px] text-neutral-400" id="vpn-status-text">Защищенный туннель выключен</div>
+            </div>
+          </div>
+          <button onclick="toggleVpn()" id="vpn-toggle-btn" class="px-3.5 py-1.5 rounded-xl bg-neutral-800 text-xs font-semibold text-neutral-300 active:scale-95 transition">
+            Включить
+          </button>
+        </div>
+
+        <!-- Tor Routing Card -->
+        <div class="p-4 rounded-2xl bg-[#0f1724] border border-neutral-800 flex items-center justify-between">
+          <div class="flex items-center space-x-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-950/80 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+              <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+                <path d="M2 12h20"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-xs font-bold text-white">Tor Onion Routing</div>
+              <div class="text-[11px] text-emerald-400 font-mono">Активен (v3 hidden services)</div>
+            </div>
+          </div>
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+        </div>
+
+        <!-- Node Relay Card -->
+        <div class="p-4 rounded-2xl bg-[#0f1724] border border-neutral-800">
+          <div class="text-xs font-bold text-white mb-2">Локальный узел AnonGram</div>
+          <div class="text-[11px] text-neutral-400 font-mono space-y-1">
+            <div>Пиры в сетке: <span class="text-cyan-400">28 узлов</span></div>
+            <div>Шифрование: <span class="text-emerald-400">Kyber-1024 + Dilithium-5</span></div>
+            <div>Трафик: <span class="text-neutral-300">12.4 MB (0 утечек)</span></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 5. TAB: PROFILE -->
-    <div id="screen-profile" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden">
-      <div class="p-4 space-y-4 pb-20 text-xs">
-        <div class="p-4 rounded-2xl bg-neutral-900 border border-neutral-800 text-center space-y-3">
-          <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-600 to-emerald-600 mx-auto flex items-center justify-center text-3xl shadow-xl">
-            🦊
-          </div>
-          <div>
-            <h3 class="text-sm font-bold text-white">Cypherpunk #77</h3>
-            <code class="text-[10px] text-cyan-400 font-mono block pt-0.5">0x7F2A...9C14</code>
-          </div>
-          <span class="inline-block px-3 py-1 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono">
-            Kyber-1024 + Ed25519
-          </span>
+    <!-- 5. TAB: НАСТРОЙКИ (Settings) -->
+    <div id="screen-settings" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden select-none p-4 pb-28">
+      <h2 class="text-base font-bold text-white mb-4">Настройки</h2>
+      <div class="rounded-2xl bg-[#0f1724] border border-neutral-800 divide-y divide-neutral-800/60 overflow-hidden text-xs">
+        <div onclick="toggleDayMode()" class="p-3.5 flex items-center justify-between cursor-pointer hover:bg-neutral-800/40">
+          <span class="text-white font-medium">Оформление: Дневной / Ночной</span>
+          <span id="settings-theme-label" class="text-sky-400 font-mono">AMOLED Black</span>
         </div>
+        <div onclick="toggleGhostMode()" class="p-3.5 flex items-center justify-between cursor-pointer hover:bg-neutral-800/40">
+          <span class="text-white font-medium">Режим призрака</span>
+          <span id="settings-ghost-label" class="text-neutral-400 font-mono">Выключен</span>
+        </div>
+        <div onclick="openQrScanner()" class="p-3.5 flex items-center justify-between cursor-pointer hover:bg-neutral-800/40">
+          <span class="text-white font-medium">Мой QR-код и ключи</span>
+          <span class="text-cyan-400 font-mono">0x4D9F...</span>
+        </div>
+      </div>
+    </div>
 
-        <div class="p-3.5 rounded-2xl bg-neutral-900 border border-neutral-800 space-y-2">
-          <span class="text-[10px] font-mono text-neutral-500 uppercase">60-ЗНАЧНЫЙ ОТПЕЧАТОК БЕЗОПАСНОСТИ</span>
-          <p class="text-[11px] font-mono text-emerald-300 leading-relaxed bg-black/60 p-2.5 rounded-xl border border-neutral-800">
-            12894 00921 77312 99401<br>
-            44021 88319 23145 90124<br>
-            55120 78192 34109 88127
-          </p>
+    <!-- 6. TAB: ПРОФИЛЬ (Profile) -->
+    <div id="screen-profile" class="tab-screen absolute inset-0 flex flex-col overflow-y-auto hidden select-none p-4 pb-28">
+      <div class="flex flex-col items-center py-6">
+        <div class="w-20 h-20 rounded-full bg-gradient-to-tr from-orange-500 to-amber-500 border-4 border-neutral-900 flex items-center justify-center text-2xl font-bold text-white shadow-xl">
+          ЛУ
         </div>
+        <h2 class="text-lg font-bold text-white mt-3">Кайрат</h2>
+        <span class="text-xs text-neutral-400 font-mono">Anon#8492</span>
+        <span class="mt-2 px-2.5 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-[10px] text-emerald-400 font-medium">
+          Криптографическая личность проверена
+        </span>
+      </div>
+      <div class="rounded-2xl bg-[#0f1724] border border-neutral-800 p-4 space-y-2 text-xs">
+        <div class="text-neutral-400">Публичный ключ (Ed25519):</div>
+        <div class="font-mono text-cyan-400 break-all select-text text-[11px]">
+          0x4D9FA2C188E1B930219EF84B7C9801A244E3917B
+        </div>
+        <button onclick="openQrScanner('my_code')" class="mt-3 w-full py-2.5 rounded-xl bg-neutral-800 hover:bg-neutral-700 text-white font-medium active:scale-98 transition flex items-center justify-center space-x-2">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          <span>Показать мой QR-код</span>
+        </button>
       </div>
     </div>
 
   </main>
 
-  <!-- BOTTOM NAVIGATION BAR (5 Items) -->
-  <nav class="h-16 bg-neutral-950/95 border-t border-neutral-800 px-2 flex items-center justify-around z-30 relative">
-    <button onclick="switchTab('chats')" id="tab-chats" class="flex flex-col items-center justify-center flex-1 py-1 text-emerald-400 transition">
-      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-      </svg>
-      <span class="text-[10px] font-medium mt-0.5">Чаты</span>
-    </button>
+  <!-- NOTIFICATIONS DURATION BOTTOM SHEET (Image 4 Design) -->
+  <div id="mute-sheet-backdrop" onclick="closeMuteBottomSheet()" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden transition-opacity"></div>
+  <div id="mute-sheet-panel" class="fixed bottom-0 left-0 right-0 bg-[#161f2e] border-t border-neutral-700/70 rounded-t-3xl p-5 shadow-2xl z-55 translate-y-full transition-transform duration-250 ease-out select-none">
+    <div class="w-10 h-1 bg-neutral-600 rounded-full mx-auto mb-4"></div>
+    <h3 class="text-base font-bold text-white mb-3">Уведомления</h3>
+    <div class="divide-y divide-neutral-800/80 text-xs text-white">
+      <!-- 1 час -->
+      <div onclick="applyMute('1 час')" class="py-3.5 flex items-center space-x-3.5 hover:bg-neutral-800/40 cursor-pointer active:bg-neutral-800">
+        <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span class="font-medium text-sm">Выключить на 1 час</span>
+      </div>
+      <!-- 8 часов -->
+      <div onclick="applyMute('8 часов')" class="py-3.5 flex items-center space-x-3.5 hover:bg-neutral-800/40 cursor-pointer active:bg-neutral-800">
+        <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span class="font-medium text-sm">Выключить на 8 часов</span>
+      </div>
+      <!-- 2 дня -->
+      <div onclick="applyMute('2 дня')" class="py-3.5 flex items-center space-x-3.5 hover:bg-neutral-800/40 cursor-pointer active:bg-neutral-800">
+        <svg class="w-5 h-5 text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span class="font-medium text-sm">Выключить на 2 дня</span>
+      </div>
+      <!-- Навсегда -->
+      <div onclick="applyMute('навсегда')" class="py-3.5 flex items-center space-x-3.5 hover:bg-neutral-800/40 cursor-pointer active:bg-neutral-800">
+        <svg class="w-5 h-5 text-rose-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+          <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+          <line x1="1" y1="1" x2="23" y2="23"/>
+        </svg>
+        <span class="font-medium text-sm text-rose-400">Выключить навсегда</span>
+      </div>
+      <!-- Настроить -->
+      <div onclick="closeMuteBottomSheet()" class="py-3.5 flex items-center space-x-3.5 hover:bg-neutral-800/40 cursor-pointer active:bg-neutral-800 text-neutral-400">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+        <span class="font-medium text-sm">Настроить</span>
+      </div>
+    </div>
+  </div>
 
-    <button onclick="switchTab('services')" id="tab-services" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
-      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-      <span class="text-[10px] font-medium mt-0.5">Сервисы</span>
-    </button>
+  <!-- DELETE CHAT DIALOG (Image 1 Design: Avatar, Prompt, Checkbox "Также удалить для...") -->
+  <div id="delete-chat-modal" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-xs z-55 flex items-center justify-center p-5 select-none">
+    <div class="w-full max-w-sm rounded-2xl bg-[#161f2e] border border-neutral-700/80 p-5 shadow-2xl">
+      <div id="delete-dialog-avatar" class="w-14 h-14 rounded-full bg-gradient-to-tr from-sky-600 to-blue-700 mx-auto flex items-center justify-center font-bold text-white text-lg shadow-lg mb-3">
+        А
+      </div>
+      <h3 class="text-sm font-bold text-white text-center">Удалить чат</h3>
+      <p id="delete-dialog-prompt" class="text-xs text-neutral-300 text-center mt-2 leading-relaxed">
+        Вы действительно хотите удалить чат с <span id="delete-dialog-name" class="font-bold text-white">Алиса</span>?
+      </p>
+      
+      <!-- Checkbox "Также удалить для..." -->
+      <div class="mt-4 pt-3 border-t border-neutral-800/80 flex items-center space-x-3 cursor-pointer" onclick="toggleCheckbox('delete-also-peer-check')">
+        <input type="checkbox" id="delete-also-peer-check" class="custom-check" checked>
+        <label id="delete-also-peer-label" class="text-xs text-neutral-300 cursor-pointer">Также удалить для Алиса</label>
+      </div>
 
-    <!-- Center Elevated QR Button -->
-    <div class="relative -top-4 flex items-center justify-center px-1">
-      <button onclick="switchTab('scanner')" id="tab-scanner" class="w-13 h-13 p-3 rounded-2xl bg-gradient-to-tr from-cyan-500 to-emerald-500 text-black shadow-[0_0_20px_rgba(6,182,212,0.6)] active:scale-95 transition flex items-center justify-center">
-        <svg class="w-7 h-7 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <path d="M7 11l10-4-4 10-2-4-4-2z"/>
+      <!-- Action Buttons -->
+      <div class="flex space-x-2.5 mt-5">
+        <button onclick="closeDeleteChatDialog()" class="flex-1 py-2.5 rounded-xl bg-neutral-800 text-xs text-neutral-300 font-medium active:scale-98 transition">Отмена</button>
+        <button onclick="confirmDeleteChat()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs text-white font-bold active:scale-98 transition shadow">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLEAR HISTORY DIALOG (Image 2 Design: Avatar, Prompt, Checkbox "Также очистить для...") -->
+  <div id="clear-history-modal" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-xs z-55 flex items-center justify-center p-5 select-none">
+    <div class="w-full max-w-sm rounded-2xl bg-[#161f2e] border border-neutral-700/80 p-5 shadow-2xl">
+      <div id="clear-dialog-avatar" class="w-14 h-14 rounded-full bg-gradient-to-tr from-sky-600 to-blue-700 mx-auto flex items-center justify-center font-bold text-white text-lg shadow-lg mb-3">
+        А
+      </div>
+      <h3 class="text-sm font-bold text-white text-center">Очистить историю</h3>
+      <p id="clear-dialog-prompt" class="text-xs text-neutral-300 text-center mt-2 leading-relaxed">
+        Вы действительно хотите очистить историю чата с <span id="clear-dialog-name" class="font-bold text-white">Алиса</span>?
+      </p>
+      
+      <!-- Checkbox "Также очистить для..." -->
+      <div class="mt-4 pt-3 border-t border-neutral-800/80 flex items-center space-x-3 cursor-pointer" onclick="toggleCheckbox('clear-also-peer-check')">
+        <input type="checkbox" id="clear-also-peer-check" class="custom-check" checked>
+        <label id="clear-also-peer-label" class="text-xs text-neutral-300 cursor-pointer">Также очистить для Алиса</label>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex space-x-2.5 mt-5">
+        <button onclick="closeClearHistoryDialog()" class="flex-1 py-2.5 rounded-xl bg-neutral-800 text-xs text-neutral-300 font-medium active:scale-98 transition">Отмена</button>
+        <button onclick="confirmClearHistory()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs text-white font-bold active:scale-98 transition shadow">Очистить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCK CONTACT DIALOG (Image 3 Design: Direct Chat only, Checkboxes "Сообщить о спаме", "Удалить этот чат") -->
+  <div id="block-contact-modal" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-xs z-55 flex items-center justify-center p-5 select-none">
+    <div class="w-full max-w-sm rounded-2xl bg-[#161f2e] border border-neutral-700/80 p-5 shadow-2xl">
+      <h3 class="text-base font-bold text-white">Заблокировать контакт</h3>
+      <p id="block-dialog-prompt" class="text-xs text-neutral-300 mt-2 leading-relaxed">
+        Заблокировать пользователя <span id="block-dialog-name" class="font-bold text-white">Алиса</span>?
+      </p>
+      <p class="text-[11px] text-neutral-400 mt-1">
+        Заблокированные пользователи не смогут отправлять вам P2P сообщения и совершать звонки.
+      </p>
+      
+      <div class="mt-4 space-y-3 pt-3 border-t border-neutral-800/80">
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="toggleCheckbox('block-spam-check')">
+          <input type="checkbox" id="block-spam-check" class="custom-check">
+          <label class="text-xs text-neutral-300 cursor-pointer">Сообщить о спаме</label>
+        </div>
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="toggleCheckbox('block-delete-check')">
+          <input type="checkbox" id="block-delete-check" class="custom-check" checked>
+          <label class="text-xs text-neutral-300 cursor-pointer">Удалить этот чат</label>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex space-x-2.5 mt-5">
+        <button onclick="closeBlockContactDialog()" class="flex-1 py-2.5 rounded-xl bg-neutral-800 text-xs text-neutral-300 font-medium active:scale-98 transition">Отмена</button>
+        <button onclick="confirmBlockContact()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs text-white font-bold active:scale-98 transition shadow">Заблокировать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LEAVE GROUP DIALOG (Condition: Group Chats only) -->
+  <div id="leave-group-modal" style="display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-xs z-55 flex items-center justify-center p-5 select-none">
+    <div class="w-full max-w-sm rounded-2xl bg-[#161f2e] border border-neutral-700/80 p-5 shadow-2xl">
+      <h3 class="text-base font-bold text-white">Покинуть группу</h3>
+      <p id="leave-group-prompt" class="text-xs text-neutral-300 mt-2 leading-relaxed">
+        Вы действительно хотите покинуть группу <span id="leave-group-name" class="font-bold text-white">Cypherpunk Mesh</span>?
+      </p>
+      <p class="text-[11px] text-neutral-400 mt-1">
+        Вы потеряете доступ к общему mesh-каналу и шифрованным сообщениям узла.
+      </p>
+      
+      <div class="mt-4 pt-3 border-t border-neutral-800/80 flex items-center space-x-3 cursor-pointer" onclick="toggleCheckbox('leave-delete-local-check')">
+        <input type="checkbox" id="leave-delete-local-check" class="custom-check" checked>
+        <label class="text-xs text-neutral-300 cursor-pointer">Удалить переписку на моем устройстве</label>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex space-x-2.5 mt-5">
+        <button onclick="closeLeaveGroupDialog()" class="flex-1 py-2.5 rounded-xl bg-neutral-800 text-xs text-neutral-300 font-medium active:scale-98 transition">Отмена</button>
+        <button onclick="confirmLeaveGroup()" class="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-xs text-white font-bold active:scale-98 transition shadow">Выйти из группы</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- UNIVERSAL QR SCANNER & MY QR OVERLAY -->
+  <div id="qr-overlay" style="z-index: 9998; display: none;" class="fixed inset-0 bg-[#07090e] flex flex-col select-none">
+    <!-- QR Header -->
+    <div class="h-14 px-3 flex items-center justify-between border-b border-neutral-800/80 bg-[#0d141f]">
+      <button onclick="closeQrScanner()" class="p-1.5 text-neutral-400 hover:text-white rounded-lg active:bg-neutral-800">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="19" y1="12" x2="5" y2="12"/>
+          <polyline points="12 19 5 12 12 5"/>
         </svg>
       </button>
+      <div class="flex space-x-2">
+        <button onclick="setQrMode('scan')" id="qrmode-scan-btn" class="px-3 py-1 rounded-full bg-cyan-950 border border-cyan-400 text-cyan-400 text-xs font-bold">Сканер</button>
+        <button onclick="setQrMode('my')" id="qrmode-my-btn" class="px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 text-xs font-medium">Мой QR</button>
+      </div>
+      <div class="w-8"></div>
     </div>
 
-    <button onclick="switchTab('settings')" id="tab-settings" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
-      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="12" cy="12" r="3"/>
-        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-      <span class="text-[10px] font-medium mt-0.5">Настройки</span>
+    <!-- QR Content -->
+    <div id="qr-scan-view" class="flex-1 flex flex-col items-center justify-center p-6">
+      <div class="w-64 h-64 rounded-3xl border-2 border-cyan-400 relative overflow-hidden bg-black/60 shadow-2xl flex items-center justify-center">
+        <div class="absolute w-full h-1 bg-cyan-400 scanner-laser shadow-[0_0_12px_#00f2fe]"></div>
+        <svg class="w-20 h-20 text-white/10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <rect x="3" y="3" width="7" height="7"/>
+          <rect x="14" y="3" width="7" height="7"/>
+          <rect x="14" y="14" width="7" height="7"/>
+          <rect x="3" y="14" width="7" height="7"/>
+        </svg>
+      </div>
+      <div class="text-xs text-neutral-400 mt-4 text-center">Наведите камеру на QR-код для добавления контакта</div>
+
+      <div class="mt-6 w-full max-w-xs space-y-2">
+        <div class="text-[10px] text-neutral-500 font-mono text-center">ТЕСТОВЫЙ ПАРСИНГ QR:</div>
+        <button onclick="simulateQrScan('AGQR:USER:0x7F2A4B89C1D0EE44:Алиса')" class="w-full py-2 px-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-white hover:bg-neutral-800 text-left flex items-center justify-between">
+          <span>Добавить контакт «Алиса»</span>
+          <span class="text-cyan-400 font-mono text-[10px]">AGQR:USER</span>
+        </button>
+        <button onclick="simulateQrScan('AGQR:VERIFY:92841042')" class="w-full py-2 px-3 rounded-xl bg-neutral-900 border border-neutral-800 text-xs text-white hover:bg-neutral-800 text-left flex items-center justify-between">
+          <span>Anti-MITM Верификация ключей</span>
+          <span class="text-emerald-400 font-mono text-[10px]">AGQR:VERIFY</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- My QR View -->
+    <div id="qr-my-view" class="flex-1 flex flex-col items-center justify-center p-6 hidden">
+      <div class="p-5 bg-white rounded-3xl shadow-2xl">
+        <svg class="w-48 h-48 text-black" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M2 2h8v8H2V2zm2 2v4h4V4H4zm10-2h8v8h-8V2zm2 2v4h4V4h-4zM2 14h8v8H2v-8zm2 2v4h4v-4H4zm14 0h4v4h-4v-4zm-4-2h2v2h-2v-2zm2 4h2v2h-2v-2zm-2 2h2v2h-2v-2zm4-4h2v2h-2v-2zm0 4h2v2h-2v-2zm-8-6h2v2h-2v-2zm4 0h2v2h-2v-2zm-4 4h2v2h-2v-2z"/>
+        </svg>
+      </div>
+      <h3 class="text-sm font-bold text-white mt-4">Кайрат (AnonGram ID)</h3>
+      <div class="font-mono text-xs text-cyan-400 mt-1">0x4D9F...88E1 (Ed25519)</div>
+      <div class="text-[11px] text-neutral-400 text-center max-w-xs mt-2">
+        Покажите этот код для добавления в контакты или проверки подлинности сессии
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD CONTACT MODAL -->
+  <div id="add-contact-modal" style="z-index: 9999; display: none;" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 select-none">
+    <div class="w-full max-w-sm rounded-2xl bg-[#161f2e] border border-neutral-700 p-5 shadow-2xl">
+      <h3 class="text-sm font-bold text-white mb-3">Добавить новый контакт</h3>
+      <div class="space-y-3">
+        <div>
+          <label class="text-[10px] text-neutral-400 mb-1 block">Имя или псевдоним</label>
+          <input type="text" id="new-contact-name" placeholder="Например: Боб" class="w-full h-9 px-3 rounded-xl bg-[#0f1724] border border-neutral-700 text-xs text-white focus:outline-none focus:border-cyan-500">
+        </div>
+        <div>
+          <label class="text-[10px] text-neutral-400 mb-1 block">Публичный ключ (0x...)</label>
+          <input type="text" id="new-contact-key" placeholder="0x..." class="w-full h-9 px-3 rounded-xl bg-[#0f1724] border border-neutral-700 text-xs font-mono text-cyan-400 focus:outline-none focus:border-cyan-500">
+        </div>
+        <!-- Scan QR button -->
+        <button onclick="scanContactQrFromModal()" class="w-full py-2.5 rounded-xl border border-cyan-500/50 bg-cyan-950/40 text-cyan-400 text-xs font-semibold hover:bg-cyan-900/50 flex items-center justify-center space-x-2 active:scale-98 transition">
+          <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="7" height="7"/>
+            <rect x="14" y="3" width="7" height="7"/>
+            <rect x="14" y="14" width="7" height="7"/>
+            <rect x="3" y="14" width="7" height="7"/>
+          </svg>
+          <span>Сканировать QR-код контакта</span>
+        </button>
+      </div>
+      <div class="flex space-x-2 mt-5">
+        <button onclick="closeAddContactModal()" class="flex-1 py-2 rounded-xl bg-neutral-800 text-xs text-neutral-300 font-medium">Отмена</button>
+        <button onclick="saveNewContact()" class="flex-1 py-2 rounded-xl bg-sky-600 text-xs text-white font-bold">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLOATING NAVIGATION ISLAND (Ergonomic Pill Capsule with Stealth Cyber QR) -->
+  <nav id="floating-nav-island" class="fixed bottom-3 left-4 right-4 h-16 bg-[#101726]/90 backdrop-blur-xl rounded-3xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.6)] px-2 flex items-center justify-around z-30 select-none">
+    
+    <!-- 1. Чаты -->
+    <button onclick="switchTab('chats')" id="tab-chats" class="flex flex-col items-center justify-center flex-1 py-1 text-sky-400 transition">
+      <div id="tab-chats-pill" class="px-3.5 py-1 rounded-full bg-[#1b2b3f] flex items-center justify-center">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+      <span class="text-[9.5px] font-bold mt-0.5 text-sky-400">Чаты</span>
     </button>
 
+    <!-- 2. Сервисы -->
+    <button onclick="switchTab('services')" id="tab-services" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
+      <div id="tab-services-pill" class="px-3.5 py-1 rounded-full flex items-center justify-center">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <span class="text-[9.5px] font-medium mt-0.5">Сервисы</span>
+    </button>
+
+    <!-- 3. CENTER ELEVATED STEALTH CYBER QR BUTTON -->
+    <div class="flex flex-col items-center justify-center -translate-y-4 cursor-pointer" onclick="openQrScanner()" title="Stealth QR">
+      <div class="w-13 h-13 rounded-2xl bg-[#09111e] border-2 border-cyan-400/80 flex items-center justify-center shadow-[0_0_20px_rgba(6,182,212,0.45)] active:scale-95 transition">
+        <!-- Stealth Cyber QR Glyph -->
+        <svg class="w-6 h-6 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <!-- 4 Corner Target Brackets -->
+          <path d="M3 8V5a2 2 0 0 1 2-2h3"/>
+          <path d="M16 3h3a2 2 0 0 1 2 2v3"/>
+          <path d="M21 16v3a2 2 0 0 1-2 2h-3"/>
+          <path d="M8 21H5a2 2 0 0 1-2-2v-3"/>
+          <!-- Cyber Core Blocks -->
+          <rect x="7" y="7" width="3" height="3" fill="currentColor"/>
+          <rect x="14" y="7" width="3" height="3" fill="currentColor"/>
+          <rect x="7" y="14" width="3" height="3" fill="currentColor"/>
+          <rect x="13" y="13" width="4" height="4" stroke="currentColor" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <span class="text-[9px] font-bold text-cyan-400 mt-1">QR</span>
+    </div>
+
+    <!-- 4. Настройки -->
+    <button onclick="switchTab('settings')" id="tab-settings" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
+      <div id="tab-settings-pill" class="px-3.5 py-1 rounded-full flex items-center justify-center">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </div>
+      <span class="text-[9.5px] font-medium mt-0.5">Настройки</span>
+    </button>
+
+    <!-- 5. Профиль -->
     <button onclick="switchTab('profile')" id="tab-profile" class="flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition">
-      <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-        <circle cx="12" cy="7" r="4"/>
-      </svg>
-      <span class="text-[10px] font-medium mt-0.5">Профиль</span>
+      <div id="tab-profile-pill" class="px-3.5 py-1 rounded-full flex items-center justify-center">
+        <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="12" r="9"/>
+        </svg>
+      </div>
+      <span class="text-[9.5px] font-medium mt-0.5">Профиль</span>
     </button>
   </nav>
 
+  <!-- ACTIVE CHAT SCREEN (Direct / Group / OTP Burn) -->
+  <div id="active-chat-screen" class="fixed inset-0 bg-[#07090e] z-48 flex flex-col translate-x-full transition-transform duration-250 ease-out select-none">
+    <div class="h-14 px-3 flex items-center justify-between border-b border-neutral-800/80 bg-[#0d141f]">
+      <div class="flex items-center space-x-2">
+        <button onclick="closeActiveChat()" class="p-1.5 text-neutral-400 hover:text-white rounded-lg active:bg-neutral-800">
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="19" y1="12" x2="5" y2="12"/>
+            <polyline points="12 19 5 12 12 5"/>
+          </svg>
+        </button>
+        <div id="active-chat-avatar" class="w-9 h-9 rounded-full bg-gradient-to-tr from-sky-600 to-blue-700 flex items-center justify-center text-xs font-bold text-white">
+          А
+        </div>
+        <div>
+          <div id="active-chat-title" class="text-xs font-bold text-white truncate w-36">Алиса</div>
+          <div id="active-chat-subtitle" class="text-[10px] text-emerald-400 font-mono">E2EE Защищено</div>
+        </div>
+      </div>
+      <div class="flex items-center space-x-1">
+        <button onclick="openSasModal()" class="p-2 text-cyan-400 hover:text-cyan-300" title="SAS Ключи">
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Security Banner -->
+    <div id="chat-security-banner" onclick="openSasModal()" class="px-3 py-1.5 bg-[#0f1724] border-b border-neutral-800/80 flex items-center justify-between text-[11px] cursor-pointer">
+      <div id="chat-security-text" class="text-neutral-300 font-mono text-[10px] flex items-center space-x-1">
+        <span>Kyber-1024 E2EE Verified</span>
+      </div>
+      <span class="text-cyan-400 text-[10px] font-bold">SAS 9284</span>
+    </div>
+
+    <!-- Chat Messages Container -->
+    <div id="chat-messages-container" class="flex-1 overflow-y-auto p-3 space-y-3 bg-[#07090e]">
+    </div>
+
+    <!-- Message Input Bar -->
+    <div class="p-2.5 bg-[#0d141f] border-t border-neutral-800 flex items-center space-x-2">
+      <input type="text" id="chat-text-input" placeholder="Сообщение..." onkeydown="if(event.key==='Enter') sendActiveChatMessage()" class="flex-1 h-9 px-3 rounded-full bg-[#131c2a] border border-neutral-800 text-xs text-white focus:outline-none">
+      <button onclick="sendActiveChatMessage()" class="w-9 h-9 rounded-full bg-[#0284c7] hover:bg-[#0369a1] text-white flex items-center justify-center active:scale-95 transition">
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- SAS VERIFICATION MODAL -->
+  <div id="sas-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-55 flex items-center justify-center p-4 hidden select-none">
+    <div class="w-full max-w-sm rounded-2xl bg-[#161f2e] border border-neutral-700 p-5 shadow-2xl text-center">
+      <div class="w-12 h-12 rounded-full bg-cyan-950 border border-cyan-400 mx-auto flex items-center justify-center text-cyan-400 mb-3">
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+      </div>
+      <h3 class="text-sm font-bold text-white">Проверка ключей SAS</h3>
+      <p class="text-[11px] text-neutral-400 mt-1">Сверьте контрольный хеш с собеседником:</p>
+      <div class="my-4 py-3 px-4 rounded-xl bg-[#0f1724] border border-cyan-500/40 text-cyan-400 font-mono text-base font-bold tracking-widest">
+        9284 • 1042 • 7731
+      </div>
+      <p class="text-[10px] text-neutral-500">Криптографический протокол: ML-KEM-1024 (Kyber) Post-Quantum E2EE</p>
+      <button onclick="closeSasModal()" class="mt-4 w-full py-2.5 rounded-xl bg-sky-600 text-white text-xs font-bold active:scale-98 transition">
+        Ключи совпадают
+      </button>
+    </div>
+  </div>
+
   <script>
-    const tabs = ['chats', 'services', 'scanner', 'settings', 'profile'];
-    function switchTab(t) {
-      tabs.forEach(tab => {
-        document.getElementById(`screen-${tab}`).classList.toggle('hidden', tab !== t);
-        const btn = document.getElementById(`tab-${tab}`);
-        if (tab !== 'scanner') {
-          btn.className = `flex flex-col items-center justify-center flex-1 py-1 ${tab === t ? 'text-emerald-400' : 'text-neutral-400'} transition`;
+    // ==========================================
+    // --- STATE MANAGEMENT ---
+    // ==========================================
+    let isDayMode = false;
+    let isGhostMode = false;
+    let currentTab = 'chats';
+    let currentChatId = null;
+    let otpCountdownTimer = null;
+    let otpRemainingSec = 45;
+
+    // Selection Mode State
+    let isSelectionMode = false;
+    let selectedChatIds = new Set();
+    let longPressTimer = null;
+    let didTriggerLongPress = false;
+
+    // Archived Chats Array
+    let archivedChats = [];
+
+    // Active Chat Sessions Data (Types: 'direct' vs 'group')
+    let activeChats = [
+      {
+        id: 'alice',
+        type: 'direct',
+        name: 'Алиса',
+        subname: '0x7F2A',
+        initials: 'А',
+        gradient: 'from-sky-600 to-blue-700',
+        lastMsg: 'Ключи согласованы. E2EE канал активен.',
+        time: '15:43',
+        unread: 1,
+        isPinned: false,
+        isMuted: false,
+        isOnline: true
+      },
+      {
+        id: 'cypherpunk',
+        type: 'group',
+        name: 'Cypherpunk Mesh',
+        subname: '28 узлов',
+        initials: 'CP',
+        gradient: 'from-purple-700 to-indigo-900',
+        lastMsg: 'Bob: StrictPairwise: 28 узлов в сети',
+        time: '14:20',
+        unread: 3,
+        isPinned: false,
+        isMuted: false,
+        isOnline: false
+      },
+      {
+        id: 'bob',
+        type: 'direct',
+        name: 'Боб (Onion)',
+        subname: 'TOR',
+        initials: 'Б',
+        gradient: 'from-emerald-600 to-teal-800',
+        lastMsg: 'Маршрутизация через Tor подтверждена.',
+        time: '12:00',
+        unread: 0,
+        isReadTick: true,
+        isPinned: false,
+        isMuted: false,
+        isOnline: false
+      },
+      {
+        id: 'otp',
+        type: 'direct',
+        name: 'OTP Burn Session',
+        subname: '45s',
+        initials: 'OTP',
+        gradient: 'from-orange-600 to-red-800',
+        lastMsg: 'Сессия самоликвидации: сгорит через 45с',
+        time: '10:15',
+        unread: 0,
+        isPinned: false,
+        isMuted: false,
+        isOnline: false,
+        isOtp: true
+      },
+      {
+        id: 'relay',
+        type: 'group',
+        name: 'P2P Relay Node #04',
+        subname: 'Релей',
+        initials: '#04',
+        gradient: 'from-neutral-700 to-neutral-900',
+        lastMsg: 'Пинг между пирами: 24ms. Сеть стабильна.',
+        time: '08:30',
+        unread: 0,
+        isPinned: false,
+        isMuted: false,
+        isOnline: false
+      }
+    ];
+
+    // Demo Saved Contacts (for "Новое сообщение" screen)
+    const savedContacts = [
+      { id: 'c_alice', name: '[Demo] Алиса', key: '0x7F2A...9C14', status: 'в сети', isOnline: true, initials: 'А', gradient: 'from-sky-600 to-blue-700' },
+      { id: 'c_bob', name: '[Demo] Боб', key: '0x98A1...F302', status: 'был(а) недавно', isOnline: false, initials: 'Б', gradient: 'from-emerald-600 to-teal-800' },
+      { id: 'c_charlie', name: '[Demo] Charlie', key: '0x12CE...B44D', status: 'был(а) недавно', isOnline: false, initials: 'CH', gradient: 'from-purple-600 to-indigo-800' },
+      { id: 'c_dave', name: '[Demo] Dave (P2P)', key: '0xFE33...BBAA', status: 'в сети', isOnline: true, initials: 'D', gradient: 'from-amber-600 to-orange-700' },
+    ];
+
+    // Detailed Chat History Data
+    const chatData = {
+      alice: {
+        title: '[Demo] Алиса',
+        sas: '9284 • 1042',
+        initials: 'А',
+        gradient: 'from-sky-600 to-blue-700',
+        messages: [
+          { sender: 'alice', text: 'Ключи согласованы. E2EE канал активен.', time: '15:40' },
+          { sender: 'me', text: 'Отлично. Проверяем хеш SAS.', time: '15:42' },
+          { sender: 'alice', text: 'Хеш: 9284 • 1042. Совпадает!', time: '15:43' }
+        ]
+      },
+      cypherpunk: {
+        title: '[Demo] Cypherpunk Mesh',
+        sas: 'Group StrictPairwise',
+        initials: 'CP',
+        gradient: 'from-purple-700 to-indigo-900',
+        messages: [
+          { sender: 'bob', name: 'Bob', text: 'StrictPairwise: 28 узлов в сети.', time: '14:15' },
+          { sender: 'me', text: 'Связь стабильна, задержка минимальная.', time: '14:20' }
+        ]
+      },
+      bob: {
+        title: '[Demo] Боб (Onion)',
+        sas: 'Tor Hidden Route',
+        initials: 'Б',
+        gradient: 'from-emerald-600 to-teal-800',
+        messages: [
+          { sender: 'bob', text: 'Маршрутизация через Tor скрытый сервис подтверждена.', time: '11:58' },
+          { sender: 'me', text: 'Принято. Все пакеты через .onion туннель.', time: '12:00' }
+        ]
+      },
+      otp: {
+        title: '[Demo] OTP Burn Session',
+        sas: 'OTP Self-Destruct',
+        isOtp: true,
+        initials: 'OTP',
+        gradient: 'from-orange-600 to-red-800',
+        messages: [
+          { sender: 'anon', text: 'Сессия самоликвидации: сообщение сгорит через 45 секунд.', time: '10:14' }
+        ]
+      },
+      relay: {
+        title: '[Demo] P2P Relay Node #04',
+        sas: 'Node Telemetry',
+        initials: '#04',
+        gradient: 'from-neutral-700 to-neutral-900',
+        messages: [
+          { sender: 'sys', text: 'Пинг между пирами: 24ms. Сеть стабильна.', time: '08:30' }
+        ]
+      }
+    };
+
+    // ==========================================
+    // --- CHAT LIST RENDERING (SEAMLESS) ---
+    // ==========================================
+    function renderChatList() {
+      // 1. Update Archive Folder Item Visibility
+      const archiveItem = document.getElementById('archive-folder-item');
+      const archiveCounter = document.getElementById('archive-counter-badge');
+      if (archivedChats.length > 0) {
+        archiveItem.style.display = 'flex';
+        archiveCounter.textContent = archivedChats.length;
+      } else {
+        archiveItem.style.display = 'none';
+      }
+
+      // 2. Render Active Chats (No divider lines, seamless)
+      const container = document.getElementById('active-chats-list');
+      container.innerHTML = '';
+
+      // Sort pinned chats first
+      const sorted = [...activeChats].sort((a, b) => (b.isPinned ? 1 : 0) - (a.isPinned ? 1 : 0));
+
+      sorted.forEach(chat => {
+        const isSelected = selectedChatIds.has(chat.id);
+        const div = document.createElement('div');
+        div.id = `chat-row-${chat.id}`;
+        
+        // Dynamic background class based on selection state
+        const bgClass = isSelected 
+          ? 'bg-[#1a293f] border-l-4 border-sky-400' 
+          : 'hover:bg-neutral-900/50 active:bg-neutral-900/80';
+        
+        div.className = `p-3.5 flex items-center space-x-3 cursor-pointer transition select-none ${bgClass}`;
+
+        // Long press, contextmenu and click event listeners
+        div.oncontextmenu = (e) => { e.preventDefault(); enterSelectionMode(chat.id); return false; };
+        div.onmousedown = (e) => startLongPress(chat.id, e);
+        div.onmouseup = () => cancelLongPress();
+        div.onmouseleave = () => cancelLongPress();
+        div.ontouchstart = (e) => startLongPress(chat.id, e);
+        div.ontouchend = () => cancelLongPress();
+        div.ontouchcancel = () => cancelLongPress();
+        div.onclick = (e) => handleRowClick(chat.id, e);
+
+        // Status indicator (online green dot)
+        const onlineDot = chat.isOnline 
+          ? '<span class="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 border-2 border-neutral-950"></span>' 
+          : '';
+
+        // Unread badge or checkmarks
+        let rightBadge = '';
+        if (chat.unread > 0) {
+          rightBadge = `<span class="px-2 py-0.5 rounded-full bg-sky-600 text-white text-[10px] font-bold ml-2">${chat.unread}</span>`;
+        } else if (chat.isReadTick) {
+          rightBadge = `<span class="text-sky-400 text-[11px] font-bold ml-1">✓✓</span>`;
         }
+
+        // Mute Bell Badge (Theme colored accent icon)
+        const muteBadge = chat.isMuted
+          ? `<svg class="w-3.5 h-3.5 text-sky-400 inline-block mr-1 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+              <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+              <line x1="1" y1="1" x2="23" y2="23"/>
+            </svg>`
+          : '';
+
+        // Pin Badge
+        const pinBadge = chat.isPinned
+          ? `<svg class="w-3 h-3 text-neutral-400 inline-block mr-1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 17v5M9 2h6l-1 7h3l-5 8-5-8h3l-1-7z"/>
+            </svg>`
+          : '';
+
+        div.innerHTML = `
+          <div onclick="handleAvatarTap(event, '${chat.id}')" class="w-12 h-12 rounded-full bg-gradient-to-tr ${chat.gradient} flex items-center justify-center font-bold text-white text-base shadow relative flex-shrink-0 active:scale-95 transition">
+            <span>${chat.initials}</span>
+            ${onlineDot}
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-white truncate flex items-center space-x-1">
+                <span>[Demo] ${chat.name}</span>
+                ${chat.subname ? `<span class="text-sky-400 text-[10px] font-mono">${chat.subname}</span>` : ''}
+              </span>
+              <div class="flex items-center space-x-1">
+                ${pinBadge}
+                ${muteBadge}
+                <span class="text-[10px] text-neutral-500">${chat.time}</span>
+              </div>
+            </div>
+            <div class="flex items-center justify-between mt-0.5">
+              <p class="text-[11px] ${chat.isOtp ? 'text-orange-400/90' : 'text-neutral-400'} truncate">${chat.lastMsg}</p>
+              ${rightBadge}
+            </div>
+          </div>
+        `;
+
+        container.appendChild(div);
       });
     }
 
-    function simulateScanResult(type) {
-      const card = document.getElementById('scan-result-card');
-      card.classList.remove('hidden');
-      if (type === 'user') {
-        card.innerHTML = `<span class="text-cyan-400 font-bold text-xs block">👤 Контакт: Боб</span><p class="text-[11px] text-neutral-300">Ключ: 0x98A1...F302</p>`;
-      } else if (type === 'device') {
-        card.innerHTML = `<span class="text-emerald-400 font-bold text-xs block">💻 Связка: Desktop</span><p class="text-[11px] text-neutral-300">Токен сессии активен</p>`;
+    // ==========================================
+    // --- LONG PRESS & SELECTION LOGIC ---
+    // ==========================================
+    function handleAvatarTap(e, chatId) {
+      e.stopPropagation();
+      if (isSelectionMode) {
+        toggleChatSelection(chatId);
       } else {
-        card.innerHTML = `<span class="text-amber-400 font-bold text-xs block">🛡️ Anti-MITM Проверен</span><p class="text-[11px] text-emerald-400 font-bold">✓ 60 цифр совпали!</p>`;
+        enterSelectionMode(chatId);
       }
     }
 
-    const themes = {
-      cyber: { name: "Cyber Obsidian", accent: "#00f2fe", badge: "bg-cyan-950 text-cyan-300 border-cyan-500/40" },
-      matrix: { name: "Matrix Terminal", accent: "#22c55e", badge: "bg-green-950 text-green-300 border-green-500/40" },
-      cobalt: { name: "Midnight Cobalt", accent: "#3b82f6", badge: "bg-blue-950 text-blue-300 border-blue-500/40" },
-      amber: { name: "Solar Amber", accent: "#f59e0b", badge: "bg-amber-950 text-amber-300 border-amber-500/40" }
-    };
-
-    function applyAppTheme(key) {
-      const t = themes[key];
-      if (!t) return;
-      document.getElementById('current-theme-badge').textContent = t.name;
-      setAccentColor(t.accent);
+    function startLongPress(chatId, e) {
+      didTriggerLongPress = false;
+      if (longPressTimer) clearTimeout(longPressTimer);
+      longPressTimer = setTimeout(() => {
+        didTriggerLongPress = true;
+        enterSelectionMode(chatId);
+      }, 350);
     }
 
-    function setAccentColor(color) {
-      document.getElementById('tab-scanner').style.background = color;
-      document.getElementById('tab-chats').style.color = color;
+    function cancelLongPress() {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
     }
+
+    function handleRowClick(chatId, e) {
+      if (didTriggerLongPress) {
+        didTriggerLongPress = false;
+        return;
+      }
+      if (isSelectionMode) {
+        toggleChatSelection(chatId);
+      } else {
+        openActiveChat(chatId);
+      }
+    }
+
+    function enterSelectionMode(firstSelectedId) {
+      isSelectionMode = true;
+      window.isSelectionMode = true;
+      selectedChatIds.clear();
+      if (firstSelectedId) {
+        selectedChatIds.add(firstSelectedId);
+      }
+      updateSelectionBar();
+      renderChatList();
+    }
+
+    function exitSelectionMode() {
+      isSelectionMode = false;
+      window.isSelectionMode = false;
+      selectedChatIds.clear();
+      document.getElementById('selection-header-content').classList.add('hidden');
+      document.getElementById('standard-header-content').classList.remove('hidden');
+      closeSelectionMoreMenu();
+      renderChatList();
+    }
+
+    function toggleChatSelection(chatId) {
+      if (selectedChatIds.has(chatId)) {
+        selectedChatIds.delete(chatId);
+      } else {
+        selectedChatIds.add(chatId);
+      }
+      if (selectedChatIds.size === 0) {
+        exitSelectionMode();
+      } else {
+        updateSelectionBar();
+        renderChatList();
+      }
+    }
+
+    function updateSelectionBar() {
+      document.getElementById('standard-header-content').classList.add('hidden');
+      const bar = document.getElementById('selection-header-content');
+      bar.classList.remove('hidden');
+      document.getElementById('selection-count-badge').textContent = selectedChatIds.size;
+
+      // Update Pin Icon state if single chat selected
+      const firstId = Array.from(selectedChatIds)[0];
+      const chat = activeChats.find(c => c.id === firstId);
+      const pinIcon = document.getElementById('selection-pin-icon');
+      if (chat && chat.isPinned) {
+        pinIcon.setAttribute('fill', 'currentColor');
+      } else {
+        pinIcon.setAttribute('fill', 'none');
+      }
+    }
+
+    function togglePinSelected() {
+      selectedChatIds.forEach(id => {
+        const c = activeChats.find(item => item.id === id);
+        if (c) c.isPinned = !c.isPinned;
+      });
+      exitSelectionMode();
+    }
+
+    // ==========================================
+    // --- SELECTION MORE MENU & CONDITIONAL ACTIONS ---
+    // ==========================================
+    function toggleSelectionMoreMenu() {
+      const menu = document.getElementById('selection-more-menu');
+      const backdrop = document.getElementById('selection-more-backdrop');
+      if (menu.classList.contains('hidden')) {
+        // Configure dynamic conditional action (Заблокировать vs Выйти из группы)
+        const firstId = Array.from(selectedChatIds)[0];
+        const chat = activeChats.find(c => c.id === firstId);
+        const condText = document.getElementById('selection-more-conditional-text');
+        const condIcon = document.getElementById('selection-more-conditional-icon');
+
+        if (chat && chat.type === 'group') {
+          condText.textContent = 'Выйти из группы';
+          condIcon.innerHTML = `
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          `;
+        } else {
+          condText.textContent = 'Заблокировать';
+          condIcon.innerHTML = `
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+          `;
+        }
+
+        menu.classList.remove('hidden');
+        backdrop.classList.remove('hidden');
+      } else {
+        closeSelectionMoreMenu();
+      }
+    }
+
+    function closeSelectionMoreMenu() {
+      document.getElementById('selection-more-menu').classList.add('hidden');
+      document.getElementById('selection-more-backdrop').classList.add('hidden');
+    }
+
+    function handleSelectionConditionalAction() {
+      closeSelectionMoreMenu();
+      const firstId = Array.from(selectedChatIds)[0];
+      const chat = activeChats.find(c => c.id === firstId);
+      if (chat && chat.type === 'group') {
+        openLeaveGroupDialog();
+      } else {
+        openBlockContactDialog();
+      }
+    }
+
+    // Move to Archive
+    function archiveSelectedChats() {
+      closeSelectionMoreMenu();
+      selectedChatIds.forEach(id => {
+        const index = activeChats.findIndex(c => c.id === id);
+        if (index !== -1) {
+          const [removed] = activeChats.splice(index, 1);
+          archivedChats.unshift(removed);
+        }
+      });
+      exitSelectionMode();
+    }
+
+    // Unarchive chat
+    function unarchiveChat(id) {
+      const idx = archivedChats.findIndex(c => c.id === id);
+      if (idx !== -1) {
+        const [chat] = archivedChats.splice(idx, 1);
+        activeChats.push(chat);
+        renderArchivedChats();
+        renderChatList();
+        if (archivedChats.length === 0) {
+          closeArchiveView();
+        }
+      }
+    }
+
+    // Archive Screen View
+    function openArchiveView() {
+      closeThreeDotsMenu();
+      renderArchivedChats();
+      const s = document.getElementById('screen-archived-chats');
+      s.classList.remove('translate-x-full');
+    }
+
+    function closeArchiveView() {
+      const s = document.getElementById('screen-archived-chats');
+      s.classList.add('translate-x-full');
+    }
+
+    function renderArchivedChats() {
+      const container = document.getElementById('archived-chats-list');
+      container.innerHTML = '';
+      if (archivedChats.length === 0) {
+        container.innerHTML = `
+          <div class="p-12 text-center text-xs text-neutral-500">
+            <svg class="w-12 h-12 text-neutral-600 mx-auto mb-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <polyline points="21 8 21 21 3 21 3 8"/>
+              <rect x="1" y="3" width="22" height="5"/>
+              <line x1="10" y1="12" x2="14" y2="12"/>
+            </svg>
+            <span>В архиве пока нет чатов</span>
+          </div>
+        `;
+        return;
+      }
+      archivedChats.forEach(chat => {
+        const div = document.createElement('div');
+        div.className = 'p-3.5 flex items-center justify-between hover:bg-neutral-900/50 cursor-pointer transition';
+        div.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-11 h-11 rounded-full bg-gradient-to-tr ${chat.gradient} flex items-center justify-center font-bold text-white text-sm shadow">
+              ${chat.initials}
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-white">${chat.name}</div>
+              <div class="text-[11px] text-neutral-400 mt-0.5 truncate max-w-[180px]">${chat.lastMsg}</div>
+            </div>
+          </div>
+          <button onclick="unarchiveChat('${chat.id}')" class="px-3 py-1 rounded-xl bg-neutral-800 text-[11px] text-sky-400 hover:bg-neutral-700 active:scale-95 transition">
+            Вернуть
+          </button>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // ==========================================
+    // --- NOTIFICATIONS BOTTOM SHEET (Image 4) ---
+    // ==========================================
+    function openMuteBottomSheet() {
+      const backdrop = document.getElementById('mute-sheet-backdrop');
+      const panel = document.getElementById('mute-sheet-panel');
+      backdrop.classList.remove('hidden');
+      panel.classList.remove('translate-y-full');
+    }
+
+    function closeMuteBottomSheet() {
+      const backdrop = document.getElementById('mute-sheet-backdrop');
+      const panel = document.getElementById('mute-sheet-panel');
+      panel.classList.add('translate-y-full');
+      setTimeout(() => backdrop.classList.add('hidden'), 250);
+    }
+
+    function applyMute(durationText) {
+      selectedChatIds.forEach(id => {
+        const c = activeChats.find(item => item.id === id);
+        if (c) c.isMuted = true;
+      });
+      closeMuteBottomSheet();
+      exitSelectionMode();
+    }
+
+    // ==========================================
+    // --- CONFIRMATION DIALOGS (Images 1, 2, 3) ---
+    // ==========================================
+    function toggleCheckbox(id) {
+      const cb = document.getElementById(id);
+      if (cb) cb.checked = !cb.checked;
+    }
+
+    // 1. DELETE CHAT DIALOG (Image 1)
+    function openDeleteChatDialog() {
+      const firstId = Array.from(selectedChatIds)[0];
+      const chat = activeChats.find(c => c.id === firstId) || activeChats[0];
+      if (!chat) return;
+
+      document.getElementById('delete-dialog-avatar').textContent = chat.initials;
+      document.getElementById('delete-dialog-avatar').className = `w-14 h-14 rounded-full bg-gradient-to-tr ${chat.gradient} mx-auto flex items-center justify-center font-bold text-white text-lg shadow-lg mb-3`;
+      document.getElementById('delete-dialog-name').textContent = chat.name;
+      document.getElementById('delete-also-peer-label').textContent = `Также удалить для ${chat.name}`;
+      
+      const modal = document.getElementById('delete-chat-modal');
+      modal.style.display = 'flex';
+    }
+
+    function closeDeleteChatDialog() {
+      document.getElementById('delete-chat-modal').style.display = 'none';
+    }
+
+    function confirmDeleteChat() {
+      selectedChatIds.forEach(id => {
+        const index = activeChats.findIndex(c => c.id === id);
+        if (index !== -1) activeChats.splice(index, 1);
+      });
+      closeDeleteChatDialog();
+      exitSelectionMode();
+    }
+
+    // 2. CLEAR HISTORY DIALOG (Image 2)
+    function openClearHistoryDialog() {
+      const firstId = Array.from(selectedChatIds)[0];
+      const chat = activeChats.find(c => c.id === firstId) || activeChats[0];
+      if (!chat) return;
+
+      document.getElementById('clear-dialog-avatar').textContent = chat.initials;
+      document.getElementById('clear-dialog-avatar').className = `w-14 h-14 rounded-full bg-gradient-to-tr ${chat.gradient} mx-auto flex items-center justify-center font-bold text-white text-lg shadow-lg mb-3`;
+      document.getElementById('clear-dialog-name').textContent = chat.name;
+      document.getElementById('clear-also-peer-label').textContent = `Также очистить для ${chat.name}`;
+
+      const modal = document.getElementById('clear-history-modal');
+      modal.style.display = 'flex';
+    }
+
+    function closeClearHistoryDialog() {
+      document.getElementById('clear-history-modal').style.display = 'none';
+    }
+
+    function confirmClearHistory() {
+      selectedChatIds.forEach(id => {
+        const c = activeChats.find(item => item.id === id);
+        if (c) {
+          c.lastMsg = 'История очищена';
+          c.unread = 0;
+        }
+        if (chatData[id]) {
+          chatData[id].messages = [];
+        }
+      });
+      closeClearHistoryDialog();
+      exitSelectionMode();
+    }
+
+    // 3. BLOCK CONTACT DIALOG (Image 3 - Direct Chat)
+    function openBlockContactDialog() {
+      const firstId = Array.from(selectedChatIds)[0];
+      const chat = activeChats.find(c => c.id === firstId) || activeChats[0];
+      if (!chat) return;
+
+      document.getElementById('block-dialog-name').textContent = chat.name;
+      const modal = document.getElementById('block-contact-modal');
+      modal.style.display = 'flex';
+    }
+
+    function closeBlockContactDialog() {
+      document.getElementById('block-contact-modal').style.display = 'none';
+    }
+
+    function confirmBlockContact() {
+      const deleteCheck = document.getElementById('block-delete-check').checked;
+      selectedChatIds.forEach(id => {
+        if (deleteCheck) {
+          const index = activeChats.findIndex(c => c.id === id);
+          if (index !== -1) activeChats.splice(index, 1);
+        }
+      });
+      closeBlockContactDialog();
+      exitSelectionMode();
+    }
+
+    // 4. LEAVE GROUP DIALOG (Condition: Group Chats)
+    function openLeaveGroupDialog() {
+      const firstId = Array.from(selectedChatIds)[0];
+      const chat = activeChats.find(c => c.id === firstId) || activeChats[0];
+      if (!chat) return;
+
+      document.getElementById('leave-group-name').textContent = chat.name;
+      const modal = document.getElementById('leave-group-modal');
+      modal.style.display = 'flex';
+    }
+
+    function closeLeaveGroupDialog() {
+      document.getElementById('leave-group-modal').style.display = 'none';
+    }
+
+    function confirmLeaveGroup() {
+      const deleteCheck = document.getElementById('leave-delete-local-check').checked;
+      selectedChatIds.forEach(id => {
+        if (deleteCheck) {
+          const index = activeChats.findIndex(c => c.id === id);
+          if (index !== -1) activeChats.splice(index, 1);
+        }
+      });
+      closeLeaveGroupDialog();
+      exitSelectionMode();
+    }
+
+    // ==========================================
+    // --- NAVIGATION TABS ---
+    // ==========================================
+    const allTabs = ['chats', 'services', 'settings', 'profile'];
+    function switchTab(target) {
+      currentTab = target;
+      allTabs.forEach(t => {
+        const screen = document.getElementById(`screen-${t}`);
+        const tabBtn = document.getElementById(`tab-${t}`);
+        const pill = document.getElementById(`tab-${t}-pill`);
+        if (screen) screen.classList.toggle('hidden', t !== target);
+
+        if (tabBtn && pill) {
+          if (t === target) {
+            tabBtn.className = 'flex flex-col items-center justify-center flex-1 py-1 text-sky-400 transition';
+            pill.className = 'px-3.5 py-1 rounded-full bg-[#1b2b3f] flex items-center justify-center';
+          } else {
+            tabBtn.className = 'flex flex-col items-center justify-center flex-1 py-1 text-neutral-400 hover:text-white transition';
+            pill.className = 'px-3.5 py-1 rounded-full flex items-center justify-center';
+          }
+        }
+      });
+      closeThreeDotsMenu();
+    }
+
+    // ==========================================
+    // --- THREE-DOTS MENU ---
+    // ==========================================
+    function toggleThreeDotsMenu() {
+      const menu = document.getElementById('three-dots-menu');
+      const backdrop = document.getElementById('three-dots-backdrop');
+      const isHidden = menu.classList.contains('hidden');
+      if (isHidden) {
+        menu.classList.remove('hidden');
+        backdrop.classList.remove('hidden');
+      } else {
+        closeThreeDotsMenu();
+      }
+    }
+
+    function closeThreeDotsMenu() {
+      document.getElementById('three-dots-menu').classList.add('hidden');
+      document.getElementById('three-dots-backdrop').classList.add('hidden');
+    }
+
+    // ==========================================
+    // --- DAY / NIGHT & GHOST MODE ---
+    // ==========================================
+    function toggleDayMode() {
+      isDayMode = !isDayMode;
+      document.body.classList.toggle('day-mode', isDayMode);
+      document.getElementById('daymode-text').textContent = isDayMode ? 'Ночной режим' : 'Дневной режим';
+      const label = document.getElementById('settings-theme-label');
+      if (label) label.textContent = isDayMode ? 'Day Mode' : 'AMOLED Black';
+      closeThreeDotsMenu();
+    }
+
+    function toggleGhostMode() {
+      isGhostMode = !isGhostMode;
+      const badge = document.getElementById('ghost-mode-badge');
+      const text = document.getElementById('ghostmode-text');
+      const sLabel = document.getElementById('settings-ghost-label');
+      if (isGhostMode) {
+        badge.classList.remove('hidden');
+        text.textContent = 'Выключить призрака';
+        if (sLabel) sLabel.textContent = 'Включен';
+      } else {
+        badge.classList.add('hidden');
+        text.textContent = 'Включить призрака';
+        if (sLabel) sLabel.textContent = 'Выключен';
+      }
+      closeThreeDotsMenu();
+    }
+
+    function openSavedMessages() {
+      closeThreeDotsMenu();
+      openActiveChat('alice');
+    }
+
+    function openNewGroupModal() {
+      closeThreeDotsMenu();
+      closeNewMessageScreen();
+      alert("Создание защищенной группы с P2P шифрованием...");
+    }
+
+    // ==========================================
+    // --- "НОВОЕ СООБЩЕНИЕ" / CONTACTS SCREEN ---
+    // ==========================================
+    function openNewMessageScreen() {
+      renderSavedContacts(savedContacts);
+      const screen = document.getElementById('screen-new-message');
+      screen.classList.remove('translate-x-full');
+    }
+
+    function closeNewMessageScreen() {
+      const screen = document.getElementById('screen-new-message');
+      screen.classList.add('translate-x-full');
+    }
+
+    function renderSavedContacts(list) {
+      const container = document.getElementById('saved-contacts-list');
+      container.innerHTML = '';
+      document.getElementById('saved-contacts-count').textContent = `${list.length} контакта`;
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-xs text-neutral-500">Контакты не найдены</div>';
+        return;
+      }
+
+      list.forEach(contact => {
+        const div = document.createElement('div');
+        div.className = 'p-3 flex items-center justify-between hover:bg-neutral-900/50 cursor-pointer active:bg-neutral-900 transition';
+        div.onclick = () => {
+          closeNewMessageScreen();
+          openActiveChat('alice');
+        };
+
+        div.innerHTML = `
+          <div class="flex items-center space-x-3">
+            <div class="w-11 h-11 rounded-full bg-gradient-to-tr ${contact.gradient} flex items-center justify-center font-bold text-white text-sm shadow">
+              ${contact.initials}
+            </div>
+            <div>
+              <div class="text-xs font-semibold text-white">${contact.name}</div>
+              <div class="text-[11px] ${contact.isOnline ? 'text-sky-400' : 'text-neutral-500'} flex items-center space-x-1.5 mt-0.5">
+                <span>${contact.status}</span>
+                <span class="text-neutral-600 font-mono text-[9px]">${contact.key}</span>
+              </div>
+            </div>
+          </div>
+          <div class="text-neutral-500 text-xs">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 3 21 3 21 8"/>
+              <line x1="4" y1="20" x2="21" y2="3"/>
+              <polyline points="21 16 21 21 16 21"/>
+              <line x1="15" y1="15" x2="21" y2="21"/>
+              <line x1="4" y1="4" x2="9" y2="9"/>
+            </svg>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    function filterSavedContacts(query) {
+      const clearBtn = document.getElementById('contacts-clear-btn');
+      clearBtn.classList.toggle('hidden', !query);
+      const q = query.toLowerCase().trim();
+      const filtered = savedContacts.filter(c => c.name.toLowerCase().includes(q) || c.key.toLowerCase().includes(q));
+      renderSavedContacts(filtered);
+    }
+
+    function clearContactsSearch() {
+      const input = document.getElementById('contacts-search-input');
+      input.value = '';
+      filterSavedContacts('');
+    }
+
+    function openAddContactModal() {
+      const m = document.getElementById('add-contact-modal');
+      m.style.display = 'flex';
+      m.classList.remove('hidden');
+    }
+
+    function closeAddContactModal() {
+      const m = document.getElementById('add-contact-modal');
+      m.style.display = 'none';
+      m.classList.add('hidden');
+    }
+
+    function scanContactQrFromModal() {
+      closeAddContactModal();
+      openQrScanner('friend');
+    }
+
+    function saveNewContact() {
+      const name = document.getElementById('new-contact-name').value.trim();
+      const key = document.getElementById('new-contact-key').value.trim();
+      if (!name) return;
+
+      const initials = name.length >= 2 ? name.substring(0, 2).toUpperCase() : name.substring(0, 1).toUpperCase();
+      savedContacts.unshift({
+        id: 'c_' + Date.now(),
+        name: name,
+        key: key || '0x' + Math.random().toString(16).substring(2, 10).toUpperCase(),
+        status: 'в сети',
+        isOnline: true,
+        initials: initials,
+        gradient: 'from-cyan-600 to-blue-700'
+      });
+      renderSavedContacts(savedContacts);
+      closeAddContactModal();
+      document.getElementById('new-contact-name').value = '';
+      document.getElementById('new-contact-key').value = '';
+    }
+
+    // ==========================================
+    // --- QR SCANNER & MODES ---
+    // ==========================================
+    function openQrScanner(mode = 'scan') {
+      const q = document.getElementById('qr-overlay');
+      q.style.display = 'flex';
+      q.classList.remove('hidden');
+      setQrMode(mode === 'my_code' ? 'my' : 'scan');
+    }
+
+    function closeQrScanner() {
+      const q = document.getElementById('qr-overlay');
+      q.style.display = 'none';
+      q.classList.add('hidden');
+    }
+
+    function setQrMode(mode) {
+      const scanView = document.getElementById('qr-scan-view');
+      const myView = document.getElementById('qr-my-view');
+      const scanBtn = document.getElementById('qrmode-scan-btn');
+      const myBtn = document.getElementById('qrmode-my-btn');
+
+      if (mode === 'scan') {
+        scanView.classList.remove('hidden');
+        myView.classList.add('hidden');
+        scanBtn.className = 'px-3 py-1 rounded-full bg-cyan-950 border border-cyan-400 text-cyan-400 text-xs font-bold';
+        myBtn.className = 'px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 text-xs font-medium';
+      } else {
+        scanView.classList.add('hidden');
+        myView.classList.remove('hidden');
+        myBtn.className = 'px-3 py-1 rounded-full bg-cyan-950 border border-cyan-400 text-cyan-400 text-xs font-bold';
+        scanBtn.className = 'px-3 py-1 rounded-full bg-neutral-900 text-neutral-400 text-xs font-medium';
+      }
+    }
+
+    function simulateQrScan(payload) {
+      if (payload.startsWith('AGQR:USER:')) {
+        const parts = payload.split(':');
+        const key = parts[2];
+        const name = parts[3];
+        savedContacts.unshift({
+          id: 'c_' + Date.now(),
+          name: name,
+          key: key,
+          status: 'в сети',
+          isOnline: true,
+          initials: name.substring(0, 1),
+          gradient: 'from-sky-600 to-blue-700'
+        });
+        alert(`QR Распознан: Контакт ${name} (${key}) добавлен!`);
+        closeQrScanner();
+        openNewMessageScreen();
+      } else if (payload.startsWith('AGQR:VERIFY:')) {
+        closeQrScanner();
+        openSasModal();
+      }
+    }
+
+    // ==========================================
+    // --- GLOBAL SEARCH SECTION ---
+    // ==========================================
+    function openSearchSection() {
+      document.getElementById('search-section').classList.remove('hidden');
+      document.getElementById('search-input').focus();
+      handleSearchInput('');
+    }
+
+    function closeSearchSection() {
+      document.getElementById('search-section').classList.add('hidden');
+    }
+
+    function handleSearchInput(val) {
+      const clearBtn = document.getElementById('search-clear-btn');
+      clearBtn.classList.toggle('hidden', !val);
+
+      const list = document.getElementById('search-results-list');
+      list.innerHTML = '';
+      const q = val.toLowerCase().trim();
+
+      const matches = activeChats.filter(c => !q || c.name.toLowerCase().includes(q));
+      matches.forEach(m => {
+        const div = document.createElement('div');
+        div.className = 'p-3 flex items-center space-x-3 hover:bg-neutral-800/40 cursor-pointer';
+        div.onclick = () => {
+          closeSearchSection();
+          openActiveChat(m.id);
+        };
+        div.innerHTML = `
+          <div class="w-10 h-10 rounded-full bg-gradient-to-tr ${m.gradient} flex items-center justify-center text-xs font-bold text-white">
+            ${m.initials}
+          </div>
+          <div>
+            <div class="text-xs font-bold text-white">[Demo] ${m.name}</div>
+            <div class="text-[10px] text-neutral-400">${m.lastMsg}</div>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function clearSearchInput() {
+      const input = document.getElementById('search-input');
+      input.value = '';
+      handleSearchInput('');
+    }
+
+    function setSearchCategory(cat) {
+      document.querySelectorAll('.scat-btn').forEach(btn => {
+        btn.className = 'scat-btn px-3 py-1 rounded-full bg-neutral-900/60 text-neutral-400 cursor-pointer';
+      });
+      const active = document.getElementById(`scat-${cat}`);
+      if (active) active.className = 'scat-btn px-3 py-1 rounded-full bg-[#253347] text-sky-400 border border-sky-400/40 font-medium cursor-pointer';
+    }
+
+    // ==========================================
+    // --- ACTIVE CHAT SCREEN ---
+    // ==========================================
+    function openActiveChat(id) {
+      currentChatId = id;
+      const data = chatData[id] || chatData.alice;
+      document.getElementById('active-chat-title').textContent = data.title;
+      document.getElementById('active-chat-avatar').textContent = data.initials;
+      document.getElementById('active-chat-avatar').className = `w-9 h-9 rounded-full bg-gradient-to-tr ${data.gradient} flex items-center justify-center text-xs font-bold text-white`;
+
+      const banner = document.getElementById('chat-security-banner');
+      if (data.isOtp) {
+        banner.className = "px-3 py-1.5 bg-orange-950/60 border-b border-orange-900/60 flex items-center justify-between text-[11px] cursor-pointer";
+        document.getElementById('chat-security-text').innerHTML = `<span>OTP Чат: сгорит через 45с</span>`;
+        startOtpCountdown();
+      } else {
+        banner.className = "px-3 py-1.5 bg-[#0f1724] border-b border-neutral-800/80 flex items-center justify-between text-[11px] cursor-pointer";
+        document.getElementById('chat-security-text').innerHTML = `<span>Kyber-1024 SAS: ${data.sas}</span>`;
+      }
+
+      renderChatMessages();
+      document.getElementById('active-chat-screen').classList.remove('translate-x-full');
+    }
+
+    function closeActiveChat() {
+      document.getElementById('active-chat-screen').classList.add('translate-x-full');
+      if (otpCountdownTimer) clearInterval(otpCountdownTimer);
+      currentChatId = null;
+    }
+
+    function renderChatMessages() {
+      const container = document.getElementById('chat-messages-container');
+      container.innerHTML = '';
+      if (!currentChatId || !chatData[currentChatId]) return;
+
+      chatData[currentChatId].messages.forEach(msg => {
+        const isMe = msg.sender === 'me';
+        const div = document.createElement('div');
+        div.className = `flex ${isMe ? 'justify-end' : 'justify-start'}`;
+
+        const bubble = document.createElement('div');
+        bubble.className = isMe
+          ? 'max-w-[78%] px-3.5 py-2 rounded-2xl rounded-br-sm bg-gradient-to-tr from-cyan-950 to-blue-950 border border-cyan-500/40 text-xs text-white shadow'
+          : 'max-w-[78%] px-3.5 py-2 rounded-2xl rounded-bl-sm bg-neutral-900 border border-neutral-800 text-xs text-neutral-200 shadow';
+
+        let senderHeader = '';
+        if (msg.name && !isMe) {
+          senderHeader = `<div class="text-[10px] font-bold text-cyan-400 mb-0.5">${msg.name}</div>`;
+        }
+
+        bubble.innerHTML = `
+          ${senderHeader}
+          <div class="leading-relaxed">${msg.text}</div>
+          <div class="flex items-center justify-end space-x-1 mt-1 text-[9px] text-neutral-500 font-mono">
+            <span>${msg.time}</span>
+            ${isMe ? '<span class="text-cyan-400 font-bold">✓✓</span>' : ''}
+          </div>
+        `;
+        div.appendChild(bubble);
+        container.appendChild(div);
+      });
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function sendActiveChatMessage() {
+      const input = document.getElementById('chat-text-input');
+      const text = input.value.trim();
+      if (!text || !currentChatId) return;
+
+      const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      chatData[currentChatId].messages.push({ sender: 'me', text: text, time: time });
+      input.value = '';
+      renderChatMessages();
+
+      setTimeout(() => {
+        if (!currentChatId) return;
+        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        chatData[currentChatId].messages.push({
+          sender: 'peer',
+          text: `E2EE доставлено: «${text}»`,
+          time: replyTime
+        });
+        renderChatMessages();
+      }, 700);
+    }
+
+    function startOtpCountdown() {
+      if (otpCountdownTimer) clearInterval(otpCountdownTimer);
+      otpRemainingSec = 45;
+      otpCountdownTimer = setInterval(() => {
+        otpRemainingSec--;
+        if (otpRemainingSec <= 0) {
+          clearInterval(otpCountdownTimer);
+          if (chatData.otp) {
+            chatData.otp.messages = [
+              { sender: 'system', text: 'Сообщения сожжены по таймеру и стёрты!', time: '--:--' }
+            ];
+            renderChatMessages();
+          }
+        }
+      }, 1000);
+    }
+
+    function openSasModal() {
+      document.getElementById('sas-modal').classList.remove('hidden');
+    }
+
+    function closeSasModal() {
+      document.getElementById('sas-modal').classList.add('hidden');
+    }
+
+    // ==========================================
+    // --- VPN TOGGLE ---
+    // ==========================================
+    let isVpnOn = false;
+    function toggleVpn() {
+      isVpnOn = !isVpnOn;
+      const btn = document.getElementById('vpn-toggle-btn');
+      const text = document.getElementById('vpn-status-text');
+      if (isVpnOn) {
+        btn.textContent = 'Отключить';
+        btn.className = 'px-3.5 py-1.5 rounded-xl bg-cyan-600 text-xs font-semibold text-white active:scale-95 transition';
+        text.textContent = 'P2P туннель активен (24 пира)';
+        text.className = 'text-[11px] text-cyan-400 font-mono';
+      } else {
+        btn.textContent = 'Включить';
+        btn.className = 'px-3.5 py-1.5 rounded-xl bg-neutral-800 text-xs font-semibold text-neutral-300 active:scale-95 transition';
+        text.textContent = 'Защищенный туннель выключен';
+        text.className = 'text-[11px] text-neutral-400';
+      }
+    }
+
+    // ==========================================
+    // --- INITIALIZATION ---
+    // ==========================================
+    renderChatList();
+    renderSavedContacts(savedContacts);
   </script>
 </body>
 </html>

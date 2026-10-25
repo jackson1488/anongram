@@ -1,21 +1,21 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="192dp"
     android:height="192dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
-    <!-- Master Splash Shield -->
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Master Cryptographic Shield -->
     <path
-        android:pathData="M50,90 C50,90 84,73 84,48 V20 L50,8 L16,20 V48 C16,73 50,90 50,90 Z"
+        android:pathData="M12,22 C12,22 20,18 20,12 V5 L12,2 L4,5 V12 C4,18 12,22 12,22 Z"
         android:strokeColor="#00F2FE"
-        android:strokeWidth="6"
+        android:strokeWidth="1.8"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"/>
-    <!-- Stealth Plane Left Wing -->
+    <!-- Approved Canonical Stealth Plane -->
     <path
-        android:pathData="M50,26 L28,52 L46,47 Z"
-        android:fillColor="#10B981"/>
-    <!-- Stealth Plane Right Wing -->
-    <path
-        android:pathData="M50,26 L72,52 L50,72 L46,47 Z"
-        android:fillColor="#FFFFFF"/>
+        android:pathData="M7,11 L17,7 L13,17 L11,13 L7,11 Z"
+        android:strokeColor="#FFFFFFFF"
+        android:fillColor="#1AFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"/>
 </vector>

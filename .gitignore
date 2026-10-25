@@ -12,6 +12,13 @@ Thumbs.db
 !backend/tsconfig.json
 !frontend/package.json
 
+# Android & Gradle builds
+.gradle/
+**/build/
+*.keystore
+!debug.keystore
+local.properties
+
 # Rust & Node builds
 target/
 node_modules/

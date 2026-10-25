@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Фирменное пламя OTP: одноразовый блокнот, burn-действия. Тон задаётся через Icon tint. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2.2 C12.7,5.1 11.4,7 10,8.7 C8.6,10.3 7.1,12 7.1,14.3 C7.1,17.7 9.2,20.2 12,20.2 C14.8,20.2 16.9,17.7 16.9,14.3 C16.9,12.5 16.2,11.1 15.2,9.9 C15,11 14.4,11.9 13.4,12.5 C13.9,9.6 13.4,5.8 12,2.2 Z" />
+</vector>
