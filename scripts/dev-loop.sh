@@ -25,7 +25,8 @@ for a in "$@"; do
     *) SHA="$a" ;;
   esac
 done
-[ -n "$SHA" ] || SHA="$(git -C "$ROOT" rev-parse HEAD)"
+[ -n "$SHA" ] || SHA="HEAD"
+SHA="$(git -C "$ROOT" rev-parse "$SHA")" || { echo "❌ неизвестный коммит"; exit 2; }
 
 TOKEN="$(sed -E 's#https://[^:]+:([^@]+)@.*#\1#' ~/.git-credentials 2>/dev/null)"
 [ -n "$TOKEN" ] || { echo "❌ нет токена в ~/.git-credentials"; exit 2; }
@@ -46,7 +47,7 @@ else:
     print(r["id"], r["status"], r["conclusion"])
 ' "$WORKFLOW_NAME")
   [ "$STATUS" = "completed" ] && break
-  [ "$RUN_ID" = "-" ] && [ $i -gt 6 ] && { echo "⚠️ Сборка для этого коммита не запускалась (path-фильтр?). Правки вне frontend/android не собирают APK."; exit 3; }
+  [ "$RUN_ID" = "-" ] && [ $i -gt 18 ] && { echo "⚠️ Сборка для этого коммита не запускалась (path-фильтр?). Правки вне frontend/android не собирают APK."; exit 3; }
   sleep 10
 done
 [ "$STATUS" = "completed" ] || { echo "⏱️ Таймаут ожидания (статус: $STATUS)"; exit 4; }
@@ -76,29 +77,41 @@ if ! waydroid status 2>/dev/null | grep -q 'Session:.*RUNNING'; then
   sleep 6
 fi
 
-installed_version() { sudo waydroid shell -- dumpsys package "$PKG" 2>/dev/null | grep -m1 versionName | tr -d ' \r'; }
+installed_version() { sudo waydroid shell -- dumpsys package "$PKG" 2>/dev/null | grep -m1 versionName | tr -d ' \r' | cut -d= -f2; }
+AAPT2="$(find "$HOME/Android/Sdk/build-tools" -name aapt2 2>/dev/null | sort | tail -1)"
+APK_VER=""
+[ -n "$AAPT2" ] && APK_VER="$("$AAPT2" dump badging "$APK" 2>/dev/null | sed -n "s/.*versionName='\([^']*\)'.*/\1/p" | head -1)"
+
+# `waydroid app install` молча «успешен» даже при отказе, поэтому ставим через pm.
+SHARED="$HOME/.local/share/waydroid/data/local/tmp"
+pm_install() {
+  sudo cp "$APK" "$SHARED/ag.apk" && sudo waydroid shell -- chmod 644 /data/local/tmp/ag.apk
+  sudo waydroid shell -- pm install -r -d /data/local/tmp/ag.apk 2>&1 | tr -d '\r' | tail -3
+}
+
 BEFORE="$(installed_version)"
-echo "📦 Установка поверх (было: ${BEFORE:-нет}) ..."
-INST_OUT="$(waydroid app install "$APK" 2>&1)"
+echo "📦 Установка поверх (было: ${BEFORE:-нет}, ставим: ${APK_VER:-?}) ..."
+RES="$(pm_install)"
+if echo "$RES" | grep -q "INSTALL_FAILED_UPDATE_INCOMPATIBLE"; then
+  if [ $WIPE -eq 1 ]; then
+    echo "♻️ Другая подпись у установленной версии — удаляю её и ставлю заново (данные приложения сотрутся) ..."
+    sudo waydroid shell -- pm uninstall "$PKG" >/dev/null 2>&1
+    RES="$(pm_install)"
+  else
+    echo "⚠️ Установленная версия подписана другим ключом. Повтори с --wipe (сотрёт данные приложения в Waydroid)."
+    exit 6
+  fi
+fi
+echo "   pm: $RES"
 AFTER="$(installed_version)"
 echo "   сейчас: ${AFTER:-нет}"
-
-# Если версия не сменилась и она была: вероятно, конфликт подписи
-if [ -n "$BEFORE" ] && [ "$BEFORE" = "$AFTER" ]; then
-  if [ $WIPE -eq 1 ]; then
-    echo "♻️ Версия не изменилась — удаляю старую и ставлю заново (данные приложения сотрутся) ..."
-    waydroid app remove "$PKG" >/dev/null 2>&1
-    waydroid app install "$APK" >/dev/null 2>&1
-    AFTER="$(installed_version)"; echo "   сейчас: ${AFTER:-нет}"
-  else
-    echo "⚠️ Версия не изменилась. Возможна другая подпись у установленной сборки."
-    echo "   Повтори с --wipe (сотрёт данные приложения в Waydroid)."
-  fi
+if [ -n "$APK_VER" ] && [ "$AFTER" != "$APK_VER" ]; then
+  echo "❌ Установилась не та версия (ожидали $APK_VER)."; exit 7
 fi
 
 if [ $LAUNCH -eq 1 ]; then
   waydroid app launch "$PKG" >/dev/null 2>&1; sleep 5
-  sudo waydroid shell -- screencap -p > "$OUT/last.png" 2>/dev/null
+  rm -f "$OUT/last.png"; sudo waydroid shell -- screencap -p 2>/dev/null > "$OUT/last.png"
   echo "📸 Скриншот: $OUT/last.png"
 fi
 echo "🏁 Готово: ${AFTER:-?}"
