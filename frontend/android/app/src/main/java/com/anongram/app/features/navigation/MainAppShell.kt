@@ -311,7 +311,7 @@ fun MainAppShell(
 
         // Остров виден только на корневых экранах: любой дочерний экран
         // (чат, поиск, контакты, архив, QR) его скрывает.
-        val isRootScreen = !showDetailOverlay && !isSearchOpen && !isContactsOpen &&
+        val isRootScreen = selectedSession == null && !isSearchOpen && !isContactsOpen &&
             !isArchiveOpen && !isQrOpen
 
         AnimatedVisibility(
