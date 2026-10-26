@@ -123,7 +123,7 @@ fun ChatsMainMenuScreen(
                         .fillMaxSize()
                         .pointerInput(state.hasArchived) {
                             detectVerticalDragGestures(
-                                onDrag = { change, dragAmount ->
+                                onVerticalDrag = { change, dragAmount ->
                                     change.consume()
                                     if (!state.hasArchived) return@detectVerticalDragGestures
                                     if (listState.firstVisibleItemIndex > 0) return@detectVerticalDragGestures

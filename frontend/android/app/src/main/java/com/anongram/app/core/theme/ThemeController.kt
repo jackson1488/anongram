@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * Контроллер тем: единый источник истины активной схемы для всего приложения.
  * Settings-модуль вызывает selectTheme(id), UI читает [scheme].
  */
-class ThemeController(repository: ThemeRepository) {
+class ThemeController(private val repository: ThemeRepository) {
 
     private val _scheme = MutableStateFlow(AnonGramThemes.byId(repository.loadThemeId()))
     val scheme: StateFlow<AnonGramScheme> = _scheme.asStateFlow()
