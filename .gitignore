@@ -13,6 +13,7 @@ Thumbs.db
 !frontend/package.json
 
 # Android & Gradle builds
+*.apk
 .gradle/
 **/build/
 *.keystore

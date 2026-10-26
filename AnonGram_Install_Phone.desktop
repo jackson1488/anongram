@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Установить AnonGram на телефон
+Comment=Скачивает свежий APK с GitHub и устанавливает на смартфон
+Exec=ptyxis -x bash -c "/home/jackson/anongram/install_phone.sh; echo; echo 'Готово! Нажмите Enter для закрытия окна...'; read"
+Icon=phone
+Terminal=false
+Categories=Development;Utility;

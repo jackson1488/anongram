@@ -69,6 +69,11 @@ api "https://api.github.com/repos/$REPO/actions/artifacts/$AID/zip" -o "$APK_DIR
 APK="$(find "$APK_DIR/latest" -name '*.apk' | head -1)"
 [ -n "$APK" ] || { echo "❌ APK не найден в артефакте"; exit 5; }
 
+# Обновляем AnonGram.apk в корне репозитория (удаляя старый)
+rm -f "$ROOT/AnonGram.apk"
+cp -f "$APK" "$ROOT/AnonGram.apk"
+echo "📦 Корневой AnonGram.apk обновлён: $ROOT/AnonGram.apk"
+
 # Waydroid: запустить сессию, если остановлена
 if ! waydroid status 2>/dev/null | grep -q 'Session:.*RUNNING'; then
   echo "▶️ Запускаю сессию Waydroid ..."
