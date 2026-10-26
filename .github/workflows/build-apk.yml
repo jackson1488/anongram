@@ -3,23 +3,39 @@ name: Build AnonGram Android APK (Cloud CI)
 on:
   push:
     branches: [ "main" ]
+    paths:
+      - "frontend/android/**"
+      - ".github/workflows/build-apk.yml"
   pull_request:
     branches: [ "main" ]
+    paths:
+      - "frontend/android/**"
   workflow_dispatch:
     inputs:
       build_type:
-        description: 'Build Type (release / debug)'
+        description: 'Build Type (debug / release)'
         required: true
-        default: 'release'
+        default: 'debug'
         type: choice
         options:
-          - release
           - debug
+          - release
+
+# Новый пуш отменяет устаревшую сборку: цикл «правка -> APK» максимально короткий.
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     name: 🚀 Build Signed APK in Cloud (Zero Local PC Load)
     runs-on: ubuntu-latest
+
+    env:
+      KEYSTORE_PATH: ${{ github.workspace }}/frontend/android/app/anongram-release.keystore
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
 
     steps:
       - name: 📥 Checkout repository
@@ -31,26 +47,18 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: 🔑 Setup Jackson Storm Release Keystore
+      # Ключ Jackson Storm берётся ТОЛЬКО из секретов. Случайный ключ на лету
+      # запрещён: с ним каждый APK имел бы новую подпись, и обновление поверх
+      # установленного приложения невозможно.
+      - name: 🔑 Restore Jackson Storm Release Keystore
+        env:
+          KS_B64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
         run: |
-          mkdir -p frontend/android/app
-          if [ -n "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" ]; then
-            echo "Using master Jackson Storm keystore from GitHub Secrets..."
-            echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > frontend/android/app/anongram-release.keystore
-          else
-            echo "Setting up Jackson Storm Bishkek release certificate for cloud build..."
-            keytool -genkeypair \
-              -keystore frontend/android/app/anongram-release.keystore \
-              -alias jackson-storm \
-              -keyalg RSA \
-              -keysize 4096 \
-              -sigalg SHA256withRSA \
-              -validity 10000 \
-              -storetype PKCS12 \
-              -dname "CN=Jackson Storm, OU=AnonGram Core Security, O=AnonGram, L=Bishkek, ST=Chuy, C=KG" \
-              -storepass "JacksonStormAnonGram2026!" \
-              -keypass "JacksonStormAnonGram2026!"
+          if [ -z "$KS_B64" ] || [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Secrets RELEASE_KEYSTORE_BASE64 / KEYSTORE_PASSWORD are missing. Refusing to build with a throwaway key."
+            exit 1
           fi
+          echo "$KS_B64" | base64 -d > "$KEYSTORE_PATH"
 
       - name: 🐘 Setup Gradle & Cloud Cache
         uses: gradle/actions/setup-gradle@v4
@@ -61,10 +69,10 @@ jobs:
       - name: 🛠️ Build Signed APK
         working-directory: frontend/android
         run: |
-          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
-            gradle assembleDebug --stacktrace
-          else
+          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
             gradle assembleRelease --stacktrace
+          else
+            gradle assembleDebug --stacktrace
           fi
 
       - name: 🔍 Verify Signed APK & Display Certificate
@@ -72,8 +80,7 @@ jobs:
         run: |
           APK_FILE=$(find app/build/outputs/apk/ -name "*.apk" | head -n 1)
           echo "Found built APK: $APK_FILE"
-          echo "Verifying APK Signature with apksigner..."
-          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK_FILE" || true
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --verbose --print-certs "$APK_FILE"
 
       - name: 📦 Upload Signed APK Artifact
         uses: actions/upload-artifact@v4

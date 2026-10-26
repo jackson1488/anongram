@@ -12,33 +12,40 @@ android {
         applicationId = "com.anongram.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        // Растёт с каждой сборкой CI: нужно для установки поверх старой версии.
+        val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionCode = runNumber
+        versionName = "1.0.$runNumber"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // Ключ и пароли приходят только из секретов CI (env). В репозитории их нет.
+    val ksPath: String? = System.getenv("KEYSTORE_PATH")
+    val hasSigning = ksPath != null && System.getenv("KEYSTORE_PASSWORD") != null
+
     signingConfigs {
-        create("release") {
-            val ksPath = System.getenv("KEYSTORE_PATH") ?: "anongram-release.keystore"
-            storeFile = file(ksPath)
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "JacksonStormAnonGram2026!"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "jackson-storm"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "JacksonStormAnonGram2026!"
+        if (hasSigning) {
+            create("release") {
+                storeFile = file(ksPath!!)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS") ?: "jackson-storm"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
         }
         debug {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.findByName("release")
         }
     }
     compileOptions {
