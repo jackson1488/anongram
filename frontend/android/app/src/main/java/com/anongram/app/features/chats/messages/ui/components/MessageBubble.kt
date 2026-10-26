@@ -131,7 +131,7 @@ internal fun MessageBubble(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = timeLabel(message),
+                        text = message.timeLabel(),
                         color = TextMuted,
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace

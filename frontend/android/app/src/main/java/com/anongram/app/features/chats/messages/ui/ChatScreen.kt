@@ -79,7 +79,7 @@ fun ChatScreen(
                 listState = listState,
                 onReply = viewModel::startReply,
                 onCopy = { text -> clipboard.setText(AnnotatedString(text)) },
-                onDelete = viewModel::deleteMessage
+                onDelete = { message -> viewModel.deleteMessage(message.id) }
             )
 
             ScrollDownButton(
