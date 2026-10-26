@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
-import androidx.compose.runtime.composed
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
@@ -18,17 +18,22 @@ private val MAX_BOTTOM_INSET = 28.dp
  * завышенные отступы, из-за которых топбар и остров-навигация уезжали
  * за пределы экрана. На обычных телефонах подставляется честная величина,
  * в коротком окне — разумный максимум.
+ *
+ * Обычные @Composable-функции вместо Modifier.composed {}:composed-вариант
+ * ломался на Kotlin 2.0.21 (несовпадающий пакет импорта и контекст лямбды).
  */
-fun Modifier.safeStatusBarPadding(): Modifier = composed {
+@Composable
+fun Modifier.safeStatusBarPadding(): Modifier {
     val density = LocalDensity.current
     val maxTopPx = with(density) { MAX_TOP_INSET.toPx() }.toInt()
     val topPx = min(WindowInsets.statusBars.getTop(density), maxTopPx)
-    padding(top = with(density) { topPx.toDp() })
+    return padding(top = with(density) { topPx.toDp() })
 }
 
-fun Modifier.safeNavigationBarPadding(): Modifier = composed {
+@Composable
+fun Modifier.safeNavigationBarPadding(): Modifier {
     val density = LocalDensity.current
     val maxBottomPx = with(density) { MAX_BOTTOM_INSET.toPx() }.toInt()
     val bottomPx = min(WindowInsets.navigationBars.getBottom(density), maxBottomPx)
-    padding(bottom = with(density) { bottomPx.toDp() })
+    return padding(bottom = with(density) { bottomPx.toDp() })
 }
