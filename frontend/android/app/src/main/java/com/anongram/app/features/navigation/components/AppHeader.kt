@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.core.theme.NeonEmerald
 import com.anongram.app.core.theme.TextPrimary
 
@@ -36,7 +37,7 @@ internal fun AppHeader(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsPadding()
+            .safeStatusBarPadding()
             .padding(horizontal = 20.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically

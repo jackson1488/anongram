@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
@@ -138,16 +138,18 @@ fun ChatsMainMenuScreen(
                                 }
                             )
                         },
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
                     if (state.hasArchived) {
                         item(key = "archive_pill") {
                             Box(
-                                modifier = Modifier.graphicsLayer {
-                                    translationY = -pillTravelPx * archiveHideProgress.value
-                                    alpha = 1f - archiveHideProgress.value
-                                }
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        translationY = -pillTravelPx * archiveHideProgress.value
+                                        alpha = 1f - archiveHideProgress.value
+                                    }
+                                    .padding(bottom = 10.dp)
                             ) {
                                 ArchivePill(
                                     chatCount = state.archivedSessions.size,
@@ -160,7 +162,10 @@ fun ChatsMainMenuScreen(
                     if (state.activeSessions.isEmpty() && !state.hasArchived) {
                         item(key = "empty") { EmptyChatsState() }
                     } else {
-                        items(state.activeSessions, key = { it.id }) { session ->
+                        itemsIndexed(
+                            state.activeSessions,
+                            key = { _, session -> session.id }
+                        ) { index, session ->
                             ChatListItemCard(
                                 session = session,
                                 timeLabel = remember(session.id, session.lastMessageEpochMs) {
@@ -168,6 +173,7 @@ fun ChatsMainMenuScreen(
                                 },
                                 selectionMode = state.isSelection,
                                 isSelected = session.id in state.selectedIds,
+                                showDivider = index < state.activeSessions.lastIndex,
                                 onClick = {
                                     if (state.isSelection) {
                                         viewModel.toggleSelection(session.id)
@@ -193,7 +199,7 @@ fun ChatsMainMenuScreen(
                 onClick = onOpenContacts,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 12.dp)
+                    .padding(end = 20.dp, bottom = 116.dp)
             )
         }
     }

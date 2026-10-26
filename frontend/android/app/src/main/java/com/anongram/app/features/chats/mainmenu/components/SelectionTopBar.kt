@@ -36,6 +36,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.ui.safeStatusBarPadding
 
 /**
  * Панель режима выбора (Telegram-style): закрыть · счётчик · закрепить ·
@@ -62,7 +63,7 @@ internal fun SelectionTopBar(
         modifier = modifier
             .fillMaxWidth()
             .background(SurfaceDark)
-            .statusBarsPadding()
+            .safeStatusBarPadding()
             .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

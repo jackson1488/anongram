@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CardBorder
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.SurfaceDark
@@ -79,7 +80,7 @@ fun ChatSearchScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianBlack)
-            .statusBarsPadding()
+            .safeStatusBarPadding()
     ) {
         Row(
             modifier = Modifier
@@ -144,7 +145,7 @@ fun ChatSearchScreen(
             results.chats.isEmpty() && results.people.isEmpty() -> SearchHint(text = "Ничего не найдено")
             else -> LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = 8.dp, bottom = 112.dp)
             ) {
                 if (results.chats.isNotEmpty()) {
                     item(key = "chats_header") { SearchSectionHeader(label = "ЧАТЫ") }

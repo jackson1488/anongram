@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CardBorder
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.core.theme.CyberCyan
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.SurfaceDark
@@ -58,7 +59,7 @@ fun ChatDetailScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianBlack)
-            .statusBarsPadding()
+            .safeStatusBarPadding()
     ) {
         Row(
             modifier = Modifier
@@ -101,12 +102,12 @@ fun ChatDetailScreen(
             )
         }
 
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(16.dp),
-            contentAlignment = Alignment.BottomStart
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 112.dp),
+                contentAlignment = Alignment.BottomStart
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Box(

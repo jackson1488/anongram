@@ -27,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
@@ -54,7 +55,7 @@ fun ContactsScreen(
         modifier = modifier
             .fillMaxSize()
             .background(ObsidianBlack)
-            .statusBarsPadding()
+            .safeStatusBarPadding()
     ) {
         Row(
             modifier = Modifier
@@ -81,7 +82,7 @@ fun ContactsScreen(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 112.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item(key = "add_contact") {

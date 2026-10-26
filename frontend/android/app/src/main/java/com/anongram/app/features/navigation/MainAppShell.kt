@@ -36,6 +36,8 @@ import com.anongram.app.core.navigation.NavigationTransitionConfig
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.ThemeController
+import com.anongram.app.core.ui.safeNavigationBarPadding
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.archive.ArchiveScreen
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.data.InMemoryChatListRepository
@@ -174,7 +176,6 @@ fun MainAppShell(
                         if (showDetailPane) Modifier.weight(0.42f).fillMaxHeight()
                         else Modifier.fillMaxSize()
                     )
-                    .padding(bottom = 80.dp)
             ) {
                 when (currentTab) {
                     0 -> ChatsMainMenuScreen(
@@ -212,8 +213,7 @@ fun MainAppShell(
                         .weight(0.58f)
                         .fillMaxHeight()
                         .background(ObsidianBlack)
-                        .statusBarsPadding()
-                        .padding(bottom = 80.dp)
+                        .safeStatusBarPadding()
                 ) {
                     selectedSession?.let { session ->
                         ChatDetailScreen(
@@ -324,7 +324,7 @@ fun MainAppShell(
                 currentTab = currentTab,
                 onTabSelected = { currentTab = it },
                 onQrClick = { isQrOpen = true },
-                modifier = Modifier.navigationBarsPadding()
+                modifier = Modifier.safeNavigationBarPadding()
             )
         }
     }
