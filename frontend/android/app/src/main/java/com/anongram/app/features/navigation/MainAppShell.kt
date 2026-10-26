@@ -1,7 +1,12 @@
 package com.anongram.app.features.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -304,14 +309,24 @@ fun MainAppShell(
             )
         }
 
-        MainFloatingIsland(
-            currentTab = currentTab,
-            onTabSelected = { currentTab = it },
-            onQrClick = { isQrOpen = true },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-        )
+        // Остров виден только на корневых экранах: любой дочерний экран
+        // (чат, поиск, контакты, архив, QR) его скрывает.
+        val isRootScreen = !showDetailOverlay && !isSearchOpen && !isContactsOpen &&
+            !isArchiveOpen && !isQrOpen
+
+        AnimatedVisibility(
+            visible = isRootScreen,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
+            MainFloatingIsland(
+                currentTab = currentTab,
+                onTabSelected = { currentTab = it },
+                onQrClick = { isQrOpen = true },
+                modifier = Modifier.navigationBarsPadding()
+            )
+        }
     }
 }
 
