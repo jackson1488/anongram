@@ -139,6 +139,13 @@ class ChatListViewModel(private val repository: ChatListRepository) : ViewModel(
         }
     }
 
+    /** Прочитать одну сессию при входе в чат (вне режима выбора). */
+    fun markRead(sessionId: String) {
+        viewModelScope.launch {
+            publish(repository.markAsRead(listOf(sessionId)))
+        }
+    }
+
     fun onClearHistoryAction() {
         _uiState.update { state ->
             if (state.selectedIds.isEmpty()) state

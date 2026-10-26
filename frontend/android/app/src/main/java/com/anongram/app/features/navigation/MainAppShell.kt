@@ -45,7 +45,9 @@ import com.anongram.app.features.chats.mainmenu.ChatsMainMenuScreen
 import com.anongram.app.features.chats.search.ChatSearchScreen
 import com.anongram.app.features.chats.search.ChatSearchViewModel
 import com.anongram.app.features.chats.state.ChatListViewModel
-import com.anongram.app.features.chats.ui.ChatDetailScreen
+import com.anongram.app.features.chats.messages.data.InMemoryChatMessagesRepository
+import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
+import com.anongram.app.features.chats.messages.ui.ChatScreen
 import com.anongram.app.features.contacts.common.Contact
 import com.anongram.app.features.contacts.data.ContactRepository
 import com.anongram.app.features.contacts.data.InMemoryContactRepository
@@ -83,6 +85,7 @@ fun MainAppShell(
     val navConfig = remember { NavigationTransitionConfig() }
     val chatsRepository = remember { InMemoryChatListRepository() }
     val contactsRepository = remember { InMemoryContactRepository() }
+    val messagesRepository = remember { InMemoryChatMessagesRepository() }
 
     val chatsViewModel: ChatListViewModel = viewModel(
         factory = viewModelFactory { initializer { ChatListViewModel(chatsRepository) } }
@@ -104,6 +107,7 @@ fun MainAppShell(
 
     fun openSession(session: IChatSession) {
         chatsViewModel.clearSelection()
+        chatsViewModel.markRead(session.id)
         scope.openOverlay(detailProgress) { selectedSession = session }
     }
 
@@ -216,8 +220,15 @@ fun MainAppShell(
                         .safeStatusBarPadding()
                 ) {
                     selectedSession?.let { session ->
-                        ChatDetailScreen(
+                        val chatMessagesViewModel: ChatMessagesViewModel = viewModel(
+                            key = "chat_msgs_${session.id}",
+                            factory = viewModelFactory {
+                                initializer { ChatMessagesViewModel(session.id, messagesRepository) }
+                            }
+                        )
+                        ChatScreen(
                             session = session,
+                            viewModel = chatMessagesViewModel,
                             onBack = { closeSession() },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -229,13 +240,20 @@ fun MainAppShell(
         // Полноэкранный чат на компактных экранах.
         if (showDetailOverlay) {
             selectedSession?.let { session ->
+                val chatMessagesViewModel: ChatMessagesViewModel = viewModel(
+                    key = "chat_msgs_${session.id}",
+                    factory = viewModelFactory {
+                        initializer { ChatMessagesViewModel(session.id, messagesRepository) }
+                    }
+                )
                 AnonGramTransitionScreen(
                     progress = detailProgress.value,
                     isExit = false,
                     config = navConfig
                 ) {
-                    ChatDetailScreen(
+                    ChatScreen(
                         session = session,
+                        viewModel = chatMessagesViewModel,
                         onBack = { closeSession() }
                     )
                 }
