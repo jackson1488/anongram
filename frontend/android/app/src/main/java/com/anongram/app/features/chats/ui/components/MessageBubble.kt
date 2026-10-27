@@ -1,7 +1,5 @@
 package com.anongram.app.features.chats.ui.components
 
-@file:OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -315,6 +313,7 @@ internal fun MessageBubble(
 }
 
 /** Отрисовка стикера без пузыря */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun StickerContent(
     symbol: String,
