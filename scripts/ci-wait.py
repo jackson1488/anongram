@@ -11,7 +11,22 @@ with open(os.path.expanduser("~/.git-credentials")) as f:
             token = line.split("https://")[1].split(":")[1].split("@")[0]
             break
 
-run_id = sys.argv[1] if len(sys.argv) > 1 else "40520256644"
+run_id = sys.argv[1] if len(sys.argv) > 1 else None
+
+if not run_id:
+    # Auto-detect latest run
+    list_url = "https://api.github.com/repos/jackson1488/anongram/actions/runs?per_page=5"
+    list_req = urllib.request.Request(list_url, headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(list_req) as res:
+        data = json.loads(res.read())
+        runs = [r for r in data.get("workflow_runs", []) if r.get("name") == "Build AnonGram Android APK (Cloud CI)"]
+        if runs:
+            run_id = str(runs[0]["id"])
+            print(f"Auto-selected latest run #{runs[0]['run_number']} (ID: {run_id})")
+        else:
+            print("No runs found")
+            sys.exit(1)
+
 url = f"https://api.github.com/repos/jackson1488/anongram/actions/runs/{run_id}"
 
 headers = {"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"}

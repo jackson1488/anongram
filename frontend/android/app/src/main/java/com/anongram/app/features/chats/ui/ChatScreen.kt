@@ -34,6 +34,7 @@ import com.anongram.app.features.chats.ui.components.MessageContextMenu
 import com.anongram.app.features.chats.ui.components.MessagesList
 import com.anongram.app.features.chats.ui.components.NotificationsSettingsDialog
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
+import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.launch
 
 /**
@@ -98,8 +99,8 @@ fun ChatScreen(
             .fillMaxSize()
             .background(ObsidianBlack)
     ) {
-        ChatWallpaper(
-            style = state.wallpaperStyle,
+        WallpaperBackground(
+            chatId = sessionId,
             modifier = Modifier.matchParentSize()
         )
 
