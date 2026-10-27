@@ -1,6 +1,7 @@
 package com.anongram.app.core.ui
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.captionBar
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -12,24 +13,22 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlin.math.min
 
-private val MAX_TOP_INSET = 36.dp
+private val MAX_TOP_INSET = 56.dp
 private val MAX_BOTTOM_INSET = 28.dp
 
 /**
- * Ограничители системных инсетов. Waydroid/мультиоконный режим сообщает
- * завышенные отступы, из-за которых топбар и остров-навигация уезжали
- * за пределы экрана. На обычных телефонах подставляется честная величина,
- * в коротком окне — разумный максимум.
- *
- * Обычные @Composable-функции вместо Modifier.composed {}:composed-вариант
- * ломался на Kotlin 2.0.21 (несовпадающий пакет импорта и контекст лямбды).
+ * Ограничители системных инсетов. Учитывает statusBars, displayCutout и captionBar
+ * (для Waydroid и desktop/freeform режимов), чтобы топбар не перекрывался системными заголовками окон.
  */
 @Composable
 fun Modifier.safeStatusBarPadding(): Modifier {
     val density = LocalDensity.current
     val maxTopPx = with(density) { MAX_TOP_INSET.toPx() }.toInt()
     val topPx = min(
-        WindowInsets.statusBars.union(WindowInsets.displayCutout).getTop(density),
+        WindowInsets.statusBars
+            .union(WindowInsets.displayCutout)
+            .union(WindowInsets.captionBar)
+            .getTop(density),
         maxTopPx
     )
     return padding(top = with(density) { topPx.toDp() })
