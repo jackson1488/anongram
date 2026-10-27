@@ -97,8 +97,21 @@ echo "📦 Готов к установке: $VERSION_INFO ($ROOT_APK)"
 
 # 3. Поиск подключенного телефона через ADB
 echo "📱 Поиск подключенного Android смартфона..."
+
+# Авто-обнаружение по mDNS (Wi-Fi ADB), если телефон ещё не подключен в adb devices
+EXISTING_PHONE="$(adb devices 2>/dev/null | awk 'NR>1 && $2=="device" {print $1}' | grep -v 'emulator\|192.168.240' || true)"
+if [ -z "$EXISTING_PHONE" ]; then
+  if command -v avahi-browse >/dev/null 2>&1; then
+    MDNS_ADDR="$(avahi-browse -r -t _adb-tls-connect._tcp 2>/dev/null | awk -F'[][]' '/address = / {addr=$2} /port = / {port=$2; if(addr && port) {print addr":"port; exit}}')"
+    if [ -n "$MDNS_ADDR" ]; then
+      echo "🔗 Найдено устройство в Wi-Fi сети ($MDNS_ADDR). Автоподключение..."
+      adb connect "$MDNS_ADDR" >/dev/null 2>&1 || true
+    fi
+  fi
+fi
+
 RAW_DEVICES="$(adb devices | awk 'NR>1 && $2=="device" {print $1}')"
-[ -n "$RAW_DEVICES" ] || error_exit "Нет подключенных устройств по ADB. Включите отладку по USB на телефоне и подключите его."
+[ -n "$RAW_DEVICES" ] || error_exit "Нет подключенных устройств по ADB. Включите отладку по USB/Wi-Fi на телефоне и подключите его."
 
 # Выбираем физическое устройство (исключаем waydroid/эмулятор при наличии реального телефона, отдаем приоритет IP или USB)
 TARGET_DEV=""
