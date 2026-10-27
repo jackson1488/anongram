@@ -12,6 +12,9 @@ object WallpaperModule {
     @Volatile
     private var storageInstance: WallpaperStorage? = null
 
+    @Volatile
+    private var repositoryInstance: WallpaperRepository? = null
+
     /**
      * Получить экземпляр [WallpaperStorage].
      */
