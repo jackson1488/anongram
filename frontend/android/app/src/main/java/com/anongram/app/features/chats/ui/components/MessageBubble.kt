@@ -118,7 +118,7 @@ internal fun MessageBubble(
             .pointerInput(item.message.id) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
-                        if (kotlin.math.abs(dragOffsetPx) >= thresholdPx) {
+                        if (dragOffsetPx <= -thresholdPx) {
                             onSwipeReply()
                         }
                         dragOffsetPx = 0f
@@ -126,19 +126,19 @@ internal fun MessageBubble(
                     onDragCancel = { dragOffsetPx = 0f },
                     onHorizontalDrag = { _, dragAmount ->
                         val maxDrag = with(density) { 90.dp.toPx() }
-                        dragOffsetPx = (dragOffsetPx + dragAmount).coerceIn(-maxDrag, maxDrag)
+                        // Свайп строго справа налево (константно)
+                        dragOffsetPx = (dragOffsetPx + dragAmount).coerceIn(-maxDrag, 0f)
                     }
                 )
             }
     ) {
-        // Подложка с иконкой ответа при свайпе
-        if (kotlin.math.abs(dragOffsetPx) > 10f) {
-            val alignStart = dragOffsetPx > 0
+        // Подложка с иконкой ответа при свайпе строго справа налево
+        if (dragOffsetPx < -10f) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .padding(horizontal = 16.dp),
-                contentAlignment = if (alignStart) Alignment.CenterStart else Alignment.CenterEnd
+                contentAlignment = Alignment.CenterEnd
             ) {
                 Box(
                     modifier = Modifier

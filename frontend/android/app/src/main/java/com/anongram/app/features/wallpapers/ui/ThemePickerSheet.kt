@@ -28,6 +28,8 @@ import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.WbSunny
+import androidx.compose.ui.res.painterResource
+import com.anongram.app.R
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -181,7 +183,7 @@ fun ThemePickerSheet(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Image,
+                    painter = painterResource(id = R.drawable.ic_gallery_horizontal_end),
                     contentDescription = null,
                     tint = AccentViolet,
                     modifier = Modifier.size(18.dp)

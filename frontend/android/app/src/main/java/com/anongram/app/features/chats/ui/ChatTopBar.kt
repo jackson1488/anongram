@@ -1,14 +1,18 @@
 package com.anongram.app.features.chats.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,19 +20,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Call
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.VolumeOff
-import androidx.compose.material.icons.outlined.Schedule
-import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,13 +41,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.R
 import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -54,11 +62,13 @@ import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.state.SelfDestruct
 
+private val AccentViolet = Color(0xFF7A4DF3)
+
 /**
- * Верхняя панель чата — плавающие «таблетки»: назад · аватар + имя + статус
- * + метка шифрования + иконка таймера самоуничтожения · звонок · три точки.
- * Меню точек: Уведомления (подменю), Видеозвонок, Поиск, Изменить обои,
- * Ключи шифрования, Самоуничтожение, Очистить историю, Удалить чат (красным).
+ * Верхняя панель чата — парящие закругленные «таблетки»:
+ * - Слева: кнопка назад
+ * - По центру: аватар + имя + нежный статус «в сети»
+ * - Справа: аудиозвонок и три точки ВМЕСТЕ в одной таблетке.
  */
 @Composable
 internal fun ChatTopBar(
@@ -81,10 +91,11 @@ internal fun ChatTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // Таблетка 1: Назад
         TopPill {
             CompactIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
@@ -94,9 +105,10 @@ internal fun ChatTopBar(
             )
         }
 
+        // Таблетка 2: Аватар + Имя + Нежный статус
         TopPill(modifier = Modifier.weight(1f)) {
             Row(
-                modifier = Modifier.padding(horizontal = 5.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PeerAvatar(title = session.title, accent = scheme.accent)
@@ -122,8 +134,12 @@ internal fun ChatTopBar(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = statusLine(isPeerTyping, peerActivity, session),
-                            color = if (isPeerTyping || peerActivity != null) scheme.accent else TextMuted,
-                            fontSize = 10.sp
+                            color = if (isPeerTyping || peerActivity != null || session.isOnline) {
+                                scheme.accent.copy(alpha = 0.85f)
+                            } else {
+                                TextMuted
+                            },
+                            fontSize = 11.sp
                         )
                         if (selfDestruct != SelfDestruct.OFF) {
                             Spacer(modifier = Modifier.width(4.dp))
@@ -145,25 +161,27 @@ internal fun ChatTopBar(
             }
         }
 
+        // Таблетка 3: Аудиозвонок и Три точки ВМЕСТЕ
         TopPill {
-            CompactIconButton(
-                icon = Icons.Outlined.Call,
-                description = "Видеозвонок",
-                tint = TextSecondary,
-                onClick = { /* звонки поедут вместе с сетевым слоем */ }
-            )
-        }
-
-        TopPill {
-            ChatMenu(
-                onOpenSearch = onOpenSearch,
-                onCycleWallpaper = onCycleWallpaper,
-                onOpenKeyCheck = onOpenKeyCheck,
-                onSelfDestruct = onSelfDestruct,
-                onClearHistory = onClearHistory,
-                onDeleteChat = onDeleteChat,
-                onOpenNotifications = onOpenNotifications
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 2.dp)
+            ) {
+                CompactIconButton(
+                    painter = painterResource(id = R.drawable.ic_phone),
+                    description = "Аудиозвонок",
+                    tint = TextSecondary,
+                    onClick = { /* Аудиозвонок */ }
+                )
+                ChatMenu(
+                    session = session,
+                    accent = scheme.accent,
+                    onOpenSearch = onOpenSearch,
+                    onCycleWallpaper = onCycleWallpaper,
+                    onClearHistory = onClearHistory,
+                    onDeleteChat = onDeleteChat
+                )
+            }
         }
     }
 }
@@ -176,107 +194,288 @@ private fun statusLine(isPeerTyping: Boolean, peerActivity: String?, session: IC
         else -> "был(а) недавно"
     }
 
+/**
+ * Меню чата (три точки):
+ * Раскрывается ПРЯМО ПОВЕРХ самой кнопки трёх точек (Telegram-style).
+ */
 @Composable
 private fun ChatMenu(
+    session: IChatSession,
+    accent: Color,
     onOpenSearch: () -> Unit,
     onCycleWallpaper: () -> Unit,
-    onOpenKeyCheck: () -> Unit,
-    onSelfDestruct: () -> Unit,
     onClearHistory: () -> Unit,
-    onDeleteChat: () -> Unit,
-    onOpenNotifications: () -> Unit
+    onDeleteChat: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
-    var notificationsSubmenu by remember { mutableStateOf(false) }
+    var showClearHistoryDialog by remember { mutableStateOf(false) }
+    var showDeleteChatDialog by remember { mutableStateOf(false) }
 
     Box {
         CompactIconButton(
             icon = Icons.Outlined.MoreVert,
             description = "Меню чата",
             tint = TextSecondary,
-            onClick = {
-                notificationsSubmenu = false
-                menuOpen = true
-            }
+            onClick = { menuOpen = true }
         )
+
+        // Меню перекрывает саму кнопку трёх точек (offset y = -44.dp)
         DropdownMenu(
             expanded = menuOpen,
-            onDismissRequest = {
-                menuOpen = false
-                notificationsSubmenu = false
-            },
-            containerColor = CardDark
+            onDismissRequest = { menuOpen = false },
+            offset = DpOffset(x = 0.dp, y = (-44).dp),
+            shape = RoundedCornerShape(16.dp),
+            containerColor = Color(0xF2161E2D),
+            border = BorderStroke(1.dp, CardBorder)
         ) {
-            if (notificationsSubmenu) {
-                MenuAction(Icons.AutoMirrored.Outlined.ArrowBack, "Назад") {
-                    notificationsSubmenu = false
-                }
-                MenuAction(Icons.Outlined.VolumeOff, "Выключить звук") { menuOpen = false }
-                MenuAction(Icons.Outlined.Schedule, "Выключить на время…") { menuOpen = false }
-                MenuAction(Icons.Outlined.Tune, "Настроить") {
-                    menuOpen = false
-                    onOpenNotifications()
-                }
-                MenuAction(Icons.Outlined.VolumeOff, "Выключить уведомления", tint = FlameOrange) {
-                    menuOpen = false
-                }
-            } else {
-                MenuAction(Icons.Outlined.Timer, "Уведомления") {
-                    notificationsSubmenu = true
-                }
-                MenuAction(Icons.Outlined.Call, "Видеозвонок") { menuOpen = false }
-                MenuAction(
-                    Icons.Outlined.MoreVert,
-                    "Поиск"
-                ) {
-                    menuOpen = false
-                    onOpenSearch()
-                }
-                MenuAction(Icons.Outlined.Lock, "Ключи шифрования") {
-                    menuOpen = false
-                    onOpenKeyCheck()
-                }
-                MenuAction(Icons.Outlined.Timer, "Изменить обои") {
-                    menuOpen = false
-                    onCycleWallpaper()
-                }
-                MenuAction(Icons.Outlined.Schedule, "Самоуничтожение") {
-                    menuOpen = false
-                    onSelfDestruct()
-                }
-                MenuAction(Icons.Outlined.Tune, "Очистить историю") {
-                    menuOpen = false
-                    onClearHistory()
-                }
-                MenuAction(Icons.Outlined.VolumeOff, "Удалить чат", tint = FlameOrange) {
-                    menuOpen = false
-                    onDeleteChat()
-                }
+            MenuAction(
+                painter = painterResource(id = R.drawable.ic_video),
+                label = "Видеозвонок"
+            ) {
+                menuOpen = false
+            }
+
+            MenuAction(
+                painter = painterResource(id = R.drawable.ic_search),
+                label = "Поиск"
+            ) {
+                menuOpen = false
+                onOpenSearch()
+            }
+
+            MenuAction(
+                painter = painterResource(id = R.drawable.ic_gallery_horizontal_end),
+                label = "Изменить обои"
+            ) {
+                menuOpen = false
+                onCycleWallpaper()
+            }
+
+            MenuAction(
+                painter = painterResource(id = R.drawable.ic_broom),
+                label = "Очистить историю"
+            ) {
+                menuOpen = false
+                showClearHistoryDialog = true
+            }
+
+            MenuAction(
+                painter = painterResource(id = R.drawable.ic_trash),
+                label = "Удалить чат",
+                tint = Color(0xFFFF5252)
+            ) {
+                menuOpen = false
+                showDeleteChatDialog = true
             }
         }
     }
+
+    // Диалог подтверждения очистки истории
+    if (showClearHistoryDialog) {
+        ClearHistoryDialog(
+            peerName = session.title,
+            onConfirm = { _ ->
+                showClearHistoryDialog = false
+                onClearHistory()
+            },
+            onDismiss = { showClearHistoryDialog = false }
+        )
+    }
+
+    // Диалог подтверждения удаления чата с аватаркой сверху
+    if (showDeleteChatDialog) {
+        DeleteChatDialog(
+            peerName = session.title,
+            accent = accent,
+            onConfirm = { _ ->
+                showDeleteChatDialog = false
+                onDeleteChat()
+            },
+            onDismiss = { showDeleteChatDialog = false }
+        )
+    }
+}
+
+/**
+ * Диалог подтверждения очистки истории (без аватарки, только заголовок и имя).
+ */
+@Composable
+private fun ClearHistoryDialog(
+    peerName: String,
+    onConfirm: (alsoDeleteForPeer: Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var alsoDeleteForPeer by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = Color(0xFF161E2D),
+        title = {
+            Text(
+                text = "Очистить историю",
+                color = TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Вы точно хотите очистить историю сообщений с $peerName?",
+                    color = TextSecondary,
+                    fontSize = 14.sp
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { alsoDeleteForPeer = !alsoDeleteForPeer }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Checkbox(
+                        checked = alsoDeleteForPeer,
+                        onCheckedChange = { alsoDeleteForPeer = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = AccentViolet,
+                            checkmarkColor = Color.White,
+                            uncheckedColor = TextSecondary
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Также очистить для $peerName",
+                        color = TextPrimary,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(alsoDeleteForPeer) }) {
+                Text(
+                    text = "Очистить",
+                    color = Color(0xFFFF5252),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Отмена", color = TextSecondary)
+            }
+        }
+    )
+}
+
+/**
+ * Диалог удаления чата (сверху аватарка, затем имя, подтверждение и чекбокс).
+ */
+@Composable
+private fun DeleteChatDialog(
+    peerName: String,
+    accent: Color,
+    onConfirm: (alsoDeleteForPeer: Boolean) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var alsoDeleteForPeer by remember { mutableStateOf(true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = Color(0xFF161E2D),
+        title = {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                PeerAvatar(title = peerName, accent = accent, size = 48.dp)
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = "Удалить чат",
+                    color = TextPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+            }
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Вы точно хотите удалить чат с $peerName?",
+                    color = TextSecondary,
+                    fontSize = 14.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { alsoDeleteForPeer = !alsoDeleteForPeer }
+                        .padding(vertical = 4.dp)
+                ) {
+                    Checkbox(
+                        checked = alsoDeleteForPeer,
+                        onCheckedChange = { alsoDeleteForPeer = it },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = AccentViolet,
+                            checkmarkColor = Color.White,
+                            uncheckedColor = TextSecondary
+                        )
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "Также удалить для $peerName",
+                        color = TextPrimary,
+                        fontSize = 13.sp
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(alsoDeleteForPeer) }) {
+                Text(
+                    text = "Удалить",
+                    color = Color(0xFFFF5252),
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = "Отмена", color = TextSecondary)
+            }
+        }
+    )
 }
 
 @Composable
 private fun MenuAction(
-    icon: ImageVector,
+    painter: Painter,
     label: String,
     tint: Color = TextPrimary,
     onClick: () -> Unit
 ) {
     DropdownMenuItem(
         text = {
-            Text(text = label, color = tint, fontSize = 13.sp)
+            Text(text = label, color = tint, fontSize = 14.sp, fontWeight = FontWeight.Normal)
         },
         leadingIcon = {
             Icon(
-                imageVector = icon,
+                painter = painter,
                 contentDescription = null,
                 tint = if (tint == TextPrimary) TextSecondary else tint,
-                modifier = Modifier.size(17.dp)
+                modifier = Modifier.size(19.dp)
             )
         },
-        onClick = onClick
+        onClick = onClick,
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
     )
 }
 
@@ -314,14 +513,34 @@ private fun CompactIconButton(
 }
 
 @Composable
-private fun PeerAvatar(title: String, accent: Color) {
+private fun CompactIconButton(
+    painter: Painter,
+    description: String,
+    tint: Color,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = Modifier.size(38.dp)
+    ) {
+        Icon(
+            painter = painter,
+            contentDescription = description,
+            tint = tint,
+            modifier = Modifier.size(19.dp)
+        )
+    }
+}
+
+@Composable
+private fun PeerAvatar(title: String, accent: Color, size: Dp = 34.dp) {
     val monogram = title.split(" ")
         .filter { it.isNotBlank() }
         .take(2)
         .joinToString("") { it.first().uppercase() }
     Box(
         modifier = Modifier
-            .size(34.dp)
+            .size(size)
             .clip(CircleShape)
             .background(accent.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center
@@ -329,7 +548,7 @@ private fun PeerAvatar(title: String, accent: Color) {
         Text(
             text = monogram,
             color = TextPrimary,
-            fontSize = 12.sp,
+            fontSize = if (size > 40.dp) 16.sp else 12.sp,
             fontWeight = FontWeight.Bold
         )
     }
