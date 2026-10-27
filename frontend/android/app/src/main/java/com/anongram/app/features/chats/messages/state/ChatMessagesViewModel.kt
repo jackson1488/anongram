@@ -42,6 +42,7 @@ class ChatMessagesViewModel(
     private var draftJob: Job? = null
     private var recordingJob: Job? = null
     private var selfDestructJob: Job? = null
+    private var highlightJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -416,6 +417,26 @@ class ChatMessagesViewModel(
         }
     }
 
+    fun highlightMessage(id: String) {
+        highlightJob?.cancel()
+        _uiState.update { it.copy(highlightedMessageId = id) }
+        highlightJob = viewModelScope.launch {
+            delay(850)
+            _uiState.update {
+                if (it.highlightedMessageId == id) it.copy(highlightedMessageId = null) else it
+            }
+        }
+    }
+
+    fun jumpToSearchMatch(index: Int) {
+        val state = _uiState.value
+        if (state.searchMatches.isEmpty()) return
+        val clamped = index.coerceIn(0, state.searchMatches.lastIndex)
+        val matchId = state.searchMatches[clamped]
+        _uiState.update { it.copy(searchIndex = clamped) }
+        highlightMessage(matchId)
+    }
+
     fun nextSearchMatch() = cycleSearch(+1)
 
     fun previousSearchMatch() = cycleSearch(-1)
@@ -424,7 +445,9 @@ class ChatMessagesViewModel(
         val state = _uiState.value
         if (state.searchMatches.isEmpty()) return
         val next = (state.searchIndex + delta + state.searchMatches.size) % state.searchMatches.size
+        val matchId = state.searchMatches[next]
         _uiState.update { it.copy(searchIndex = next) }
+        highlightMessage(matchId)
     }
 
     // --- Запись голоса и кружка (шаг 6) ---

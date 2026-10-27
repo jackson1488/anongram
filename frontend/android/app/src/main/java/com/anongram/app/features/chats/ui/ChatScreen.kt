@@ -87,6 +87,13 @@ fun ChatScreen(
     val clipboard = LocalClipboardManager.current
     var isWallpaperOpen by remember { mutableStateOf(false) }
     var isReplyPreviewOpen by remember { mutableStateOf(false) }
+    var isSearchListMode by remember { mutableStateOf(false) }
+
+    LaunchedEffect(state.isSearchOpen) {
+        if (!state.isSearchOpen) {
+            isSearchListMode = false
+        }
+    }
 
     // Затемнение за шапкой: 0.58f по дефолту (при простое), усиливается до 0.88f при скролле
     val isScrolled by remember {
@@ -106,6 +113,7 @@ fun ChatScreen(
         when {
             isWallpaperOpen -> isWallpaperOpen = false
             isReplyPreviewOpen -> isReplyPreviewOpen = false
+            isSearchListMode -> isSearchListMode = false
             state.isSearchOpen -> viewModel.closeSearch()
             state.isSelectionMode -> viewModel.clearSelection()
             state.isEmojiOpen -> viewModel.closeEmojiPanel()
@@ -121,13 +129,14 @@ fun ChatScreen(
         }
     }
 
-    // Автопрокрутка к результатам поиска
+    // Автопрокрутка к результатам поиска с анимацией двойного сердцебиения
     LaunchedEffect(state.searchIndex, state.searchMatches) {
         val currentMatchId = state.searchMatches.getOrNull(state.searchIndex)
         if (currentMatchId != null) {
             val matchIndex = state.messages.asReversed().indexOfFirst { it.id == currentMatchId }
             if (matchIndex >= 0) {
                 listState.animateScrollToItem(matchIndex)
+                viewModel.highlightMessage(currentMatchId)
             }
         }
     }
@@ -147,7 +156,7 @@ fun ChatScreen(
         val isKeyboardVisible = WindowInsets.ime.getBottom(density) > 0
 
         // 1. Содержимое чата: сообщения во всю высоту, скроллятся ПОД плавающей шапкой и ПОД полем ввода
-        val topListPadding = if (state.pinnedMessage != null) 130.dp else 86.dp
+        val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
         val bottomListPadding = if (isKeyboardVisible) 80.dp else 104.dp
 
         Box(
@@ -155,35 +164,63 @@ fun ChatScreen(
                 .fillMaxSize()
                 .imePadding()
         ) {
-            MessagesList(
-                messages = state.messages,
-                peerName = session.title,
-                listState = listState,
-                selection = state.selection,
-                firstUnreadId = state.firstUnreadId,
-                topPadding = topListPadding,
-                bottomPadding = bottomListPadding,
-                onClick = { message, topY ->
-                    if (state.isSelectionMode) {
-                        viewModel.toggleSelection(message.id)
-                    } else {
-                        actionMenuAnchorY = topY
-                        viewModel.openActionMenu(message)
-                    }
-                },
-                onLongClick = { message ->
-                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                    if (state.isSelectionMode) {
-                        viewModel.toggleSelection(message.id)
-                    } else {
-                        viewModel.enterSelection(message.id)
-                    }
-                },
-                onSwipeReply = viewModel::startReply,
-                onToggleReaction = viewModel::toggleReaction,
-                onSelectMessage = viewModel::toggleSelection,
-                onRetryMessage = viewModel::retry
-            )
+            if (state.isSearchOpen && isSearchListMode) {
+                val searchMatchingMessages = remember(state.messages, state.searchMatches) {
+                    state.messages.filter { it.id in state.searchMatches }.asReversed()
+                }
+                ChatSearchResultsList(
+                    query = state.searchQuery,
+                    matches = searchMatchingMessages,
+                    peerName = session.title,
+                    onSelectMatch = { message ->
+                        isSearchListMode = false
+                        val matchIdx = state.searchMatches.indexOf(message.id)
+                        if (matchIdx >= 0) {
+                            viewModel.jumpToSearchMatch(matchIdx)
+                        } else {
+                            viewModel.highlightMessage(message.id)
+                        }
+                        val idx = state.messages.asReversed().indexOfFirst { it.id == message.id }
+                        if (idx >= 0) {
+                            scope.launch { listState.animateScrollToItem(idx) }
+                        }
+                    },
+                    topPadding = topListPadding,
+                    bottomPadding = bottomListPadding
+                )
+            } else {
+                MessagesList(
+                    messages = state.messages,
+                    peerName = session.title,
+                    listState = listState,
+                    selection = state.selection,
+                    firstUnreadId = state.firstUnreadId,
+                    highlightedMessageId = state.highlightedMessageId,
+                    topPadding = topListPadding,
+                    bottomPadding = bottomListPadding,
+                    onClick = { message, topY ->
+                        if (state.isSelectionMode) {
+                            viewModel.toggleSelection(message.id)
+                        } else {
+                            actionMenuAnchorY = topY
+                            viewModel.openActionMenu(message)
+                        }
+                    },
+                    onLongClick = { message ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (state.isSelectionMode) {
+                            viewModel.toggleSelection(message.id)
+                        } else {
+                            viewModel.enterSelection(message.id)
+                        }
+                    },
+                    onSwipeReply = viewModel::startReply,
+                    onToggleReaction = viewModel::toggleReaction,
+                    onSelectMessage = viewModel::toggleSelection,
+                    onRetryMessage = viewModel::retry,
+                    onHighlightMessage = viewModel::highlightMessage
+                )
+            }
 
             ScrollDownButton(
                 visible = !state.isSearchOpen && listState.firstVisibleItemIndex > 2,
@@ -198,7 +235,7 @@ fun ChatScreen(
             )
 
             // Плавающие круглые кнопки поиска (вверх / вниз по найденным сообщениям) (Фото 6)
-            if (state.isSearchOpen) {
+            if (state.isSearchOpen && !isSearchListMode) {
                 ChatSearchNavigationButtons(
                     canNavigate = state.searchMatches.isNotEmpty(),
                     onPrevious = viewModel::previousSearchMatch,
@@ -221,10 +258,15 @@ fun ChatScreen(
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (state.isSearchOpen) {
+                    val counterText = if (isSearchListMode) {
+                        formatResultsCount(state.searchMatches.size)
+                    } else {
+                        state.searchCounter
+                    }
                     ChatSearchBottomBar(
-                        counter = state.searchCounter,
-                        onCalendarClick = { },
-                        onListClick = { }
+                        counter = counterText,
+                        isListMode = isSearchListMode,
+                        onListClick = { isSearchListMode = !isSearchListMode }
                     )
                 } else {
                     ChatInputBar(
@@ -272,7 +314,7 @@ fun ChatScreen(
         }
 
         // 2. Мягкая тёмная вуаль-градиент за плавающей шапкой (усиливается при скролле)
-        val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen) 144.dp else 100.dp
+        val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 144.dp else 100.dp
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -352,11 +394,11 @@ fun ChatScreen(
                 }
             }
 
-            // Закреплённое сообщение (шаг 12, Фото 4) — не показывается в режиме поиска
-            if (!state.isSearchOpen) {
+            // Закреплённое сообщение (шаг 12, Фото 4) — не показывается в режиме поиска и режиме выбора
+            if (!state.isSearchOpen && !state.isSelectionMode) {
                 state.pinnedMessage?.let { pinned ->
                     PinnedBar(
-                        text = pinned.text.ifBlank { "Вложение" },
+                        pinned = pinned,
                         onClick = viewModel::openPinnedMessages
                     )
                 }

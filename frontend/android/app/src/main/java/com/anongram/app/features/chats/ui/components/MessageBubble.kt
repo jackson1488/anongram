@@ -1,13 +1,19 @@
 package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -105,6 +111,7 @@ internal fun MessageBubble(
     peerName: String,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
+    isHighlighted: Boolean = false,
     onQuoteClick: (String) -> Unit = {},
     onClick: (anchorYPx: Float) -> Unit = {},
     onLongClick: () -> Unit = {},
@@ -117,6 +124,25 @@ internal fun MessageBubble(
     val message = item.message
     val isIncoming = message.direction == MessageDirection.INCOMING
     val density = LocalDensity.current
+
+    val pulseAnim = remember { Animatable(0f) }
+    LaunchedEffect(isHighlighted) {
+        if (isHighlighted) {
+            pulseAnim.snapTo(0f)
+            pulseAnim.animateTo(
+                targetValue = 0f,
+                animationSpec = keyframes {
+                    durationMillis = 800
+                    0.6f at 130 using FastOutSlowInEasing
+                    0.12f at 250 using FastOutSlowInEasing
+                    0.7f at 380 using FastOutSlowInEasing
+                    0.0f at 800 using LinearOutSlowInEasing
+                }
+            )
+        } else {
+            pulseAnim.snapTo(0f)
+        }
+    }
 
     var dragOffsetPx by remember { mutableFloatStateOf(0f) }
     var bubbleTopY by remember { mutableFloatStateOf(0f) }
@@ -217,25 +243,47 @@ internal fun MessageBubble(
                 Column(
                     horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
                 ) {
+                    val pulseAlpha = pulseAnim.value
                     if (message.isStickerOnly) {
-                        // Стикер рисуется без пузыря (шаг 6)
-                        StickerContent(
-                            symbol = (message.attachment as MessageAttachment.Sticker).symbol,
-                            timeLabel = message.timeLabel(),
-                            status = message.status,
-                            isIncoming = isIncoming,
-                            onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },
-                            onLongClick = onLongClick
-                        )
+                        // Стикер рисуется без пузыря (шаг 6) с подсветкой при сердцебиении
+                        Box(
+                            modifier = if (pulseAlpha > 0f) {
+                                Modifier
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(scheme.accent.copy(alpha = pulseAlpha * 0.35f))
+                                    .padding(4.dp)
+                            } else Modifier
+                        ) {
+                            StickerContent(
+                                symbol = (message.attachment as MessageAttachment.Sticker).symbol,
+                                timeLabel = message.timeLabel(),
+                                status = message.status,
+                                isIncoming = isIncoming,
+                                onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },
+                                onLongClick = onLongClick
+                            )
+                        }
                     } else {
+                        val baseColor = when {
+                            isSelected -> scheme.accent.copy(alpha = 0.28f)
+                            isIncoming -> CardDark
+                            else -> scheme.accent.copy(alpha = 0.16f)
+                        }
+                        val bubbleColor = if (pulseAlpha > 0f) {
+                            lerp(baseColor, scheme.accent, pulseAlpha * 0.75f)
+                        } else {
+                            baseColor
+                        }
+                        val bubbleBorder = when {
+                            pulseAlpha > 0f -> BorderStroke(1.5.dp, scheme.accent.copy(alpha = 0.5f + pulseAlpha * 0.5f))
+                            !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
+                            else -> null
+                        }
+
                         Surface(
                             shape = bubbleShape(item, isIncoming),
-                            color = when {
-                                isSelected -> scheme.accent.copy(alpha = 0.28f)
-                                isIncoming -> CardDark
-                                else -> scheme.accent.copy(alpha = 0.16f)
-                            },
-                            border = if (isIncoming) null else BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f)),
+                            color = bubbleColor,
+                            border = bubbleBorder,
                             modifier = Modifier
                                 .widthIn(max = bubbleMaxWidth)
                                 .clip(bubbleShape(item, isIncoming))

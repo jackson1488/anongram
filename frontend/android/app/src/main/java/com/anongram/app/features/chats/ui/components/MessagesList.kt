@@ -45,6 +45,7 @@ internal fun MessagesList(
     listState: LazyListState,
     selection: Set<String> = emptySet(),
     firstUnreadId: String? = null,
+    highlightedMessageId: String? = null,
     topPadding: androidx.compose.ui.unit.Dp = 80.dp,
     bottomPadding: androidx.compose.ui.unit.Dp = 10.dp,
     onClick: (ChatMessage, Float) -> Unit = { _, _ -> },
@@ -52,7 +53,8 @@ internal fun MessagesList(
     onSwipeReply: (ChatMessage) -> Unit = {},
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
     onSelectMessage: (String) -> Unit = {},
-    onRetryMessage: (String) -> Unit = {}
+    onRetryMessage: (String) -> Unit = {},
+    onHighlightMessage: (String) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -91,12 +93,14 @@ internal fun MessagesList(
                     peerName = peerName,
                     isSelectionMode = selection.isNotEmpty(),
                     isSelected = item.message.id in selection,
+                    isHighlighted = item.message.id == highlightedMessageId,
                     onQuoteClick = { originalId ->
                         displayIndexById[originalId]?.let { index ->
                             scope.launch {
                                 listState.animateScrollToItem(index = index)
                             }
                         }
+                        onHighlightMessage(originalId)
                     },
                     onClick = { topY -> onClick(item.message, topY) },
                     onLongClick = { onLongClick(item.message) },

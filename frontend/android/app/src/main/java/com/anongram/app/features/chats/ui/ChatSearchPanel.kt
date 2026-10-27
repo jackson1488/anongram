@@ -1,23 +1,27 @@
 package com.anongram.app.features.chats.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
@@ -30,23 +34,30 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
-import androidx.compose.foundation.border
-import com.anongram.app.core.theme.CardBorder
+import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
+import com.anongram.app.features.chats.messages.domain.MessageDirection
+import com.anongram.app.features.chats.messages.domain.timeLabel
 
 private val SEARCH_ISLAND_BG = IslandBackground // 100% непрозрачный фон островков
 
 /**
  * Верхняя парящая полоска поиска Telegram-style:
- * ДВА РАЗДЕЛЬНЫХ ОСТРОВКА одинаковой высоты (44.dp):
+ * ДВА РАЗДЕЛЬНЫХ ОСТРОВКА одинаковой высоты (50.dp):
  * 1) Круглый островок «Назад» (выход из поиска)
  * 2) Островок поиска с полем ввода и кнопкой очистки «✕»
  * Оба островка непрозрачные с тонкой обводкой CardBorder.
@@ -198,14 +209,14 @@ internal fun ChatSearchNavigationButtons(
 }
 
 /**
- * Нижний парящий островок поиска в чате Telegram-style (Фото 6):
- * Иконка календаря (поиск по дате), счётчик «1 из 3», кнопка «Списком».
- * Непрозрачный островок с обводкой CardBorder.
+ * Нижний парящий островок поиска в чате Telegram-style (Фото 6 и Фото 8):
+ * Счётчик результатов («1 из 3» или «273 результата») и кнопка «Списком» / «В чате».
+ * Слева дату убрали по запросу пользователя («убрать слева дату»).
  */
 @Composable
 internal fun ChatSearchBottomBar(
     counter: String,
-    onCalendarClick: () -> Unit = {},
+    isListMode: Boolean = false,
     onListClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -219,21 +230,11 @@ internal fun ChatSearchBottomBar(
             .clip(RoundedCornerShape(22.dp))
             .background(SEARCH_ISLAND_BG)
             .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .padding(horizontal = 16.dp),
+            .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Иконка календаря
-        Icon(
-            imageVector = Icons.Outlined.CalendarToday,
-            contentDescription = "Поиск по дате",
-            tint = TextSecondary,
-            modifier = Modifier
-                .size(20.dp)
-                .clickable(onClick = onCalendarClick)
-        )
-
-        // Счётчик результатов («1 из 3» или «0 из 0»)
+        // Счётчик результатов («1 из 3» или «273 результата»)
         Text(
             text = if (counter.isBlank()) "0 из 0" else counter,
             color = TextPrimary,
@@ -241,13 +242,215 @@ internal fun ChatSearchBottomBar(
             fontWeight = FontWeight.Medium
         )
 
-        // Кнопка «Списком»
+        // Кнопка переключения режима («Списком» или «В чате»)
         Text(
-            text = "Списком",
+            text = if (isListMode) "В чате" else "Списком",
             color = scheme.accent,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clickable(onClick = onListClick)
         )
     }
+}
+
+/**
+ * Склонение количества результатов поиска на русском языке.
+ */
+internal fun formatResultsCount(count: Int): String {
+    val rem100 = count % 100
+    val rem10 = count % 10
+    val word = when {
+        rem100 in 11..19 -> "результатов"
+        rem10 == 1 -> "результат"
+        rem10 in 2..4 -> "результата"
+        else -> "результатов"
+    }
+    return "$count $word"
+}
+
+/**
+ * Экран списка результатов поиска (Фото 8 / media_1793133464433.png):
+ * Аватар слева, имя отправителя («Ринат» или «Вы»), время («02:32»),
+ * сниппет сообщения с подсветкой поискового запроса.
+ */
+@Composable
+internal fun ChatSearchResultsList(
+    query: String,
+    matches: List<ChatMessage>,
+    peerName: String,
+    onSelectMatch: (ChatMessage) -> Unit,
+    modifier: Modifier = Modifier,
+    topPadding: Dp = 76.dp,
+    bottomPadding: Dp = 80.dp
+) {
+    val scheme = LocalAnonGramScheme.current
+
+    LazyColumn(
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = topPadding, bottom = bottomPadding)
+    ) {
+        items(matches, key = { it.id }) { message ->
+            val isIncoming = message.direction == MessageDirection.INCOMING
+            val senderName = if (isIncoming) peerName else "Вы"
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onSelectMatch(message) }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Аватар слева
+                if (isIncoming) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(scheme.accent.copy(alpha = 0.22f))
+                            .border(1.dp, scheme.accent.copy(alpha = 0.4f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = peerName.take(1).uppercase(),
+                            color = scheme.accent,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                } else {
+                    // Аватар для "Вы" (белый круг как в Telegram скриншоте)
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(Color.White),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Вы",
+                            color = Color(0xFF1A1A1A),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(14.dp))
+
+                // Имя, сниппет и время
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = senderName,
+                            color = TextPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = message.timeLabel(),
+                            color = TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(3.dp))
+
+                    // Сниппет
+                    when (val att = message.attachment) {
+                        is MessageAttachment.Sticker -> {
+                            Text(
+                                text = "${att.symbol} Стикер",
+                                color = scheme.accent,
+                                fontSize = 14.sp
+                            )
+                        }
+                        is MessageAttachment.File -> {
+                            Text(
+                                text = att.name,
+                                color = Color(0xFF9D84FF),
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        is MessageAttachment.Photo -> {
+                            Text(
+                                text = if (message.text.isNotBlank()) message.text else "📷 Фотография",
+                                color = TextSecondary,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        is MessageAttachment.Voice -> {
+                            Text(
+                                text = "🎙 Голосовое сообщение",
+                                color = TextSecondary,
+                                fontSize = 14.sp
+                            )
+                        }
+                        is MessageAttachment.Music -> {
+                            Text(
+                                text = "🎵 ${att.artist} — ${att.title}",
+                                color = TextSecondary,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        else -> {
+                            val annotated = buildHighlightedSnippet(
+                                text = message.text,
+                                query = query,
+                                highlightColor = scheme.accent
+                            )
+                            Text(
+                                text = annotated,
+                                color = TextSecondary,
+                                fontSize = 14.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Подсветка совпадений поискового запроса в тексте сообщения.
+ */
+private fun buildHighlightedSnippet(
+    text: String,
+    query: String,
+    highlightColor: Color
+): AnnotatedString {
+    if (query.isBlank()) return AnnotatedString(text)
+    val builder = AnnotatedString.Builder()
+    var currentIndex = 0
+    val lowerText = text.lowercase()
+    val lowerQuery = query.trim().lowercase()
+
+    var matchIndex = lowerText.indexOf(lowerQuery, currentIndex)
+    while (matchIndex >= 0) {
+        if (matchIndex > currentIndex) {
+            builder.append(text.substring(currentIndex, matchIndex))
+        }
+        val endMatch = matchIndex + lowerQuery.length
+        builder.pushStyle(SpanStyle(color = highlightColor, fontWeight = FontWeight.Bold))
+        builder.append(text.substring(matchIndex, endMatch))
+        builder.pop()
+        currentIndex = endMatch
+        matchIndex = lowerText.indexOf(lowerQuery, currentIndex)
+    }
+    if (currentIndex < text.length) {
+        builder.append(text.substring(currentIndex))
+    }
+    return builder.toAnnotatedString()
 }

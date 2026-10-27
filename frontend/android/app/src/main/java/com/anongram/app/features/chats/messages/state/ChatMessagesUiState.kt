@@ -49,6 +49,7 @@ data class ChatMessagesUiState(
     val searchQuery: String = "",
     val searchMatches: List<String> = emptyList(),
     val searchIndex: Int = 0,
+    val highlightedMessageId: String? = null,
     val recording: RecordingState = RecordingState(),
     val isCameraMode: Boolean = false,
     val isAttachOpen: Boolean = false,
