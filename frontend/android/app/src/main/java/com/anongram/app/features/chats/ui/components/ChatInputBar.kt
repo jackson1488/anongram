@@ -6,9 +6,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,10 +26,12 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
@@ -64,7 +68,9 @@ import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import androidx.compose.ui.text.style.TextOverflow
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.messages.state.RecordingState
@@ -83,6 +89,7 @@ internal fun ChatInputBar(
     input: String,
     canSend: Boolean,
     replyTo: ChatMessage?,
+    peerName: String = "",
     editing: ChatMessage?,
     recording: RecordingState,
     isCameraMode: Boolean,
@@ -91,6 +98,8 @@ internal fun ChatInputBar(
     onSend: () -> Unit,
     onCancelReply: () -> Unit,
     onCancelEdit: () -> Unit,
+    onReplyClick: (ChatMessage) -> Unit = {},
+    onReplyLongClick: (ChatMessage) -> Unit = {},
     onToggleEmoji: () -> Unit,
     onOpenAttach: () -> Unit,
     onToggleCameraMode: () -> Unit,
@@ -103,58 +112,62 @@ internal fun ChatInputBar(
     val scheme = LocalAnonGramScheme.current
     val isRecording = recording.mode != RecordMode.NONE
 
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.Bottom
     ) {
-        // Плашка ответа на сообщение (шаг 2)
-        if (replyTo != null && editing == null) {
-            ReplyBar(
-                title = if (replyTo.direction == MessageDirection.INCOMING) "Ответ" else "Ответ себе",
-                snippet = replyTo.text,
-                onClose = onCancelReply
+        if (isRecording) {
+            // Строка записи голоса / кружка (шаг 3)
+            RecordingBar(
+                recording = recording,
+                onCancel = onCancelRecording,
+                onStop = onStopLockedRecording,
+                onLock = onLockRecording,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.height(2.dp))
-        }
+        } else {
+            // Основное поле ввода — единый парящий островок со слитно встроенной плашкой ответа (Фото 1)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(IslandBackground)
+                    .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+            ) {
+                // Слитно встроенная плашка ответа (Фото 1)
+                if (replyTo != null && editing == null) {
+                    FusedReplyBar(
+                        replyTo = replyTo,
+                        peerName = peerName,
+                        onClick = { onReplyClick(replyTo) },
+                        onLongClick = { onReplyLongClick(replyTo) },
+                        onClose = onCancelReply
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(CardBorder.copy(alpha = 0.4f))
+                    )
+                } else if (editing != null) {
+                    FusedEditBar(
+                        editing = editing,
+                        onClose = onCancelEdit
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(CardBorder.copy(alpha = 0.4f))
+                    )
+                }
 
-        // Плашка изменения сообщения (шаг 16)
-        if (editing != null) {
-            ReplyBar(
-                title = "Изменение сообщения",
-                snippet = editing.text,
-                onClose = onCancelEdit
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom
-        ) {
-            if (isRecording) {
-                // Строка записи голоса / кружка (шаг 3)
-                RecordingBar(
-                    recording = recording,
-                    onCancel = onCancelRecording,
-                    onStop = onStopLockedRecording,
-                    onLock = onLockRecording,
-                    modifier = Modifier.weight(1f)
-                )
-            } else {
-                // Основное поле ввода — парящий островок
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(26.dp))
-                        .background(IslandBackground)
-                        .border(1.dp, CardBorder, RoundedCornerShape(26.dp))
-                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
                         // Кнопка эмодзи/клавиатура
                         IconButton(onClick = onToggleEmoji, modifier = Modifier.size(36.dp)) {
                             Icon(
@@ -418,4 +431,133 @@ private fun ActionButton(
             )
         }
     }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FusedReplyBar(
+    replyTo: ChatMessage,
+    peerName: String,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = LocalAnonGramScheme.current
+    val title = if (replyTo.direction == MessageDirection.INCOMING) "В ответ $peerName" else "В ответ себе"
+    val snippet = replyPreviewSnippet(replyTo)
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            )
+            .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Outlined.Reply,
+            contentDescription = null,
+            tint = scheme.accent,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = scheme.accent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(1.dp))
+            Text(
+                text = snippet,
+                color = TextPrimary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = "Отменить ответ",
+                tint = TextSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FusedEditBar(
+    editing: ChatMessage,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = LocalAnonGramScheme.current
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Edit,
+            contentDescription = null,
+            tint = scheme.accent,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Изменение сообщения",
+                color = scheme.accent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(1.dp))
+            Text(
+                text = editing.text.ifBlank { "Сообщение" },
+                color = TextPrimary,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        IconButton(
+            onClick = onClose,
+            modifier = Modifier.size(28.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = "Отменить редактирование",
+                tint = TextSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+private fun replyPreviewSnippet(message: ChatMessage): String = when {
+    message.text.isNotBlank() -> message.text
+    message.attachment is MessageAttachment.File -> message.attachment.name
+    message.attachment is MessageAttachment.Photo -> if (message.attachment.isVideo) "Видео" else "Фото"
+    message.attachment is MessageAttachment.Music -> "${message.attachment.artist} — ${message.attachment.title}"
+    message.attachment is MessageAttachment.Voice -> "Голосовое сообщение"
+    message.attachment is MessageAttachment.VideoCircle -> "Видеосообщение"
+    message.attachment is MessageAttachment.Contact -> "Контакт: ${message.attachment.name}"
+    message.attachment is MessageAttachment.Geo -> "Геолокация: ${message.attachment.address}"
+    message.attachment is MessageAttachment.Sticker -> "Стикер ${message.attachment.symbol}"
+    else -> "Сообщение"
 }

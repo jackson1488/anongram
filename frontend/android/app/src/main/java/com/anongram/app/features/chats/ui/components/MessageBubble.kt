@@ -1,6 +1,13 @@
 package com.anongram.app.features.chats.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -171,8 +178,16 @@ internal fun MessageBubble(
                 .padding(vertical = 1.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Чекбокс в режиме выделения
-            if (isSelectionMode) {
+            // Чекбокс в режиме выделения: плавно выезжает, синхронно сдвигая пузыри вправо (как в Telegram)
+            AnimatedVisibility(
+                visible = isSelectionMode,
+                enter = expandHorizontally(
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                ) + fadeIn(),
+                exit = shrinkHorizontally(
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                ) + fadeOut()
+            ) {
                 Box(
                     modifier = Modifier
                         .padding(end = 8.dp)

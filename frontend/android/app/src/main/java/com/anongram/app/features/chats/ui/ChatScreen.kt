@@ -52,6 +52,7 @@ import com.anongram.app.features.chats.ui.components.MessagesList
 import com.anongram.app.features.chats.ui.components.NotificationsMuteDialog
 import com.anongram.app.features.chats.ui.components.NotificationsSettingsDialog
 import com.anongram.app.features.chats.ui.components.PinnedMessagesScreen
+import com.anongram.app.features.chats.ui.components.ReplyPreviewDialog
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
 import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
@@ -85,6 +86,7 @@ fun ChatScreen(
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     var isWallpaperOpen by remember { mutableStateOf(false) }
+    var isReplyPreviewOpen by remember { mutableStateOf(false) }
 
     // Затемнение за шапкой: 0.58f по дефолту (при простое), усиливается до 0.88f при скролле
     val isScrolled by remember {
@@ -103,6 +105,7 @@ fun ChatScreen(
     BackHandler {
         when {
             isWallpaperOpen -> isWallpaperOpen = false
+            isReplyPreviewOpen -> isReplyPreviewOpen = false
             state.isSearchOpen -> viewModel.closeSearch()
             state.isSelectionMode -> viewModel.clearSelection()
             state.isEmojiOpen -> viewModel.closeEmojiPanel()
@@ -143,112 +146,127 @@ fun ChatScreen(
         val haptic = LocalHapticFeedback.current
         val isKeyboardVisible = WindowInsets.ime.getBottom(density) > 0
 
-        // 1. Содержимое чата: сообщения во всю высоту + парящее поле ввода (приподнято на 1 см над навигационной панелью)
-        Column(
+        // 1. Содержимое чата: сообщения во всю высоту, скроллятся ПОД плавающей шапкой и ПОД полем ввода
+        val topListPadding = if (state.pinnedMessage != null) 130.dp else 86.dp
+        val bottomListPadding = if (isKeyboardVisible) 80.dp else 104.dp
+
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
+        ) {
+            MessagesList(
+                messages = state.messages,
+                peerName = session.title,
+                listState = listState,
+                selection = state.selection,
+                firstUnreadId = state.firstUnreadId,
+                topPadding = topListPadding,
+                bottomPadding = bottomListPadding,
+                onClick = { message, topY ->
+                    if (state.isSelectionMode) {
+                        viewModel.toggleSelection(message.id)
+                    } else {
+                        actionMenuAnchorY = topY
+                        viewModel.openActionMenu(message)
+                    }
+                },
+                onLongClick = { message ->
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    if (state.isSelectionMode) {
+                        viewModel.toggleSelection(message.id)
+                    } else {
+                        viewModel.enterSelection(message.id)
+                    }
+                },
+                onSwipeReply = viewModel::startReply,
+                onToggleReaction = viewModel::toggleReaction,
+                onSelectMessage = viewModel::toggleSelection,
+                onRetryMessage = viewModel::retry
+            )
+
+            ScrollDownButton(
+                visible = !state.isSearchOpen && listState.firstVisibleItemIndex > 2,
+                unreadBadge = state.unreadBadge,
+                onClick = {
+                    scope.launch { listState.animateScrollToItem(0) }
+                    viewModel.clearUnreadBadge()
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = if (isKeyboardVisible) 76.dp else 96.dp)
+            )
+
+            // Плавающие круглые кнопки поиска (вверх / вниз по найденным сообщениям) (Фото 6)
+            if (state.isSearchOpen) {
+                ChatSearchNavigationButtons(
+                    canNavigate = state.searchMatches.isNotEmpty(),
+                    onPrevious = viewModel::previousSearchMatch,
+                    onNext = viewModel::nextSearchMatch,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = if (isKeyboardVisible) 76.dp else 96.dp)
+                )
+            }
+        }
+
+        // 1b. Парящее поле ввода поверх списка сообщений (область вокруг прозрачная, сообщения проплывают сквозь неё)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
                 .imePadding()
                 .safeNavigationBarPadding()
                 .padding(bottom = if (isKeyboardVisible) 4.dp else 24.dp)
         ) {
-            // Список сообщений занимает всё пространство от верха до поля ввода (сообщения скроллятся под плавающей шапкой)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                val topListPadding = if (state.pinnedMessage != null) 124.dp else 80.dp
-                MessagesList(
-                    messages = state.messages,
-                    peerName = session.title,
-                    listState = listState,
-                    selection = state.selection,
-                    firstUnreadId = state.firstUnreadId,
-                    topPadding = topListPadding,
-                    onClick = { message, topY ->
-                        if (state.isSelectionMode) {
-                            viewModel.toggleSelection(message.id)
-                        } else {
-                            actionMenuAnchorY = topY
-                            viewModel.openActionMenu(message)
-                        }
-                    },
-                    onLongClick = { message ->
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (state.isSelectionMode) {
-                            viewModel.toggleSelection(message.id)
-                        } else {
-                            viewModel.enterSelection(message.id)
-                        }
-                    },
-                    onSwipeReply = viewModel::startReply,
-                    onToggleReaction = viewModel::toggleReaction,
-                    onSelectMessage = viewModel::toggleSelection,
-                    onRetryMessage = viewModel::retry
-                )
-
-                ScrollDownButton(
-                    visible = !state.isSearchOpen && listState.firstVisibleItemIndex > 2,
-                    unreadBadge = state.unreadBadge,
-                    onClick = {
-                        scope.launch { listState.animateScrollToItem(0) }
-                        viewModel.clearUnreadBadge()
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 12.dp)
-                )
-
-                // Плавающие круглые кнопки поиска (вверх / вниз по найденным сообщениям) (Фото 6)
+            Column(modifier = Modifier.fillMaxWidth()) {
                 if (state.isSearchOpen) {
-                    ChatSearchNavigationButtons(
-                        canNavigate = state.searchMatches.isNotEmpty(),
-                        onPrevious = viewModel::previousSearchMatch,
-                        onNext = viewModel::nextSearchMatch,
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 12.dp)
+                    ChatSearchBottomBar(
+                        counter = state.searchCounter,
+                        onCalendarClick = { },
+                        onListClick = { }
                     )
-                }
-            }
-
-            // В режиме поиска показываем нижний островок поиска (Фото 6), иначе — поле ввода (шаги 2, 3, 16)
-            if (state.isSearchOpen) {
-                ChatSearchBottomBar(
-                    counter = state.searchCounter,
-                    onCalendarClick = { },
-                    onListClick = { }
-                )
-            } else {
-                ChatInputBar(
-                    input = state.input,
-                    canSend = state.canSend,
-                    replyTo = state.replyTo,
-                    editing = state.editing,
-                    recording = state.recording,
-                    isCameraMode = state.isCameraMode,
-                    isEmojiOpen = state.isEmojiOpen,
-                    onInputChange = viewModel::onInputChange,
-                    onSend = viewModel::send,
-                    onCancelReply = viewModel::cancelReply,
-                    onCancelEdit = viewModel::cancelEdit,
-                    onToggleEmoji = viewModel::toggleEmojiPanel,
-                    onOpenAttach = viewModel::openAttach,
-                    onToggleCameraMode = viewModel::toggleCameraMode,
-                    onStartRecording = viewModel::startRecording,
-                    onLockRecording = viewModel::lockRecording,
-                    onCancelRecording = viewModel::cancelRecording,
-                    onStopLockedRecording = viewModel::stopLockedRecording
-                )
-
-                // Панель эмодзи/стикеров под полем ввода (шаг 6)
-                if (state.isEmojiOpen) {
-                    EmojiStickerPanel(
-                        onEmojiClick = viewModel::appendEmoji,
-                        onStickerClick = { symbol, colorSeed ->
-                            viewModel.sendSticker(symbol, colorSeed)
-                        }
+                } else {
+                    ChatInputBar(
+                        input = state.input,
+                        canSend = state.canSend,
+                        replyTo = state.replyTo,
+                        peerName = session.title,
+                        editing = state.editing,
+                        recording = state.recording,
+                        isCameraMode = state.isCameraMode,
+                        isEmojiOpen = state.isEmojiOpen,
+                        onInputChange = viewModel::onInputChange,
+                        onSend = viewModel::send,
+                        onCancelReply = viewModel::cancelReply,
+                        onCancelEdit = viewModel::cancelEdit,
+                        onReplyClick = { replyMsg ->
+                            val index = state.messages.indexOfFirst { it.id == replyMsg.id }
+                            if (index >= 0) {
+                                scope.launch { listState.animateScrollToItem(index) }
+                            }
+                        },
+                        onReplyLongClick = {
+                            isReplyPreviewOpen = true
+                        },
+                        onToggleEmoji = viewModel::toggleEmojiPanel,
+                        onOpenAttach = viewModel::openAttach,
+                        onToggleCameraMode = viewModel::toggleCameraMode,
+                        onStartRecording = viewModel::startRecording,
+                        onLockRecording = viewModel::lockRecording,
+                        onCancelRecording = viewModel::cancelRecording,
+                        onStopLockedRecording = viewModel::stopLockedRecording
                     )
+
+                    // Панель эмодзи/стикеров под полем ввода (шаг 6)
+                    if (state.isEmojiOpen) {
+                        EmojiStickerPanel(
+                            onEmojiClick = viewModel::appendEmoji,
+                            onStickerClick = { symbol, colorSeed ->
+                                viewModel.sendSticker(symbol, colorSeed)
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -448,6 +466,28 @@ fun ChatScreen(
             WallpaperRoute(
                 chatId = session.id,
                 onDismiss = { isWallpaperOpen = false }
+            )
+        }
+
+        // Превью ответа на сообщение при долгом зажатии (Фото 2)
+        if (isReplyPreviewOpen && state.replyTo != null) {
+            ReplyPreviewDialog(
+                chatId = session.id,
+                replyMessage = state.replyTo!!,
+                peerName = session.title,
+                onRemoveReply = {
+                    viewModel.cancelReply()
+                    isReplyPreviewOpen = false
+                },
+                onJumpToMessage = {
+                    val targetId = state.replyTo?.id
+                    val index = state.messages.indexOfFirst { it.id == targetId }
+                    if (index >= 0) {
+                        scope.launch { listState.animateScrollToItem(index) }
+                    }
+                    isReplyPreviewOpen = false
+                },
+                onDismiss = { isReplyPreviewOpen = false }
             )
         }
     }
