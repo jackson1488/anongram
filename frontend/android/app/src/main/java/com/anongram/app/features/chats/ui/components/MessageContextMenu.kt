@@ -66,20 +66,26 @@ internal fun MessageContextMenu(
     val isMyMessage = message.direction == MessageDirection.OUTGOING
     val isEditable = isMyMessage && (System.currentTimeMillis() - message.epochMs) < 48 * 3600_000L
 
+    val isIncoming = message.direction == MessageDirection.INCOMING
+
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.55f))
             .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.BottomCenter
     ) {
         Column(
             modifier = Modifier
-                .width(260.dp)
-                .clickable(enabled = false) {}
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 68.dp),
+            horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
         ) {
+            Column(
+                modifier = Modifier
+                    .width(260.dp)
+                    .clickable(enabled = false) {},
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
             // Полоска быстрых реакций (Фото 2: ❤️, 👍, 👎, 🔥, 🥰, 👏, 😁, ∨)
             Row(
                 modifier = Modifier

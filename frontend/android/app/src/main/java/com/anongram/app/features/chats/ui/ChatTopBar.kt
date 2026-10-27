@@ -20,9 +20,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.NotificationsPaused
 import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.VolumeOff
+import androidx.compose.material.icons.outlined.VolumeUp
+import com.anongram.app.features.chats.ui.components.MuteDurationCustomBottomSheet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -210,6 +217,8 @@ private fun ChatMenu(
     onDeleteChat: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var isNotificationsSubmenu by remember { mutableStateOf(false) }
+    var showMuteDurationSheet by remember { mutableStateOf(false) }
     var showClearHistoryDialog by remember { mutableStateOf(false) }
     var showDeleteChatDialog by remember { mutableStateOf(false) }
 
@@ -218,66 +227,138 @@ private fun ChatMenu(
             icon = Icons.Outlined.MoreVert,
             description = "Меню чата",
             tint = TextSecondary,
-            onClick = { menuOpen = true }
+            onClick = {
+                isNotificationsSubmenu = false
+                menuOpen = true
+            }
         )
 
         // Меню перекрывает саму кнопку трёх точек (offset y = -44.dp)
         DropdownMenu(
             expanded = menuOpen,
-            onDismissRequest = { menuOpen = false },
+            onDismissRequest = {
+                menuOpen = false
+                isNotificationsSubmenu = false
+            },
             offset = DpOffset(x = 0.dp, y = (-44).dp),
             shape = RoundedCornerShape(16.dp),
             containerColor = Color(0xF2161E2D),
             border = BorderStroke(1.dp, CardBorder)
         ) {
-            MenuAction(
-                painter = painterResource(id = R.drawable.ic_video),
-                label = "Видеозвонок"
-            ) {
-                menuOpen = false
-            }
+            if (!isNotificationsSubmenu) {
+                // 1. Уведомления > (Фото 1)
+                MenuAction(
+                    icon = Icons.Outlined.VolumeUp,
+                    label = "Уведомления",
+                    trailing = Icons.AutoMirrored.Outlined.KeyboardArrowRight
+                ) {
+                    isNotificationsSubmenu = true
+                }
 
-            MenuAction(
-                painter = painterResource(id = R.drawable.ic_search),
-                label = "Поиск"
-            ) {
-                menuOpen = false
-                onOpenSearch()
-            }
+                // 2. Видеозвонок
+                MenuAction(
+                    painter = painterResource(id = R.drawable.ic_video),
+                    label = "Видеозвонок"
+                ) {
+                    menuOpen = false
+                }
 
-            MenuAction(
-                painter = painterResource(id = R.drawable.ic_gallery_horizontal_end),
-                label = "Изменить обои"
-            ) {
-                menuOpen = false
-                onCycleWallpaper()
-            }
+                // 3. Поиск
+                MenuAction(
+                    painter = painterResource(id = R.drawable.ic_search),
+                    label = "Поиск"
+                ) {
+                    menuOpen = false
+                    onOpenSearch()
+                }
 
-            MenuAction(
-                painter = painterResource(id = R.drawable.ic_bell),
-                label = "Уведомления"
-            ) {
-                menuOpen = false
-                onOpenNotifications()
-            }
+                // 4. Изменить обои
+                MenuAction(
+                    painter = painterResource(id = R.drawable.ic_gallery_horizontal_end),
+                    label = "Изменить обои"
+                ) {
+                    menuOpen = false
+                    onCycleWallpaper()
+                }
 
-            MenuAction(
-                painter = painterResource(id = R.drawable.ic_broom),
-                label = "Очистить историю"
-            ) {
-                menuOpen = false
-                showClearHistoryDialog = true
-            }
+                // 5. Очистить историю
+                MenuAction(
+                    painter = painterResource(id = R.drawable.ic_broom),
+                    label = "Очистить историю"
+                ) {
+                    menuOpen = false
+                    showClearHistoryDialog = true
+                }
 
-            MenuAction(
-                painter = painterResource(id = R.drawable.ic_trash),
-                label = "Удалить чат",
-                tint = Color(0xFFFF5252)
-            ) {
-                menuOpen = false
-                showDeleteChatDialog = true
+                // 6. Удалить чат
+                MenuAction(
+                    painter = painterResource(id = R.drawable.ic_trash),
+                    label = "Удалить чат",
+                    tint = Color(0xFFFF5252)
+                ) {
+                    menuOpen = false
+                    showDeleteChatDialog = true
+                }
+            } else {
+                // Подменю «Уведомления» (Фото 2)
+                // 1. ← Назад
+                MenuAction(
+                    icon = Icons.AutoMirrored.Filled.ArrowBack,
+                    label = "Назад"
+                ) {
+                    isNotificationsSubmenu = false
+                }
+
+                // 2. Выключить звук
+                MenuAction(
+                    icon = Icons.Outlined.VolumeOff,
+                    label = "Выключить звук"
+                ) {
+                    menuOpen = false
+                    isNotificationsSubmenu = false
+                }
+
+                // 3. Выключить на время... (Фото 3)
+                MenuAction(
+                    icon = Icons.Outlined.NotificationsPaused,
+                    label = "Выключить на время…"
+                ) {
+                    menuOpen = false
+                    isNotificationsSubmenu = false
+                    showMuteDurationSheet = true
+                }
+
+                // 4. Настроить
+                MenuAction(
+                    icon = Icons.Outlined.Tune,
+                    label = "Настроить"
+                ) {
+                    menuOpen = false
+                    isNotificationsSubmenu = false
+                    onOpenNotifications()
+                }
+
+                // 5. Выключить уведомления (красным)
+                MenuAction(
+                    icon = Icons.Outlined.NotificationsOff,
+                    label = "Выключить уведомления",
+                    tint = Color(0xFFFF5252)
+                ) {
+                    menuOpen = false
+                    isNotificationsSubmenu = false
+                }
             }
         }
+    }
+
+    // Bottom-sheet выбора времени отключения уведомлений (Фото 3)
+    if (showMuteDurationSheet) {
+        MuteDurationCustomBottomSheet(
+            onConfirm = { _ ->
+                showMuteDurationSheet = false
+            },
+            onDismiss = { showMuteDurationSheet = false }
+        )
     }
 
     // Диалог подтверждения очистки истории
@@ -467,9 +548,11 @@ private fun DeleteChatDialog(
 
 @Composable
 private fun MenuAction(
-    painter: Painter,
     label: String,
+    painter: Painter? = null,
+    icon: ImageVector? = null,
     tint: Color = TextPrimary,
+    trailing: ImageVector? = null,
     onClick: () -> Unit
 ) {
     DropdownMenuItem(
@@ -477,13 +560,32 @@ private fun MenuAction(
             Text(text = label, color = tint, fontSize = 14.sp, fontWeight = FontWeight.Normal)
         },
         leadingIcon = {
-            Icon(
-                painter = painter,
-                contentDescription = null,
-                tint = if (tint == TextPrimary) TextSecondary else tint,
-                modifier = Modifier.size(19.dp)
-            )
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (tint == TextPrimary) TextSecondary else tint,
+                    modifier = Modifier.size(19.dp)
+                )
+            } else if (painter != null) {
+                Icon(
+                    painter = painter,
+                    contentDescription = null,
+                    tint = if (tint == TextPrimary) TextSecondary else tint,
+                    modifier = Modifier.size(19.dp)
+                )
+            }
         },
+        trailingIcon = if (trailing != null) {
+            {
+                Icon(
+                    imageVector = trailing,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        } else null,
         onClick = onClick,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
     )

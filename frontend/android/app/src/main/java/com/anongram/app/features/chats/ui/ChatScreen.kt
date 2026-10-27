@@ -1,16 +1,22 @@
 package com.anongram.app.features.chats.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -74,6 +80,18 @@ fun ChatScreen(
     val clipboard = LocalClipboardManager.current
     var isWallpaperOpen by remember { mutableStateOf(false) }
 
+    // Затемнение шапки при скролле ленты сообщений вверх
+    val isScrolled by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 10
+        }
+    }
+    val headerScrimAlpha by animateFloatAsState(
+        targetValue = if (isScrolled) 0.72f else 0.32f,
+        animationSpec = tween(durationMillis = 220),
+        label = "headerScrimAlpha"
+    )
+
     // Обработка системной кнопки назад: закрывать открытые панели и модалки по очереди
     BackHandler {
         when {
@@ -118,6 +136,7 @@ fun ChatScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .imePadding()
                 .safeNavigationBarPadding()
         ) {
             // Список сообщений занимает всё пространство от верха до поля ввода (сообщения скроллятся под плавающей шапкой)
@@ -151,7 +170,7 @@ fun ChatScreen(
                 )
 
                 ScrollDownButton(
-                    visible = listState.firstVisibleItemIndex > 2,
+                    visible = !state.isSearchOpen && listState.firstVisibleItemIndex > 2,
                     unreadBadge = state.unreadBadge,
                     onClick = {
                         scope.launch { listState.animateScrollToItem(0) }
@@ -161,42 +180,78 @@ fun ChatScreen(
                         .align(Alignment.BottomEnd)
                         .padding(end = 16.dp, bottom = 12.dp)
                 )
+
+                // Плавающие круглые кнопки поиска (вверх / вниз по найденным сообщениям) (Фото 6)
+                if (state.isSearchOpen) {
+                    ChatSearchNavigationButtons(
+                        canNavigate = state.searchMatches.isNotEmpty(),
+                        onPrevious = viewModel::previousSearchMatch,
+                        onNext = viewModel::nextSearchMatch,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 12.dp)
+                    )
+                }
             }
 
-            // Поле ввода сообщений (шаги 2, 3, 16)
-            ChatInputBar(
-                input = state.input,
-                canSend = state.canSend,
-                replyTo = state.replyTo,
-                editing = state.editing,
-                recording = state.recording,
-                isCameraMode = state.isCameraMode,
-                isEmojiOpen = state.isEmojiOpen,
-                onInputChange = viewModel::onInputChange,
-                onSend = viewModel::send,
-                onCancelReply = viewModel::cancelReply,
-                onCancelEdit = viewModel::cancelEdit,
-                onToggleEmoji = viewModel::toggleEmojiPanel,
-                onOpenAttach = viewModel::openAttach,
-                onToggleCameraMode = viewModel::toggleCameraMode,
-                onStartRecording = viewModel::startRecording,
-                onLockRecording = viewModel::lockRecording,
-                onCancelRecording = viewModel::cancelRecording,
-                onStopLockedRecording = viewModel::stopLockedRecording
-            )
-
-            // Панель эмодзи/стикеров под полем ввода (шаг 6)
-            if (state.isEmojiOpen) {
-                EmojiStickerPanel(
-                    onEmojiClick = viewModel::appendEmoji,
-                    onStickerClick = { symbol, colorSeed ->
-                        viewModel.sendSticker(symbol, colorSeed)
-                    }
+            // В режиме поиска показываем нижний островок поиска (Фото 6), иначе — поле ввода (шаги 2, 3, 16)
+            if (state.isSearchOpen) {
+                ChatSearchBottomBar(
+                    counter = state.searchCounter,
+                    onCalendarClick = { },
+                    onListClick = { }
                 )
+            } else {
+                ChatInputBar(
+                    input = state.input,
+                    canSend = state.canSend,
+                    replyTo = state.replyTo,
+                    editing = state.editing,
+                    recording = state.recording,
+                    isCameraMode = state.isCameraMode,
+                    isEmojiOpen = state.isEmojiOpen,
+                    onInputChange = viewModel::onInputChange,
+                    onSend = viewModel::send,
+                    onCancelReply = viewModel::cancelReply,
+                    onCancelEdit = viewModel::cancelEdit,
+                    onToggleEmoji = viewModel::toggleEmojiPanel,
+                    onOpenAttach = viewModel::openAttach,
+                    onToggleCameraMode = viewModel::toggleCameraMode,
+                    onStartRecording = viewModel::startRecording,
+                    onLockRecording = viewModel::lockRecording,
+                    onCancelRecording = viewModel::cancelRecording,
+                    onStopLockedRecording = viewModel::stopLockedRecording
+                )
+
+                // Панель эмодзи/стикеров под полем ввода (шаг 6)
+                if (state.isEmojiOpen) {
+                    EmojiStickerPanel(
+                        onEmojiClick = viewModel::appendEmoji,
+                        onStickerClick = { symbol, colorSeed ->
+                            viewModel.sendSticker(symbol, colorSeed)
+                        }
+                    )
+                }
             }
         }
 
-        // 2. Плавающая шапка чата поверх сообщений (парящие островки)
+        // 2. Мягкая тёмная вуаль-градиент за плавающей шапкой (усиливается при скролле)
+        val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen) 144.dp else 100.dp
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(scrimHeight)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Black.copy(alpha = headerScrimAlpha),
+                        0.65f to Color.Black.copy(alpha = headerScrimAlpha * 0.65f),
+                        1.0f to Color.Transparent
+                    )
+                )
+        )
+
+        // 3. Плавающая шапка чата поверх сообщений (парящие островки)
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -223,13 +278,9 @@ fun ChatScreen(
                 }
 
                 state.isSearchOpen -> {
-                    ChatSearchPanel(
+                    ChatSearchTopBar(
                         query = state.searchQuery,
-                        counter = state.searchCounter,
-                        canNavigate = state.searchMatches.isNotEmpty(),
                         onQueryChange = viewModel::onSearchQueryChange,
-                        onPrevious = viewModel::previousSearchMatch,
-                        onNext = viewModel::nextSearchMatch,
                         onClose = viewModel::closeSearch
                     )
                 }
@@ -265,12 +316,14 @@ fun ChatScreen(
                 }
             }
 
-            // Закреплённое сообщение (шаг 12, Фото 4)
-            state.pinnedMessage?.let { pinned ->
-                PinnedBar(
-                    text = pinned.text.ifBlank { "Вложение" },
-                    onClick = viewModel::openPinnedMessages
-                )
+            // Закреплённое сообщение (шаг 12, Фото 4) — не показывается в режиме поиска
+            if (!state.isSearchOpen) {
+                state.pinnedMessage?.let { pinned ->
+                    PinnedBar(
+                        text = pinned.text.ifBlank { "Вложение" },
+                        onClick = viewModel::openPinnedMessages
+                    )
+                }
             }
         }
 

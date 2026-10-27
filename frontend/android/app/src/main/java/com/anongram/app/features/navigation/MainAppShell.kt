@@ -151,9 +151,8 @@ fun MainAppShell(
         scope.closeOverlay(archiveProgress) { isArchiveOpen = false }
     }
 
-    val isExpanded = widthSizeClass == WindowWidthSizeClass.Expanded
-    val showDetailPane = selectedSession != null && isExpanded
-    val showDetailOverlay = selectedSession != null && !isExpanded
+    val showDetailPane = false
+    val showDetailOverlay = selectedSession != null
 
     BackHandler(
         enabled = selectedSession != null || isSearchOpen || isContactsOpen ||
