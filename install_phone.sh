@@ -108,20 +108,29 @@ if [ -z "$EXISTING_PHONE" ]; then
     fi
 fi
 
-RAW_DEVICES="$(adb devices | awk 'NR>1 && $2=="device" {print $1}')"
-[ -n "$RAW_DEVICES" ] || error_exit "Нет подключенных устройств по ADB. Включите отладку по USB/Wi-Fi на телефоне и подключите его."
+# Читаем все подключенные устройства
+mapfile -t ALL_DEVICES < <(python3 -c "
+import subprocess, re
+out = subprocess.check_output(['adb', 'devices']).decode()
+for line in out.splitlines()[1:]:
+    m = re.match(r'^(.*?)\s+device$', line.strip())
+    if m:
+        print(m.group(1))
+")
 
-# Выбираем устройства для установки
+[ ${#ALL_DEVICES[@]} -gt 0 ] || error_exit "Нет подключенных устройств по ADB. Включите отладку по USB/Wi-Fi на телефоне и подключите его."
+
+# Сортируем: физические смартфоны в первую очередь, эмуляторы/waydroid следом
 DEVICES_TO_INSTALL=()
-for dev in $RAW_DEVICES; do
-  if [[ "$dev" =~ \._adb-tls-connect\._tcp ]]; then
-    continue
+for dev in "${ALL_DEVICES[@]}"; do
+  if [[ ! "$dev" =~ 192\.168\.240 && ! "$dev" =~ emulator ]]; then
+    DEVICES_TO_INSTALL+=("$dev")
   fi
-  DEVICES_TO_INSTALL+=("$dev")
 done
 
+# Если смартфонов нет в списке, берем Waydroid/эмуляторы
 if [ ${#DEVICES_TO_INSTALL[@]} -eq 0 ]; then
-  DEVICES_TO_INSTALL+=("$(echo "$RAW_DEVICES" | head -1)")
+  DEVICES_TO_INSTALL=("${ALL_DEVICES[@]}")
 fi
 
 ANY_SUCCESS=0
