@@ -178,6 +178,7 @@ internal fun MessageContextMenu(
         }
     }
 }
+}
 
 @Composable
 private fun ContextMenuRow(
