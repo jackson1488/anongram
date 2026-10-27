@@ -46,12 +46,14 @@ class ChatMessagesViewModel(
     init {
         viewModelScope.launch {
             val drafts = chatsRepository.loadDrafts()
-            val loaded = repository.loadMessages(sessionId)
+            val initialPinned = if (sessionId == "2" && loaded.size > 2) listOf(loaded[1].id, loaded[2].id) else emptyList()
             _uiState.update {
                 it.copy(
                     messages = loaded,
                     input = drafts[sessionId] ?: "",
-                    firstUnreadId = loaded.firstOrNull { message -> message.isUnread }?.id
+                    firstUnreadId = loaded.firstOrNull { message -> message.isUnread }?.id,
+                    pinnedIds = initialPinned,
+                    pinnedId = initialPinned.lastOrNull()
                 )
             }
         }
@@ -246,12 +248,27 @@ class ChatMessagesViewModel(
     // --- Закреплённое сообщение (шаг 12) ---
 
     fun pinMessage(messageId: String) {
-        _uiState.update { it.copy(pinnedId = messageId, actionMenuFor = null) }
+        _uiState.update { state ->
+            val pinned = state.pinnedIds.toMutableList()
+            if (!pinned.contains(messageId)) pinned.add(messageId)
+            state.copy(pinnedIds = pinned, pinnedId = messageId, actionMenuFor = null)
+        }
     }
 
-    fun unpinMessage() {
-        _uiState.update { it.copy(pinnedId = null) }
+    fun unpinMessage(messageId: String) {
+        _uiState.update { state ->
+            val pinned = state.pinnedIds.filter { it != messageId }
+            state.copy(pinnedIds = pinned, pinnedId = pinned.lastOrNull())
+        }
     }
+
+    fun unpinAllMessages() {
+        _uiState.update { it.copy(pinnedIds = emptyList(), pinnedId = null, isPinnedMessagesScreenOpen = false) }
+    }
+
+    fun openPinnedMessages() = _uiState.update { it.copy(isPinnedMessagesScreenOpen = true) }
+
+    fun closePinnedMessages() = _uiState.update { it.copy(isPinnedMessagesScreenOpen = false) }
 
     // --- Режим выделения (шаг 10) ---
 
@@ -261,7 +278,12 @@ class ChatMessagesViewModel(
     fun toggleSelection(messageId: String) {
         _uiState.update { state ->
             val next = state.selection.toMutableSet()
-            if (!next.add(messageId)) next.remove(messageId)
+            if (!next.add(messageId)) {
+                next.remove(messageId)
+            } else if (next.size > 100) {
+                // Максимум 100 сообщений
+                return@update state
+            }
             state.copy(selection = next)
         }
     }
@@ -495,7 +517,11 @@ class ChatMessagesViewModel(
 
     fun closeKeyCheck() = _uiState.update { it.copy(isKeyCheckOpen = false) }
 
-    fun openNotifications() = _uiState.update { it.copy(isNotificationsOpen = true) }
+    fun openNotificationsMuteDialog() = _uiState.update { it.copy(isNotificationsMuteDialogOpen = true) }
+
+    fun closeNotificationsMuteDialog() = _uiState.update { it.copy(isNotificationsMuteDialogOpen = false) }
+
+    fun openNotifications() = _uiState.update { it.copy(isNotificationsOpen = true, isNotificationsMuteDialogOpen = false) }
 
     fun closeNotifications() = _uiState.update { it.copy(isNotificationsOpen = false) }
 

@@ -39,6 +39,8 @@ data class ChatMessagesUiState(
     val actionMenuFor: ChatMessage? = null,
     val selection: Set<String> = emptySet(),
     val pinnedId: String? = null,
+    val pinnedIds: List<String> = emptyList(),
+    val isPinnedMessagesScreenOpen: Boolean = false,
     val firstUnreadId: String? = null,
     val unreadBadge: Int = 0,
     val isPeerTyping: Boolean = false,
@@ -54,6 +56,7 @@ data class ChatMessagesUiState(
     val isGeoOpen: Boolean = false,
     val isKeyCheckOpen: Boolean = false,
     val isNotificationsOpen: Boolean = false,
+    val isNotificationsMuteDialogOpen: Boolean = false,
     val wallpaperStyle: Int = 0,
     val selfDestruct: SelfDestruct = SelfDestruct.OFF,
     val isFlagSecure: Boolean = false,
@@ -68,8 +71,11 @@ data class ChatMessagesUiState(
     val selectedMessages: List<ChatMessage>
         get() = messages.filter { it.id in selection }
 
+    val pinnedMessages: List<ChatMessage>
+        get() = messages.filter { it.id in pinnedIds }
+
     val pinnedMessage: ChatMessage?
-        get() = messages.firstOrNull { it.id == pinnedId }
+        get() = messages.firstOrNull { it.id == (pinnedId ?: pinnedIds.lastOrNull()) }
 
     /** «3 из 12» для панели поиска. */
     val searchCounter: String

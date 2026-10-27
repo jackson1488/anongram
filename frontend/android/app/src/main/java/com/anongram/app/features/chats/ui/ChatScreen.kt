@@ -37,7 +37,9 @@ import com.anongram.app.features.chats.ui.components.GeoPickerScreen
 import com.anongram.app.features.chats.ui.components.KeyVerificationDialog
 import com.anongram.app.features.chats.ui.components.MessageContextMenu
 import com.anongram.app.features.chats.ui.components.MessagesList
+import com.anongram.app.features.chats.ui.components.NotificationsMuteDialog
 import com.anongram.app.features.chats.ui.components.NotificationsSettingsDialog
+import com.anongram.app.features.chats.ui.components.PinnedMessagesScreen
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
 import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
@@ -132,7 +134,16 @@ fun ChatScreen(
                     selection = state.selection,
                     firstUnreadId = state.firstUnreadId,
                     topPadding = topListPadding,
-                    onLongClick = viewModel::openActionMenu,
+                    onClick = { message ->
+                        if (state.isSelectionMode) {
+                            viewModel.toggleSelection(message.id)
+                        } else {
+                            viewModel.openActionMenu(message)
+                        }
+                    },
+                    onLongClick = { message ->
+                        viewModel.enterSelection(message.id)
+                    },
                     onSwipeReply = viewModel::startReply,
                     onToggleReaction = viewModel::toggleReaction,
                     onSelectMessage = viewModel::toggleSelection,
@@ -249,22 +260,16 @@ fun ChatScreen(
                             viewModel.clearHistory()
                             onBack()
                         },
-                        onOpenNotifications = viewModel::openNotifications
+                        onOpenNotifications = viewModel::openNotificationsMuteDialog
                     )
                 }
             }
 
-            // Закреплённое сообщение (шаг 12)
+            // Закреплённое сообщение (шаг 12, Фото 4)
             state.pinnedMessage?.let { pinned ->
                 PinnedBar(
                     text = pinned.text.ifBlank { "Вложение" },
-                    onClick = {
-                        val index = state.messages.asReversed().indexOfFirst { it.id == pinned.id }
-                        if (index >= 0) {
-                            scope.launch { listState.animateScrollToItem(index) }
-                        }
-                    },
-                    onUnpin = viewModel::unpinMessage
+                    onClick = viewModel::openPinnedMessages
                 )
             }
         }
@@ -291,10 +296,11 @@ fun ChatScreen(
             )
         }
 
-        // Меню действий по долгому тапу (шаг 9)
+        // Меню действий по тапу на сообщение (шаг 9, Фото 2)
         state.actionMenuFor?.let { message ->
             MessageContextMenu(
                 message = message,
+                isPinned = state.pinnedIds.contains(message.id),
                 onReaction = { emoji ->
                     viewModel.toggleReaction(message.id, emoji)
                     viewModel.closeActionMenu()
@@ -309,7 +315,6 @@ fun ChatScreen(
                     viewModel.forwardMessages(listOf(message.id), session.title)
                 },
                 onPin = { viewModel.pinMessage(message.id) },
-                onSelect = { viewModel.enterSelection(message.id) },
                 onDelete = { viewModel.requestDelete(listOf(message.id)) },
                 onDismiss = viewModel::closeActionMenu
             )
@@ -319,15 +324,52 @@ fun ChatScreen(
         state.deleteDialogFor?.let { targets ->
             DeleteMessageDialog(
                 count = targets.size,
+                peerName = session.title,
                 onConfirm = viewModel::confirmDelete,
                 onDismiss = viewModel::dismissDeleteDialog
             )
         }
 
-        // Диалог настроек уведомлений чата (шаг 8)
+        // Мини-диалог управления уведомлениями (открывается из меню чата)
+        if (state.isNotificationsMuteDialogOpen) {
+            NotificationsMuteDialog(
+                peerName = session.title,
+                onMuteFor = { _ -> },
+                onOpenCustomSettings = viewModel::openNotifications,
+                onDismiss = viewModel::closeNotificationsMuteDialog
+            )
+        }
+
+        // Полноэкранный раздел «Особые уведомления» (Фото 1)
         if (state.isNotificationsOpen) {
             NotificationsSettingsDialog(
+                peerName = session.title,
                 onDismiss = viewModel::closeNotifications
+            )
+        }
+
+        // Экран закреплённых сообщений (Фото 5)
+        if (state.isPinnedMessagesScreenOpen) {
+            PinnedMessagesScreen(
+                chatId = session.id,
+                pinnedMessages = state.pinnedMessages,
+                peerName = session.title,
+                selection = state.selection,
+                onBack = viewModel::closePinnedMessages,
+                onMessageClick = { message ->
+                    if (state.isSelectionMode) {
+                        viewModel.toggleSelection(message.id)
+                    } else {
+                        viewModel.openActionMenu(message)
+                    }
+                },
+                onMessageLongClick = { message ->
+                    viewModel.enterSelection(message.id)
+                },
+                onSelectMessage = viewModel::toggleSelection,
+                onSwipeReply = viewModel::startReply,
+                onToggleReaction = viewModel::toggleReaction,
+                onUnpinAll = viewModel::unpinAllMessages
             )
         }
 

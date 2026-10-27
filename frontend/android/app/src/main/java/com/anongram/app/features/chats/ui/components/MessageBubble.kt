@@ -97,6 +97,7 @@ internal fun MessageBubble(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onQuoteClick: (String) -> Unit = {},
+    onClick: () -> Unit = {},
     onLongClick: () -> Unit = {},
     onSwipeReply: () -> Unit = {},
     onToggleReaction: (String) -> Unit = {},
@@ -202,7 +203,7 @@ internal fun MessageBubble(
                             timeLabel = message.timeLabel(),
                             status = message.status,
                             isIncoming = isIncoming,
-                            onClick = { if (isSelectionMode) onSelect() },
+                            onClick = { if (isSelectionMode) onSelect() else onClick() },
                             onLongClick = onLongClick
                         )
                     } else {
@@ -218,7 +219,7 @@ internal fun MessageBubble(
                                 .widthIn(max = bubbleMaxWidth)
                                 .clip(bubbleShape(item, isIncoming))
                                 .combinedClickable(
-                                    onClick = { if (isSelectionMode) onSelect() },
+                                    onClick = { if (isSelectionMode) onSelect() else onClick() },
                                     onLongClick = onLongClick
                                 )
                         ) {

@@ -46,6 +46,7 @@ internal fun MessagesList(
     selection: Set<String> = emptySet(),
     firstUnreadId: String? = null,
     topPadding: androidx.compose.ui.unit.Dp = 80.dp,
+    onClick: (ChatMessage) -> Unit = {},
     onLongClick: (ChatMessage) -> Unit = {},
     onSwipeReply: (ChatMessage) -> Unit = {},
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
@@ -96,6 +97,7 @@ internal fun MessagesList(
                             }
                         }
                     },
+                    onClick = { onClick(item.message) },
                     onLongClick = { onLongClick(item.message) },
                     onSwipeReply = { onSwipeReply(item.message) },
                     onToggleReaction = { emoji -> onToggleReaction(item.message.id, emoji) },

@@ -16,7 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -37,67 +37,63 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
-import com.anongram.app.core.theme.FlameOrange
-import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 
-private val QUICK_REACTIONS = listOf("👍", "❤️", "🔥", "😂", "😮", "👏")
+private val QUICK_REACTIONS = listOf("❤️", "👍", "👎", "🔥", "🥰", "👏", "😁")
 
 /**
- * Меню действий с сообщением по долгому тапу (шаг 9):
- * затемнение, полоска реакций, пункты меню (Ответить, Копировать, Изменить,
- * Переслать, Закрепить, Выбрать, Удалить).
+ * Всплывающее контекстное меню сообщения по простому тапу (Фото 2):
+ * - Полоска быстрых реакций с шевроном
+ * - Меню действий: Ответить, Копировать, Переслать, Закрепить/Открепить, Удалить
  */
 @Composable
 internal fun MessageContextMenu(
     message: ChatMessage,
+    isPinned: Boolean = false,
     onReaction: (String) -> Unit,
     onReply: () -> Unit,
     onCopy: () -> Unit,
     onEdit: () -> Unit,
     onForward: () -> Unit,
     onPin: () -> Unit,
-    onSelect: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val scheme = LocalAnonGramScheme.current
     val isMyMessage = message.direction == MessageDirection.OUTGOING
     val isEditable = isMyMessage && (System.currentTimeMillis() - message.epochMs) < 48 * 3600_000L
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.65f))
+            .background(Color.Black.copy(alpha = 0.55f))
             .clickable(onClick = onDismiss),
         contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .width(280.dp)
+                .width(260.dp)
                 .clickable(enabled = false) {}
-                .padding(16.dp),
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Полоска быстрых реакций
+            // Полоска быстрых реакций (Фото 2: ❤️, 👍, 👎, 🔥, 🥰, 👏, 😁, ∨)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(CardDark)
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(Color(0xFF21252E))
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 QUICK_REACTIONS.forEach { emoji ->
                     Box(
                         modifier = Modifier
-                            .size(34.dp)
+                            .size(28.dp)
                             .clip(CircleShape)
                             .clickable {
                                 onReaction(emoji)
@@ -105,58 +101,71 @@ internal fun MessageContextMenu(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = emoji, fontSize = 20.sp)
+                        Text(text = emoji, fontSize = 18.sp)
                     }
+                }
+                Box(
+                    modifier = Modifier
+                        .size(26.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF2F3543)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Ещё реакции",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // Меню действий
+            // Меню действий (Фото 2)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(CardDark)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFF21252E))
                     .padding(vertical = 4.dp)
             ) {
-                MenuItem(
+                ContextMenuRow(
                     icon = Icons.Outlined.Reply,
                     label = "Ответить",
                     onClick = { onReply(); onDismiss() }
                 )
-                MenuItem(
+                ContextMenuRow(
                     icon = Icons.Outlined.ContentCopy,
                     label = "Копировать",
                     onClick = { onCopy(); onDismiss() }
                 )
                 if (isEditable) {
-                    MenuItem(
+                    ContextMenuRow(
                         icon = Icons.Outlined.Edit,
                         label = "Изменить",
                         onClick = { onEdit(); onDismiss() }
                     )
                 }
-                MenuItem(
+                ContextMenuRow(
                     icon = Icons.Outlined.Share,
                     label = "Переслать",
                     onClick = { onForward(); onDismiss() }
                 )
-                MenuItem(
+                ContextMenuRow(
                     icon = Icons.Outlined.PushPin,
-                    label = "Закрепить",
+                    label = if (isPinned) "Открепить" else "Закрепить",
                     onClick = { onPin(); onDismiss() }
                 )
-                MenuItem(
-                    icon = Icons.Outlined.CheckCircle,
-                    label = "Выбрать",
-                    onClick = { onSelect(); onDismiss() }
+                HorizontalDivider(
+                    color = CardBorder,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(vertical = 2.dp)
                 )
-                HorizontalDivider(color = CardBorder, thickness = 0.5.dp)
-                MenuItem(
+                ContextMenuRow(
                     icon = Icons.Outlined.Delete,
                     label = "Удалить",
-                    color = FlameOrange,
+                    color = Color(0xFFFF5252),
                     onClick = { onDelete(); onDismiss() }
                 )
             }
@@ -165,7 +174,7 @@ internal fun MessageContextMenu(
 }
 
 @Composable
-private fun MenuItem(
+private fun ContextMenuRow(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
@@ -182,13 +191,13 @@ private fun MenuItem(
             imageVector = icon,
             contentDescription = label,
             tint = color,
-            modifier = Modifier.size(19.dp)
+            modifier = Modifier.size(20.dp)
         )
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(16.dp))
         Text(
             text = label,
             color = color,
-            fontSize = 14.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Normal
         )
     }
