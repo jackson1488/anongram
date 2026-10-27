@@ -2,17 +2,22 @@ package com.anongram.app.features.chats.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -34,6 +39,7 @@ import com.anongram.app.features.chats.ui.components.MessageContextMenu
 import com.anongram.app.features.chats.ui.components.MessagesList
 import com.anongram.app.features.chats.ui.components.NotificationsSettingsDialog
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
+import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.launch
 
@@ -64,10 +70,12 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
+    var isWallpaperOpen by remember { mutableStateOf(false) }
 
     // Обработка системной кнопки назад: закрывать открытые панели и модалки по очереди
     BackHandler {
         when {
+            isWallpaperOpen -> isWallpaperOpen = false
             state.isSearchOpen -> viewModel.closeSearch()
             state.isSelectionMode -> viewModel.clearSelection()
             state.isEmojiOpen -> viewModel.closeEmojiPanel()
@@ -150,7 +158,7 @@ fun ChatScreen(
                         selfDestruct = state.selfDestruct,
                         onBack = onBack,
                         onOpenSearch = viewModel::openSearch,
-                        onCycleWallpaper = viewModel::cycleWallpaper,
+                        onCycleWallpaper = { isWallpaperOpen = true },
                         onOpenKeyCheck = viewModel::openKeyCheck,
                         onSelfDestruct = {
                             val next = when (state.selfDestruct) {
@@ -319,6 +327,21 @@ fun ChatScreen(
             KeyVerificationDialog(
                 peerName = session.title,
                 onDismiss = viewModel::closeKeyCheck
+            )
+        }
+
+        // Модальное окно выбора темы обоев (Telegram-style, модуль wallpapers)
+        if (isWallpaperOpen) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { isWallpaperOpen = false }
+            )
+            WallpaperRoute(
+                chatId = session.id,
+                onDismiss = { isWallpaperOpen = false },
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }

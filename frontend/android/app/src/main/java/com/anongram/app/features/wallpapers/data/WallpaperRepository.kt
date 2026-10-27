@@ -33,6 +33,12 @@ interface WallpaperRepository : WallpaperProvider {
      * Получить разрешённые обои однократно (с учётом приоритетов).
      */
     suspend fun getResolved(chatId: String): ResolvedWallpaper
+
+    /**
+     * Установить временные обои для мгновенного живого превью за окном выбора (не сохраняя в БД).
+     * Передача null сбрасывает живое превью к сохранённым обоям.
+     */
+    fun setPreview(chatId: String, preview: ResolvedWallpaper?)
 }
 
 /**
@@ -51,6 +57,8 @@ class LocalWallpaperRepository(
     private val mutex = Mutex()
     // Карта кэша: chatId (или "__common__" для null) -> Wallpaper
     private val _wallpapersState = MutableStateFlow<Map<String, Wallpaper>>(emptyMap())
+    // Карта живого превью для открытых экранов/диалогов выбора
+    private val _previewState = MutableStateFlow<Map<String, ResolvedWallpaper>>(emptyMap())
 
     init {
         scope.launch {
@@ -64,13 +72,25 @@ class LocalWallpaperRepository(
         _wallpapersState.value = map
     }
 
+    override fun setPreview(chatId: String, preview: ResolvedWallpaper?) {
+        val next = _previewState.value.toMutableMap()
+        if (preview == null) {
+            next.remove(chatId)
+        } else {
+            next[chatId] = preview
+        }
+        _previewState.value = next
+    }
+
     override fun observe(chatId: String): Flow<ResolvedWallpaper> {
-        return _wallpapersState.asStateFlow().map { map ->
-            resolveFromMap(chatId, map)
+        return kotlinx.coroutines.flow.combine(_wallpapersState, _previewState) { wallpapers, previews ->
+            previews[chatId] ?: resolveFromMap(chatId, wallpapers)
         }
     }
 
     override suspend fun getResolved(chatId: String): ResolvedWallpaper {
+        val preview = _previewState.value[chatId]
+        if (preview != null) return preview
         val map = _wallpapersState.value
         return resolveFromMap(chatId, map)
     }
