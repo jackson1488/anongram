@@ -113,40 +113,45 @@ fi
 RAW_DEVICES="$(adb devices | awk 'NR>1 && $2=="device" {print $1}')"
 [ -n "$RAW_DEVICES" ] || error_exit "Нет подключенных устройств по ADB. Включите отладку по USB/Wi-Fi на телефоне и подключите его."
 
-# Выбираем физическое устройство (исключаем waydroid/эмулятор при наличии реального телефона, отдаем приоритет IP или USB)
-TARGET_DEV=""
+# Выбираем устройства для установки
+DEVICES_TO_INSTALL=()
 for dev in $RAW_DEVICES; do
-  MODEL="$(adb -s "$dev" shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
-  # Пропускаем mDNS дубликаты, если есть прямой IP адрес
   if [[ "$dev" =~ \._adb-tls-connect\._tcp ]]; then
     continue
   fi
-  TARGET_DEV="$dev"
-  DEVICE_NAME="$MODEL ($dev)"
-  break
+  DEVICES_TO_INSTALL+=("$dev")
 done
 
-if [ -z "$TARGET_DEV" ]; then
-  # Если остался только mDNS
-  TARGET_DEV="$(echo "$RAW_DEVICES" | head -1)"
-  DEVICE_NAME="$(adb -s "$TARGET_DEV" shell getprop ro.product.model 2>/dev/null | tr -d '\r') ($TARGET_DEV)"
+if [ ${#DEVICES_TO_INSTALL[@]} -eq 0 ]; then
+  DEVICES_TO_INSTALL+=("$(echo "$RAW_DEVICES" | head -1)")
 fi
 
-echo "🎯 Выбрано устройство: $DEVICE_NAME"
-notify "AnonGram" "Установка $VERSION_INFO на $DEVICE_NAME..."
+ANY_SUCCESS=0
+for TARGET_DEV in "${DEVICES_TO_INSTALL[@]}"; do
+  MODEL="$(adb -s "$TARGET_DEV" shell getprop ro.product.model 2>/dev/null | tr -d '\r')"
+  DEVICE_NAME="$MODEL ($TARGET_DEV)"
+  echo "🎯 Устройство: $DEVICE_NAME"
+  notify "AnonGram" "Установка $VERSION_INFO на $DEVICE_NAME..."
 
-# 4. Установка APK на устройство
-echo "🚀 Установка $ROOT_APK на $TARGET_DEV..."
-INSTALL_RES="$(adb -s "$TARGET_DEV" install -r -d "$ROOT_APK" 2>&1 || true)"
-echo "$INSTALL_RES"
+  echo "🚀 Установка $ROOT_APK на $TARGET_DEV..."
+  INSTALL_RES="$(adb -s "$TARGET_DEV" install -r -d "$ROOT_APK" 2>&1 || true)"
+  echo "$INSTALL_RES"
 
-if echo "$INSTALL_RES" | grep -q "Success"; then
-  echo "🎉 Успешно установлено!"
-  # Запуск приложения на телефоне
-  adb -s "$TARGET_DEV" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
-  notify "AnonGram установлен!" "Версия $VERSION_INFO успешно запущена на смартфоне"
-elif echo "$INSTALL_RES" | grep -q "INSTALL_FAILED_USER_RESTRICTED"; then
-  error_exit "Установка заблокирована устройством. Включите на телефоне в 'Для разработчиков' пункт 'Установка через USB' и подтвердите запрос на экране."
+  if echo "$INSTALL_RES" | grep -q "Success"; then
+    echo "🎉 Успешно установлено на $DEVICE_NAME!"
+    adb -s "$TARGET_DEV" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1 || true
+    notify "AnonGram установлен!" "Версия $VERSION_INFO запущена на $DEVICE_NAME"
+    ANY_SUCCESS=1
+  elif echo "$INSTALL_RES" | grep -q "INSTALL_FAILED_USER_RESTRICTED"; then
+    echo "⚠️ Установка на $DEVICE_NAME заблокирована: включите 'Установка через USB' в настройках разработчика."
+  else
+    echo "❌ Ошибка при установке на $DEVICE_NAME: $INSTALL_RES"
+  fi
+done
+
+if [ $ANY_SUCCESS -eq 1 ]; then
+  echo "✅ Установка завершена!"
 else
-  error_exit "Ошибка при установке:\n$INSTALL_RES"
+  error_exit "Не удалось установить ни на одно устройство."
 fi
+
