@@ -496,7 +496,7 @@ private fun InteractiveReplyBubble(
             }
         }
 
-        is MessageAttachment.Location -> {
+        is MessageAttachment.Geo -> {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
@@ -519,7 +519,7 @@ private fun InteractiveReplyBubble(
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
-                        text = attachment.address ?: "${attachment.latitude}, ${attachment.longitude}",
+                        text = attachment.address,
                         color = TextPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.weight(1f),
