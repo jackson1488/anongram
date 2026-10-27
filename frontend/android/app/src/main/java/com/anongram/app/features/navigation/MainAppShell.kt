@@ -47,7 +47,7 @@ import com.anongram.app.features.chats.search.ChatSearchViewModel
 import com.anongram.app.features.chats.state.ChatListViewModel
 import com.anongram.app.features.chats.messages.data.InMemoryChatMessagesRepository
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
-import com.anongram.app.features.chats.messages.ui.ChatScreen
+import com.anongram.app.features.chats.ui.ChatScreen
 import com.anongram.app.features.contacts.common.Contact
 import com.anongram.app.features.contacts.data.ContactRepository
 import com.anongram.app.features.contacts.data.InMemoryContactRepository

@@ -142,4 +142,12 @@ class InMemoryChatListRepository : ChatListRepository {
             }
         }
     }
+
+    private val drafts = mutableMapOf<String, String>()
+
+    override suspend fun saveDraft(sessionId: String, text: String) {
+        if (text.isBlank()) drafts.remove(sessionId) else drafts[sessionId] = text
+    }
+
+    override suspend fun loadDrafts(): Map<String, String> = drafts.toMap()
 }

@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.messages.ui.components
+package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,20 +9,25 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
+import com.anongram.app.core.theme.CyberCyan
+import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.TextSecondary
 
-/** Плавающая кнопка «прокрутить вниз» над полем ввода (как в Telegram). */
+/** Кнопка «вниз» (шаг 13): круглая, справа над полем, с бейджем непрочитанных. */
 @Composable
 internal fun ScrollDownButton(
     visible: Boolean,
+    unreadBadge: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -48,6 +53,23 @@ internal fun ScrollDownButton(
                 tint = TextSecondary,
                 modifier = Modifier.size(22.dp)
             )
+            if (unreadBadge > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(CyberCyan),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (unreadBadge > 99) "99+" else unreadBadge.toString(),
+                        color = ObsidianBlack,
+                        fontSize = 8.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.Black
+                    )
+                }
+            }
         }
     }
 }

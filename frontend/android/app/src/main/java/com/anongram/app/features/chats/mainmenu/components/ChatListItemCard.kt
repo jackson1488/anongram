@@ -44,6 +44,7 @@ internal fun ChatListItemCard(
     timeLabel: String,
     selectionMode: Boolean,
     isSelected: Boolean,
+    draftText: String? = null,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -117,8 +118,14 @@ internal fun ChatListItemCard(
                     modifier = Modifier.size(13.dp)
                 )
                 Text(
-                    text = session.lastMessagePreview.ifEmpty { "История очищена" },
-                    color = if (session.lastMessagePreview.isEmpty()) TextMuted else TextSecondary,
+                    text = draftText?.let { "Черновик: $it" }
+                        ?: session.lastMessagePreview.ifEmpty { "История очищена" },
+                    color = when {
+                        draftText != null -> LocalAnonGramScheme.current.accent
+                        session.lastMessagePreview.isEmpty() -> TextMuted
+                        else -> TextSecondary
+                    },
+                    fontStyle = if (draftText != null) androidx.compose.ui.text.font.FontStyle.Italic else null,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

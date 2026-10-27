@@ -8,6 +8,7 @@ import com.anongram.app.features.chats.common.IChatSession
  */
 data class ChatListUiState(
     val sessions: List<IChatSession> = emptyList(),
+    val drafts: Map<String, String> = emptyMap(),
     val isLoading: Boolean = true,
     val onionCircuitOnline: Boolean = true,
     val selectedIds: Set<String> = emptySet(),

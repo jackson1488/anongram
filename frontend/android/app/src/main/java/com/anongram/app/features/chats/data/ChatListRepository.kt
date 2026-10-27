@@ -34,4 +34,8 @@ interface ChatListRepository {
 
     /** Возвращает существующий личный чат по отпечатку либо создаёт новый. */
     suspend fun findOrCreateDirectChat(name: String, fingerprint: String): IChatSession
+
+    /** Черновики ввода по чатам: сохраняются из экрана чата, видны в списке. */
+    suspend fun saveDraft(sessionId: String, text: String)
+    suspend fun loadDrafts(): Map<String, String>
 }

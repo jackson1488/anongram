@@ -211,6 +211,7 @@ fun ChatsMainMenuScreen(
                                 },
                                 selectionMode = state.isSelection,
                                 isSelected = session.id in state.selectedIds,
+                                draftText = state.drafts[session.id],
                                 onClick = {
                                     if (state.isSelection) {
                                         viewModel.toggleSelection(session.id)

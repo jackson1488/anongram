@@ -1,20 +1,20 @@
-package com.anongram.app.features.chats.messages.ui.components
+package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -28,29 +28,40 @@ import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
+import kotlinx.coroutines.launch
 
 /** Окно между сообщениями одной группы — 2dp, между группами — 8dp. */
 private const val GROUP_GAP_MS = 5 * 60_000L
 
 /**
- * Список сообщений (логика Telegram): reverseLayout — новейшие внизу,
- * группировка подряд идущих сообщений одного направления, дат-чипы при
- * смене суток, отступы 2/8dp внутри и между группами.
+ * Список сообщений (шаги 1, 9–11, 13): reverseLayout — новейшие внизу,
+ * группировка одного автора, дат-чипы при смене суток, разделитель непрочитанных,
+ * тап по цитате скроллит к оригиналу, выделение, свайп для ответа.
  */
 @Composable
 internal fun MessagesList(
     messages: List<ChatMessage>,
+    peerName: String,
     listState: LazyListState,
-    onReply: (ChatMessage) -> Unit,
-    onCopy: (String) -> Unit,
-    onDelete: (ChatMessage) -> Unit
+    selection: Set<String> = emptySet(),
+    firstUnreadId: String? = null,
+    onLongClick: (ChatMessage) -> Unit = {},
+    onSwipeReply: (ChatMessage) -> Unit = {},
+    onToggleReaction: (String, String) -> Unit = { _, _ -> },
+    onSelectMessage: (String) -> Unit = {},
+    onRetryMessage: (String) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
         return
     }
 
-    val renderItems = remember(messages) { buildRenderItems(messages) }
+    val renderItems = remember(messages, firstUnreadId) { buildRenderItems(messages, firstUnreadId) }
+    val displayIndexById = remember(renderItems) {
+        renderItems.withIndex().associate { (index, item) -> item.message.id to index }
+    }
+    val messageById = remember(messages) { messages.associateBy { it.id } }
+    val scope = rememberCoroutineScope()
 
     LazyColumn(
         state = listState,
@@ -66,18 +77,36 @@ internal fun MessagesList(
                 if (item.dateChipAbove) {
                     DateChip(epochMs = item.message.epochMs)
                 }
+
+                if (item.unreadDividerAbove) {
+                    UnreadDivider()
+                }
+
                 MessageBubble(
                     item = item,
-                    onReply = onReply,
-                    onCopy = onCopy,
-                    onDelete = onDelete
+                    replyTo = item.message.replyToId?.let { originalId -> messageById[originalId] },
+                    peerName = peerName,
+                    isSelectionMode = selection.isNotEmpty(),
+                    isSelected = item.message.id in selection,
+                    onQuoteClick = { originalId ->
+                        displayIndexById[originalId]?.let { index ->
+                            scope.launch {
+                                listState.animateScrollToItem(index = index)
+                            }
+                        }
+                    },
+                    onLongClick = { onLongClick(item.message) },
+                    onSwipeReply = { onSwipeReply(item.message) },
+                    onToggleReaction = { emoji -> onToggleReaction(item.message.id, emoji) },
+                    onSelect = { onSelectMessage(item.message.id) },
+                    onRetry = { onRetryMessage(item.message.id) }
                 )
             }
         }
     }
 }
 
-private fun buildRenderItems(messages: List<ChatMessage>): List<MessageRenderItem> =
+private fun buildRenderItems(messages: List<ChatMessage>, firstUnreadId: String?): List<MessageRenderItem> =
     messages.mapIndexed { index, message ->
         val previous = messages.getOrNull(index - 1)
         val next = messages.getOrNull(index + 1)
@@ -90,6 +119,7 @@ private fun buildRenderItems(messages: List<ChatMessage>): List<MessageRenderIte
         MessageRenderItem(
             message = message,
             dateChipAbove = previous == null || !isSameDay(previous.epochMs, message.epochMs),
+            unreadDividerAbove = message.id == firstUnreadId,
             isFirstInGroup = !groupedWithPrev,
             isLastInGroup = !groupedWithNext,
             spacingAboveDp = if (groupedWithPrev) 2 else 8
@@ -105,20 +135,20 @@ private fun EmptyThreadHint() {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            androidx.compose.material3.Icon(
+            Icon(
                 painter = painterResource(id = R.drawable.ic_stat_anongram),
                 contentDescription = null,
                 tint = CyberTeal.copy(alpha = 0.7f),
                 modifier = Modifier.size(48.dp)
             )
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.padding(top = 12.dp))
             Text(
                 text = "Сообщений пока нет",
                 color = TextPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
             )
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.padding(top = 6.dp))
             Text(
                 text = "Напишите первое зашифрованное сообщение",
                 color = TextSecondary,

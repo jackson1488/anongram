@@ -8,26 +8,40 @@ import java.util.Locale
 enum class MessageDirection { INCOMING, OUTGOING }
 
 /**
- * Жизненный цикл исходящего сообщения (как в Telegram):
- * часы (SENDING) → одинарная галочка (SENT) → двойная (READ).
+ * Жизненный цикл исходящего сообщения: часы (SENDING) → галочка (SENT) →
+ * двойная (READ). FAILED — красный «!», тап = повторить.
  */
-enum class MessageStatus { SENDING, SENT, READ }
+enum class MessageStatus { SENDING, SENT, READ, FAILED }
 
-/** Сообщение переписки. replyToSnippet — цитата ответа, показывается в пузыре. */
+/**
+ * Сообщение переписки: текст, вложение, цитата-ответ (replyToId), пометка
+ * «изменено», пересылка (forwardedFrom), реакции (эмодзи → счётчик),
+ * непрочитанность для разделителя «Непрочитанные сообщения».
+ */
 data class ChatMessage(
     val id: String,
     val direction: MessageDirection,
-    val text: String,
+    val text: String = "",
     val epochMs: Long,
     val status: MessageStatus = MessageStatus.READ,
-    val replyToSnippet: String? = null
-)
+    val replyToId: String? = null,
+    val isEdited: Boolean = false,
+    val isUnread: Boolean = false,
+    val forwardedFrom: String? = null,
+    val attachment: MessageAttachment? = null,
+    val linkPreview: LinkPreview? = null,
+    val reactions: Map<String, Int> = emptyMap(),
+    val myReaction: String? = null
+) {
+    val isStickerOnly: Boolean
+        get() = attachment is MessageAttachment.Sticker && text.isBlank()
+}
 
 fun ChatMessage.timeLabel(): String =
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern("HH:mm"))
 
-/** Заголовок дат-чипа над группой сообщений: «Сегодня», «Вчера» или «12 марта». */
+/** Заголовок дат-чипа над группой: «Сегодня», «Вчера» или «27 октября». */
 fun epochDateLabel(epochMs: Long): String {
     val zone = ZoneId.systemDefault()
     val date = Instant.ofEpochMilli(epochMs).atZone(zone).toLocalDate()

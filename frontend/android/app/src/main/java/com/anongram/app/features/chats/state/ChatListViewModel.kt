@@ -32,7 +32,8 @@ class ChatListViewModel(private val repository: ChatListRepository) : ViewModel(
     fun refresh() {
         viewModelScope.launch {
             val loaded = repository.loadSessions()
-            _uiState.update { it.copy(sessions = loaded, isLoading = false) }
+            val drafts = repository.loadDrafts()
+            _uiState.update { it.copy(sessions = loaded, drafts = drafts, isLoading = false) }
         }
     }
 

@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.messages.ui.components
+package com.anongram.app.features.chats.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -23,15 +24,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
 
-/** Полоса ответа над полем ввода: акцентная планка, цитата, крестик отмены. */
+/**
+ * Закреплённое сообщение (шаг 12): вертикальная полоска, подпись
+ * «Закреплённое сообщение», текст; тап — скролл к нему, крестик — открепить.
+ */
 @Composable
-internal fun ReplyBar(
-    snippet: String,
-    onClose: () -> Unit,
+internal fun PinnedBar(
+    text: String,
+    onClick: () -> Unit,
+    onUnpin: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -39,27 +45,30 @@ internal fun ReplyBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(com.anongram.app.core.theme.CardDark)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 2.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(IslandBackground)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
                 .width(3.dp)
-                .height(34.dp)
+                .height(30.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(scheme.accent)
         )
         Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "В ответ",
+                text = "Закреплённое сообщение",
                 color = scheme.accent,
-                fontSize = 11.sp,
+                fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = snippet,
+                text = text,
                 color = TextPrimary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -68,11 +77,11 @@ internal fun ReplyBar(
         }
         Icon(
             imageVector = Icons.Default.Close,
-            contentDescription = "Отменить ответ",
+            contentDescription = "Открепить",
             tint = TextSecondary,
             modifier = Modifier
-                .padding(4.dp)
-                .clickable(onClick = onClose)
+                .size(16.dp)
+                .clickable(onClick = onUnpin)
         )
     }
 }
