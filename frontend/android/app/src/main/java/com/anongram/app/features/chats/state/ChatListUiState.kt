@@ -32,6 +32,16 @@ data class ChatListUiState(
     /** Пилюля архива существует только при непустом архиве. */
     val hasArchived: Boolean get() = archivedSessions.isNotEmpty()
 
+    /** Превью строки архива: до двух названий через запятую + «и ещё N». */
+    val archivePreview: String
+        get() {
+            val titles = archivedSessions.map { it.title }
+            return when {
+                titles.size <= 2 -> titles.joinToString(", ")
+                else -> "${titles[0]}, ${titles[1]} и ещё ${titles.size - 2}"
+            }
+        }
+
     val isSelection: Boolean get() = selectedIds.isNotEmpty()
 
     val selectedSessions: List<IChatSession>

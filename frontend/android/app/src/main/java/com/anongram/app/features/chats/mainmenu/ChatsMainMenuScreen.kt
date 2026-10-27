@@ -2,7 +2,6 @@ package com.anongram.app.features.chats.mainmenu
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,7 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
@@ -22,8 +21,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -75,6 +79,53 @@ fun ChatsMainMenuScreen(
         viewModel.setArchiveCollapsed(collapsed)
     }
 
+    // Жесты архива через nestedScroll (как в Telegram): тяга вверх при верхнем
+    // положении списка сворачивает пилюлю, тяга вниз с самого верха — раскрывает.
+    val archiveScrollConnection = remember(state.hasArchived, pillTravelPx) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (!state.hasArchived || available.y >= 0f) return Offset.Zero
+                val atTop = listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+                if (!atTop || archiveHideProgress.value >= 1f) return Offset.Zero
+                val neededPx = (1f - archiveHideProgress.value) * pillTravelPx
+                val consumePx = minOf(neededPx, -available.y)
+                scope.launch {
+                    archiveHideProgress.snapTo(
+                        (archiveHideProgress.value + consumePx / pillTravelPx).coerceIn(0f, 1f)
+                    )
+                }
+                return Offset(0f, -consumePx)
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (!state.hasArchived || available.y <= 0f) return Offset.Zero
+                val atTop = listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+                if (!atTop) return Offset.Zero
+                val neededPx = archiveHideProgress.value * pillTravelPx
+                val consumePx = minOf(neededPx, available.y)
+                scope.launch {
+                    archiveHideProgress.snapTo(
+                        (archiveHideProgress.value - consumePx / pillTravelPx).coerceIn(0f, 1f)
+                    )
+                }
+                return Offset(0f, consumePx)
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                if (state.hasArchived) {
+                    requestArchiveCollapse(archiveHideProgress.value > 0.5f)
+                }
+                return Velocity.Zero
+            }
+        }
+    }
+
     BackHandler(enabled = state.isSelection) {
         viewModel.clearSelection()
     }
@@ -92,19 +143,26 @@ fun ChatsMainMenuScreen(
                 isArchiveMode = false,
                 onClose = viewModel::clearSelection,
                 onTogglePin = viewModel::onTogglePinAction,
-                onMute = viewModel::onMuteAction,
                 onDelete = viewModel::onDeleteAction,
+                onMute = viewModel::onMuteAction,
                 onArchive = { viewModel.archiveSelected(true) },
                 onMarkRead = viewModel::onMarkReadAction,
                 onClearHistory = viewModel::onClearHistoryAction
             )
         } else {
-            ChatsTopBar(onOpenSearch = onOpenSearch)
+            ChatsTopBar(
+                onOpenSearch = onOpenSearch,
+                onEnterSelection = { viewModel.selectAllSessions(archived = false) }
+            )
         }
 
         if (!state.onionCircuitOnline) OnionOfflineBanner()
 
-        Box(modifier = Modifier.weight(1f)) {
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .nestedScroll(archiveScrollConnection)
+        ) {
             when {
                 state.isLoading -> Box(
                     modifier = Modifier.fillMaxSize(),
@@ -119,25 +177,7 @@ fun ChatsMainMenuScreen(
 
                 else -> LazyColumn(
                     state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(state.hasArchived) {
-                            detectVerticalDragGestures(
-                                onVerticalDrag = { change, dragAmount ->
-                                    change.consume()
-                                    if (!state.hasArchived) return@detectVerticalDragGestures
-                                    if (listState.firstVisibleItemIndex > 0) return@detectVerticalDragGestures
-                                    // Свайп вверх (dragAmount < 0) прячет архив, вниз — показывает.
-                                    val delta = -dragAmount / pillTravelPx
-                                    val next = (archiveHideProgress.value + delta).coerceIn(0f, 1f)
-                                    scope.launch { archiveHideProgress.snapTo(next) }
-                                },
-                                onDragEnd = {
-                                    if (!state.hasArchived) return@detectVerticalDragGestures
-                                    requestArchiveCollapse(archiveHideProgress.value > 0.5f)
-                                }
-                            )
-                        },
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
@@ -153,6 +193,7 @@ fun ChatsMainMenuScreen(
                             ) {
                                 ArchivePill(
                                     chatCount = state.archivedSessions.size,
+                                    preview = state.archivePreview,
                                     onClick = onOpenArchive
                                 )
                             }
@@ -162,10 +203,7 @@ fun ChatsMainMenuScreen(
                     if (state.activeSessions.isEmpty() && !state.hasArchived) {
                         item(key = "empty") { EmptyChatsState() }
                     } else {
-                        itemsIndexed(
-                            state.activeSessions,
-                            key = { _, session -> session.id }
-                        ) { index, session ->
+                        items(state.activeSessions, key = { it.id }) { session ->
                             ChatListItemCard(
                                 session = session,
                                 timeLabel = remember(session.id, session.lastMessageEpochMs) {
@@ -173,7 +211,6 @@ fun ChatsMainMenuScreen(
                                 },
                                 selectionMode = state.isSelection,
                                 isSelected = session.id in state.selectedIds,
-                                showDivider = index < state.activeSessions.lastIndex,
                                 onClick = {
                                     if (state.isSelection) {
                                         viewModel.toggleSelection(session.id)

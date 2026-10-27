@@ -5,32 +5,37 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.CleaningServices
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DoneAll
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.outlined.VolumeOff
 import androidx.compose.material.icons.outlined.VolumeUp
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
+import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.SurfaceDark
@@ -39,8 +44,9 @@ import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeStatusBarPadding
 
 /**
- * Панель режима выбора (Telegram-style): закрыть · счётчик · закрепить ·
- * без звука · корзина | архив/из архива · прочитано · очистить историю.
+ * Панель режима выбора (как в Telegram): крестик выхода слева, счётчик,
+ * справа — закрепить, корзина и три точки. Внутри точек: Без звука,
+ * В архив / Из архива, Прочитано, Очистить историю.
  */
 @Composable
 internal fun SelectionTopBar(
@@ -50,14 +56,15 @@ internal fun SelectionTopBar(
     isArchiveMode: Boolean,
     onClose: () -> Unit,
     onTogglePin: () -> Unit,
-    onMute: () -> Unit,
     onDelete: () -> Unit,
+    onMute: () -> Unit,
     onArchive: () -> Unit,
     onMarkRead: () -> Unit,
     onClearHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    var menuOpen by remember { mutableStateOf(false) }
 
     Row(
         modifier = modifier
@@ -69,8 +76,8 @@ internal fun SelectionTopBar(
     ) {
         IconButton(onClick = onClose) {
             Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Закрыть режим выбора",
+                imageVector = Icons.Outlined.Close,
+                contentDescription = "Выйти из режима выбора",
                 tint = TextSecondary,
                 modifier = Modifier.size(22.dp)
             )
@@ -81,7 +88,7 @@ internal fun SelectionTopBar(
             color = TextPrimary,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(start = 4.dp)
+            modifier = Modifier.padding(start = 2.dp)
         )
 
         Spacer(modifier = Modifier.weight(1f))
@@ -105,38 +112,49 @@ internal fun SelectionTopBar(
             onClick = onDelete
         )
 
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 4.dp)
-                .width(1.dp)
-                .height(24.dp)
-                .background(CardBorder)
-        )
-
-        SelectionIcon(
-            icon = if (isArchiveMode) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
-            description = if (isArchiveMode) "Убрать из архива" else "В архив",
-            tint = TextSecondary,
-            onClick = onArchive
-        )
-        SelectionIcon(
-            icon = Icons.Outlined.DoneAll,
-            description = "Отметить прочитанным",
-            tint = TextSecondary,
-            onClick = onMarkRead
-        )
-        SelectionIcon(
-            icon = Icons.Outlined.CleaningServices,
-            description = "Очистить историю",
-            tint = TextSecondary,
-            onClick = onClearHistory
-        )
+        Box {
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = "Действия выбора",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            DropdownMenu(
+                expanded = menuOpen,
+                onDismissRequest = { menuOpen = false },
+                containerColor = CardDark
+            ) {
+                MenuAction(
+                    icon = if (isArchiveMode) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
+                    label = if (isArchiveMode) "Из архива" else "В архив"
+                ) {
+                    menuOpen = false
+                    onArchive()
+                }
+                MenuAction(
+                    icon = Icons.Outlined.DoneAll,
+                    label = "Прочитано"
+                ) {
+                    menuOpen = false
+                    onMarkRead()
+                }
+                MenuAction(
+                    icon = Icons.Outlined.CleaningServices,
+                    label = "Очистить историю"
+                ) {
+                    menuOpen = false
+                    onClearHistory()
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun SelectionIcon(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     description: String,
     tint: Color,
     onClick: () -> Unit
@@ -149,4 +167,26 @@ private fun SelectionIcon(
             modifier = Modifier.size(20.dp)
         )
     }
+}
+
+@Composable
+private fun MenuAction(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit
+) {
+    DropdownMenuItem(
+        text = {
+            Text(text = label, color = TextPrimary, fontSize = 13.sp)
+        },
+        leadingIcon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = TextSecondary,
+                modifier = Modifier.size(17.dp)
+            )
+        },
+        onClick = onClick
+    )
 }

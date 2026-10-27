@@ -11,41 +11,49 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.timeLabel
 import com.anongram.app.features.chats.mainmenu.components.ChatListDialogs
 import com.anongram.app.features.chats.mainmenu.components.ChatListItemCard
+import com.anongram.app.features.chats.mainmenu.components.SearchRow
 import com.anongram.app.features.chats.mainmenu.components.SelectionTopBar
 import com.anongram.app.features.chats.state.ChatListViewModel
 
 /**
- * Экран архива: те же карточки-стратегии, панель выбора с «убрать из архива».
- * Делит ChatListViewModel с главным меню — состояние едино.
+ * Экран архива (как в Telegram): назад, заголовок, три точки с «Выбрать чаты»,
+ * строка поиска, плоский список архивных чатов и режим выбора
+ * с «Из архива» в меню точек. Делит ChatListViewModel с главным меню.
  */
 @Composable
 fun ArchiveScreen(
@@ -55,6 +63,16 @@ fun ArchiveScreen(
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
+    var query by remember { mutableStateOf("") }
+
+    val archived = if (query.isBlank()) {
+        state.archivedSessions
+    } else {
+        state.archivedSessions.filter {
+            it.title.contains(query, ignoreCase = true) ||
+                it.fingerprint.contains(query, ignoreCase = true)
+        }
+    }
 
     BackHandler(enabled = state.isSelection) {
         viewModel.clearSelection()
@@ -73,8 +91,8 @@ fun ArchiveScreen(
                 isArchiveMode = true,
                 onClose = viewModel::clearSelection,
                 onTogglePin = viewModel::onTogglePinAction,
-                onMute = viewModel::onMuteAction,
                 onDelete = viewModel::onDeleteAction,
+                onMute = viewModel::onMuteAction,
                 onArchive = { viewModel.archiveSelected(false) },
                 onMarkRead = viewModel::onMarkReadAction,
                 onClearHistory = viewModel::onClearHistoryAction
@@ -84,28 +102,35 @@ fun ArchiveScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                    .padding(horizontal = 4.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = TextSecondary,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clickable(onClick = onBack)
-                )
-                Spacer(modifier = Modifier.width(16.dp))
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = "Архив",
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
-                    fontSize = 16.sp
+                    fontSize = 16.sp,
+                    modifier = Modifier.weight(1f)
                 )
+                ArchiveMenu(onSelectAll = { viewModel.selectAllSessions(archived = true) })
             }
+
+            SearchRow(
+                query = query,
+                onQueryChange = { query = it }
+            )
         }
 
-        if (state.archivedSessions.isEmpty()) {
+        if (archived.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -119,16 +144,20 @@ fun ArchiveScreen(
                         tint = TextSecondary.copy(alpha = 0.6f),
                         modifier = Modifier.size(52.dp)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.padding(top = 12.dp))
                     Text(
-                        text = "Архив пуст",
+                        text = if (query.isBlank()) "Архив пуст" else "Ничего не найдено",
                         color = TextPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.padding(top = 6.dp))
                     Text(
-                        text = "Заархивируйте чат долгим нажатием в списке",
+                        text = if (query.isBlank()) {
+                            "Заархивируйте чат через режим выбора"
+                        } else {
+                            "Попробуйте другое имя или отпечаток"
+                        },
                         color = TextSecondary,
                         fontSize = 12.sp
                     )
@@ -138,12 +167,9 @@ fun ArchiveScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
-                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                itemsIndexed(
-                    state.archivedSessions,
-                    key = { _, session -> session.id }
-                ) { index, session ->
+                items(archived, key = { it.id }) { session ->
                     ChatListItemCard(
                         session = session,
                         timeLabel = remember(session.id, session.lastMessageEpochMs) {
@@ -151,7 +177,6 @@ fun ArchiveScreen(
                         },
                         selectionMode = state.isSelection,
                         isSelected = session.id in state.selectedIds,
-                        showDivider = index < state.archivedSessions.lastIndex,
                         onClick = {
                             if (state.isSelection) {
                                 viewModel.toggleSelection(session.id)
@@ -173,4 +198,43 @@ fun ArchiveScreen(
     }
 
     ChatListDialogs(state = state, viewModel = viewModel)
+}
+
+/** Три точки экрана архива: выбор всех архивных чатов. */
+@Composable
+private fun ArchiveMenu(onSelectAll: () -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { menuOpen = true }) {
+            Icon(
+                imageVector = Icons.Outlined.MoreVert,
+                contentDescription = "Меню архива",
+                tint = TextSecondary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = menuOpen,
+            onDismissRequest = { menuOpen = false },
+            containerColor = CardDark
+        ) {
+            DropdownMenuItem(
+                text = {
+                    Text(text = "Выбрать чаты", color = TextPrimary, fontSize = 13.sp)
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.SelectAll,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(17.dp)
+                    )
+                },
+                onClick = {
+                    menuOpen = false
+                    onSelectAll()
+                }
+            )
+        }
+    }
 }

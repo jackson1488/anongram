@@ -38,6 +38,18 @@ class ChatListViewModel(private val repository: ChatListRepository) : ViewModel(
 
     // --- Режим выбора ---
 
+    /** Вход в режим выбора из меню («Выбрать чаты»): выбрать все чаты раздела. */
+    fun selectAllSessions(archived: Boolean = false) {
+        _uiState.update { state ->
+            state.copy(
+                selectedIds = state.sessions
+                    .filter { it.isArchived == archived }
+                    .map { it.id }
+                    .toSet()
+            )
+        }
+    }
+
     fun enterSelection(sessionId: String) {
         _uiState.update { it.copy(selectedIds = setOf(sessionId)) }
     }
@@ -68,6 +80,7 @@ class ChatListViewModel(private val repository: ChatListRepository) : ViewModel(
         if (state.selectedIds.isEmpty()) return
         viewModelScope.launch {
             publish(repository.setPinned(state.selectedIds, !state.allSelectedPinned))
+            _uiState.update { it.copy(selectedIds = emptySet()) }
         }
     }
 

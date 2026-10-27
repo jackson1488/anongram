@@ -1,6 +1,7 @@
 package com.anongram.app.core.ui
 
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
@@ -26,7 +27,10 @@ private val MAX_BOTTOM_INSET = 28.dp
 fun Modifier.safeStatusBarPadding(): Modifier {
     val density = LocalDensity.current
     val maxTopPx = with(density) { MAX_TOP_INSET.toPx() }.toInt()
-    val topPx = min(WindowInsets.statusBars.getTop(density), maxTopPx)
+    val topPx = min(
+        WindowInsets.statusBars.union(WindowInsets.displayCutout).getTop(density),
+        maxTopPx
+    )
     return padding(top = with(density) { topPx.toDp() })
 }
 
