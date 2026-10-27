@@ -45,6 +45,7 @@ internal fun MessagesList(
     listState: LazyListState,
     selection: Set<String> = emptySet(),
     firstUnreadId: String? = null,
+    topPadding: androidx.compose.ui.unit.Dp = 80.dp,
     onLongClick: (ChatMessage) -> Unit = {},
     onSwipeReply: (ChatMessage) -> Unit = {},
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
@@ -67,7 +68,8 @@ internal fun MessagesList(
         state = listState,
         reverseLayout = true,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 10.dp)
+        clipToPadding = false,
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = topPadding, bottom = 10.dp)
     ) {
         itemsIndexed(
             renderItems,

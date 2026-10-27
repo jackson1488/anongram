@@ -112,13 +112,86 @@ fun ChatScreen(
             modifier = Modifier.matchParentSize()
         )
 
+        // 1. Содержимое чата: сообщения во всю высоту + поле ввода
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .safeStatusBarPadding()
                 .safeNavigationBarPadding()
         ) {
-            // Верхняя панель: Режим выбора / Поиск / Плавающие таблетки чата
+            // Список сообщений занимает всё пространство от верха до поля ввода (сообщения скроллятся под плавающей шапкой)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                val topListPadding = if (state.pinnedMessage != null) 124.dp else 80.dp
+                MessagesList(
+                    messages = state.messages,
+                    peerName = session.title,
+                    listState = listState,
+                    selection = state.selection,
+                    firstUnreadId = state.firstUnreadId,
+                    topPadding = topListPadding,
+                    onLongClick = viewModel::openActionMenu,
+                    onSwipeReply = viewModel::startReply,
+                    onToggleReaction = viewModel::toggleReaction,
+                    onSelectMessage = viewModel::toggleSelection,
+                    onRetryMessage = viewModel::retry
+                )
+
+                ScrollDownButton(
+                    visible = listState.firstVisibleItemIndex > 2,
+                    unreadBadge = state.unreadBadge,
+                    onClick = {
+                        scope.launch { listState.animateScrollToItem(0) }
+                        viewModel.clearUnreadBadge()
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 12.dp)
+                )
+            }
+
+            // Поле ввода сообщений (шаги 2, 3, 16)
+            ChatInputBar(
+                input = state.input,
+                canSend = state.canSend,
+                replyTo = state.replyTo,
+                editing = state.editing,
+                recording = state.recording,
+                isCameraMode = state.isCameraMode,
+                isEmojiOpen = state.isEmojiOpen,
+                onInputChange = viewModel::onInputChange,
+                onSend = viewModel::send,
+                onCancelReply = viewModel::cancelReply,
+                onCancelEdit = viewModel::cancelEdit,
+                onToggleEmoji = viewModel::toggleEmojiPanel,
+                onOpenAttach = viewModel::openAttach,
+                onToggleCameraMode = viewModel::toggleCameraMode,
+                onStartRecording = viewModel::startRecording,
+                onLockRecording = viewModel::lockRecording,
+                onCancelRecording = viewModel::cancelRecording,
+                onStopLockedRecording = viewModel::stopLockedRecording
+            )
+
+            // Панель эмодзи/стикеров под полем ввода (шаг 6)
+            if (state.isEmojiOpen) {
+                EmojiStickerPanel(
+                    onEmojiClick = viewModel::appendEmoji,
+                    onStickerClick = { symbol, colorSeed ->
+                        viewModel.sendSticker(symbol, colorSeed)
+                    }
+                )
+            }
+        }
+
+        // 2. Плавающая шапка чата поверх сообщений (парящие островки)
+        Column(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .safeStatusBarPadding()
+        ) {
             when {
                 state.isSelectionMode -> {
                     SelectionPanel(
@@ -192,70 +265,6 @@ fun ChatScreen(
                         }
                     },
                     onUnpin = viewModel::unpinMessage
-                )
-            }
-
-            // Список сообщений + кнопка «вниз»
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-            ) {
-                MessagesList(
-                    messages = state.messages,
-                    peerName = session.title,
-                    listState = listState,
-                    selection = state.selection,
-                    firstUnreadId = state.firstUnreadId,
-                    onLongClick = viewModel::openActionMenu,
-                    onSwipeReply = viewModel::startReply,
-                    onToggleReaction = viewModel::toggleReaction,
-                    onSelectMessage = viewModel::toggleSelection,
-                    onRetryMessage = viewModel::retry
-                )
-
-                ScrollDownButton(
-                    visible = listState.firstVisibleItemIndex > 2,
-                    unreadBadge = state.unreadBadge,
-                    onClick = {
-                        scope.launch { listState.animateScrollToItem(0) }
-                        viewModel.clearUnreadBadge()
-                    },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = 12.dp)
-                )
-            }
-
-            // Поле ввода сообщений (шаги 2, 3, 16)
-            ChatInputBar(
-                input = state.input,
-                canSend = state.canSend,
-                replyTo = state.replyTo,
-                editing = state.editing,
-                recording = state.recording,
-                isCameraMode = state.isCameraMode,
-                isEmojiOpen = state.isEmojiOpen,
-                onInputChange = viewModel::onInputChange,
-                onSend = viewModel::send,
-                onCancelReply = viewModel::cancelReply,
-                onCancelEdit = viewModel::cancelEdit,
-                onToggleEmoji = viewModel::toggleEmojiPanel,
-                onOpenAttach = viewModel::openAttach,
-                onToggleCameraMode = viewModel::toggleCameraMode,
-                onStartRecording = viewModel::startRecording,
-                onLockRecording = viewModel::lockRecording,
-                onCancelRecording = viewModel::cancelRecording,
-                onStopLockedRecording = viewModel::stopLockedRecording
-            )
-
-            // Панель эмодзи/стикеров под полем ввода (шаг 6)
-            if (state.isEmojiOpen) {
-                EmojiStickerPanel(
-                    onEmojiClick = viewModel::appendEmoji,
-                    onStickerClick = { symbol, colorSeed ->
-                        viewModel.sendSticker(symbol, colorSeed)
-                    }
                 )
             }
         }

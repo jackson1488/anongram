@@ -178,6 +178,7 @@ internal fun ChatTopBar(
                     accent = scheme.accent,
                     onOpenSearch = onOpenSearch,
                     onCycleWallpaper = onCycleWallpaper,
+                    onOpenNotifications = onOpenNotifications,
                     onClearHistory = onClearHistory,
                     onDeleteChat = onDeleteChat
                 )
@@ -204,6 +205,7 @@ private fun ChatMenu(
     accent: Color,
     onOpenSearch: () -> Unit,
     onCycleWallpaper: () -> Unit,
+    onOpenNotifications: () -> Unit,
     onClearHistory: () -> Unit,
     onDeleteChat: () -> Unit
 ) {
@@ -249,6 +251,14 @@ private fun ChatMenu(
             ) {
                 menuOpen = false
                 onCycleWallpaper()
+            }
+
+            MenuAction(
+                painter = painterResource(id = R.drawable.ic_bell),
+                label = "Уведомления"
+            ) {
+                menuOpen = false
+                onOpenNotifications()
             }
 
             MenuAction(
