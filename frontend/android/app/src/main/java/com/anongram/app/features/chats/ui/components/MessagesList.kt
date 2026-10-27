@@ -68,7 +68,6 @@ internal fun MessagesList(
         state = listState,
         reverseLayout = true,
         modifier = Modifier.fillMaxSize(),
-        clipToPadding = false,
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = topPadding, bottom = 10.dp)
     ) {
         itemsIndexed(

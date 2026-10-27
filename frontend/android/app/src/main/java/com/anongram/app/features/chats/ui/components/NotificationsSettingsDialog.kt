@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -43,12 +44,12 @@ import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import com.anongram.app.core.theme.BackgroundDark
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
@@ -77,7 +78,7 @@ internal fun NotificationsSettingsDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundDark)
+            .background(ObsidianBlack)
             .safeStatusBarPadding()
             .safeNavigationBarPadding()
     ) {
