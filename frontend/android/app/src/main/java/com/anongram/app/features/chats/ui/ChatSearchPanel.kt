@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextMuted
+import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.TextSecondary
 import androidx.compose.foundation.border
 import com.anongram.app.core.theme.CardBorder
 
