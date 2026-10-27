@@ -445,7 +445,7 @@ private fun FusedReplyBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
-    val title = if (replyTo.direction == MessageDirection.INCOMING) "В ответ $peerName" else "В ответ себе"
+    val author = if (replyTo.direction == MessageDirection.INCOMING) peerName else "себе"
     val snippet = replyPreviewSnippet(replyTo)
 
     Row(
@@ -476,7 +476,7 @@ private fun FusedReplyBar(
         Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "В ответ $title",
+                text = "В ответ $author",
                 color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
