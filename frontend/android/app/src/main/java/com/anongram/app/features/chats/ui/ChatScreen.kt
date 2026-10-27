@@ -27,6 +27,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -134,12 +137,16 @@ fun ChatScreen(
             modifier = Modifier.matchParentSize()
         )
 
-        // 1. Содержимое чата: сообщения во всю высоту + поле ввода
+        val density = LocalDensity.current
+        val isKeyboardVisible = WindowInsets.ime.getBottom(density) > 0
+
+        // 1. Содержимое чата: сообщения во всю высоту + парящее поле ввода (приподнято на 1 см над навигационной панелью)
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .imePadding()
                 .safeNavigationBarPadding()
+                .padding(bottom = if (isKeyboardVisible) 4.dp else 24.dp)
         ) {
             // Список сообщений занимает всё пространство от верха до поля ввода (сообщения скроллятся под плавающей шапкой)
             Box(
@@ -237,21 +244,6 @@ fun ChatScreen(
                 }
             }
         }
-
-        // 2a. Тёмная вуаль-градиент снизу за полем ввода / поиском (всегда при простое)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(110.dp)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to Color.Transparent,
-                        0.4f to Color.Black.copy(alpha = 0.40f),
-                        1.0f to Color.Black.copy(alpha = 0.80f)
-                    )
-                )
-        )
 
         // 2. Мягкая тёмная вуаль-градиент за плавающей шапкой (усиливается при скролле)
         val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen) 144.dp else 100.dp

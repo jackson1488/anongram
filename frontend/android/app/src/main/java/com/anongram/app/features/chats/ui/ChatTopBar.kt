@@ -100,7 +100,7 @@ internal fun ChatTopBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         // Таблетка 1: Назад (высота 44dp, ширина 44dp)
@@ -113,20 +113,21 @@ internal fun ChatTopBar(
             )
         }
 
-        // Таблетка 2: Аватар + Имя + Нежный статус (высота 44dp, аккуратная ширина)
+        // Таблетка 2: Аватар + Имя + Нежный статус (растягивается между кнопками слева и справа)
         TopPill(
             modifier = Modifier
-                .weight(1f, fill = false)
+                .weight(1f)
                 .height(44.dp)
-                .padding(horizontal = 4.dp)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PeerAvatar(title = session.title, accent = scheme.accent)
                 Spacer(modifier = Modifier.width(8.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = session.title,
@@ -152,7 +153,9 @@ internal fun ChatTopBar(
                             } else {
                                 TextMuted
                             },
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         if (selfDestruct != SelfDestruct.OFF) {
                             Spacer(modifier = Modifier.width(4.dp))
