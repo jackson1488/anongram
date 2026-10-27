@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.NotificationsPaused
 import androidx.compose.material.icons.outlined.Timer
@@ -99,11 +100,11 @@ internal fun ChatTopBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Таблетка 1: Назад
-        TopPill {
+        // Таблетка 1: Назад (высота 44dp, ширина 44dp)
+        TopPill(modifier = Modifier.size(44.dp)) {
             CompactIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 description = "Назад",
@@ -112,10 +113,15 @@ internal fun ChatTopBar(
             )
         }
 
-        // Таблетка 2: Аватар + Имя + Нежный статус
-        TopPill(modifier = Modifier.weight(1f)) {
+        // Таблетка 2: Аватар + Имя + Нежный статус (высота 44dp, аккуратная ширина)
+        TopPill(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .height(44.dp)
+                .padding(horizontal = 4.dp)
+        ) {
             Row(
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp),
+                modifier = Modifier.padding(horizontal = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 PeerAvatar(title = session.title, accent = scheme.accent)
@@ -168,11 +174,11 @@ internal fun ChatTopBar(
             }
         }
 
-        // Таблетка 3: Аудиозвонок и Три точки ВМЕСТЕ
-        TopPill {
+        // Таблетка 3: Аудиозвонок и Три точки ВМЕСТЕ (высота 44dp)
+        TopPill(modifier = Modifier.height(44.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(horizontal = 2.dp)
+                modifier = Modifier.padding(horizontal = 4.dp)
             ) {
                 CompactIconButton(
                     painter = painterResource(id = R.drawable.ic_phone),
@@ -233,7 +239,7 @@ private fun ChatMenu(
             }
         )
 
-        // Меню перекрывает саму кнопку трёх точек (offset y = -44.dp)
+        // Меню перекрывает саму кнопку трёх точек (offset y = -44.dp), непрозрачный фон
         DropdownMenu(
             expanded = menuOpen,
             onDismissRequest = {
@@ -242,13 +248,13 @@ private fun ChatMenu(
             },
             offset = DpOffset(x = 0.dp, y = (-44).dp),
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color(0xF2161E2D),
+            containerColor = Color(0xFF161E2D),
             border = BorderStroke(1.dp, CardBorder)
         ) {
             if (!isNotificationsSubmenu) {
-                // 1. Уведомления > (Фото 1)
+                // 1. Уведомления > (Колокольчик)
                 MenuAction(
-                    icon = Icons.Outlined.VolumeUp,
+                    icon = Icons.Outlined.Notifications,
                     label = "Уведомления",
                     trailing = Icons.AutoMirrored.Outlined.KeyboardArrowRight
                 ) {
@@ -597,8 +603,8 @@ private fun TopPill(modifier: Modifier = Modifier, content: @Composable RowScope
         modifier = modifier
             .clip(RoundedCornerShape(50))
             .background(IslandBackground)
-            .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(50))
-            .padding(vertical = 1.dp),
+            .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(50)),
+        horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
         content = content
     )

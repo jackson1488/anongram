@@ -27,6 +27,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +55,7 @@ private val QUICK_REACTIONS = listOf("❤️", "👍", "👎", "🔥", "🥰", "
 @Composable
 internal fun MessageContextMenu(
     message: ChatMessage,
+    anchorYPx: Float = 0f,
     isPinned: Boolean = false,
     onReaction: (String) -> Unit,
     onReply: () -> Unit,
@@ -65,19 +69,39 @@ internal fun MessageContextMenu(
 ) {
     val isMyMessage = message.direction == MessageDirection.OUTGOING
     val isEditable = isMyMessage && (System.currentTimeMillis() - message.epochMs) < 48 * 3600_000L
-
     val isIncoming = message.direction == MessageDirection.INCOMING
+
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    val menuHeightPx = with(density) { 290.dp.toPx() }
+    val topBoundPx = with(density) { 72.dp.toPx() }
+    val bottomBoundPx = screenHeightPx - with(density) { 76.dp.toPx() }
+
+    val computedYPx = if (anchorYPx > 0f) {
+        if (anchorYPx > screenHeightPx * 0.52f) {
+            // Сообщение в нижней части экрана — меню всплывает прямо НАД ним
+            (anchorYPx - menuHeightPx - with(density) { 10.dp.toPx() }).coerceIn(topBoundPx, bottomBoundPx - menuHeightPx)
+        } else {
+            // Сообщение в верхней части экрана — меню появляется прямо ПОД ним
+            (anchorYPx + with(density) { 50.dp.toPx() }).coerceIn(topBoundPx, bottomBoundPx - menuHeightPx)
+        }
+    } else {
+        (screenHeightPx - menuHeightPx - with(density) { 80.dp.toPx() }).coerceAtLeast(topBoundPx)
+    }
+
+    val yOffsetDp = with(density) { computedYPx.toDp() }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter
+            .clickable(onClick = onDismiss)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 68.dp),
+                .offset(y = yOffsetDp)
+                .padding(horizontal = 16.dp),
             horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
         ) {
             Column(

@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,17 +81,18 @@ fun ChatScreen(
     val clipboard = LocalClipboardManager.current
     var isWallpaperOpen by remember { mutableStateOf(false) }
 
-    // Затемнение шапки при скролле ленты сообщений вверх
+    // Затемнение за шапкой: 0.58f по дефолту (при простое), усиливается до 0.88f при скролле
     val isScrolled by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 10
         }
     }
     val headerScrimAlpha by animateFloatAsState(
-        targetValue = if (isScrolled) 0.72f else 0.32f,
+        targetValue = if (isScrolled) 0.88f else 0.58f,
         animationSpec = tween(durationMillis = 220),
         label = "headerScrimAlpha"
     )
+    var actionMenuAnchorY by remember { mutableFloatStateOf(0f) }
 
     // Обработка системной кнопки назад: закрывать открытые панели и модалки по очереди
     BackHandler {
@@ -153,10 +155,11 @@ fun ChatScreen(
                     selection = state.selection,
                     firstUnreadId = state.firstUnreadId,
                     topPadding = topListPadding,
-                    onClick = { message ->
+                    onClick = { message, topY ->
                         if (state.isSelectionMode) {
                             viewModel.toggleSelection(message.id)
                         } else {
+                            actionMenuAnchorY = topY
                             viewModel.openActionMenu(message)
                         }
                     },
@@ -235,6 +238,21 @@ fun ChatScreen(
             }
         }
 
+        // 2a. Тёмная вуаль-градиент снизу за полем ввода / поиском (всегда при простое)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(110.dp)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.4f to Color.Black.copy(alpha = 0.40f),
+                        1.0f to Color.Black.copy(alpha = 0.80f)
+                    )
+                )
+        )
+
         // 2. Мягкая тёмная вуаль-градиент за плавающей шапкой (усиливается при скролле)
         val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen) 144.dp else 100.dp
         Box(
@@ -311,7 +329,7 @@ fun ChatScreen(
                             viewModel.clearHistory()
                             onBack()
                         },
-                        onOpenNotifications = viewModel::openNotificationsMuteDialog
+                        onOpenNotifications = viewModel::openNotifications
                     )
                 }
             }
@@ -349,10 +367,11 @@ fun ChatScreen(
             )
         }
 
-        // Меню действий по тапу на сообщение (шаг 9, Фото 2)
+        // Меню действий по тапу на сообщение прямо рядом с пузырём (Фото 2)
         state.actionMenuFor?.let { message ->
             MessageContextMenu(
                 message = message,
+                anchorYPx = actionMenuAnchorY,
                 isPinned = state.pinnedIds.contains(message.id),
                 onReaction = { emoji ->
                     viewModel.toggleReaction(message.id, emoji)
@@ -380,16 +399,6 @@ fun ChatScreen(
                 peerName = session.title,
                 onConfirm = viewModel::confirmDelete,
                 onDismiss = viewModel::dismissDeleteDialog
-            )
-        }
-
-        // Мини-диалог управления уведомлениями (открывается из меню чата)
-        if (state.isNotificationsMuteDialogOpen) {
-            NotificationsMuteDialog(
-                peerName = session.title,
-                onMuteFor = { _ -> },
-                onOpenCustomSettings = viewModel::openNotifications,
-                onDismiss = viewModel::closeNotificationsMuteDialog
             )
         }
 

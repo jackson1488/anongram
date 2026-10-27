@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
+import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextMuted
@@ -141,14 +142,14 @@ internal fun ChatInputBar(
                     modifier = Modifier.weight(1f)
                 )
             } else {
-                // Основное поле ввода
+                // Основное поле ввода — парящий островок
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(SurfaceDark)
-                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(IslandBackground)
+                        .border(1.dp, CardBorder, RoundedCornerShape(26.dp))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -210,9 +211,9 @@ internal fun ChatInputBar(
                 }
             }
 
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
-            // Круглая кнопка действия справа
+            // Круглая кнопка действия справа — отдельный парящий островок
             ActionButton(
                 canSend = canSend,
                 isEditing = editing != null,
@@ -334,12 +335,17 @@ private fun ActionButton(
 
     Box(
         modifier = Modifier
-            .size(44.dp)
+            .size(46.dp)
             .clip(CircleShape)
             .background(
                 if (isRecording) FlameOrange
                 else if (canSend) scheme.accent
-                else CardDark
+                else IslandBackground
+            )
+            .border(
+                1.dp,
+                if (canSend) scheme.accent else CardBorder,
+                CircleShape
             )
             .pointerInput(canSend, isRecording, isCameraMode) {
                 if (canSend) {

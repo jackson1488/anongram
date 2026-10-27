@@ -44,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -97,7 +99,7 @@ internal fun MessageBubble(
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onQuoteClick: (String) -> Unit = {},
-    onClick: () -> Unit = {},
+    onClick: (anchorYPx: Float) -> Unit = {},
     onLongClick: () -> Unit = {},
     onSwipeReply: () -> Unit = {},
     onToggleReaction: (String) -> Unit = {},
@@ -110,6 +112,7 @@ internal fun MessageBubble(
     val density = LocalDensity.current
 
     var dragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var bubbleTopY by remember { mutableFloatStateOf(0f) }
     val animatedOffsetPx by animateFloatAsState(targetValue = dragOffsetPx, label = "swipeReply")
     val thresholdPx = with(density) { 60.dp.toPx() }
 
@@ -162,6 +165,9 @@ internal fun MessageBubble(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetPx.roundToInt(), 0) }
+                .onGloballyPositioned { coordinates ->
+                    bubbleTopY = coordinates.positionInRoot().y
+                }
                 .padding(vertical = 1.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -203,7 +209,7 @@ internal fun MessageBubble(
                             timeLabel = message.timeLabel(),
                             status = message.status,
                             isIncoming = isIncoming,
-                            onClick = { if (isSelectionMode) onSelect() else onClick() },
+                            onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },
                             onLongClick = onLongClick
                         )
                     } else {
@@ -219,7 +225,7 @@ internal fun MessageBubble(
                                 .widthIn(max = bubbleMaxWidth)
                                 .clip(bubbleShape(item, isIncoming))
                                 .combinedClickable(
-                                    onClick = { if (isSelectionMode) onSelect() else onClick() },
+                                    onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },
                                     onLongClick = onLongClick
                                 )
                         ) {

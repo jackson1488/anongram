@@ -37,15 +37,17 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import androidx.compose.foundation.border
+import com.anongram.app.core.theme.CardBorder
 
-private val SEARCH_ISLAND_BG = IslandBackground.copy(alpha = 0.50f)
+private val SEARCH_ISLAND_BG = IslandBackground // 100% непрозрачный фон островков
 
 /**
  * Верхняя парящая полоска поиска Telegram-style:
- * Стрелка «Назад», поле ввода запроса, кнопка очистки «✕».
- * Островок с 50% затемнением.
+ * ДВА РАЗДЕЛЬНЫХ ОСТРОВКА одинаковой высоты (44.dp):
+ * 1) Круглый островок «Назад» (выход из поиска)
+ * 2) Островок поиска с полем ввода и кнопкой очистки «✕»
+ * Оба островка непрозрачные с тонкой обводкой CardBorder.
  */
 @Composable
 internal fun ChatSearchTopBar(
@@ -59,65 +61,81 @@ internal fun ChatSearchTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(SEARCH_ISLAND_BG)
-            .padding(horizontal = 6.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(
-            onClick = onClose,
-            modifier = Modifier.size(38.dp)
-        ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Закрыть поиск",
-                tint = TextPrimary,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
-        Spacer(modifier = Modifier.width(4.dp))
-
+        // Островок 1: Кнопка Назад (выход из поиска)
         Box(
-            modifier = Modifier.weight(1f),
-            contentAlignment = Alignment.CenterStart
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(SEARCH_ISLAND_BG)
+                .border(1.dp, CardBorder, CircleShape),
+            contentAlignment = Alignment.Center
         ) {
-            if (query.isEmpty()) {
-                Text(
-                    text = "Поиск",
-                    color = TextMuted,
-                    fontSize = 15.sp
-                )
-            }
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = TextStyle(
-                    color = TextPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Normal
-                ),
-                singleLine = true,
-                cursorBrush = SolidColor(scheme.accent)
-            )
-        }
-
-        if (query.isNotEmpty()) {
             IconButton(
-                onClick = { onQueryChange("") },
-                modifier = Modifier.size(36.dp)
+                onClick = onClose,
+                modifier = Modifier.size(44.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Close,
-                    contentDescription = "Очистить запрос",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
+                    imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                    contentDescription = "Закрыть поиск",
+                    tint = TextPrimary,
+                    modifier = Modifier.size(20.dp)
                 )
             }
-        } else {
-            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        // Островок 2: Поле ввода поиска
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(SEARCH_ISLAND_BG)
+                .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+                .padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (query.isEmpty()) {
+                    Text(
+                        text = "Поиск",
+                        color = TextMuted,
+                        fontSize = 15.sp
+                    )
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = TextStyle(
+                        color = TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Normal
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(scheme.accent)
+                )
+            }
+
+            if (query.isNotEmpty()) {
+                IconButton(
+                    onClick = { onQueryChange("") },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Очистить запрос",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -125,7 +143,7 @@ internal fun ChatSearchTopBar(
 /**
  * Плавающие круглые кнопки перехода по найденным сообщениям (вверх / вниз):
  * Располагаются справа над нижним островком поиска.
- * Затемнение островков 50%.
+ * Непрозрачные круглые островки с обводкой.
  */
 @Composable
 internal fun ChatSearchNavigationButtons(
@@ -142,9 +160,10 @@ internal fun ChatSearchNavigationButtons(
         // Кнопка «Вверх»
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(44.dp)
                 .clip(CircleShape)
                 .background(SEARCH_ISLAND_BG)
+                .border(1.dp, CardBorder, CircleShape)
                 .clickable(enabled = canNavigate, onClick = onPrevious),
             contentAlignment = Alignment.Center
         ) {
@@ -159,9 +178,10 @@ internal fun ChatSearchNavigationButtons(
         // Кнопка «Вниз»
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(44.dp)
                 .clip(CircleShape)
                 .background(SEARCH_ISLAND_BG)
+                .border(1.dp, CardBorder, CircleShape)
                 .clickable(enabled = canNavigate, onClick = onNext),
             contentAlignment = Alignment.Center
         ) {
@@ -178,7 +198,7 @@ internal fun ChatSearchNavigationButtons(
 /**
  * Нижний парящий островок поиска в чате Telegram-style (Фото 6):
  * Иконка календаря (поиск по дате), счётчик «1 из 3», кнопка «Списком».
- * Затемнение островка 50%.
+ * Непрозрачный островок с обводкой CardBorder.
  */
 @Composable
 internal fun ChatSearchBottomBar(
@@ -193,9 +213,11 @@ internal fun ChatSearchBottomBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .height(44.dp)
+            .clip(RoundedCornerShape(22.dp))
             .background(SEARCH_ISLAND_BG)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+            .padding(horizontal = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
