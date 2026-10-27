@@ -46,7 +46,8 @@ class ChatMessagesViewModel(
     init {
         viewModelScope.launch {
             val drafts = chatsRepository.loadDrafts()
-            val initialPinned = if (sessionId == "2" && loaded.size > 2) listOf(loaded[1].id, loaded[2].id) else emptyList()
+            val loaded = repository.loadMessages(sessionId)
+            val initialPinned = if (sessionId == "2" && loaded.size > 2) listOf(loaded[1].id, loaded[2].id) else emptyList<String>()
             _uiState.update {
                 it.copy(
                     messages = loaded,

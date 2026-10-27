@@ -41,6 +41,7 @@ import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 
 /**

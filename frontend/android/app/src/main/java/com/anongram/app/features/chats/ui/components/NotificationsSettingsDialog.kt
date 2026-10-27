@@ -377,7 +377,7 @@ private fun SettingsRadioItem(
             onClick = onClick,
             colors = RadioButtonDefaults.colors(
                 selectedColor = scheme.accent,
-                uncheckedColor = TextSecondary
+                unselectedColor = TextSecondary
             )
         )
     }
