@@ -26,6 +26,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material.icons.outlined.WbSunny
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.material3.Button
@@ -134,6 +135,26 @@ fun ThemePickerSheet(
                     imageVector = if (state.isDarkVariant) Icons.Outlined.WbSunny else Icons.Outlined.DarkMode,
                     contentDescription = "Светлая/тёмная тема",
                     tint = if (state.isDarkVariant) Color(0xFFFFD54F) else CyberCyan,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(6.dp))
+
+            // Сброс обоев к стандартным
+            IconButton(
+                onClick = {
+                    viewModel.resetWallpaper(onDismiss)
+                },
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF1B2332))
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.RestartAlt,
+                    contentDescription = "Сбросить обои",
+                    tint = TextSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             }

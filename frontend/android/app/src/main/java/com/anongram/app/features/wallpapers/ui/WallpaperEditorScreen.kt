@@ -76,21 +76,7 @@ fun WallpaperEditorScreen(
     var accumulatedDrag by remember { mutableFloatStateOf(0f) }
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            // Горизонтальный свайп по экрану меняет степень затемнения 0..100%
-            .pointerInput(Unit) {
-                detectDragGestures(
-                    onDragStart = {
-                        accumulatedDrag = state.dim.toFloat()
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        accumulatedDrag = (accumulatedDrag + (dragAmount.x / 5f)).coerceIn(0f, 100f)
-                        viewModel.setDim(accumulatedDrag.toInt())
-                    }
-                )
-            }
+        modifier = modifier.fillMaxSize()
     ) {
         // Подложка обоев с живым превью (размытие, затемнение, параллакс)
         WallpaperBackground(
@@ -185,14 +171,27 @@ fun WallpaperEditorScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Превью пузырей сообщений чата
-            WallpaperMockChat(
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            Spacer(modifier = Modifier.weight(1f))
+            // Центральная интерактивная зона со свайпом затемнения (0..100%)
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .pointerInput(Unit) {
+                        detectDragGestures(
+                            onDragStart = {
+                                accumulatedDrag = state.dim.toFloat()
+                            },
+                            onDrag = { change, dragAmount ->
+                                change.consume()
+                                accumulatedDrag = (accumulatedDrag + (dragAmount.x / 5f)).coerceIn(0f, 100f)
+                                viewModel.setDim(accumulatedDrag.toInt())
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                WallpaperMockChat()
+            }
 
             // Нижняя панель управления (чипы + кнопка)
             Column(

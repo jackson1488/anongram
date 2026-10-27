@@ -102,6 +102,17 @@ class ThemePickerViewModel(
     }
 
     /**
+     * Сбросить обои чата к стандартным.
+     */
+    fun resetWallpaper(onSuccess: () -> Unit) {
+        viewModelScope.launch {
+            repository.reset(chatId)
+            repository.setPreview(chatId, null)
+            onSuccess()
+        }
+    }
+
+    /**
      * Сбросить живое превью при отмене/закрытии окна без сохранения.
      */
     fun onDismiss() {
