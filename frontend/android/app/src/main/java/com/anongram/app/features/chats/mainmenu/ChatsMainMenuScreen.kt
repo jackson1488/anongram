@@ -27,6 +27,8 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.navigation.PhysicsSprings
@@ -64,6 +66,7 @@ fun ChatsMainMenuScreen(
     val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
     val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
 
     // Пилюля архива уезжает вверх на свою высоту + отступ между элементами.
     val pillTravelPx = with(density) { (64 + 10).dp.toPx() }
@@ -220,6 +223,7 @@ fun ChatsMainMenuScreen(
                                     }
                                 },
                                 onLongClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                     if (state.isSelection) {
                                         viewModel.toggleSelection(session.id)
                                     } else {

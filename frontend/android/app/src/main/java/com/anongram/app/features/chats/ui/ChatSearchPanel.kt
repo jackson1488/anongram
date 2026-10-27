@@ -67,10 +67,10 @@ internal fun ChatSearchTopBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Островок 1: Кнопка Назад (выход из поиска)
+        // Островок 1: Кнопка Назад (выход из поиска, 50dp)
         Box(
             modifier = Modifier
-                .size(44.dp)
+                .size(50.dp)
                 .clip(CircleShape)
                 .background(SEARCH_ISLAND_BG)
                 .border(1.dp, CardBorder, CircleShape),
@@ -78,25 +78,25 @@ internal fun ChatSearchTopBar(
         ) {
             IconButton(
                 onClick = onClose,
-                modifier = Modifier.size(44.dp)
+                modifier = Modifier.size(50.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = "Закрыть поиск",
                     tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
 
-        // Островок 2: Поле ввода поиска
+        // Островок 2: Поле ввода поиска (50dp, одинаковая толщина с кнопкой)
         Row(
             modifier = Modifier
                 .weight(1f)
-                .height(44.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .background(SEARCH_ISLAND_BG)
-                .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+                .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -128,7 +128,7 @@ internal fun ChatSearchTopBar(
             if (query.isNotEmpty()) {
                 IconButton(
                     onClick = { onQueryChange("") },
-                    modifier = Modifier.size(32.dp)
+                    modifier = Modifier.size(34.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Close,

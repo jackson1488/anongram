@@ -103,8 +103,8 @@ internal fun ChatTopBar(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Таблетка 1: Назад (высота 44dp, ширина 44dp)
-        TopPill(modifier = Modifier.size(44.dp)) {
+        // Таблетка 1: Назад (высота 50dp, ширина 50dp)
+        TopPill(modifier = Modifier.size(50.dp)) {
             CompactIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 description = "Назад",
@@ -113,11 +113,11 @@ internal fun ChatTopBar(
             )
         }
 
-        // Таблетка 2: Аватар + Имя + Нежный статус (растягивается между кнопками слева и справа)
+        // Таблетка 2: Аватар + Имя + Нежный статус (растягивается между кнопками слева и справа, высота 50dp)
         TopPill(
             modifier = Modifier
                 .weight(1f)
-                .height(44.dp)
+                .height(50.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -177,8 +177,8 @@ internal fun ChatTopBar(
             }
         }
 
-        // Таблетка 3: Аудиозвонок и Три точки ВМЕСТЕ (высота 44dp)
-        TopPill(modifier = Modifier.height(44.dp)) {
+        // Таблетка 3: Аудиозвонок и Три точки ВМЕСТЕ (высота 50dp)
+        TopPill(modifier = Modifier.height(50.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(horizontal = 4.dp)

@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.ObsidianBlack
@@ -138,6 +140,7 @@ fun ChatScreen(
         )
 
         val density = LocalDensity.current
+        val haptic = LocalHapticFeedback.current
         val isKeyboardVisible = WindowInsets.ime.getBottom(density) > 0
 
         // 1. Содержимое чата: сообщения во всю высоту + парящее поле ввода (приподнято на 1 см над навигационной панелью)
@@ -171,7 +174,12 @@ fun ChatScreen(
                         }
                     },
                     onLongClick = { message ->
-                        viewModel.enterSelection(message.id)
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        if (state.isSelectionMode) {
+                            viewModel.toggleSelection(message.id)
+                        } else {
+                            viewModel.enterSelection(message.id)
+                        }
                     },
                     onSwipeReply = viewModel::startReply,
                     onToggleReaction = viewModel::toggleReaction,

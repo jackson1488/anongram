@@ -50,13 +50,14 @@ internal fun SelectionPanel(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Островок 1: Кнопка закрытия выбора (крестик)
+        // Островок 1: Кнопка закрытия выбора (крестик, 50dp)
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(50.dp)
                 .clip(CircleShape)
                 .background(IslandBackground)
                 .border(1.dp, CardBorder, CircleShape),
@@ -64,27 +65,25 @@ internal fun SelectionPanel(
         ) {
             IconButton(
                 onClick = onClose,
-                modifier = Modifier.size(42.dp)
+                modifier = Modifier.size(50.dp)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "Отмена выбора",
                     tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Островок 2: Счётчик «Выбрано N»
+        // Островок 2: Счётчик «Выбрано N» (50dp, одинаковая толщина)
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(42.dp)
-                .clip(RoundedCornerShape(21.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(21.dp))
+                .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -96,51 +95,49 @@ internal fun SelectionPanel(
             )
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
-
-        // Островок 3: Действия без названий (Копировать, Переслать, Удалить)
+        // Островок 3: Действия без названий (Копировать, Переслать, Удалить, 50dp)
         Row(
             modifier = Modifier
-                .height(42.dp)
-                .clip(RoundedCornerShape(21.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(21.dp))
-                .padding(horizontal = 4.dp),
+                .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
+                .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(
                 onClick = onCopy,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.ContentCopy,
                     contentDescription = "Копировать",
                     tint = TextPrimary,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
             IconButton(
                 onClick = onForward,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Reply,
                     contentDescription = "Переслать",
                     tint = TextPrimary,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
 
             IconButton(
                 onClick = onDelete,
-                modifier = Modifier.size(38.dp)
+                modifier = Modifier.size(40.dp)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Delete,
                     contentDescription = "Удалить",
                     tint = TextPrimary,
-                    modifier = Modifier.size(19.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
