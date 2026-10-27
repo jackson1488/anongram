@@ -128,6 +128,8 @@ internal fun ChatInputBar(
                 modifier = Modifier.weight(1f)
             )
         } else {
+            var textValue by remember(input) { mutableStateOf(input) }
+
             // Основное поле ввода — единый парящий островок со слитно встроенной плашкой ответа (Фото 1)
             Column(
                 modifier = Modifier
@@ -136,7 +138,7 @@ internal fun ChatInputBar(
                     .background(IslandBackground)
                     .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
             ) {
-                // Слитно встроенная плашка ответа (Фото 1)
+                // Слитно встроенная плашка ответа (Фото 1) — без разделительной полоски
                 if (replyTo != null && editing == null) {
                     FusedReplyBar(
                         replyTo = replyTo,
@@ -145,84 +147,82 @@ internal fun ChatInputBar(
                         onLongClick = { onReplyLongClick(replyTo) },
                         onClose = onCancelReply
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(CardBorder.copy(alpha = 0.4f))
-                    )
                 } else if (editing != null) {
                     FusedEditBar(
                         editing = editing,
                         onClose = onCancelEdit
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(CardBorder.copy(alpha = 0.4f))
-                    )
                 }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 50.dp)
+                        .padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
-                        // Кнопка эмодзи/клавиатура
-                        IconButton(onClick = onToggleEmoji, modifier = Modifier.size(36.dp)) {
-                            Icon(
-                                imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                                contentDescription = "Эмодзи",
-                                tint = if (isEmojiOpen) scheme.accent else TextMuted,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                    // Кнопка эмодзи/клавиатура
+                    IconButton(onClick = onToggleEmoji, modifier = Modifier.size(38.dp)) {
+                        Icon(
+                            imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
+                            contentDescription = "Эмодзи",
+                            tint = if (isEmojiOpen) scheme.accent else TextMuted,
+                            modifier = Modifier.size(23.dp)
+                        )
+                    }
 
-                        // Поле ввода текста
-                        Box(modifier = Modifier.weight(1f).padding(horizontal = 4.dp, vertical = 6.dp)) {
-                            if (input.isEmpty()) {
-                                Text(
-                                    text = "Сообщение",
-                                    color = TextMuted,
-                                    fontSize = 14.sp
-                                )
-                            }
-                            BasicTextField(
-                                value = input,
-                                onValueChange = onInputChange,
-                                modifier = Modifier.fillMaxWidth(),
-                                textStyle = TextStyle(
-                                    color = TextPrimary,
-                                    fontSize = 14.sp,
-                                    lineHeight = 18.sp
-                                ),
-                                cursorBrush = SolidColor(scheme.accent),
-                                maxLines = 5
+                    // Поле ввода текста (жирнее на 1 см, без лагов)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 4.dp, vertical = 8.dp)
+                    ) {
+                        if (textValue.isEmpty()) {
+                            Text(
+                                text = "Сообщение",
+                                color = TextMuted,
+                                fontSize = 15.sp
                             )
                         }
+                        BasicTextField(
+                            value = textValue,
+                            onValueChange = { newText ->
+                                textValue = newText
+                                onInputChange(newText)
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = TextStyle(
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                lineHeight = 20.sp
+                            ),
+                            cursorBrush = SolidColor(scheme.accent),
+                            maxLines = 5
+                        )
+                    }
 
-                        // Скрепка (меню вложений)
-                        IconButton(onClick = onOpenAttach, modifier = Modifier.size(34.dp)) {
-                            Icon(
-                                imageVector = Icons.Outlined.AttachFile,
-                                contentDescription = "Вложить",
-                                tint = TextMuted,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                    // Скрепка (меню вложений)
+                    IconButton(onClick = onOpenAttach, modifier = Modifier.size(36.dp)) {
+                        Icon(
+                            imageVector = Icons.Outlined.AttachFile,
+                            contentDescription = "Вложить",
+                            tint = TextMuted,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
 
-                        // Стрелка вверх (раскрыть)
-                        IconButton(onClick = {}, modifier = Modifier.size(28.dp)) {
-                            Icon(
-                                imageVector = Icons.Outlined.KeyboardArrowUp,
-                                contentDescription = "Раскрыть",
-                                tint = TextMuted,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
+                    // Стрелка вверх (раскрыть)
+                    IconButton(onClick = {}, modifier = Modifier.size(28.dp)) {
+                        Icon(
+                            imageVector = Icons.Outlined.KeyboardArrowUp,
+                            contentDescription = "Раскрыть",
+                            tint = TextMuted,
+                            modifier = Modifier.size(18.dp)
+                        )
                     }
                 }
             }
+        }
 
             Spacer(modifier = Modifier.width(8.dp))
 
@@ -453,7 +453,7 @@ private fun FusedReplyBar(
                 onClick = onClick,
                 onLongClick = onLongClick
             )
-            .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
+            .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -462,10 +462,19 @@ private fun FusedReplyBar(
             tint = scheme.accent,
             modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        // Вертикальная полоска акцента рядом с полем ввода
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .height(26.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(scheme.accent)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = title,
+                text = "В ответ $title",
                 color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -506,7 +515,7 @@ private fun FusedEditBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 14.dp, end = 8.dp, top = 8.dp, bottom = 6.dp),
+            .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -515,7 +524,16 @@ private fun FusedEditBar(
             tint = scheme.accent,
             modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        // Вертикальная полоска акцента
+        Box(
+            modifier = Modifier
+                .width(2.5.dp)
+                .height(26.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(scheme.accent)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "Изменение сообщения",
