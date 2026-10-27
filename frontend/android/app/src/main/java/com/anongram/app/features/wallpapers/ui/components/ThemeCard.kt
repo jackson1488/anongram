@@ -30,11 +30,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.ElectricCyan
+import com.anongram.app.core.theme.CyberCyan
 import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimaryDark
-import com.anongram.app.core.theme.TextSecondaryDark
-import com.anongram.app.core.theme.VioletGhost
+import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.wallpapers.model.ThemePreset
 import com.anongram.app.features.wallpapers.ui.ThemePatternCanvas
 
@@ -49,7 +48,7 @@ fun ThemeCard(
     modifier: Modifier = Modifier
 ) {
     val shape = RoundedCornerShape(16.dp)
-    val borderColor = if (isSelected) ElectricCyan else Color(0xFF222C3D)
+    val borderColor = if (isSelected) CyberCyan else Color(0xFF222C3D)
     val borderWidth = if (isSelected) 2.dp else 1.dp
 
     Column(
@@ -161,7 +160,7 @@ fun ThemeCard(
 
         Text(
             text = preset?.title ?: "Без темы",
-            color = if (isSelected) TextPrimaryDark else TextSecondaryDark,
+            color = if (isSelected) TextPrimary else TextSecondary,
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1,

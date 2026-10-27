@@ -42,10 +42,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.ElectricCyan
-import com.anongram.app.core.theme.TextPrimaryDark
-import com.anongram.app.core.theme.TextSecondaryDark
-import com.anongram.app.core.theme.VioletGhost
+import com.anongram.app.core.theme.CyberCyan
+import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.TextSecondary
+
+private val AccentViolet = Color(0xFF7A4DF3)
 import com.anongram.app.features.wallpapers.logic.ThemePickerViewModel
 import com.anongram.app.features.wallpapers.model.WallpaperSource
 import com.anongram.app.features.wallpapers.ui.components.ThemeCard
@@ -100,7 +101,7 @@ fun ThemePickerSheet(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Назад",
-                    tint = TextPrimaryDark,
+                    tint = TextPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -109,7 +110,7 @@ fun ThemePickerSheet(
 
             Text(
                 text = "Выбрать тему",
-                color = TextPrimaryDark,
+                color = TextPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
@@ -126,7 +127,7 @@ fun ThemePickerSheet(
                 Icon(
                     imageVector = if (state.isDarkVariant) Icons.Outlined.WbSunny else Icons.Outlined.DarkMode,
                     contentDescription = "Светлая/тёмная тема",
-                    tint = if (state.isDarkVariant) Color(0xFFFFD54F) else ElectricCyan,
+                    tint = if (state.isDarkVariant) Color(0xFFFFD54F) else CyberCyan,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -149,13 +150,13 @@ fun ThemePickerSheet(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(VioletGhost.copy(alpha = 0.2f)),
+                    .background(AccentViolet.copy(alpha = 0.2f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Image,
                     contentDescription = null,
-                    tint = VioletGhost,
+                    tint = AccentViolet,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -165,13 +166,13 @@ fun ThemePickerSheet(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Выбрать фон из галереи",
-                    color = TextPrimaryDark,
+                    color = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = "Фото, обои или абстракция",
-                    color = TextSecondaryDark,
+                    color = TextSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -179,7 +180,7 @@ fun ThemePickerSheet(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = TextSecondaryDark,
+                tint = TextSecondary,
                 modifier = Modifier.size(14.dp)
             )
         }
@@ -221,7 +222,7 @@ fun ThemePickerSheet(
             },
             enabled = !state.isApplying,
             colors = ButtonDefaults.buttonColors(
-                containerColor = VioletGhost,
+                containerColor = AccentViolet,
                 contentColor = Color.White
             ),
             shape = RoundedCornerShape(14.dp),
