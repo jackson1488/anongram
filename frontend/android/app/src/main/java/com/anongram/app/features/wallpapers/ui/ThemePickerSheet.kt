@@ -45,11 +45,11 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CyberCyan
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
-
-private val AccentViolet = Color(0xFF7A4DF3)
 import com.anongram.app.features.wallpapers.logic.ThemePickerViewModel
 import com.anongram.app.features.wallpapers.model.WallpaperSource
 import com.anongram.app.features.wallpapers.ui.components.ThemeCard
+
+private val AccentViolet = Color(0xFF7A4DF3)
 
 /**
  * Нижнее модальное окно выбора темы оформления чата в стиле Telegram.
