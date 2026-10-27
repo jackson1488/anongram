@@ -100,7 +100,7 @@ fun ChatScreen(
             .background(ObsidianBlack)
     ) {
         WallpaperBackground(
-            chatId = sessionId,
+            chatId = session.id,
             modifier = Modifier.matchParentSize()
         )
 
