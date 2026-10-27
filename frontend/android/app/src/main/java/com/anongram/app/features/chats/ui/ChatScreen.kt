@@ -330,18 +330,11 @@ fun ChatScreen(
             )
         }
 
-        // Модальное окно выбора темы обоев (Telegram-style, модуль wallpapers)
+        // Экран/окно выбора обоев (Telegram-style, модуль wallpapers)
         if (isWallpaperOpen) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { isWallpaperOpen = false }
-            )
             WallpaperRoute(
                 chatId = session.id,
-                onDismiss = { isWallpaperOpen = false },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                onDismiss = { isWallpaperOpen = false }
             )
         }
     }

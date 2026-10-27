@@ -10,7 +10,16 @@ import com.anongram.app.features.wallpapers.data.WallpaperStorage
  */
 object WallpaperModule {
     @Volatile
-    private var repositoryInstance: WallpaperRepository? = null
+    private var storageInstance: WallpaperStorage? = null
+
+    /**
+     * Получить экземпляр [WallpaperStorage].
+     */
+    fun getStorage(context: Context): WallpaperStorage {
+        return storageInstance ?: synchronized(this) {
+            storageInstance ?: WallpaperStorage(context.applicationContext).also { storageInstance = it }
+        }
+    }
 
     /**
      * Получить экземпляр [WallpaperRepository].
@@ -18,7 +27,7 @@ object WallpaperModule {
     fun getRepository(context: Context): WallpaperRepository {
         return repositoryInstance ?: synchronized(this) {
             repositoryInstance ?: LocalWallpaperRepository(
-                storage = WallpaperStorage(context.applicationContext)
+                storage = getStorage(context)
             ).also { repositoryInstance = it }
         }
     }
