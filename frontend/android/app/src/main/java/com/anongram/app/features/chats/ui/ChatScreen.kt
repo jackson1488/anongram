@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.ui.platform.LocalDensity
@@ -159,11 +160,17 @@ fun ChatScreen(
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
         val bottomListPadding = if (isKeyboardVisible) 80.dp else 104.dp
 
+        // Контейнер чата (сообщения, плавающая шапка и поле ввода) — блюрится при открытии превью ответа
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding()
+                .then(if (isReplyPreviewOpen) Modifier.blur(20.dp) else Modifier)
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding()
+            ) {
             if (state.isSearchOpen && isSearchListMode) {
                 val searchMatchingMessages = remember(state.messages, state.searchMatches) {
                     state.messages.filter { it.id in state.searchMatches }.asReversed()
@@ -283,10 +290,11 @@ fun ChatScreen(
                         onCancelReply = viewModel::cancelReply,
                         onCancelEdit = viewModel::cancelEdit,
                         onReplyClick = { replyMsg ->
-                            val index = state.messages.indexOfFirst { it.id == replyMsg.id }
+                            val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
                             if (index >= 0) {
                                 scope.launch { listState.animateScrollToItem(index) }
                             }
+                            viewModel.highlightMessage(replyMsg.id)
                         },
                         onReplyLongClick = {
                             isReplyPreviewOpen = true
@@ -404,6 +412,7 @@ fun ChatScreen(
                 }
             }
         }
+    }
 
         // Модальное меню вложений (скрепка, шаги 4 и 5)
         if (state.isAttachOpen) {
@@ -523,9 +532,12 @@ fun ChatScreen(
                 },
                 onJumpToMessage = {
                     val targetId = state.replyTo?.id
-                    val index = state.messages.indexOfFirst { it.id == targetId }
-                    if (index >= 0) {
-                        scope.launch { listState.animateScrollToItem(index) }
+                    if (targetId != null) {
+                        val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
+                        if (index >= 0) {
+                            scope.launch { listState.animateScrollToItem(index) }
+                        }
+                        viewModel.highlightMessage(targetId)
                     }
                     isReplyPreviewOpen = false
                 },

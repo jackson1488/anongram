@@ -1,9 +1,6 @@
 package com.anongram.app.features.chats.ui.components
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,7 +20,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircleOutline
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DownloadDone
@@ -35,10 +31,10 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -53,8 +49,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
@@ -63,6 +57,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
@@ -70,14 +65,12 @@ import com.anongram.app.features.chats.messages.domain.timeLabel
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 
 /**
- * Модальное мини-окно превью ответа на сообщение Telegram-style (Фото 2):
- * - Сверху и снизу отступы ~5 см (72.dp) с полупрозрачным затемнением;
- * - Нажатие на верхнюю или нижнюю затемнённую область закрывает мини-окно;
- * - Внутри карточки:
- *   - Заголовок «Ответ на сообщение»
- *   - Обои чата
- *   - Интерактивное сообщение: фото можно открыть и посмотреть, файл скачать/открыть, аудио послушать;
- *   - Меню под сообщением (Фото 2): «Ответить в другом чате», «Применить изменения», «Убрать ответ».
+ * Полноэкранный оверлей превью ответа на сообщение точно по образцу Telegram (media_1793136789840.png):
+ * - Задний фон чата размыт красивым блюром (RenderEffect blur) и слегка затемнён;
+ * - Верхняя карточка начинается под статус-баром и занимает верхнюю часть экрана;
+ * - Внутри карточки: заголовок «Ответ на сообщение», обои чата и интерактивное сообщение (фото/видео с просмотром, файл, аудио);
+ * - Под карточкой справа — аккуратная плавающая кнопка «Убрать ответ» (FlameOrange);
+ * - Тап по размытой области вокруг закрывает оверлей.
  */
 @Composable
 internal fun ReplyPreviewDialog(
@@ -88,46 +81,44 @@ internal fun ReplyPreviewDialog(
     onJumpToMessage: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            decorFitsSystemWindows = false
-        )
+    // Внешний фон оверлея с затемнением — клик в любую пустую область закрывает окно
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.55f))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss
+            )
+            .safeStatusBarPadding()
     ) {
-        BackHandler(onBack = onDismiss)
-
-        // Внешний фон: нажатие по затемнённой области сверху и снизу (5 см) закрывает окно
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.65f))
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = onDismiss
-                ),
-            contentAlignment = Alignment.Center
+                .padding(top = 10.dp, bottom = 24.dp)
         ) {
-            // Центрированная плавающая карточка с отступами ~5 см сверху и снизу (72dp)
+            // Карточка превью с обоями чата (Фото: media_1793136789840.png)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 72.dp)
+                    .weight(1f, fill = false)
+                    .heightIn(min = 360.dp, max = 560.dp)
+                    .padding(horizontal = 12.dp)
                     .clip(RoundedCornerShape(22.dp))
                     .background(IslandBackground)
                     .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
-                        onClick = {} // Блокируем закрытие при клике внутри самой карточки
+                        onClick = {} // предотвращаем закрытие при тапе по телу карточки
                     )
             ) {
                 // Шапка карточки: «Ответ на сообщение»
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(CardDark)
+                        .background(Color(0xFF20232B))
                         .padding(horizontal = 18.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -135,8 +126,8 @@ internal fun ReplyPreviewDialog(
                     Text(
                         text = "Ответ на сообщение",
                         color = TextPrimary,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                     IconButton(
                         onClick = onDismiss,
@@ -155,7 +146,7 @@ internal fun ReplyPreviewDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 300.dp, max = 540.dp)
+                        .weight(1f)
                 ) {
                     // Обои чата
                     WallpaperBackground(
@@ -170,14 +161,13 @@ internal fun ReplyPreviewDialog(
                             .background(Color.Black.copy(alpha = 0.35f))
                     )
 
-                    Column(
+                    // Пузырь сообщения над обоями
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.BottomCenter)
-                            .padding(horizontal = 14.dp, vertical = 16.dp),
-                        horizontalAlignment = Alignment.End
+                            .fillMaxSize()
+                            .padding(14.dp),
+                        contentAlignment = Alignment.BottomStart
                     ) {
-                        // Интерактивный пузырь сообщения (тап скроллит к оригиналу в чате)
                         InteractiveReplyBubble(
                             message = replyMessage,
                             peerName = peerName,
@@ -186,17 +176,50 @@ internal fun ReplyPreviewDialog(
                                 onDismiss()
                             }
                         )
+                    }
+                }
+            }
 
-                        Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-                        // Меню под сообщением в точности как на скриншоте Фото 2
-                        ReplyActionMenu(
-                            onChangeChat = onDismiss,
-                            onApplyChanges = onDismiss,
-                            onRemoveReply = {
+            // Единственная кнопка под карточкой справа: «Убрать ответ» (Фото: media_1793136789840.png)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFF20232B),
+                    border = BorderStroke(1.dp, CardBorder),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
                                 onRemoveReply()
                                 onDismiss()
                             }
+                        )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 13.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = null,
+                            tint = FlameOrange,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = "Убрать ответ",
+                            color = FlameOrange,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
@@ -207,7 +230,7 @@ internal fun ReplyPreviewDialog(
 
 /**
  * Интерактивный пузырь сообщения в окне превью:
- * Фото можно развернуть и посмотреть, файл скачать/открыть, аудио послушать.
+ * Фото / видео можно посмотреть или развернуть, файл скачать, аудио послушать.
  */
 @Composable
 private fun InteractiveReplyBubble(
@@ -220,21 +243,103 @@ private fun InteractiveReplyBubble(
     var isFileDownloaded by remember { mutableStateOf(false) }
     var isAudioPlaying by remember { mutableStateOf(false) }
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth(0.92f)
-            .clip(RoundedCornerShape(18.dp))
-            .background(CardDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-            .padding(14.dp)
-    ) {
-        when (val attachment = message.attachment) {
-            is MessageAttachment.File -> {
+    when (val attachment = message.attachment) {
+        is MessageAttachment.Photo -> {
+            // Превью фото / видео точно по фото media_1793136789840.png
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(if (isExpandedPhotoOpen) 280.dp else 190.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(attachmentColor(attachment.colorSeed))
+                        .clickable { isExpandedPhotoOpen = !isExpandedPhotoOpen },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (attachment.isVideo) Icons.Outlined.Videocam else Icons.Outlined.Image,
+                        contentDescription = if (attachment.isVideo) "Видео" else "Фотография",
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(if (attachment.isVideo) 54.dp else 46.dp)
+                    )
+
+                    if (attachment.isVideo) {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isAudioPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                                contentDescription = "Воспроизвести видео",
+                                tint = Color.White,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.Black.copy(alpha = 0.65f))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = if (attachment.isVideo) {
+                                if (isExpandedPhotoOpen) "Свернуть видео" else "Воспроизвести видео"
+                            } else {
+                                if (isExpandedPhotoOpen) "Свернуть" else "Посмотреть"
+                            },
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+
+                if (message.text.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = message.text,
+                        color = TextPrimary,
+                        fontSize = 14.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = message.timeLabel(),
+                    color = TextMuted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+        }
+
+        is MessageAttachment.File -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Кнопка скачивания файла
                     Box(
                         modifier = Modifier
                             .size(46.dp)
@@ -288,62 +393,17 @@ private fun InteractiveReplyBubble(
                     }
                 }
             }
+        }
 
-            is MessageAttachment.Photo -> {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    // Мини-превью / превью фото с возможностью просмотра
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(if (isExpandedPhotoOpen) 220.dp else 120.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(attachmentColor(attachment.colorSeed))
-                            .clickable { isExpandedPhotoOpen = !isExpandedPhotoOpen },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (attachment.isVideo) Icons.Outlined.Videocam else Icons.Outlined.Image,
-                            contentDescription = "Просмотр фотографии",
-                            tint = Color.White.copy(alpha = 0.85f),
-                            modifier = Modifier.size(if (isExpandedPhotoOpen) 56.dp else 36.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(8.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
-                        ) {
-                            Text(
-                                text = if (isExpandedPhotoOpen) "Свернуть" else "Посмотреть",
-                                color = Color.White,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    if (message.text.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = message.text,
-                            color = TextPrimary,
-                            fontSize = 14.sp
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = message.timeLabel(),
-                        color = TextMuted,
-                        fontSize = 11.sp,
-                        modifier = Modifier.align(Alignment.End)
-                    )
-                }
-            }
-
-            is MessageAttachment.Music -> {
+        is MessageAttachment.Music -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -388,8 +448,17 @@ private fun InteractiveReplyBubble(
                     )
                 }
             }
+        }
 
-            is MessageAttachment.Voice -> {
+        is MessageAttachment.Voice -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -425,30 +494,17 @@ private fun InteractiveReplyBubble(
                     )
                 }
             }
+        }
 
-            is MessageAttachment.Contact -> {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onJumpToMessage)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(28.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(text = attachment.name, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text(text = attachment.phone, color = TextMuted, fontSize = 12.sp)
-                    }
-                    Text(text = message.timeLabel(), color = TextMuted, fontSize = 11.sp)
-                }
-            }
-
-            is MessageAttachment.Geo -> {
+        is MessageAttachment.Location -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
@@ -457,17 +513,81 @@ private fun InteractiveReplyBubble(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = FlameOrange,
-                        modifier = Modifier.size(28.dp)
+                        contentDescription = "Геолокация",
+                        tint = scheme.accent,
+                        modifier = Modifier.size(22.dp)
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = attachment.address, color = TextPrimary, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                    Text(text = message.timeLabel(), color = TextMuted, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = attachment.address ?: "${attachment.latitude}, ${attachment.longitude}",
+                        color = TextPrimary,
+                        fontSize = 14.sp,
+                        modifier = Modifier.weight(1f),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = message.timeLabel(),
+                        color = TextMuted,
+                        fontSize = 11.sp
+                    )
                 }
             }
+        }
 
-            else -> {
+        is MessageAttachment.Contact -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onJumpToMessage)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Person,
+                        contentDescription = "Контакт",
+                        tint = scheme.accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = attachment.name,
+                            color = TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = attachment.phone,
+                            color = TextMuted,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Text(
+                        text = message.timeLabel(),
+                        color = TextMuted,
+                        fontSize = 11.sp
+                    )
+                }
+            }
+        }
+
+        else -> {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(0.92f)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .padding(14.dp)
+            ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -487,110 +607,6 @@ private fun InteractiveReplyBubble(
                     )
                 }
             }
-        }
-    }
-}
-
-/**
- * Меню действий под сообщением в точности по скриншоту (Фото 2 / media_1793132892184.png):
- * 1) «Ответить в другом чате»
- * 2) «Применить изменения»
- * 3) «Убрать ответ»
- */
-@Composable
-private fun ReplyActionMenu(
-    onChangeChat: () -> Unit,
-    onApplyChanges: () -> Unit,
-    onRemoveReply: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth(0.72f)
-            .clip(RoundedCornerShape(16.dp))
-            .background(IslandBackground)
-            .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-    ) {
-        // 1. Ответить в другом чате
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onChangeChat)
-                .padding(horizontal = 16.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Sync,
-                contentDescription = null,
-                tint = TextPrimary,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = "Ответить в другом чате",
-                color = TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(CardBorder.copy(alpha = 0.4f))
-        )
-
-        // 2. Применить изменения
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onApplyChanges)
-                .padding(horizontal = 16.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.CheckCircleOutline,
-                contentDescription = null,
-                tint = TextPrimary,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = "Применить изменения",
-                color = TextPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(1.dp)
-                .background(CardBorder.copy(alpha = 0.4f))
-        )
-
-        // 3. Убрать ответ
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onRemoveReply)
-                .padding(horizontal = 16.dp, vertical = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Delete,
-                contentDescription = null,
-                tint = FlameOrange,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = "Убрать ответ",
-                color = FlameOrange,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
-            )
         }
     }
 }
