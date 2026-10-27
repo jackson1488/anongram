@@ -171,12 +171,11 @@ internal fun PinnedMessagesScreen(
                                 MessageBubble(
                                     item = MessageRenderItem(
                                         message = message,
-                                        isGroupedWithPrev = false,
-                                        isGroupedWithNext = false,
-                                        isLastInGroup = true,
-                                        spacingAboveDp = 4,
                                         dateChipAbove = false,
-                                        unreadDividerAbove = false
+                                        unreadDividerAbove = false,
+                                        isFirstInGroup = true,
+                                        isLastInGroup = true,
+                                        spacingAboveDp = 4
                                     ),
                                     replyTo = null,
                                     peerName = peerName,
