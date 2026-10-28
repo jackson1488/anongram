@@ -213,7 +213,7 @@ fun MusicTab(
             }
         }
 
-        // Мягкая легкая полупрозрачная вуаль-градиент сверху (чуть-чуть затемнено)
+        // Вуаль-градиент сверху как в Галерее (затемнено сверху, контент скроллится под плавающим островком)
         val scrimHeight = if (isFullscreen) 84.dp else 96.dp
         Box(
             modifier = Modifier
@@ -222,8 +222,8 @@ fun MusicTab(
                 .height(scrimHeight)
                 .background(
                     Brush.verticalGradient(
-                        0.0f to Color.Black.copy(alpha = 0.35f),
-                        0.65f to Color.Black.copy(alpha = 0.15f),
+                        0.0f to Color.Black.copy(alpha = 0.85f),
+                        0.65f to Color.Black.copy(alpha = 0.50f),
                         1.0f to Color.Transparent
                     )
                 )

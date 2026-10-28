@@ -3,6 +3,7 @@ package com.anongram.app.features.attach.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -57,6 +58,7 @@ import android.content.Intent
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -137,9 +139,30 @@ fun AttachSheetContent(
         }
     }
 
-    // 2. Единая анимируемая высота окна через Animatable
-    val sheetFraction = remember { Animatable(0f) }
+    // 2. Единая реактивная высота окна: синхронный отклик 1:1 без очередей корутин
+    var fraction by remember { mutableFloatStateOf(0f) }
+    var animJob by remember { mutableStateOf<Job?>(null) }
     var isClosing by remember { mutableStateOf(false) }
+
+    fun animateToFraction(
+        target: Float,
+        duration: Int = 240,
+        velocity: Float = 0f,
+        onEnd: () -> Unit = {}
+    ) {
+        animJob?.cancel()
+        animJob = scope.launch {
+            animate(
+                initialValue = fraction,
+                targetValue = target,
+                initialVelocity = velocity,
+                animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)
+            ) { value, _ ->
+                fraction = value
+            }
+            onEnd()
+        }
+    }
 
     fun dismissAnimated() {
         if (isClosing) return
@@ -153,8 +176,7 @@ fun AttachSheetContent(
             onRestoreKeyboard()
         }
 
-        scope.launch {
-            sheetFraction.animateTo(0f, tween(durationMillis = 250, easing = FastOutLinearInEasing))
+        animateToFraction(0f, duration = 240) {
             onDismiss()
         }
     }
@@ -164,17 +186,18 @@ fun AttachSheetContent(
         if (wasKeyboardOpen && keyboardHeightPx > 0) {
             launch {
                 // Системную клавиатуру скрываем ТОЛЬКО когда верх шторки перекрыл клавиатуру
-                snapshotFlow { sheetFraction.value * screenHeightPx }
+                snapshotFlow { fraction * screenHeightPx }
                     .first { it >= keyboardHeightPx * 0.90f && it > 0 }
                 keyboardController?.hide()
             }
         }
-        sheetFraction.animateTo(defaultInitial, tween(durationMillis = 300, easing = FastOutSlowInEasing))
+        animateToFraction(defaultInitial, 300)
     }
 
     var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
     var selectedAlbum by remember { mutableStateOf("Все медиа") }
     var isAlbumsSheetOpen by remember { mutableStateOf(false) }
+    var isQuickContactOpen by remember { mutableStateOf(false) }
 
     // Выбранные элементы по всем вкладкам (ТЗ, шаг 11)
     val selectedMedia = remember { mutableStateListOf<GalleryMedia>() }
@@ -387,20 +410,22 @@ fun AttachSheetContent(
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
+            fraction >= 0.95f -> animateToFraction(defaultInitial, 240)
             else -> requestDismiss()
         }
     }
 
-    // Плавный скролл шторки 1:1 вместе со списками без резких рывков
+    // Плавный скролл шторки 1:1 вместе со списками без задержек и рывков
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Листаешь вниз (палец вверх available.y < 0): шторка растёт вслед за пальцем до 100%, остаток отдаёт списку
-                if (available.y < 0f && sheetFraction.value < 0.999f && screenHeightPx > 0) {
+                // Листаешь вниз (палец вверх available.y < 0): шторка растёт вслед за пальцем до 100%, синхронно 1:1
+                if (available.y < 0f && fraction < 0.999f && screenHeightPx > 0) {
+                    animJob?.cancel()
                     val deltaFrac = -available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value + deltaFrac).coerceAtMost(1.0f)
-                    val consumedFrac = nextFrac - sheetFraction.value
-                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                    val nextFrac = (fraction + deltaFrac).coerceAtMost(1.0f)
+                    val consumedFrac = nextFrac - fraction
+                    fraction = nextFrac
                     val consumedY = -consumedFrac * screenHeightPx
                     return Offset(0f, consumedY)
                 }
@@ -414,38 +439,45 @@ fun AttachSheetContent(
             ): Offset {
                 // Листаешь вверх (палец вниз available.y > 0): сначала скроллится список до начала, потом шторка плавно уменьшается
                 if (available.y > 0f && screenHeightPx > 0) {
+                    animJob?.cancel()
                     val deltaFrac = available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value - deltaFrac).coerceAtLeast(0.15f)
-                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                    val nextFrac = (fraction - deltaFrac).coerceAtLeast(0.15f)
+                    fraction = nextFrac
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y < -1000f && sheetFraction.value < 0.99f) {
-                    sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing))
+                if (available.y < -800f && fraction < 0.99f) {
+                    // Резкий свайп вверх: мгновенно летит на весь экран
+                    animateToFraction(1.0f, 220, velocity = available.y)
                     return available
-                } else if (available.y > 1000f) {
-                    // Резкий свайп вниз: закрывается с анимацией
-                    requestDismiss()
+                } else if (available.y > 800f) {
+                    // Резкий свайп вниз:
+                    if (fraction > 0.60f) {
+                        // С фулл шторки вниз НЕ закрывает, а фиксирует положение 50!
+                        animateToFraction(defaultInitial, 240, velocity = available.y)
+                    } else {
+                        // С 50% закрывает с анимацией
+                        requestDismiss()
+                    }
                     return available
                 } else {
                     // Положение свободное от 50% до 100% высоты, без прилипания.
-                    // Отпустили ниже 50%: закрывается с анимацией.
-                    if (sheetFraction.value < 0.48f) {
+                    // Отпустили ниже 45%: закрывается с анимацией.
+                    if (fraction < 0.45f) {
                         requestDismiss()
-                    } else if (sheetFraction.value >= 0.98f) {
-                        sheetFraction.animateTo(1.0f, tween(200, easing = FastOutSlowInEasing))
+                    } else if (fraction >= 0.95f) {
+                        animateToFraction(1.0f, 180)
                     }
-                    // В диапазоне от 50% до 100% шторка свободно остаётся на месте без залипания!
+                    // В диапазоне от 50% до 95% шторка свободно остаётся на месте без залипания!
                 }
                 return Velocity.Zero
             }
         }
     }
 
-    val fraction = sheetFraction.value
     val isFullscreen = fraction >= 0.95f
     val topNavAlpha = ((fraction - 0.90f) / 0.05f).coerceIn(0f, 1f)
     val handleAlpha = (1f - ((fraction - 0.88f) / 0.07f)).coerceIn(0f, 1f)
@@ -520,9 +552,7 @@ fun AttachSheetContent(
                                 dismissAnimated()
                             },
                             onExpandToFullscreen = {
-                                scope.launch {
-                                    sheetFraction.animateTo(1.0f, tween(260, easing = FastOutSlowInEasing))
-                                }
+                                animateToFraction(1.0f, 240)
                             },
                             selectedFiles = selectedFiles,
                             onToggleSelectFile = { file ->
@@ -555,9 +585,7 @@ fun AttachSheetContent(
                                 dismissAnimated()
                             },
                             onExpandToFullscreen = {
-                                scope.launch {
-                                    sheetFraction.animateTo(1.0f, tween(260, easing = FastOutSlowInEasing))
-                                }
+                                animateToFraction(1.0f, 240)
                             },
                             selectedContacts = selectedContacts,
                             onToggleSelectContact = { contact ->
@@ -569,6 +597,7 @@ fun AttachSheetContent(
                             },
                             isFullscreen = isFullscreen,
                             onBack = { requestDismiss() },
+                            onQuickCardVisibilityChange = { isQuickContactOpen = it },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -581,9 +610,7 @@ fun AttachSheetContent(
                             },
                             onExpandPlayer = { isFullPlayerOpen = true },
                             onExpandToFullscreen = {
-                                scope.launch {
-                                    sheetFraction.animateTo(1.0f, tween(260, easing = FastOutSlowInEasing))
-                                }
+                                animateToFraction(1.0f, 240)
                             },
                             selectedTracks = selectedTracks,
                             onToggleSelectTrack = { track ->
@@ -633,15 +660,30 @@ fun AttachSheetContent(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { delta ->
                                 if (screenHeightPx > 0) {
-                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.15f, 1.0f)
-                                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                                    animJob?.cancel()
+                                    val nextFrac = (fraction - (delta / screenHeightPx)).coerceIn(0.15f, 1.0f)
+                                    fraction = nextFrac
                                 }
                             },
                             onDragStopped = { velocity ->
-                                if (sheetFraction.value < 0.48f || velocity > 1000f) {
-                                    requestDismiss()
-                                } else if (velocity < -1000f || sheetFraction.value >= 0.98f) {
-                                    scope.launch { sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing)) }
+                                if (velocity < -800f || fraction >= 0.98f) {
+                                    // Резкий свайп вверх: на весь экран
+                                    animateToFraction(1.0f, 220, velocity = velocity)
+                                } else if (velocity > 800f) {
+                                    // Резкий свайп вниз:
+                                    if (fraction > 0.60f) {
+                                        // С фулл шторки вниз НЕ закрывает, а фиксирует положение 50!
+                                        animateToFraction(defaultInitial, 240, velocity = velocity)
+                                    } else {
+                                        // С 50% закрывает
+                                        requestDismiss()
+                                    }
+                                } else {
+                                    if (fraction < 0.45f) {
+                                        requestDismiss()
+                                    } else if (fraction >= 0.95f) {
+                                        animateToFraction(1.0f, 180)
+                                    }
                                 }
                             }
                         ),
@@ -784,11 +826,11 @@ fun AttachSheetContent(
                 }
             }
 
-            // 4. Нижняя панель вкладок: плавно уезжает вниз при >= 95% или при наличии выбранных элементов
+            // 4. Нижняя панель вкладок: плавно уезжает вниз при >= 95%, при наличии выбранных элементов или при открытой карточке контакта
             AttachTabBar(
                 selectedTab = selectedTab,
                 onSelectTab = { selectedTab = it },
-                visible = !isFullscreen && totalSelectedCount == 0,
+                visible = !isFullscreen && totalSelectedCount == 0 && !isQuickContactOpen,
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
 

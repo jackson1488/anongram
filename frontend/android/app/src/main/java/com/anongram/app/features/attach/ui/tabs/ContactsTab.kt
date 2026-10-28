@@ -100,6 +100,7 @@ fun ContactsTab(
     onToggleSelectContact: (DeviceContact) -> Unit = {},
     isFullscreen: Boolean = false,
     onBack: () -> Unit = {},
+    onQuickCardVisibilityChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -127,6 +128,10 @@ fun ContactsTab(
     var contacts by remember { mutableStateOf<List<DeviceContact>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var quickCardContact by remember { mutableStateOf<DeviceContact?>(null) }
+
+    LaunchedEffect(quickCardContact) {
+        onQuickCardVisibilityChange(quickCardContact != null)
+    }
 
     LaunchedEffect(Unit) {
         contacts = withContext(Dispatchers.IO) {
@@ -223,7 +228,7 @@ fun ContactsTab(
             }
         }
 
-        // Мягкая легкая полупрозрачная вуаль-градиент сверху (чуть-чуть затемнено)
+        // Вуаль-градиент сверху как в Галерее (затемнено сверху, контент скроллится под плавающим островком)
         val scrimHeight = if (isFullscreen) 84.dp else 96.dp
         Box(
             modifier = Modifier
@@ -232,8 +237,8 @@ fun ContactsTab(
                 .height(scrimHeight)
                 .background(
                     Brush.verticalGradient(
-                        0.0f to Color.Black.copy(alpha = 0.35f),
-                        0.65f to Color.Black.copy(alpha = 0.15f),
+                        0.0f to Color.Black.copy(alpha = 0.85f),
+                        0.65f to Color.Black.copy(alpha = 0.50f),
                         1.0f to Color.Transparent
                     )
                 )
