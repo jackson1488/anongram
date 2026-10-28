@@ -295,7 +295,6 @@ fun ContactsTab(
                     .onFocusChanged { if (it.isFocused && !isFullscreen) onExpandToFullscreen() }
             )
         }
-    }
 
         // Быстрое нижнее окно контакта (ТЗ, шаг 15: компактное окно по высоте контента)
         if (quickCardContact != null) {
