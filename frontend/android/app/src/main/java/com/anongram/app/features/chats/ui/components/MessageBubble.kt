@@ -134,13 +134,13 @@ internal fun MessageBubble(
     LaunchedEffect(isHighlighted) {
         if (isHighlighted) {
             pulseAnim.snapTo(0f)
-            // Двойной пульс (сердцебиение) как в Telegram:
-            // 1. Первый резкий подъём и полуспад
-            pulseAnim.animateTo(1f, tween(durationMillis = 180, easing = FastOutSlowInEasing))
-            pulseAnim.animateTo(0.2f, tween(durationMillis = 140, easing = LinearOutSlowInEasing))
-            // 2. Второй резкий подъём и плавное угасание
-            pulseAnim.animateTo(1f, tween(durationMillis = 200, easing = FastOutSlowInEasing))
-            pulseAnim.animateTo(0f, tween(durationMillis = 850, easing = LinearOutSlowInEasing))
+            // Плавное двойное сердцебиение как в Telegram:
+            // 1. Первый мягкий толчок (280 мс) и полуспад (200 мс)
+            pulseAnim.animateTo(1f, tween(durationMillis = 280, easing = FastOutSlowInEasing))
+            pulseAnim.animateTo(0.35f, tween(durationMillis = 200, easing = LinearOutSlowInEasing))
+            // 2. Второй мягкий толчок (260 мс) и плавное растворение (1100 мс)
+            pulseAnim.animateTo(1f, tween(durationMillis = 260, easing = FastOutSlowInEasing))
+            pulseAnim.animateTo(0f, tween(durationMillis = 1100, easing = LinearOutSlowInEasing))
         } else {
             pulseAnim.snapTo(0f)
         }
@@ -273,19 +273,19 @@ internal fun MessageBubble(
                             )
                         }
                     } else {
-                        val pulseScale = 1f + (pulseAlpha * 0.08f)
+                        val pulseScale = 1f + (pulseAlpha * 0.05f)
                         val baseColor = when {
                             isSelected -> scheme.accent.copy(alpha = 0.28f)
                             isIncoming -> CardDark
                             else -> scheme.accent.copy(alpha = 0.16f)
                         }
                         val bubbleColor = if (pulseAlpha > 0f) {
-                            lerp(baseColor, scheme.accent.copy(alpha = 0.82f), pulseAlpha)
+                            lerp(baseColor, scheme.accent.copy(alpha = 0.72f), pulseAlpha)
                         } else {
                             baseColor
                         }
                         val bubbleBorder = when {
-                            pulseAlpha > 0f -> BorderStroke(2.5.dp, scheme.accent.copy(alpha = 0.8f + pulseAlpha * 0.2f))
+                            pulseAlpha > 0.005f -> BorderStroke(2.dp, scheme.accent.copy(alpha = pulseAlpha))
                             !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
                             else -> null
                         }
