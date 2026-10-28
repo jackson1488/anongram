@@ -68,6 +68,7 @@ import com.anongram.app.features.attach.api.AttachmentDraft
 import com.anongram.app.features.attach.ui.theme.AttachBorder
 import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import com.anongram.app.features.attach.ui.theme.AttachPillDark
+import com.anongram.app.features.attach.ui.theme.AttachSheetBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
