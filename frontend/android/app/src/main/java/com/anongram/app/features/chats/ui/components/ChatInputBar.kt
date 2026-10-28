@@ -212,16 +212,6 @@ internal fun ChatInputBar(
                             modifier = Modifier.size(22.dp)
                         )
                     }
-
-                    // Стрелка вверх (раскрыть)
-                    IconButton(onClick = {}, modifier = Modifier.size(28.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.KeyboardArrowUp,
-                            contentDescription = "Раскрыть",
-                            tint = TextMuted,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                 }
             }
         }

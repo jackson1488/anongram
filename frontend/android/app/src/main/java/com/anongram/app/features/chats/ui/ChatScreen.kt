@@ -166,11 +166,13 @@ fun ChatScreen(
     LaunchedEffect(state.searchIndex, state.searchMatches) {
         val currentMatchId = state.searchMatches.getOrNull(state.searchIndex)
         if (currentMatchId != null) {
+            viewModel.highlightMessage(currentMatchId)
             val matchIndex = state.messages.asReversed().indexOfFirst { it.id == currentMatchId }
             if (matchIndex >= 0) {
-                listState.animateScrollAndCenterItem(matchIndex)
+                runCatching {
+                    listState.animateScrollAndCenterItem(matchIndex)
+                }
             }
-            viewModel.highlightMessage(currentMatchId)
         }
     }
 
@@ -244,6 +246,7 @@ fun ChatScreen(
                     peerName = session.title,
                     onSelectMatch = { message ->
                         isSearchListMode = false
+                        viewModel.highlightMessage(message.id)
                         val matchIdx = state.searchMatches.indexOf(message.id)
                         if (matchIdx >= 0) {
                             viewModel.jumpToSearchMatch(matchIdx)
@@ -251,11 +254,10 @@ fun ChatScreen(
                         val idx = state.messages.asReversed().indexOfFirst { it.id == message.id }
                         if (idx >= 0) {
                             scope.launch {
-                                listState.animateScrollAndCenterItem(idx)
-                                viewModel.highlightMessage(message.id)
+                                runCatching {
+                                    listState.animateScrollAndCenterItem(idx)
+                                }
                             }
-                        } else {
-                            viewModel.highlightMessage(message.id)
                         }
                     },
                     topPadding = topListPadding,
@@ -370,14 +372,14 @@ fun ChatScreen(
                         onCancelReply = viewModel::cancelReply,
                         onCancelEdit = viewModel::cancelEdit,
                         onReplyClick = { replyMsg ->
+                            viewModel.highlightMessage(replyMsg.id)
                             val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
                             if (index >= 0) {
                                 scope.launch {
-                                    listState.animateScrollAndCenterItem(index)
-                                    viewModel.highlightMessage(replyMsg.id)
+                                    runCatching {
+                                        listState.animateScrollAndCenterItem(index)
+                                    }
                                 }
-                            } else {
-                                viewModel.highlightMessage(replyMsg.id)
                             }
                         },
                         onReplyLongClick = {
@@ -506,14 +508,14 @@ fun ChatScreen(
                                 pinned.id
                             }
                             if (targetId != null) {
+                                viewModel.highlightMessage(targetId)
                                 val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
                                 if (index >= 0) {
                                     scope.launch {
-                                        listState.animateScrollAndCenterItem(index)
-                                        viewModel.highlightMessage(targetId)
+                                        runCatching {
+                                            listState.animateScrollAndCenterItem(index)
+                                        }
                                     }
-                                } else {
-                                    viewModel.highlightMessage(targetId)
                                 }
                             }
                         },
@@ -655,14 +657,14 @@ fun ChatScreen(
                         viewModel.toggleSelection(message.id)
                     } else {
                         viewModel.closePinnedMessages()
+                        viewModel.highlightMessage(message.id)
                         val index = state.messages.asReversed().indexOfFirst { it.id == message.id }
                         if (index >= 0) {
                             scope.launch {
-                                listState.animateScrollAndCenterItem(index)
-                                viewModel.highlightMessage(message.id)
+                                runCatching {
+                                    listState.animateScrollAndCenterItem(index)
+                                }
                             }
-                        } else {
-                            viewModel.highlightMessage(message.id)
                         }
                     }
                 },
@@ -707,14 +709,14 @@ fun ChatScreen(
                 onJumpToMessage = {
                     val targetId = state.replyTo?.id
                     if (targetId != null) {
+                        viewModel.highlightMessage(targetId)
                         val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
                         if (index >= 0) {
                             scope.launch {
-                                listState.animateScrollAndCenterItem(index)
-                                viewModel.highlightMessage(targetId)
+                                runCatching {
+                                    listState.animateScrollAndCenterItem(index)
+                                }
                             }
-                        } else {
-                            viewModel.highlightMessage(targetId)
                         }
                     }
                     isReplyPreviewOpen = false

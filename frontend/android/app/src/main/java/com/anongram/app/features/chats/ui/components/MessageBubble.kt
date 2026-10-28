@@ -273,7 +273,6 @@ internal fun MessageBubble(
                             )
                         }
                     } else {
-                        val pulseScale = 1f + (pulseAlpha * 0.05f)
                         val baseColor = when {
                             isSelected -> scheme.accent.copy(alpha = 0.28f)
                             isIncoming -> CardDark
@@ -297,10 +296,6 @@ internal fun MessageBubble(
                             shadowElevation = (pulseAlpha * 16).dp,
                             modifier = Modifier
                                 .widthIn(max = bubbleMaxWidth)
-                                .graphicsLayer {
-                                    scaleX = pulseScale
-                                    scaleY = pulseScale
-                                }
                                 .clip(bubbleShape(item, isIncoming))
                                 .combinedClickable(
                                     onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },

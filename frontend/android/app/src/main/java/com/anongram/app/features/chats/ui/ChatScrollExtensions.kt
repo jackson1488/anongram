@@ -32,19 +32,12 @@ suspend fun LazyListState.animateScrollAndCenterItem(
     if (visibleItem != null) {
         val itemCenter = visibleItem.offset + visibleItem.size / 2
         val diff = (itemCenter - viewportCenter).toFloat()
-        if (kotlin.math.abs(diff) > 2f) {
+        if (kotlin.math.abs(diff) > 4f) {
             animateScrollBy(diff, tween(durationMillis = 350, easing = FastOutSlowInEasing))
         }
     } else {
-        // Если элемент за пределами экрана — сначала подводим к нему список
-        scrollToItem(index)
-        val measuredItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
-        if (measuredItem != null) {
-            val itemCenter = measuredItem.offset + measuredItem.size / 2
-            val diff = (itemCenter - viewportCenter).toFloat()
-            if (kotlin.math.abs(diff) > 2f) {
-                scrollBy(diff)
-            }
-        }
+        // Если элемент за пределами экрана — плавно прокручиваем к нему с центрированием
+        val targetOffset = -(viewportCenter - 100)
+        animateScrollToItem(index, scrollOffset = targetOffset)
     }
 }
