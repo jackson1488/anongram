@@ -7,6 +7,7 @@ import com.anongram.app.features.chats.data.InMemoryChatListRepository
 import com.anongram.app.features.chats.messages.data.ChatMessagesRepository
 import com.anongram.app.features.chats.messages.data.InMemoryChatMessagesRepository
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.matchesQuery
 import com.anongram.app.features.chats.messages.domain.LinkPreview
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
@@ -250,22 +251,64 @@ class ChatMessagesViewModel(
     // --- Закреплённое сообщение (шаг 12) ---
 
     fun pinMessage(messageId: String) {
-        _uiState.update { state ->
-            val pinned = state.pinnedIds.toMutableList()
+        val state = _uiState.value
+        if (!state.pinnedIds.contains(messageId) && state.pinnedIds.size >= MAX_PINNED_LIMIT) {
+            showLimitWarning("Нельзя закрепить больше 99 сообщений. Достигнут лимит")
+            _uiState.update { it.copy(actionMenuFor = null) }
+            return
+        }
+        _uiState.update { s ->
+            val pinned = s.pinnedIds.toMutableList()
             if (!pinned.contains(messageId)) pinned.add(messageId)
-            state.copy(pinnedIds = pinned, pinnedId = messageId, actionMenuFor = null)
+            s.copy(
+                pinnedIds = pinned,
+                pinnedId = messageId,
+                pinnedIndex = pinned.indexOf(messageId).coerceAtLeast(0),
+                actionMenuFor = null
+            )
         }
     }
 
     fun unpinMessage(messageId: String) {
         _uiState.update { state ->
             val pinned = state.pinnedIds.filter { it != messageId }
-            state.copy(pinnedIds = pinned, pinnedId = pinned.lastOrNull())
+            val nextIndex = state.pinnedIndex.coerceAtMost((pinned.size - 1).coerceAtLeast(0))
+            state.copy(
+                pinnedIds = pinned,
+                pinnedId = pinned.getOrNull(nextIndex) ?: pinned.lastOrNull(),
+                pinnedIndex = nextIndex
+            )
         }
     }
 
     fun unpinAllMessages() {
-        _uiState.update { it.copy(pinnedIds = emptyList(), pinnedId = null, isPinnedMessagesScreenOpen = false) }
+        _uiState.update { it.copy(pinnedIds = emptyList(), pinnedId = null, pinnedIndex = 0, isPinnedMessagesScreenOpen = false) }
+    }
+
+    fun cycleNextPinnedMessage(): String? {
+        val state = _uiState.value
+        if (state.pinnedIds.isEmpty()) return null
+        val nextIndex = (state.pinnedIndex + 1) % state.pinnedIds.size
+        val nextId = state.pinnedIds[nextIndex]
+        _uiState.update { it.copy(pinnedIndex = nextIndex, pinnedId = nextId) }
+        highlightMessage(nextId)
+        return nextId
+    }
+
+    fun showLimitWarning(message: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(limitWarning = message) }
+            delay(2800)
+            _uiState.update { if (it.limitWarning == message) it.copy(limitWarning = null) else it }
+        }
+    }
+
+    fun dismissLimitWarning() {
+        _uiState.update { it.copy(limitWarning = null) }
+    }
+
+    fun triggerDemoPinnedLimitWarning() {
+        showLimitWarning("Нельзя закрепить больше 99 сообщений. Достигнут лимит")
     }
 
     fun openPinnedMessages() = _uiState.update { it.copy(isPinnedMessagesScreenOpen = true) }
@@ -408,8 +451,9 @@ class ChatMessagesViewModel(
         val matches = if (trimmed.isEmpty()) {
             emptyList()
         } else {
-            _uiState.value.messages
-                .filter { it.text.contains(trimmed, ignoreCase = true) }
+            // Новейшие совпадения первыми (снизу вверх по чату)
+            _uiState.value.messages.asReversed()
+                .filter { it.matchesQuery(trimmed) }
                 .map { it.id }
         }
         _uiState.update {
@@ -419,9 +463,12 @@ class ChatMessagesViewModel(
 
     fun highlightMessage(id: String) {
         highlightJob?.cancel()
-        _uiState.update { it.copy(highlightedMessageId = id) }
         highlightJob = viewModelScope.launch {
-            delay(850)
+            // Сбрасываем в null, чтобы гарантировать повторное срабатывание анимации даже при повторном клике того же id
+            _uiState.update { it.copy(highlightedMessageId = null) }
+            delay(16)
+            _uiState.update { it.copy(highlightedMessageId = id) }
+            delay(1100)
             _uiState.update {
                 if (it.highlightedMessageId == id) it.copy(highlightedMessageId = null) else it
             }
@@ -437,14 +484,21 @@ class ChatMessagesViewModel(
         highlightMessage(matchId)
     }
 
-    fun nextSearchMatch() = cycleSearch(+1)
+    /** Стрелка ВВЕРХ (↑): переход к более старому найденному сообщению (вверх по истории чата). */
+    fun searchMoveUp() = cycleSearch(+1)
 
-    fun previousSearchMatch() = cycleSearch(-1)
+    /** Стрелка ВНИЗ (↓): переход к более новому найденному сообщению (вниз по истории чата). */
+    fun searchMoveDown() = cycleSearch(-1)
+
+    fun nextSearchMatch() = searchMoveDown()
+
+    fun previousSearchMatch() = searchMoveUp()
 
     private fun cycleSearch(delta: Int) {
         val state = _uiState.value
         if (state.searchMatches.isEmpty()) return
-        val next = (state.searchIndex + delta + state.searchMatches.size) % state.searchMatches.size
+        val size = state.searchMatches.size
+        val next = (state.searchIndex + delta + size) % size
         val matchId = state.searchMatches[next]
         _uiState.update { it.copy(searchIndex = next) }
         highlightMessage(matchId)
@@ -574,4 +628,8 @@ class ChatMessagesViewModel(
 
     fun toggleFlagSecure() =
         _uiState.update { it.copy(isFlagSecure = !it.isFlagSecure) }
+
+    companion object {
+        const val MAX_PINNED_LIMIT = 99
+    }
 }

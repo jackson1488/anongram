@@ -35,13 +35,41 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.unit.dp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.text.font.FontWeight
+import com.anongram.app.core.theme.CardDark
+import com.anongram.app.core.theme.CrimsonKillSwitch
+import com.anongram.app.core.theme.FlameOrange
+import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
+import com.anongram.app.features.chats.messages.domain.MessageDirection
+import com.anongram.app.features.chats.messages.domain.FileKind
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.messages.state.SelfDestruct
+import com.anongram.app.features.attach.api.AttachSheet
+import com.anongram.app.features.attach.api.AttachmentDraft
+import com.anongram.app.features.player.api.MiniPlayer
+import com.anongram.app.features.player.api.FullPlayerSheet
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
 import com.anongram.app.features.chats.ui.components.ChatInputBar
 import com.anongram.app.features.chats.ui.components.DeleteMessageDialog
@@ -89,6 +117,7 @@ fun ChatScreen(
     var isWallpaperOpen by remember { mutableStateOf(false) }
     var isReplyPreviewOpen by remember { mutableStateOf(false) }
     var isSearchListMode by remember { mutableStateOf(false) }
+    var isFullPlayerFromChatOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -112,6 +141,7 @@ fun ChatScreen(
     // Обработка системной кнопки назад: закрывать открытые панели и модалки по очереди
     BackHandler {
         when {
+            isFullPlayerFromChatOpen -> isFullPlayerFromChatOpen = false
             isWallpaperOpen -> isWallpaperOpen = false
             isReplyPreviewOpen -> isReplyPreviewOpen = false
             isSearchListMode -> isSearchListMode = false
@@ -136,9 +166,39 @@ fun ChatScreen(
         if (currentMatchId != null) {
             val matchIndex = state.messages.asReversed().indexOfFirst { it.id == currentMatchId }
             if (matchIndex >= 0) {
-                listState.animateScrollToItem(matchIndex)
+                listState.animateScrollAndCenterItem(matchIndex)
                 viewModel.highlightMessage(currentMatchId)
             }
+        }
+    }
+
+    LaunchedEffect(state.isSearchOpen, state.searchQuery) {
+        if (!state.isSearchOpen || state.searchQuery.isBlank()) {
+            isSearchListMode = false
+        }
+    }
+
+    // Автопрокрутка вниз при отправке сообщения или в режиме реального общения
+    val previousMessagesCount = remember { mutableIntStateOf(state.messages.size) }
+    LaunchedEffect(state.messages.size) {
+        if (state.messages.size > previousMessagesCount.intValue) {
+            val lastMessage = state.messages.lastOrNull()
+            val isOutgoing = lastMessage?.direction == MessageDirection.OUTGOING
+            val isNearBottom = listState.firstVisibleItemIndex <= 1
+            if (isOutgoing || isNearBottom) {
+                listState.animateScrollToItem(0)
+                if (isNearBottom) {
+                    viewModel.clearUnreadBadge()
+                }
+            }
+        }
+        previousMessagesCount.intValue = state.messages.size
+    }
+
+    // Автоочистка горящего бейджа новых сообщений при скролле до самого низа
+    LaunchedEffect(listState.firstVisibleItemIndex) {
+        if (listState.firstVisibleItemIndex <= 1 && state.unreadBadge > 0) {
+            viewModel.clearUnreadBadge()
         }
     }
 
@@ -173,7 +233,8 @@ fun ChatScreen(
             ) {
             if (state.isSearchOpen && isSearchListMode) {
                 val searchMatchingMessages = remember(state.messages, state.searchMatches) {
-                    state.messages.filter { it.id in state.searchMatches }.asReversed()
+                    val messageMap = state.messages.associateBy { it.id }
+                    state.searchMatches.mapNotNull { messageMap[it] }
                 }
                 ChatSearchResultsList(
                     query = state.searchQuery,
@@ -189,7 +250,7 @@ fun ChatScreen(
                         }
                         val idx = state.messages.asReversed().indexOfFirst { it.id == message.id }
                         if (idx >= 0) {
-                            scope.launch { listState.animateScrollToItem(idx) }
+                            scope.launch { listState.animateScrollAndCenterItem(idx) }
                         }
                     },
                     topPadding = topListPadding,
@@ -200,6 +261,7 @@ fun ChatScreen(
                     messages = state.messages,
                     peerName = session.title,
                     listState = listState,
+                    searchQuery = if (state.isSearchOpen) state.searchQuery else "",
                     selection = state.selection,
                     firstUnreadId = state.firstUnreadId,
                     highlightedMessageId = state.highlightedMessageId,
@@ -238,18 +300,18 @@ fun ChatScreen(
                 },
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = if (isKeyboardVisible) 76.dp else 96.dp)
+                    .padding(end = 16.dp, bottom = if (isKeyboardVisible) 126.dp else 146.dp)
             )
 
             // Плавающие круглые кнопки поиска (вверх / вниз по найденным сообщениям) (Фото 6)
             if (state.isSearchOpen && !isSearchListMode) {
                 ChatSearchNavigationButtons(
                     canNavigate = state.searchMatches.isNotEmpty(),
-                    onPrevious = viewModel::previousSearchMatch,
-                    onNext = viewModel::nextSearchMatch,
+                    onPrevious = viewModel::searchMoveUp,
+                    onNext = viewModel::searchMoveDown,
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = if (isKeyboardVisible) 76.dp else 96.dp)
+                        .padding(end = 16.dp, bottom = if (isKeyboardVisible) 126.dp else 146.dp)
                 )
             }
         }
@@ -270,10 +332,16 @@ fun ChatScreen(
                     } else {
                         state.searchCounter
                     }
+                    val canOpenList = state.searchMatches.isNotEmpty() && state.searchQuery.isNotBlank()
                     ChatSearchBottomBar(
                         counter = counterText,
                         isListMode = isSearchListMode,
-                        onListClick = { isSearchListMode = !isSearchListMode }
+                        enabled = canOpenList,
+                        onListClick = {
+                            if (canOpenList) {
+                                isSearchListMode = !isSearchListMode
+                            }
+                        }
                     )
                 } else {
                     ChatInputBar(
@@ -286,13 +354,16 @@ fun ChatScreen(
                         isCameraMode = state.isCameraMode,
                         isEmojiOpen = state.isEmojiOpen,
                         onInputChange = viewModel::onInputChange,
-                        onSend = viewModel::send,
+                        onSend = {
+                            viewModel.send()
+                            scope.launch { listState.animateScrollToItem(0) }
+                        },
                         onCancelReply = viewModel::cancelReply,
                         onCancelEdit = viewModel::cancelEdit,
                         onReplyClick = { replyMsg ->
                             val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
                             if (index >= 0) {
-                                scope.launch { listState.animateScrollToItem(index) }
+                                scope.launch { listState.animateScrollAndCenterItem(index) }
                             }
                             viewModel.highlightMessage(replyMsg.id)
                         },
@@ -402,26 +473,100 @@ fun ChatScreen(
                 }
             }
 
+            // Плавающий мини-плеер под шапкой (ТЗ: чат кладёт MiniPlayer)
+            MiniPlayer(
+                onExpand = { isFullPlayerFromChatOpen = true },
+                modifier = Modifier.fillMaxWidth()
+            )
+
             // Закреплённое сообщение (шаг 12, Фото 4) — не показывается в режиме поиска и режиме выбора
             if (!state.isSearchOpen && !state.isSelectionMode) {
                 state.pinnedMessage?.let { pinned ->
                     PinnedBar(
                         pinned = pinned,
-                        onClick = viewModel::openPinnedMessages
+                        currentIndex = state.pinnedIndex,
+                        totalCount = state.pinnedIds.size.coerceAtLeast(1),
+                        onNavigateToPinned = {
+                            val targetId = if (state.pinnedIds.size > 1) {
+                                viewModel.cycleNextPinnedMessage()
+                            } else {
+                                pinned.id
+                            }
+                            if (targetId != null) {
+                                val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
+                                if (index >= 0) {
+                                    scope.launch { listState.animateScrollAndCenterItem(index) }
+                                }
+                                viewModel.highlightMessage(targetId)
+                            }
+                        },
+                        onOpenAllPinned = viewModel::openPinnedMessages
                     )
                 }
             }
         }
     }
 
-        // Модальное меню вложений (скрепка, шаги 4 и 5)
+        // Нижнее окно полного плеера при открытии из мини-плеера в чате
+        if (isFullPlayerFromChatOpen) {
+            FullPlayerSheet(onDismiss = { isFullPlayerFromChatOpen = false })
+        }
+
+        // Модальное меню вложений Telegram-style (скрепка, ТЗ)
         if (state.isAttachOpen) {
-            AttachBottomSheet(
+            AttachSheet(
+                visible = true,
+                recipientName = session.peerName,
                 onDismiss = viewModel::closeAttach,
-                onSendAttachment = { attachment, caption ->
-                    viewModel.sendAttachment(attachment, caption)
-                },
-                onOpenGeoPicker = viewModel::openGeoPicker
+                onSend = { drafts ->
+                    drafts.forEach { draft ->
+                        when (draft) {
+                            is AttachmentDraft.Media -> {
+                                val label = if (draft.caption.isNotBlank()) draft.caption else (if (draft.isVideo) "Видео" else "Фото")
+                                viewModel.sendAttachment(
+                                    MessageAttachment.Photo(label = label, colorSeed = 1, isVideo = draft.isVideo),
+                                    caption = draft.caption
+                                )
+                            }
+                            is AttachmentDraft.File -> {
+                                val kind = when (draft.name.substringAfterLast('.', "").lowercase()) {
+                                    "pdf" -> FileKind.PDF
+                                    "doc", "docx" -> FileKind.DOC
+                                    "zip", "rar", "7z" -> FileKind.ARCHIVE
+                                    else -> FileKind.UNKNOWN
+                                }
+                                val sizeLabel = "${draft.size / 1024} КБ"
+                                viewModel.sendAttachment(
+                                    MessageAttachment.File(name = draft.name, sizeLabel = sizeLabel, kind = kind)
+                                )
+                            }
+                            is AttachmentDraft.Location -> {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.Geo(address = draft.address ?: "${draft.lat}, ${draft.lon}")
+                                )
+                            }
+                            is AttachmentDraft.LiveLocation -> {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.Geo(address = "Трансляция геопозиции (${draft.durationMin} мин.)")
+                                )
+                            }
+                            is AttachmentDraft.Contact -> {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.Contact(name = draft.name, phone = draft.phones.firstOrNull() ?: "")
+                                )
+                            }
+                            is AttachmentDraft.Audio -> {
+                                val min = draft.durationMs / 60000
+                                val sec = (draft.durationMs % 60000) / 1000
+                                val durLabel = String.format("%d:%02d", min, sec)
+                                viewModel.sendAttachment(
+                                    MessageAttachment.Music(title = draft.title, artist = draft.artist, durationLabel = durLabel, colorSeed = 2)
+                                )
+                            }
+                        }
+                    }
+                    viewModel.closeAttach()
+                }
             )
         }
 
@@ -486,6 +631,7 @@ fun ChatScreen(
                 pinnedMessages = state.pinnedMessages,
                 peerName = session.title,
                 selection = state.selection,
+                limitWarning = state.limitWarning,
                 onBack = viewModel::closePinnedMessages,
                 onMessageClick = { message ->
                     if (state.isSelectionMode) {
@@ -500,7 +646,9 @@ fun ChatScreen(
                 onSelectMessage = viewModel::toggleSelection,
                 onSwipeReply = viewModel::startReply,
                 onToggleReaction = viewModel::toggleReaction,
-                onUnpinAll = viewModel::unpinAllMessages
+                onUnpinAll = viewModel::unpinAllMessages,
+                onTriggerLimitDemo = viewModel::triggerDemoPinnedLimitWarning,
+                onDismissLimitWarning = viewModel::dismissLimitWarning
             )
         }
 
@@ -535,7 +683,7 @@ fun ChatScreen(
                     if (targetId != null) {
                         val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
                         if (index >= 0) {
-                            scope.launch { listState.animateScrollToItem(index) }
+                            scope.launch { listState.animateScrollAndCenterItem(index) }
                         }
                         viewModel.highlightMessage(targetId)
                     }
@@ -543,6 +691,47 @@ fun ChatScreen(
                 },
                 onDismiss = { isReplyPreviewOpen = false }
             )
+        }
+
+        // Предупреждение о превышении лимита 99 сообщений (шаг 12)
+        AnimatedVisibility(
+            visible = state.limitWarning != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .safeNavigationBarPadding()
+                .padding(bottom = if (isKeyboardVisible) 80.dp else 100.dp, start = 20.dp, end = 20.dp)
+        ) {
+            state.limitWarning?.let { warningText ->
+                Box(
+                    modifier = Modifier
+                        .shadow(elevation = 12.dp, shape = RoundedCornerShape(18.dp), spotColor = CrimsonKillSwitch)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(CardDark)
+                        .border(1.dp, CrimsonKillSwitch.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+                        .clickable { viewModel.dismissLimitWarning() }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ErrorOutline,
+                            contentDescription = null,
+                            tint = CrimsonKillSwitch,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = warningText,
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
         }
     }
 }

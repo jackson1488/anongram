@@ -31,6 +31,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.ui.draw.shadow
+import com.anongram.app.core.theme.CrimsonKillSwitch
+import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.IslandBackground
@@ -56,13 +66,16 @@ internal fun PinnedMessagesScreen(
     pinnedMessages: List<ChatMessage>,
     peerName: String,
     selection: Set<String> = emptySet(),
+    limitWarning: String? = null,
     onBack: () -> Unit,
     onMessageClick: (ChatMessage) -> Unit,
     onMessageLongClick: (ChatMessage) -> Unit,
     onSelectMessage: (String) -> Unit,
     onSwipeReply: (ChatMessage) -> Unit,
     onToggleReaction: (String, String) -> Unit,
-    onUnpinAll: () -> Unit
+    onUnpinAll: () -> Unit,
+    onTriggerLimitDemo: () -> Unit = {},
+    onDismissLimitWarning: () -> Unit = {}
 ) {
     BackHandler(onBack = onBack)
 
@@ -98,10 +111,10 @@ internal fun PinnedMessagesScreen(
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Островок 1: Кнопка назад
+                // Островок 1: Кнопка назад (увеличенная)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .background(IslandBackground)
                         .border(1.dp, CardBorder, CircleShape),
@@ -109,36 +122,52 @@ internal fun PinnedMessagesScreen(
                 ) {
                     IconButton(
                         onClick = onBack,
-                        modifier = Modifier.size(42.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
                             tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Островок 2: Заголовок
-                Box(
+                // Островок 2: Заголовок и демо-проверка лимита 99
+                Row(
                     modifier = Modifier
                         .weight(1f)
-                        .height(42.dp)
-                        .clip(RoundedCornerShape(21.dp))
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
                         .background(IslandBackground)
-                        .border(1.dp, CardBorder, RoundedCornerShape(21.dp))
-                        .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                        .padding(horizontal = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = titleText,
                         color = TextPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
                     )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(CardDark)
+                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                            .clickable(onClick = onTriggerLimitDemo)
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = "Лимит 99",
+                            color = FlameOrange,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
 
@@ -214,6 +243,47 @@ internal fun PinnedMessagesScreen(
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
+                }
+            }
+        }
+
+        // Предупреждение о превышении лимита 99 сообщений (шаг 12)
+        AnimatedVisibility(
+            visible = limitWarning != null,
+            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .safeNavigationBarPadding()
+                .padding(bottom = 72.dp, start = 16.dp, end = 16.dp)
+        ) {
+            limitWarning?.let { warningText ->
+                Box(
+                    modifier = Modifier
+                        .shadow(elevation = 12.dp, shape = RoundedCornerShape(18.dp), spotColor = CrimsonKillSwitch)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(CardDark)
+                        .border(1.dp, CrimsonKillSwitch.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+                        .clickable(onClick = onDismissLimitWarning)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ErrorOutline,
+                            contentDescription = null,
+                            tint = CrimsonKillSwitch,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            text = warningText,
+                            color = TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }

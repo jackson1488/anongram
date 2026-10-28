@@ -28,6 +28,7 @@ import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
+import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
 import kotlinx.coroutines.launch
 
 /** Окно между сообщениями одной группы — 2dp, между группами — 8dp. */
@@ -43,6 +44,7 @@ internal fun MessagesList(
     messages: List<ChatMessage>,
     peerName: String,
     listState: LazyListState,
+    searchQuery: String = "",
     selection: Set<String> = emptySet(),
     firstUnreadId: String? = null,
     highlightedMessageId: String? = null,
@@ -91,13 +93,14 @@ internal fun MessagesList(
                     item = item,
                     replyTo = item.message.replyToId?.let { originalId -> messageById[originalId] },
                     peerName = peerName,
+                    searchQuery = searchQuery,
                     isSelectionMode = selection.isNotEmpty(),
                     isSelected = item.message.id in selection,
                     isHighlighted = item.message.id == highlightedMessageId,
                     onQuoteClick = { originalId ->
                         displayIndexById[originalId]?.let { index ->
                             scope.launch {
-                                listState.animateScrollToItem(index = index)
+                                listState.animateScrollAndCenterItem(index = index)
                             }
                         }
                         onHighlightMessage(originalId)

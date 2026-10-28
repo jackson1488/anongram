@@ -22,6 +22,9 @@ import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,15 +47,19 @@ import com.anongram.app.features.chats.messages.domain.attachmentColor
 
 /**
  * Закреплённое сообщение (шаг 12, Фото 4):
- * Плавающий островок под верхней панелью, вертикальная полоска акцента,
- * заголовок «Закреплённое сообщение», текст, превью вложения (если фото без текста —
- * пишется «Фотография» с мини-превью квадратом) и иконка булавки.
- * Форма острова RoundedCornerShape(22.dp) как у поиска.
+ * Компактный парящий островок по центру под верхней панелью,
+ * вертикальная полоска акцента, заголовок «Закреплённое сообщение (1/2)»,
+ * текст и превью вложения.
+ * Слева/центр — переход к сообщению в чате (циклическое переключение),
+ * справа — кнопка-булавка для открытия полного экрана закреплённых сообщений.
  */
 @Composable
 internal fun PinnedBar(
     pinned: ChatMessage,
-    onClick: () -> Unit,
+    currentIndex: Int = 0,
+    totalCount: Int = 1,
+    onNavigateToPinned: () -> Unit,
+    onOpenAllPinned: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -87,181 +94,205 @@ internal fun PinnedBar(
         }
     }
 
-    Row(
+    val headerTitle = if (totalCount > 1) {
+        "Закреплённое сообщение (${currentIndex + 1}/$totalCount)"
+    } else {
+        "Закреплённое сообщение"
+    }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 2.dp)
-            .clip(RoundedCornerShape(22.dp))
-            .background(IslandBackground)
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(horizontal = 8.dp, vertical = 2.dp),
+        contentAlignment = Alignment.Center
     ) {
-        // Вертикальная полоска акцента
-        Box(
+        Row(
             modifier = Modifier
-                .width(3.dp)
-                .height(30.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(scheme.accent)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+                .wrapContentWidth()
+                .widthIn(min = 180.dp, max = 340.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(IslandBackground)
+                .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+                .padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Тело: клик для перехода к сообщению / циклического переключения
+            Row(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable(onClick = onNavigateToPinned)
+                    .padding(vertical = 4.dp, horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Вертикальная полоска акцента
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(scheme.accent)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
 
-        // Текстовая информация
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = "Закреплённое сообщение",
-                color = scheme.accent,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                text = titleText,
-                color = TextPrimary,
-                fontSize = 13.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
+                // Текстовая информация
+                Column(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = headerTitle,
+                        color = scheme.accent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = titleText,
+                        color = TextPrimary,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
-        // Мини-превью вложения (миниатюра фото или иконка файла/медиа)
-        when (val att = pinned.attachment) {
-            is MessageAttachment.Photo -> {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(attachmentColor(att.colorSeed)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (att.isVideo) Icons.Outlined.Videocam else Icons.Outlined.Image,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(18.dp)
-                    )
+                Spacer(modifier = Modifier.width(6.dp))
+
+                // Мини-превью вложения (миниатюра фото или иконка файла/медиа)
+                when (val att = pinned.attachment) {
+                    is MessageAttachment.Photo -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(attachmentColor(att.colorSeed)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (att.isVideo) Icons.Outlined.Videocam else Icons.Outlined.Image,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is MessageAttachment.File -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(scheme.accent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Description,
+                                contentDescription = null,
+                                tint = scheme.accent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is MessageAttachment.Music -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(attachmentColor(att.colorSeed)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Audiotrack,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is MessageAttachment.Voice -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(scheme.accent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Mic,
+                                contentDescription = null,
+                                tint = scheme.accent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is MessageAttachment.VideoCircle -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(attachmentColor(att.colorSeed)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Videocam,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is MessageAttachment.Contact -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(scheme.accent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Person,
+                                contentDescription = null,
+                                tint = scheme.accent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is MessageAttachment.Geo -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(scheme.accent.copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.LocationOn,
+                                contentDescription = null,
+                                tint = scheme.accent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                    is MessageAttachment.Sticker -> {
+                        Text(
+                            text = att.symbol,
+                            fontSize = 20.sp
+                        )
+                    }
+                    null -> Unit
                 }
             }
-            is MessageAttachment.File -> {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(scheme.accent.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Description,
-                        contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            is MessageAttachment.Music -> {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(attachmentColor(att.colorSeed)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Audiotrack,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            is MessageAttachment.Voice -> {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(scheme.accent.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Mic,
-                        contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            is MessageAttachment.VideoCircle -> {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(attachmentColor(att.colorSeed)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Videocam,
-                        contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            is MessageAttachment.Contact -> {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(scheme.accent.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            is MessageAttachment.Geo -> {
-                Box(
-                    modifier = Modifier
-                        .padding(end = 10.dp)
-                        .size(32.dp)
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(scheme.accent.copy(alpha = 0.15f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-            is MessageAttachment.Sticker -> {
-                Text(
-                    text = att.symbol,
-                    fontSize = 22.sp,
-                    modifier = Modifier.padding(end = 10.dp)
+
+            Spacer(modifier = Modifier.width(2.dp))
+
+            // Иконка булавки справа — открывает все закреплённые сообщения
+            IconButton(
+                onClick = onOpenAllPinned,
+                modifier = Modifier.size(34.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PushPin,
+                    contentDescription = "Все закреплённые сообщения",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(18.dp)
                 )
             }
-            null -> Unit
         }
-
-        // Иконка булавки
-        Icon(
-            imageVector = Icons.Outlined.PushPin,
-            contentDescription = "Список закреплённых сообщений",
-            tint = TextSecondary,
-            modifier = Modifier.size(18.dp)
-        )
     }
 }

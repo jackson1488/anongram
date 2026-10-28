@@ -23,7 +23,17 @@ import com.anongram.app.core.theme.CyberCyan
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.TextSecondary
 
-/** Кнопка «вниз» (шаг 13): круглая, справа над полем, с бейджем непрочитанных. */
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import com.anongram.app.core.theme.CrimsonKillSwitch
+import com.anongram.app.core.theme.FlameOrange
+
+/** Кнопка «вниз» (шаг 13): круглая, справа над полем, с горящим огненным счётчиком непрочитанных сообщений рядом. */
 @Composable
 internal fun ScrollDownButton(
     visible: Boolean,
@@ -37,38 +47,56 @@ internal fun ScrollDownButton(
         exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.scaleOut(),
         modifier = modifier
     ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .shadow(elevation = 6.dp, shape = CircleShape)
-                .clip(CircleShape)
-                .background(CardDark)
-                .border(1.dp, CardBorder, CircleShape)
-                .clickable(onClick = onClick),
-            contentAlignment = Alignment.Center
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                imageVector = Icons.Outlined.KeyboardArrowDown,
-                contentDescription = "Прокрутить вниз",
-                tint = TextSecondary,
-                modifier = Modifier.size(22.dp)
-            )
+            // Горящий счётчик новых сообщений рядом с кнопкой прокрутки
             if (unreadBadge > 0) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(16.dp)
-                        .clip(CircleShape)
-                        .background(CyberCyan),
+                        .shadow(
+                            elevation = 10.dp,
+                            shape = RoundedCornerShape(12.dp),
+                            spotColor = FlameOrange,
+                            ambientColor = CrimsonKillSwitch
+                        )
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(FlameOrange, CrimsonKillSwitch)
+                            )
+                        )
+                        .border(1.dp, Color(0xFFFF9E80).copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                        .clickable(onClick = onClick)
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (unreadBadge > 99) "99+" else unreadBadge.toString(),
-                        color = ObsidianBlack,
-                        fontSize = 8.sp,
-                        fontWeight = androidx.compose.ui.text.font.FontWeight.Black
+                        text = if (unreadBadge > 99) "99+" else "+$unreadBadge",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .shadow(elevation = 6.dp, shape = CircleShape)
+                    .clip(CircleShape)
+                    .background(CardDark)
+                    .border(1.dp, CardBorder, CircleShape)
+                    .clickable(onClick = onClick),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.KeyboardArrowDown,
+                    contentDescription = "Прокрутить вниз",
+                    tint = TextSecondary,
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
     }

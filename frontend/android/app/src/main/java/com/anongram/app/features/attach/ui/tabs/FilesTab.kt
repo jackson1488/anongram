@@ -1,0 +1,509 @@
+package com.anongram.app.features.attach.ui.tabs
+
+import android.content.ContentUris
+import android.content.Context
+import android.net.Uri
+import android.os.Environment
+import android.provider.MediaStore
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.SdStorage
+import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.anongram.app.features.attach.api.AttachmentDraft
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.absoluteValue
+
+data class DeviceFileItem(
+    val uri: Uri,
+    val name: String,
+    val size: Long,
+    val dateModified: Long,
+    val extension: String
+)
+
+enum class FileSortOrder(val title: String) {
+    BY_DATE("По дате"),
+    BY_NAME("По имени"),
+    BY_SIZE("По размеру")
+}
+
+@Composable
+fun FilesTab(
+    onSelectFile: (AttachmentDraft.File) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var files by remember { mutableStateOf<List<DeviceFileItem>>(emptyList()) }
+    var sortOrder by remember { mutableStateOf(FileSortOrder.BY_DATE) }
+    var showSortMenu by remember { mutableStateOf(false) }
+
+    // System Document Picker
+    val documentPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenMultipleDocuments()
+    ) { uris ->
+        uris.forEach { uri ->
+            val meta = getFileMetadata(context, uri)
+            onSelectFile(
+                AttachmentDraft.File(
+                    uri = uri,
+                    name = meta.name,
+                    size = meta.size
+                )
+            )
+        }
+    }
+
+    // Uncompressed Gallery Picker (hd=true)
+    val galleryPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        uris.forEach { uri ->
+            val meta = getFileMetadata(context, uri)
+            onSelectFile(
+                AttachmentDraft.File(
+                    uri = uri,
+                    name = meta.name,
+                    size = meta.size
+                )
+            )
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        files = withContext(Dispatchers.IO) {
+            loadDeviceRecentFiles(context)
+        }
+    }
+
+    val sortedFiles = remember(files, sortOrder) {
+        when (sortOrder) {
+            FileSortOrder.BY_DATE -> files.sortedByDescending { it.dateModified }
+            FileSortOrder.BY_NAME -> files.sortedBy { it.name.lowercase() }
+            FileSortOrder.BY_SIZE -> files.sortedByDescending { it.size }
+        }
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(horizontal = 16.dp)
+    ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 3 Cards on top: "Внутреннее хранилище", "Папка приложения", "Галерея"
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            StorageActionCard(
+                title = "Внутреннее\nхранилище",
+                icon = Icons.Outlined.SdStorage,
+                iconColor = Color(0xFF3B82F6),
+                onClick = { documentPickerLauncher.launch(arrayOf("*/*")) }
+            )
+
+            StorageActionCard(
+                title = "Папка\nприложения",
+                icon = Icons.Outlined.Folder,
+                iconColor = Color(0xFF8B5CF6),
+                onClick = {
+                    // Load files from app private files directory
+                    val appFiles = context.filesDir.listFiles()?.map { f ->
+                        DeviceFileItem(
+                            uri = Uri.fromFile(f),
+                            name = f.name,
+                            size = f.length(),
+                            dateModified = f.lastModified(),
+                            extension = f.extension
+                        )
+                    } ?: emptyList()
+                    files = appFiles
+                }
+            )
+
+            StorageActionCard(
+                title = "Галерея\n(без сжатия)",
+                icon = Icons.Outlined.PhotoLibrary,
+                iconColor = Color(0xFF10B981),
+                onClick = { galleryPickerLauncher.launch("*/*") }
+            )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Header and Sort
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Файлы и загрузки (${sortedFiles.size})",
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Box {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { showSortMenu = true }
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Sort,
+                        contentDescription = "Sort",
+                        tint = Color(0xFF8B5CF6),
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = sortOrder.title,
+                        color = Color(0xFF8B5CF6),
+                        fontSize = 13.sp
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showSortMenu,
+                    onDismissRequest = { showSortMenu = false },
+                    modifier = Modifier.background(Color(0xFF182238))
+                ) {
+                    FileSortOrder.entries.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = option.title,
+                                    color = if (sortOrder == option) Color(0xFF8B5CF6) else Color.White
+                                )
+                            },
+                            onClick = {
+                                sortOrder = option
+                                showSortMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        if (sortedFiles.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Файлы не найдены",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                items(sortedFiles, key = { it.uri.toString() }) { file ->
+                    FileRowItem(
+                        file = file,
+                        onClick = {
+                            onSelectFile(
+                                AttachmentDraft.File(
+                                    uri = file.uri,
+                                    name = file.name,
+                                    size = file.size
+                                )
+                            )
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StorageActionCard(
+    title: String,
+    icon: ImageVector,
+    iconColor: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF182238))
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(iconColor.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = iconColor,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 16.sp
+        )
+    }
+}
+
+@Composable
+private fun FileRowItem(
+    file: DeviceFileItem,
+    onClick: () -> Unit
+) {
+    val fileColor = remember(file.extension) { getFileExtensionColor(file.extension) }
+    val extLabel = remember(file.extension) {
+        if (file.extension.isNotBlank()) file.extension.uppercase().take(4) else "FILE"
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onClick() }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(fileColor.copy(alpha = 0.2f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Outlined.InsertDriveFile,
+                    contentDescription = null,
+                    tint = fileColor,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = extLabel,
+                    color = fileColor,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = file.name,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            val dateStr = remember(file.dateModified) {
+                if (file.dateModified > 0) {
+                    val sdf = SimpleDateFormat("dd.MM.yy HH:mm", Locale.getDefault())
+                    sdf.format(Date(file.dateModified))
+                } else ""
+            }
+            Text(
+                text = "${formatFileSize(file.size)}${if (dateStr.isNotEmpty()) " • $dateStr" else ""}",
+                color = Color(0xFF94A3B8),
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+private fun getFileExtensionColor(ext: String): Color {
+    return when (ext.lowercase()) {
+        "pdf" -> Color(0xFFEF4444) // Red
+        "zip", "rar", "7z", "tar", "gz" -> Color(0xFFF97316) // Orange
+        "apk" -> Color(0xFF10B981) // Green
+        "mp3", "wav", "flac", "ogg", "m4a" -> Color(0xFF8B5CF6) // Purple
+        "mp4", "mkv", "avi", "mov" -> Color(0xFFEC4899) // Pink
+        "doc", "docx", "txt" -> Color(0xFF3B82F6) // Blue
+        "xls", "xlsx", "csv" -> Color(0xFF14B8A6) // Teal
+        "ppt", "pptx" -> Color(0xFFEAB308) // Yellow
+        else -> {
+            val palette = listOf(
+                Color(0xFF8B5CF6), Color(0xFF3B82F6), Color(0xFF06B6D4),
+                Color(0xFF10B981), Color(0xFFF59E0B), Color(0xFFEC4899)
+            )
+            val idx = ext.hashCode().absoluteValue % palette.size
+            palette[idx]
+        }
+    }
+}
+
+private fun formatFileSize(bytes: Long): String {
+    if (bytes <= 0) return "0 Б"
+    if (bytes < 1024) return "$bytes Б"
+    val kb = bytes / 1024.0
+    if (kb < 1024) return String.format(Locale.US, "%.1f КБ", kb)
+    val mb = kb / 1024.0
+    if (mb < 1024) return String.format(Locale.US, "%.1f МБ", mb)
+    val gb = mb / 1024.0
+    return String.format(Locale.US, "%.2f ГБ", gb)
+}
+
+private fun loadDeviceRecentFiles(context: Context): List<DeviceFileItem> {
+    val result = mutableListOf<DeviceFileItem>()
+    val contentResolver = context.contentResolver
+
+    // Query Downloads directory directly
+    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    if (downloadsDir.exists() && downloadsDir.isDirectory) {
+        downloadsDir.listFiles()?.filter { it.isFile }?.take(50)?.forEach { f ->
+            result.add(
+                DeviceFileItem(
+                    uri = Uri.fromFile(f),
+                    name = f.name,
+                    size = f.length(),
+                    dateModified = f.lastModified(),
+                    extension = f.extension
+                )
+            )
+        }
+    }
+
+    // Also query MediaStore Files
+    val uri = MediaStore.Files.getContentUri("external")
+    val projection = arrayOf(
+        MediaStore.Files.FileColumns._ID,
+        MediaStore.Files.FileColumns.DISPLAY_NAME,
+        MediaStore.Files.FileColumns.SIZE,
+        MediaStore.Files.FileColumns.DATE_MODIFIED
+    )
+    val sortOrder = "${MediaStore.Files.FileColumns.DATE_MODIFIED} DESC"
+
+    try {
+        val cursor = contentResolver.query(uri, projection, null, null, sortOrder)
+        cursor?.use { c ->
+            val idIndex = c.getColumnIndex(MediaStore.Files.FileColumns._ID)
+            val nameIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+            val sizeIndex = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+            val dateIndex = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+
+            var count = 0
+            while (c.moveToNext() && count < 60) {
+                val id = if (idIndex >= 0) c.getLong(idIndex) else 0L
+                val name = if (nameIndex >= 0) c.getString(nameIndex) ?: "file" else "file"
+                val size = if (sizeIndex >= 0) c.getLong(sizeIndex) else 0L
+                val dateSec = if (dateIndex >= 0) c.getLong(dateIndex) else 0L
+                val fileUri = ContentUris.withAppendedId(uri, id)
+
+                val ext = name.substringAfterLast('.', "")
+                if (result.none { it.name == name && it.size == size }) {
+                    result.add(
+                        DeviceFileItem(
+                            uri = fileUri,
+                            name = name,
+                            size = size,
+                            dateModified = dateSec * 1000L,
+                            extension = ext
+                        )
+                    )
+                    count++
+                }
+            }
+        }
+    } catch (_: Exception) {}
+
+    return result
+}
+
+private data class Metadata(val name: String, val size: Long)
+
+private fun getFileMetadata(context: Context, uri: Uri): Metadata {
+    var name = "file"
+    var size = 0L
+    try {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use { c ->
+            val nameIndex = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIndex = c.getColumnIndex(OpenableColumns.SIZE)
+            if (c.moveToFirst()) {
+                if (nameIndex >= 0) name = c.getString(nameIndex) ?: "file"
+                if (sizeIndex >= 0) size = c.getLong(sizeIndex)
+            }
+        }
+    } catch (_: Exception) {}
+    return Metadata(name, size)
+}

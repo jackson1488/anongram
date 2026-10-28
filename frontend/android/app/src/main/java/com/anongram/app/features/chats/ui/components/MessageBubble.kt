@@ -61,6 +61,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -109,6 +111,7 @@ internal fun MessageBubble(
     item: MessageRenderItem,
     replyTo: ChatMessage?,
     peerName: String,
+    searchQuery: String = "",
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     isHighlighted: Boolean = false,
@@ -132,11 +135,11 @@ internal fun MessageBubble(
             pulseAnim.animateTo(
                 targetValue = 0f,
                 animationSpec = keyframes {
-                    durationMillis = 800
-                    0.6f at 130 using FastOutSlowInEasing
-                    0.12f at 250 using FastOutSlowInEasing
-                    0.7f at 380 using FastOutSlowInEasing
-                    0.0f at 800 using LinearOutSlowInEasing
+                    durationMillis = 750
+                    0.85f at 120 using FastOutSlowInEasing
+                    0.15f at 220 using FastOutSlowInEasing
+                    0.95f at 340 using FastOutSlowInEasing
+                    0.0f at 750 using LinearOutSlowInEasing
                 }
             )
         } else {
@@ -275,7 +278,7 @@ internal fun MessageBubble(
                             baseColor
                         }
                         val bubbleBorder = when {
-                            pulseAlpha > 0f -> BorderStroke(1.5.dp, scheme.accent.copy(alpha = 0.5f + pulseAlpha * 0.5f))
+                            pulseAlpha > 0f -> BorderStroke(2.dp, scheme.accent.copy(alpha = 0.5f + pulseAlpha * 0.5f))
                             !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
                             else -> null
                         }
@@ -292,80 +295,105 @@ internal fun MessageBubble(
                                     onLongClick = onLongClick
                                 )
                         ) {
-                            Column(
-                                modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
-                            ) {
-                                // Пометка пересылки (шаг 10)
-                                message.forwardedFrom?.let { author ->
-                                    ForwardedBlock(author = author)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                }
+                            Box {
+                                Column(
+                                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
+                                ) {
+                                    // Пометка пересылки (шаг 10)
+                                    message.forwardedFrom?.let { author ->
+                                        ForwardedBlock(author = author)
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                    }
 
-                                // Цитата ответа (шаг 1)
-                                replyTo?.let { target ->
-                                    QuoteBlock(
-                                        author = if (target.direction == MessageDirection.INCOMING) peerName else "Вы",
-                                        text = target.text.ifBlank { "Вложение" },
-                                        accent = scheme.accent,
-                                        isIncoming = isIncoming,
-                                        onClick = { onQuoteClick(target.id) }
-                                    )
-                                    Spacer(modifier = Modifier.height(5.dp))
-                                }
+                                    // Цитата ответа (шаг 1)
+                                    replyTo?.let { target ->
+                                        QuoteBlock(
+                                            author = if (target.direction == MessageDirection.INCOMING) peerName else "Вы",
+                                            text = target.text.ifBlank { "Вложение" },
+                                            accent = scheme.accent,
+                                            isIncoming = isIncoming,
+                                            onClick = { onQuoteClick(target.id) }
+                                        )
+                                        Spacer(modifier = Modifier.height(5.dp))
+                                    }
 
-                                // Отрисовка вложений (шаги 4–6)
-                                message.attachment?.let { attachment ->
-                                    AttachmentContent(
-                                        attachment = attachment,
-                                        isIncoming = isIncoming,
-                                        accent = scheme.accent
-                                    )
-                                    if (message.text.isNotBlank()) {
+                                    // Отрисовка вложений (шаги 4–6)
+                                    message.attachment?.let { attachment ->
+                                        AttachmentContent(
+                                            attachment = attachment,
+                                            isIncoming = isIncoming,
+                                            accent = scheme.accent,
+                                            searchQuery = searchQuery
+                                        )
+                                        if (message.text.isNotBlank()) {
+                                            Spacer(modifier = Modifier.height(6.dp))
+                                        }
+                                    }
+
+                                    // Превью ссылки (шаг 15)
+                                    message.linkPreview?.let { preview ->
+                                        LinkPreviewBlock(
+                                            preview = preview,
+                                            accent = scheme.accent,
+                                            searchQuery = searchQuery
+                                        )
                                         Spacer(modifier = Modifier.height(6.dp))
                                     }
-                                }
 
-                                // Превью ссылки (шаг 15)
-                                message.linkPreview?.let { preview ->
-                                    LinkPreviewBlock(preview = preview, accent = scheme.accent)
-                                    Spacer(modifier = Modifier.height(6.dp))
-                                }
-
-                                // Текст сообщения
-                                if (message.text.isNotBlank()) {
-                                    Text(
-                                        text = message.text,
-                                        color = TextPrimary,
-                                        fontSize = 14.sp,
-                                        lineHeight = 19.sp
-                                    )
-                                }
-
-                                // Время, статус и «изменено»
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    if (message.isEdited) {
+                                    // Текст сообщения с подсветкой кусочка слова
+                                    if (message.text.isNotBlank()) {
+                                        val displayText = if (searchQuery.isNotBlank()) {
+                                            buildHighlightedText(
+                                                text = message.text,
+                                                query = searchQuery,
+                                                highlightColor = scheme.accent
+                                            )
+                                        } else {
+                                            AnnotatedString(message.text)
+                                        }
                                         Text(
-                                            text = "изменено",
-                                            color = TextMuted,
-                                            fontSize = 9.sp,
-                                            fontStyle = FontStyle.Italic
+                                            text = displayText,
+                                            color = TextPrimary,
+                                            fontSize = 14.sp,
+                                            lineHeight = 19.sp
                                         )
-                                        Spacer(modifier = Modifier.width(4.dp))
                                     }
-                                    Text(
-                                        text = message.timeLabel(),
-                                        color = TextMuted,
-                                        fontSize = 10.sp,
-                                        fontFamily = FontFamily.Monospace
+
+                                    // Время, статус и «изменено»
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        if (message.isEdited) {
+                                            Text(
+                                                text = "изменено",
+                                                color = TextMuted,
+                                                fontSize = 9.sp,
+                                                fontStyle = FontStyle.Italic
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                        }
+                                        Text(
+                                            text = message.timeLabel(),
+                                            color = TextMuted,
+                                            fontSize = 10.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        if (!isIncoming) {
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            DeliveryStatus(status = message.status, onRetry = onRetry)
+                                        }
+                                    }
+                                }
+
+                                // Наложение пульсации сердцебиения для всех типов сообщений (включая фото/вложения)
+                                if (pulseAlpha > 0f) {
+                                    Box(
+                                        modifier = Modifier
+                                            .matchParentSize()
+                                            .background(scheme.accent.copy(alpha = pulseAlpha * 0.35f))
                                     )
-                                    if (!isIncoming) {
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        DeliveryStatus(status = message.status, onRetry = onRetry)
-                                    }
                                 }
                             }
                         }
@@ -447,7 +475,8 @@ private fun ForwardedBlock(author: String) {
 private fun AttachmentContent(
     attachment: MessageAttachment,
     isIncoming: Boolean,
-    accent: Color
+    accent: Color,
+    searchQuery: String = ""
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {
@@ -475,15 +504,21 @@ private fun AttachmentContent(
                         )
                     }
                 }
-                Text(
-                    text = attachment.label,
-                    color = Color.White.copy(alpha = 0.85f),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(8.dp)
-                )
+                if (attachment.label.isNotBlank()) {
+                    Text(
+                        text = if (searchQuery.isNotBlank()) {
+                            buildHighlightedText(attachment.label, searchQuery, accent)
+                        } else {
+                            AnnotatedString(attachment.label)
+                        },
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(8.dp)
+                    )
+                }
             }
         }
 
@@ -513,7 +548,11 @@ private fun AttachmentContent(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = attachment.name,
+                        text = if (searchQuery.isNotBlank()) {
+                            buildHighlightedText(attachment.name, searchQuery, accent)
+                        } else {
+                            AnnotatedString(attachment.name)
+                        },
                         color = TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -562,8 +601,8 @@ private fun AttachmentContent(
                             modifier = Modifier
                                 .width(3.dp)
                                 .height((height * 1.5f).dp.coerceIn(4.dp, 24.dp))
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(accent.copy(alpha = 0.7f))
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(accent.copy(alpha = 0.7f))
                         )
                     }
                 }
@@ -628,7 +667,11 @@ private fun AttachmentContent(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = attachment.title,
+                        text = if (searchQuery.isNotBlank()) {
+                            buildHighlightedText(attachment.title, searchQuery, accent)
+                        } else {
+                            AnnotatedString(attachment.title)
+                        },
                         color = TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -636,7 +679,11 @@ private fun AttachmentContent(
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = "${attachment.artist} • ${attachment.durationLabel}",
+                        text = if (searchQuery.isNotBlank()) {
+                            buildHighlightedText("${attachment.artist} • ${attachment.durationLabel}", searchQuery, accent)
+                        } else {
+                            AnnotatedString("${attachment.artist} • ${attachment.durationLabel}")
+                        },
                         color = TextMuted,
                         fontSize = 11.sp
                     )
@@ -670,13 +717,21 @@ private fun AttachmentContent(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column {
                     Text(
-                        text = attachment.name,
+                        text = if (searchQuery.isNotBlank()) {
+                            buildHighlightedText(attachment.name, searchQuery, accent)
+                        } else {
+                            AnnotatedString(attachment.name)
+                        },
                         color = TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        text = attachment.phone,
+                        text = if (searchQuery.isNotBlank()) {
+                            buildHighlightedText(attachment.phone, searchQuery, accent)
+                        } else {
+                            AnnotatedString(attachment.phone)
+                        },
                         color = TextSecondary,
                         fontSize = 11.sp
                     )
@@ -709,7 +764,11 @@ private fun AttachmentContent(
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = attachment.address,
+                    text = if (searchQuery.isNotBlank()) {
+                        buildHighlightedText(attachment.address, searchQuery, accent)
+                    } else {
+                        AnnotatedString(attachment.address)
+                    },
                     color = TextPrimary,
                     fontSize = 13.sp
                 )
@@ -724,7 +783,11 @@ private fun AttachmentContent(
 
 /** Превью веб-ссылки */
 @Composable
-private fun LinkPreviewBlock(preview: LinkPreview, accent: Color) {
+private fun LinkPreviewBlock(
+    preview: LinkPreview,
+    accent: Color,
+    searchQuery: String = ""
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -748,7 +811,11 @@ private fun LinkPreviewBlock(preview: LinkPreview, accent: Color) {
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = preview.title,
+                text = if (searchQuery.isNotBlank()) {
+                    buildHighlightedText(preview.title, searchQuery, accent)
+                } else {
+                    AnnotatedString(preview.title)
+                },
                 color = TextPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -756,7 +823,11 @@ private fun LinkPreviewBlock(preview: LinkPreview, accent: Color) {
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = preview.description,
+                text = if (searchQuery.isNotBlank()) {
+                    buildHighlightedText(preview.description, searchQuery, accent)
+                } else {
+                    AnnotatedString(preview.description)
+                },
                 color = TextSecondary,
                 fontSize = 11.sp,
                 maxLines = 2,
@@ -868,4 +939,44 @@ private fun bubbleShape(item: MessageRenderItem, isIncoming: Boolean): RoundedCo
             bottomEnd = bottomTail
         )
     }
+}
+
+/**
+ * Подсветка совпадающего кусочка слова/подстроки в тексте пузыря сообщения.
+ */
+private fun buildHighlightedText(
+    text: String,
+    query: String,
+    highlightColor: Color
+): AnnotatedString {
+    val trimmed = query.trim()
+    if (trimmed.isEmpty()) return AnnotatedString(text)
+    val lowerText = text.lowercase()
+    val lowerQuery = trimmed.lowercase()
+    var currentIndex = 0
+    var matchIndex = lowerText.indexOf(lowerQuery, currentIndex)
+    if (matchIndex < 0) return AnnotatedString(text)
+
+    val builder = AnnotatedString.Builder()
+    while (matchIndex >= 0) {
+        if (matchIndex > currentIndex) {
+            builder.append(text.substring(currentIndex, matchIndex))
+        }
+        val endMatch = matchIndex + lowerQuery.length
+        builder.pushStyle(
+            SpanStyle(
+                background = highlightColor.copy(alpha = 0.40f),
+                color = Color.White,
+                fontWeight = FontWeight.Bold
+            )
+        )
+        builder.append(text.substring(matchIndex, endMatch))
+        builder.pop()
+        currentIndex = endMatch
+        matchIndex = lowerText.indexOf(lowerQuery, currentIndex)
+    }
+    if (currentIndex < text.length) {
+        builder.append(text.substring(currentIndex))
+    }
+    return builder.toAnnotatedString()
 }

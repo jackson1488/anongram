@@ -40,6 +40,8 @@ data class ChatMessagesUiState(
     val selection: Set<String> = emptySet(),
     val pinnedId: String? = null,
     val pinnedIds: List<String> = emptyList(),
+    val pinnedIndex: Int = 0,
+    val limitWarning: String? = null,
     val isPinnedMessagesScreenOpen: Boolean = false,
     val firstUnreadId: String? = null,
     val unreadBadge: Int = 0,
@@ -76,7 +78,10 @@ data class ChatMessagesUiState(
         get() = messages.filter { it.id in pinnedIds }
 
     val pinnedMessage: ChatMessage?
-        get() = messages.firstOrNull { it.id == (pinnedId ?: pinnedIds.lastOrNull()) }
+        get() {
+            val targetId = pinnedIds.getOrNull(pinnedIndex) ?: pinnedId ?: pinnedIds.lastOrNull()
+            return messages.firstOrNull { it.id == targetId }
+        }
 
     /** «3 из 12» для панели поиска. */
     val searchCounter: String
