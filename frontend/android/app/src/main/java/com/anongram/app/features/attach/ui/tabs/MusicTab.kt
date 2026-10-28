@@ -149,74 +149,47 @@ fun MusicTab(
     Column(
         modifier = modifier.fillMaxSize()
     ) {
-        if (isFullscreen) {
-            Row(
+        val headerModifier = if (isFullscreen) {
+            Modifier
+                .fillMaxWidth()
+                .safeStatusBarPadding()
+                .padding(horizontal = 8.dp, vertical = 6.dp)
+        } else {
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 26.dp, start = 12.dp, end = 12.dp, bottom = 6.dp)
+        }
+
+        Row(
+            modifier = headerModifier,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Кнопка Назад (всегда видна, очищает поиск или закрывает окно)
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Кнопка Назад
-                Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(AttachCardDark)
-                        .border(1.dp, AttachBorder, CircleShape)
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = Color(0xFF94A3B8)
-                        )
-                    },
-                    trailingIcon = {
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(AttachCardDark)
+                    .border(1.dp, AttachBorder, CircleShape)
+                    .clickable {
                         if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    tint = Color(0xFF94A3B8)
-                                )
-                            }
+                            searchQuery = ""
+                        } else {
+                            onBack()
                         }
                     },
-                    singleLine = true,
-                    interactionSource = searchInteractionSource,
-                    shape = RoundedCornerShape(25.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AttachCardDark,
-                        unfocusedContainerColor = AttachCardDark,
-                        focusedBorderColor = PurpleAccent,
-                        unfocusedBorderColor = AttachBorder,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(50.dp)
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
                 )
             }
-        } else {
-            Spacer(modifier = Modifier.height(30.dp))
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -251,11 +224,10 @@ fun MusicTab(
                     unfocusedTextColor = Color.White
                 ),
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .weight(1f)
                     .height(50.dp)
-                    .padding(horizontal = 14.dp)
                     .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
+                        if (focusState.isFocused && !isFullscreen) {
                             onExpandToFullscreen()
                         }
                     }
