@@ -312,17 +312,11 @@ fun AttachSheetContent(
         }
     }
 
-    // Плавная прокрутка шторки 1:1 и вложенный скролл списков
+    // Прокрутка списков без рывков шторки
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Свайп вверх: если шторка раскрыта не полностью (< 0.99f), сначала поднимаем шторку 1:1 с пальцем
-                if (available.y < 0f && sheetFraction.value < 0.99f && screenHeightPx > 0) {
-                    val deltaFrac = -available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value + deltaFrac).coerceIn(0.50f, 1.0f)
-                    scope.launch { sheetFraction.snapTo(nextFrac) }
-                    return Offset(0f, available.y)
-                }
+                // Внутри списков контент скроллится свободно и плавно, не срывая шторку с места
                 return Offset.Zero
             }
 
@@ -331,37 +325,14 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // Свайп вниз: если список уже на самом верху, тянем шторку вниз 1:1 с пальцем
-                if (available.y > 0f && screenHeightPx > 0) {
-                    val deltaFrac = available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value - deltaFrac).coerceIn(0.20f, 1.0f)
-                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                // Если контент доскроллен до самого верха и пользователь тянет вниз при 100% раскрытии
+                if (available.y > 40f && sheetFraction.value >= 0.95f) {
+                    scope.launch {
+                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
+                    }
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y < -800f && sheetFraction.value < 0.99f) {
-                    sheetFraction.animateTo(1.0f, tween(260, easing = FastOutSlowInEasing))
-                    return available
-                } else if (available.y > 800f) {
-                    if (sheetFraction.value < 0.60f) {
-                        requestDismiss()
-                    } else {
-                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
-                    }
-                    return available
-                } else {
-                    if (sheetFraction.value >= 0.78f) {
-                        sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing))
-                    } else if (sheetFraction.value < 0.38f) {
-                        requestDismiss()
-                    } else if (sheetFraction.value < 0.78f && sheetFraction.value != defaultInitial) {
-                        sheetFraction.animateTo(defaultInitial, tween(240, easing = FastOutSlowInEasing))
-                    }
-                }
-                return Velocity.Zero
             }
         }
     }
@@ -379,14 +350,12 @@ fun AttachSheetContent(
                 indication = null
             ) { requestDismiss() }
     ) {
-        // Поверхность шторки вложений (плавный аппаратный сдвиг через graphicsLayer)
+        // Поверхность шторки вложений (плавающее окно от 50% до 100% высоты, всегда прижатое к низу экрана)
         Box(
             modifier = Modifier
+                .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight()
-                .graphicsLayer {
-                    translationY = screenHeightPx * (1f - fraction)
-                }
+                .fillMaxHeight(fraction)
                 .clip(
                     if (isFullscreen) RoundedCornerShape(0.dp)
                     else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
@@ -543,150 +512,42 @@ fun AttachSheetContent(
 
             // 3. Плавающая шапка:
             // 3. Плавающая шапка:
-            // - В полуоткрытом режиме (от 50%): тонкая ручка + островки (в галерее/локации)
+            // - В полуоткрытом режиме (< 95%): только тонкая ручка
             // - В полном экране (>= 95%): плавающие островки
             if (!isFullscreen) {
-                Column(
+                Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .background(
-                            Brush.verticalGradient(
-                                0.0f to AttachSheetBackground,
-                                0.80f to AttachSheetBackground.copy(alpha = 0.95f),
-                                1.0f to Color.Transparent
-                            )
-                        )
+                        .height(32.dp)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { delta ->
+                                if (screenHeightPx > 0) {
+                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.20f, 1.0f)
+                                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                                }
+                            },
+                            onDragStopped = { velocity ->
+                                if (sheetFraction.value < 0.38f || velocity > 1200f) {
+                                    requestDismiss()
+                                } else if (sheetFraction.value < 0.50f) {
+                                    scope.launch { sheetFraction.animateTo(defaultInitial, tween(220, easing = FastOutSlowInEasing)) }
+                                } else if (sheetFraction.value >= 0.94f || velocity < -1200f) {
+                                    scope.launch { sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing)) }
+                                }
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(20.dp)
-                            .draggable(
-                                orientation = Orientation.Vertical,
-                                state = rememberDraggableState { delta ->
-                                    if (screenHeightPx > 0) {
-                                        val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.20f, 1.0f)
-                                        scope.launch { sheetFraction.snapTo(nextFrac) }
-                                    }
-                                },
-                                onDragStopped = { velocity ->
-                                    if (sheetFraction.value < 0.38f || velocity > 1200f) {
-                                        requestDismiss()
-                                    } else if (sheetFraction.value >= 0.78f || velocity < -1200f) {
-                                        scope.launch { sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing)) }
-                                    } else {
-                                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(220, easing = FastOutSlowInEasing)) }
-                                    }
-                                }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(36.dp)
-                                .height(4.dp)
-                                .clip(CircleShape)
-                                .background(Color(0x40FFFFFF))
-                        )
-                    }
-
-                    if (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) {
-                        AttachTopBar(
-                            title = selectedTab.title,
-                            onBack = { requestDismiss() },
-                            hasActionMenu = (selectedTab == AttachTab.GALLERY),
-                            onActionClick = { isMoreMenuOpen = true },
-                            actionMenuContent = {
-                                DropdownMenu(
-                                    expanded = isMoreMenuOpen,
-                                    onDismissRequest = { isMoreMenuOpen = false },
-                                    modifier = Modifier
-                                        .background(AttachCardDark)
-                                        .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
-                                        onClick = {
-                                            isMoreMenuOpen = false
-                                            systemPickerLauncher.launch("*/*")
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Folder,
-                                                contentDescription = null,
-                                                tint = AttachPurple,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.sp) },
-                                        onClick = {
-                                            isMoreMenuOpen = false
-                                            if (selectedMedia.isNotEmpty()) {
-                                                sendAsUncompressed()
-                                            } else {
-                                                uncompressedPickerLauncher.launch("*/*")
-                                            }
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Outlined.InsertDriveFile,
-                                                contentDescription = null,
-                                                tint = AttachPurple,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                    )
-                                    if (selectedMedia.isNotEmpty()) {
-                                        DropdownMenuItem(
-                                            text = { Text("Отправить в HD качестве", color = Color.White, fontSize = 14.sp) },
-                                            onClick = {
-                                                isMoreMenuOpen = false
-                                                sendAsHd()
-                                            },
-                                            leadingIcon = {
-                                                Icon(
-                                                    imageVector = Icons.Default.HighQuality,
-                                                    contentDescription = null,
-                                                    tint = AttachPurple,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                            }
-                                        )
-                                    }
-                                }
-                            },
-                            centerContent = if (selectedTab == AttachTab.GALLERY) {
-                                {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                            .padding(horizontal = 14.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Text(
-                                            text = selectedAlbum,
-                                            color = Color.White,
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            maxLines = 1,
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.ArrowDropDown,
-                                            contentDescription = "Альбомы",
-                                            tint = AttachPurple,
-                                            modifier = Modifier.size(24.dp)
-                                        )
-                                    }
-                                }
-                            } else null,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
+                            .padding(vertical = 10.dp)
+                            .width(36.dp)
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x40FFFFFF))
+                    )
                 }
             } else if (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) {
                 Box(
