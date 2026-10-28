@@ -710,8 +710,7 @@ fun AttachSheetContent(
                                 velocityTracker.addPosition(change.uptimeMillis, change.position)
                                 val delta = change.positionChange().y
                                 change.consume()
-                                val next = (sheetOffsetY.value + delta).coerceIn(0f, screenHeightPx)
-                                sheetOffsetY.snapTo(next)
+                                scrollChannel.trySend(delta)
                             }
 
                             val velocityY = velocityTracker.calculateVelocity().y
