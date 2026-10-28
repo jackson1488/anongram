@@ -61,6 +61,7 @@ import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.ui.safeNavigationBarPadding
+import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.anongram.app.features.chats.common.IChatSession
@@ -141,7 +142,6 @@ fun ChatScreen(
     // Обработка системной кнопки назад: закрывать открытые панели и модалки по очереди
     BackHandler {
         when {
-            isFullPlayerFromChatOpen -> isFullPlayerFromChatOpen = false
             isWallpaperOpen -> isWallpaperOpen = false
             isReplyPreviewOpen -> isReplyPreviewOpen = false
             isSearchListMode -> isSearchListMode = false

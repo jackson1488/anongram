@@ -293,17 +293,12 @@ fun AttachSheetContent(
             // 4. ВЕРХНЯЯ НАВИГАЦИЯ ТОЛЬКО В ПОЛНОМ ЭКРАНЕ (ТЗ, шаг 4):
             // Пока окно меньше 95%: только ручка. Кнопок назад/заголовок/поиск/меню нет.
             // Когда окно >= 95%: плавно появляются плавающие таблетки AttachTopBar.
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(if (isFullscreen) 56.dp else 24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                // Ручка для перетягивания (только до 95% экрана)
-                AnimatedVisibility(
-                    visible = !isFullscreen,
-                    enter = fadeIn(tween(160)),
-                    exit = fadeOut(tween(140))
+            if (!isFullscreen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
@@ -314,47 +309,42 @@ fun AttachSheetContent(
                             .background(Color(0x40FFFFFF))
                     )
                 }
-
-                // Плавающие таблетки навигации (только в полном экране >= 95%)
-                AnimatedVisibility(
-                    visible = isFullscreen,
-                    enter = fadeIn(tween(200)) + slideInVertically(initialOffsetY = { -it }),
-                    exit = fadeOut(tween(160)) + slideOutVertically(targetOffsetY = { -it })
-                ) {
-                    AttachTopBar(
-                        title = selectedTab.title,
-                        onBack = {
-                            scope.launch {
-                                sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+            } else {
+                AttachTopBar(
+                    title = selectedTab.title,
+                    onBack = {
+                        scope.launch {
+                            sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                        }
+                    },
+                    centerContent = if (selectedTab == AttachTab.GALLERY) {
+                        {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { isAlbumsSheetOpen = true },
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = selectedAlbum,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Альбомы",
+                                    tint = AttachPurple
+                                )
                             }
-                        },
-                        centerContent = if (selectedTab == AttachTab.GALLERY) {
-                            {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { isAlbumsSheetOpen = true },
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = selectedAlbum,
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "Альбомы",
-                                        tint = AttachPurple
-                                    )
-                                }
-                            }
-                        } else null,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                        }
+                    } else null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                )
             }
 
             // Контентная область вкладок (скроллится под плавающими таблетками)
