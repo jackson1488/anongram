@@ -29,12 +29,20 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
+import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -97,17 +105,11 @@ fun AttachSheetContent(
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
     val screenHeightPx = with(density) { screenHeightDp.toPx() }
 
-    // 1. Вычисление начальной высоты окна: если была открыта клавиатура — её высота, но не ниже 40% и не выше 60%
-    val defaultInitial = 0.44f
-    val initialFraction = remember {
-        if (keyboardHeightPx > 0 && screenHeightPx > 0) {
-            (keyboardHeightPx.toFloat() / screenHeightPx).coerceIn(0.40f, 0.60f)
-        } else {
-            defaultInitial
-        }
-    }
+    // 1. Начальная высота окна: строго 50% (0.50f)
+    val defaultInitial = 0.50f
+    val initialFraction = remember { defaultInitial }
 
-    // 2. Единая анимируемая высота окна через Animatable (ТЗ, шаг 1)
+    // 2. Единая анимируемая высота окна через Animatable
     val sheetFraction = remember { Animatable(0f) }
     var isClosing by remember { mutableStateOf(false) }
 
@@ -120,14 +122,14 @@ fun AttachSheetContent(
         } catch (_: Exception) {}
 
         scope.launch {
-            sheetFraction.animateTo(0f, tween(durationMillis = 240, easing = FastOutLinearInEasing))
+            sheetFraction.animateTo(0f, tween(durationMillis = 280, easing = FastOutLinearInEasing))
             onDismiss()
         }
     }
 
-    // Плавный выезд снизу вверх при открытии (~280 мс, FastOutSlowInEasing)
+    // Плавный выезд снизу вверх при открытии (~300 мс, FastOutSlowInEasing)
     LaunchedEffect(Unit) {
-        sheetFraction.animateTo(initialFraction, tween(durationMillis = 280, easing = FastOutSlowInEasing))
+        sheetFraction.animateTo(defaultInitial, tween(durationMillis = 300, easing = FastOutSlowInEasing))
     }
 
     var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
@@ -217,7 +219,7 @@ fun AttachSheetContent(
         }
     }
 
-    // Обработка кнопки "Назад"
+    // Обработка кнопки "Назад" (из полного экрана возвращает на 50%, а при 50% закрывает/спрашивает сброс)
     BackHandler {
         when {
             showDiscardDialog -> showDiscardDialog = false
@@ -225,8 +227,8 @@ fun AttachSheetContent(
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
-            sheetFraction.value > 0.65f -> {
-                scope.launch { sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing)) }
+            sheetFraction.value > 0.60f -> {
+                scope.launch { sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing)) }
             }
             totalSelectedCount > 0 -> {
                 showDiscardDialog = true
@@ -235,16 +237,11 @@ fun AttachSheetContent(
         }
     }
 
-    // 3. Прокрутка растит окно (NestedScrollConnection, ТЗ шаг 3):
+    // Прокрутка списков без рывков шторки
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Если окно не на весь экран и пользователь скроллит вверх (палец вверх, available.y < -15) — плавно раскрываем на 100%
-                if (available.y < -15f && sheetFraction.value < 0.95f) {
-                    scope.launch {
-                        sheetFraction.animateTo(1.0f, tween(280, easing = FastOutSlowInEasing))
-                    }
-                }
+                // Внутри списков контент скроллится свободно и плавно, не срывая шторку с места
                 return Offset.Zero
             }
 
@@ -253,26 +250,14 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // Если контент доскроллен до верха и пользователь тянет вниз (available.y > 25)
-                if (available.y > 25f && sheetFraction.value >= 0.95f) {
+                // Если контент доскроллен до самого верха и пользователь тянет вниз при 100% раскрытии
+                if (available.y > 40f && sheetFraction.value >= 0.95f) {
                     scope.launch {
                         sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
                     }
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
-            }
-
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (sheetFraction.value < 0.35f || available.y > 1000f) {
-                    if (totalSelectedCount > 0) {
-                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(200)) }
-                        showDiscardDialog = true
-                    } else {
-                        dismissAnimated()
-                    }
-                }
-                return super.onPostFling(consumed, available)
             }
         }
     }
@@ -340,6 +325,7 @@ fun AttachSheetContent(
                             onCaptionChange = { captionText = it },
                             onSend = { sendAllSelected() },
                             capturedMediaItems = capturedMediaList,
+                            isFullscreen = isFullscreen,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -406,6 +392,16 @@ fun AttachSheetContent(
                                     selectedContacts.add(contact)
                                 }
                             },
+                            isFullscreen = isFullscreen,
+                            onBack = {
+                                if (sheetFraction.value > 0.60f) {
+                                    scope.launch { sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing)) }
+                                } else if (totalSelectedCount > 0) {
+                                    showDiscardDialog = true
+                                } else {
+                                    dismissAnimated()
+                                }
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -447,16 +443,18 @@ fun AttachSheetContent(
             }
 
             // 2. Вуаль-градиент за плавающей шапкой в полном экране
-            if (isFullscreen && selectedTab != AttachTab.FILE) {
+            if (isFullscreen) {
+                val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val headerScrimHeight = statusBarTop + 68.dp
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .height(86.dp)
+                        .height(headerScrimHeight)
                         .background(
                             Brush.verticalGradient(
                                 0.0f to Color.Black.copy(alpha = 0.85f),
-                                0.65f to Color.Black.copy(alpha = 0.5f),
+                                0.65f to Color.Black.copy(alpha = 0.55f),
                                 1.0f to Color.Transparent
                             )
                         )
@@ -464,70 +462,77 @@ fun AttachSheetContent(
             }
 
             // 3. Плавающая шапка:
-            // - В полуоткрытом режиме: только тонкая ручка
-            // - В полном экране: плавающие островки
+            // - В полуоткрытом режиме (от 50%): тонкая ручка
+            // - В полном экране (>= 95%): плавающие островки
             if (!isFullscreen) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .height(30.dp)
+                        .height(32.dp)
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { delta ->
                                 if (screenHeightPx > 0) {
-                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0f, 1f)
+                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.20f, 1.0f)
                                     scope.launch { sheetFraction.snapTo(nextFrac) }
                                 }
                             },
                             onDragStopped = { velocity ->
-                                if (sheetFraction.value < 0.35f || velocity > 1000f) {
+                                if (sheetFraction.value < 0.38f || velocity > 1200f) {
                                     if (totalSelectedCount > 0) {
-                                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(200)) }
+                                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(200, easing = FastOutSlowInEasing)) }
                                         showDiscardDialog = true
                                     } else {
                                         dismissAnimated()
                                     }
-                                } else if (sheetFraction.value > 0.80f || velocity < -1000f) {
-                                    scope.launch { sheetFraction.animateTo(1.0f, tween(250, easing = FastOutSlowInEasing)) }
+                                } else if (sheetFraction.value < 0.50f) {
+                                    scope.launch { sheetFraction.animateTo(defaultInitial, tween(220, easing = FastOutSlowInEasing)) }
+                                } else if (sheetFraction.value >= 0.94f || velocity < -1200f) {
+                                    scope.launch { sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing)) }
                                 }
+                                // Между 0.50f и 0.94f шторка остаётся ровно там, где её отпустили!
                             }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .width(32.dp)
-                            .height(3.dp)
+                            .padding(vertical = 10.dp)
+                            .width(36.dp)
+                            .height(4.dp)
                             .clip(CircleShape)
-                            .background(Color(0x38FFFFFF))
+                            .background(Color(0x40FFFFFF))
                     )
                 }
-            } else if (selectedTab != AttachTab.MUSIC && selectedTab != AttachTab.FILE && selectedTab != AttachTab.CONTACT) {
+            } else if (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .padding(top = 8.dp)
+                        .safeStatusBarPadding()
                 ) {
                     AttachTopBar(
                         title = selectedTab.title,
                         onBack = {
-                            if (totalSelectedCount > 0) {
+                            if (sheetFraction.value > 0.60f) {
+                                scope.launch {
+                                    sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
+                                }
+                            } else if (totalSelectedCount > 0) {
                                 showDiscardDialog = true
                             } else {
-                                scope.launch {
-                                    sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing))
-                                }
+                                dismissAnimated()
                             }
                         },
+                        hasActionMenu = false,
                         centerContent = if (selectedTab == AttachTab.GALLERY) {
                             {
                                 Row(
                                     modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen },
+                                        .fillMaxSize()
+                                        .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
+                                        .padding(horizontal = 14.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
@@ -535,13 +540,14 @@ fun AttachSheetContent(
                                         color = Color.White,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1
+                                        maxLines = 1,
+                                        modifier = Modifier.weight(1f)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
                                     Icon(
                                         imageVector = Icons.Default.ArrowDropDown,
                                         contentDescription = "Альбомы",
-                                        tint = AttachPurple
+                                        tint = AttachPurple,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
                             }
@@ -634,54 +640,84 @@ fun AttachSheetContent(
             )
         }
 
-        // Диалог подтверждения сброса выбора при выходе
+        // Диалог подтверждения сброса выбора при выходе (ТЗ: центрированный заголовок и текст, широкая красная кнопка Сбросить)
         if (showDiscardDialog) {
-            AlertDialog(
-                onDismissRequest = { showDiscardDialog = false },
-                title = {
-                    Text(
-                        text = "Сбросить выбор",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Закрыть вложения?",
-                        color = Color(0xFFD1D5DB),
-                        fontSize = 15.sp
-                    )
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDiscardDialog = false }) {
-                        Text(
-                            text = "Отмена",
-                            color = Color(0xFFA78BFA),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showDiscardDialog = false
-                            clearAllSelected()
-                            dismissAnimated()
-                        }
+            Dialog(onDismissRequest = { showDiscardDialog = false }) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.88f)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xFF242424))
+                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(22.dp))
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Text(
-                            text = "Сбросить",
-                            color = Color(0xFFEF4444),
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
+                            text = "Сбросить выбор?",
+                            color = Color.White,
+                            fontSize = 19.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
+                        Text(
+                            text = "Выбранные элементы не будут отправлены.",
+                            color = Color(0xFFB0B0B0),
+                            fontSize = 15.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Кнопка Отмена
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(23.dp))
+                                    .background(Color(0x1AFFFFFF))
+                                    .clickable { showDiscardDialog = false },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Отмена",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+
+                            // Кнопка Сбросить (широкая, красная, по центру)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(46.dp)
+                                    .clip(RoundedCornerShape(23.dp))
+                                    .background(Color(0xFFDC2626))
+                                    .clickable {
+                                        showDiscardDialog = false
+                                        clearAllSelected()
+                                        dismissAnimated()
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Сбросить",
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
-                },
-                containerColor = Color(0xFF242424),
-                shape = RoundedCornerShape(18.dp)
-            )
+                }
+            }
         }
     }
 }

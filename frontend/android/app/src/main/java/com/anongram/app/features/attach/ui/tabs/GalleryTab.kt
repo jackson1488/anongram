@@ -136,6 +136,7 @@ fun GalleryTab(
     onCaptionChange: (String) -> Unit = {},
     onSend: () -> Unit = {},
     capturedMediaItems: List<GalleryMedia> = emptyList(),
+    isFullscreen: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -217,13 +218,16 @@ fun GalleryTab(
                 )
             }
 
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val topGridPadding = if (isFullscreen) statusBarTop + 62.dp else 30.dp
+
             // Сетка медиа 3 колонки (ТЗ, шаг 5)
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(start = 2.dp, top = 30.dp, end = 2.dp, bottom = 84.dp),
+                contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {

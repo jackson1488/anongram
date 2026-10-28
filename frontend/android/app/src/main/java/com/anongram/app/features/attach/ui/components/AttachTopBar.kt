@@ -61,13 +61,13 @@ fun AttachTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Островок 1: Кнопка Назад
+        // Островок 1: Кнопка Назад (размер 50dp как у ChatTopBar)
         Box(
             modifier = Modifier
-                .size(46.dp)
+                .size(50.dp)
                 .clip(CircleShape)
                 .background(AttachCardDark)
                 .border(1.dp, AttachBorder, CircleShape),
@@ -75,7 +75,7 @@ fun AttachTopBar(
         ) {
             IconButton(
                 onClick = onBack,
-                modifier = Modifier.size(46.dp)
+                modifier = Modifier.size(50.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -88,14 +88,14 @@ fun AttachTopBar(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Островок 2: Заголовок или Поле поиска
+        // Островок 2: Заголовок или Поле поиска (высота 50dp)
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(46.dp)
-                .clip(RoundedCornerShape(23.dp))
+                .height(50.dp)
+                .clip(RoundedCornerShape(25.dp))
                 .background(AttachCardDark)
-                .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
+                .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
                 .padding(horizontal = 14.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -178,7 +178,7 @@ fun AttachTopBar(
             // Островок 3: Меню действий
             Box(
                 modifier = Modifier
-                    .size(46.dp)
+                    .size(50.dp)
                     .clip(CircleShape)
                     .background(AttachCardDark)
                     .border(1.dp, AttachBorder, CircleShape),
@@ -186,7 +186,7 @@ fun AttachTopBar(
             ) {
                 IconButton(
                     onClick = onActionClick,
-                    modifier = Modifier.size(46.dp)
+                    modifier = Modifier.size(50.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,

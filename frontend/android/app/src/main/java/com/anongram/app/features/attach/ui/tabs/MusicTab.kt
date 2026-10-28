@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -146,107 +147,158 @@ fun MusicTab(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
+        modifier = modifier.fillMaxSize()
     ) {
-        Spacer(modifier = Modifier.height(26.dp))
-
-        // Единое поле поиска музыки на весь экран (без кнопки назад)
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = Color(0xFF94A3B8)
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
-                            tint = Color(0xFF94A3B8)
-                        )
-                    }
-                }
-            },
-            singleLine = true,
-            interactionSource = searchInteractionSource,
-            shape = RoundedCornerShape(24.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = AttachCardDark,
-                unfocusedContainerColor = AttachCardDark,
-                focusedBorderColor = PurpleAccent,
-                unfocusedBorderColor = AttachBorder,
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(50.dp)
-                .onFocusChanged { focusState ->
-                    if (focusState.isFocused) {
-                        onExpandToFullscreen()
-                    }
-                }
-        )
-
-        // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
-        if (playerState.isVisible && playerState.currentTrack != null) {
-            Spacer(modifier = Modifier.height(10.dp))
-            MiniPlayer(
-                onExpand = onExpandPlayer,
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        if (filteredTracks.isEmpty()) {
+        if (isFullscreen) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                Text(
-                    text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 14.sp
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF94A3B8)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    interactionSource = searchInteractionSource,
+                    shape = RoundedCornerShape(25.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AttachCardDark,
+                        unfocusedContainerColor = AttachCardDark,
+                        focusedBorderColor = PurpleAccent,
+                        unfocusedBorderColor = AttachBorder,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
                 )
             }
         } else {
-            LazyColumn(
+            Spacer(modifier = Modifier.height(30.dp))
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF94A3B8)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                interactionSource = searchInteractionSource,
+                shape = RoundedCornerShape(25.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AttachCardDark,
+                    unfocusedContainerColor = AttachCardDark,
+                    focusedBorderColor = PurpleAccent,
+                    unfocusedBorderColor = AttachBorder,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(bottom = 84.dp)
-            ) {
-                itemsIndexed(filteredTracks, key = { _, t -> t.id }) { index, track ->
-                    val isCurrent = playerState.currentTrack?.id == track.id
-                    val isPlaying = isCurrent && playerState.isPlaying
-                    val isSelected = selectedTracks.any { it.id == track.id }
-
-                    MusicTrackRow(
-                        track = track,
-                        isPlaying = isPlaying,
-                        isSelected = isSelected,
-                        onPlayClick = {
-                            if (isCurrent) {
-                                controller.toggle()
-                            } else {
-                                controller.play(filteredTracks, index)
-                            }
-                        },
-                        onToggleSelect = {
-                            onToggleSelectTrack(track)
+                    .height(50.dp)
+                    .padding(horizontal = 14.dp)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            onExpandToFullscreen()
                         }
+                    }
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 14.dp)
+        ) {
+            // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
+            if (playerState.isVisible && playerState.currentTrack != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                MiniPlayer(
+                    onExpand = onExpandPlayer,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            if (filteredTracks.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 14.sp
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 84.dp)
+                ) {
+                    itemsIndexed(filteredTracks, key = { _, t -> t.id }) { index, track ->
+                        val isCurrent = playerState.currentTrack?.id == track.id
+                        val isPlaying = isCurrent && playerState.isPlaying
+                        val isSelected = selectedTracks.any { it.id == track.id }
+
+                        MusicTrackRow(
+                            track = track,
+                            isPlaying = isPlaying,
+                            isSelected = isSelected,
+                            onPlayClick = {
+                                if (isCurrent) {
+                                    controller.toggle()
+                                } else {
+                                    controller.play(filteredTracks, index)
+                                }
+                            },
+                            onToggleSelect = {
+                                onToggleSelectTrack(track)
+                            }
+                        )
+                    }
                 }
             }
         }

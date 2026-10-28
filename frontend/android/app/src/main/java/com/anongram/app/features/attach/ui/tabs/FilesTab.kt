@@ -8,6 +8,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -157,24 +158,21 @@ fun FilesTab(
     }
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 14.dp)
+        modifier = modifier.fillMaxSize()
     ) {
-        // Плавающие таблетки сверху в полном экране (ТЗ, шаг 4)
+        // Плавающие таблетки сверху в полном экране (высота 50dp как у ChatTopBar)
         if (isFullscreen) {
-            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(AttachSheetBackground)
-                    .padding(vertical = 4.dp),
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(50.dp)
                         .clip(CircleShape)
                         .background(AttachPillDark)
                         .border(1.dp, AttachBorder, CircleShape)
@@ -203,10 +201,10 @@ fun FilesTab(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp)
-                            .clip(RoundedCornerShape(23.dp))
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(25.dp))
                             .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
+                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
                             .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -231,7 +229,7 @@ fun FilesTab(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .size(46.dp)
+                                .size(50.dp)
                                 .clip(CircleShape)
                                 .background(AttachPillDark)
                                 .border(1.dp, AttachBorder, CircleShape)
@@ -247,14 +245,14 @@ fun FilesTab(
                         }
                     }
                 } else {
-                    // Обычный режим: заголовок, затем кнопка поиска, затем кнопка фильтра в углу (все 46x46dp)
+                    // Обычный режим: заголовок, затем кнопка поиска, затем кнопка фильтра в углу (все 50x50dp)
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(46.dp)
-                            .clip(RoundedCornerShape(23.dp))
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(25.dp))
                             .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
+                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
                             .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -271,7 +269,7 @@ fun FilesTab(
                     // 1. Кнопка поиска
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
                             .background(AttachPillDark)
                             .border(1.dp, AttachBorder, CircleShape)
@@ -291,7 +289,7 @@ fun FilesTab(
                     // 2. В угол кнопка фильтра/сортировки
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
                             .background(AttachPillDark)
                             .border(1.dp, AttachBorder, CircleShape)
@@ -311,13 +309,14 @@ fun FilesTab(
             }
             Spacer(modifier = Modifier.height(4.dp))
         } else {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(30.dp))
         }
 
         // Общая вертикальная карточка со скруглёнными углами (ТЗ, скрин media_1793211129173.png)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 14.dp)
                 .clip(RoundedCornerShape(18.dp))
                 .background(AttachCardDark)
         ) {
@@ -372,44 +371,51 @@ fun FilesTab(
             )
         }
 
-        // Заголовок раздела под карточкой (ТЗ: фиолетовый текст media_1793211129173.png)
-        Text(
-            text = sortOrder.title,
-            color = Color(0xFFA78BFA),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 4.dp)
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 14.dp)
+        ) {
+            // Заголовок раздела под карточкой (ТЗ: фиолетовый текст media_1793211129173.png)
+            Text(
+                text = sortOrder.title,
+                color = Color(0xFFA78BFA),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 4.dp)
+            )
 
-        if (sortedFiles.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Файлы не найдены",
-                    color = Color(0xFF94A3B8),
-                    fontSize = 14.sp
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(bottom = 84.dp)
-            ) {
-                items(sortedFiles, key = { it.uri.toString() }) { file ->
-                    val isSelected = selectedFiles.any { it.uri == file.uri }
-                    FileRowItem(
-                        file = file,
-                        isSelected = isSelected,
-                        onClick = {
-                            onToggleSelectFile(file)
-                        }
+            if (sortedFiles.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Файлы не найдены",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 14.sp
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 84.dp)
+                ) {
+                    items(sortedFiles, key = { it.uri.toString() }) { file ->
+                        val isSelected = selectedFiles.any { it.uri == file.uri }
+                        FileRowItem(
+                            file = file,
+                            isSelected = isSelected,
+                            onClick = {
+                                onToggleSelectFile(file)
+                            }
+                        )
+                    }
                 }
             }
         }
