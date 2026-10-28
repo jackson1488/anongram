@@ -291,7 +291,6 @@ class ChatMessagesViewModel(
         val nextIndex = (state.pinnedIndex + 1) % state.pinnedIds.size
         val nextId = state.pinnedIds[nextIndex]
         _uiState.update { it.copy(pinnedIndex = nextIndex, pinnedId = nextId) }
-        highlightMessage(nextId)
         return nextId
     }
 
@@ -466,9 +465,9 @@ class ChatMessagesViewModel(
         highlightJob = viewModelScope.launch {
             // Сбрасываем в null, чтобы гарантировать повторное срабатывание анимации даже при повторном клике того же id
             _uiState.update { it.copy(highlightedMessageId = null) }
-            delay(16)
+            delay(32)
             _uiState.update { it.copy(highlightedMessageId = id) }
-            delay(1100)
+            delay(1800)
             _uiState.update {
                 if (it.highlightedMessageId == id) it.copy(highlightedMessageId = null) else it
             }

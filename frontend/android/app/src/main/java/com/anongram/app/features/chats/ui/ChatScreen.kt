@@ -247,12 +247,15 @@ fun ChatScreen(
                         val matchIdx = state.searchMatches.indexOf(message.id)
                         if (matchIdx >= 0) {
                             viewModel.jumpToSearchMatch(matchIdx)
-                        } else {
-                            viewModel.highlightMessage(message.id)
                         }
                         val idx = state.messages.asReversed().indexOfFirst { it.id == message.id }
                         if (idx >= 0) {
-                            scope.launch { listState.animateScrollAndCenterItem(idx) }
+                            scope.launch {
+                                listState.animateScrollAndCenterItem(idx)
+                                viewModel.highlightMessage(message.id)
+                            }
+                        } else {
+                            viewModel.highlightMessage(message.id)
                         }
                     },
                     topPadding = topListPadding,
@@ -318,24 +321,7 @@ fun ChatScreen(
             }
         }
 
-        // 1c. Мягкая затемняющая вуаль-градиент за полем ввода (скрывает сообщения под полем ввода как в Telegram)
-        val bottomScrimHeight = if (isKeyboardVisible) 110.dp else 136.dp
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(bottomScrimHeight)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to Color.Transparent,
-                        0.28f to ObsidianBlack.copy(alpha = 0.85f),
-                        0.62f to ObsidianBlack.copy(alpha = 0.98f),
-                        1.0f to ObsidianBlack
-                    )
-                )
-        )
-
-        // 1b. Парящее поле ввода поверх списка сообщений (на фоне затемняющей вуали)
+        // 1b. Парящее поле ввода поверх списка сообщений
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -386,9 +372,13 @@ fun ChatScreen(
                         onReplyClick = { replyMsg ->
                             val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
                             if (index >= 0) {
-                                scope.launch { listState.animateScrollAndCenterItem(index) }
+                                scope.launch {
+                                    listState.animateScrollAndCenterItem(index)
+                                    viewModel.highlightMessage(replyMsg.id)
+                                }
+                            } else {
+                                viewModel.highlightMessage(replyMsg.id)
                             }
-                            viewModel.highlightMessage(replyMsg.id)
                         },
                         onReplyLongClick = {
                             isReplyPreviewOpen = true
@@ -518,9 +508,13 @@ fun ChatScreen(
                             if (targetId != null) {
                                 val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
                                 if (index >= 0) {
-                                    scope.launch { listState.animateScrollAndCenterItem(index) }
+                                    scope.launch {
+                                        listState.animateScrollAndCenterItem(index)
+                                        viewModel.highlightMessage(targetId)
+                                    }
+                                } else {
+                                    viewModel.highlightMessage(targetId)
                                 }
-                                viewModel.highlightMessage(targetId)
                             }
                         },
                         onOpenAllPinned = viewModel::openPinnedMessages
@@ -706,9 +700,13 @@ fun ChatScreen(
                     if (targetId != null) {
                         val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
                         if (index >= 0) {
-                            scope.launch { listState.animateScrollAndCenterItem(index) }
+                            scope.launch {
+                                listState.animateScrollAndCenterItem(index)
+                                viewModel.highlightMessage(targetId)
+                            }
+                        } else {
+                            viewModel.highlightMessage(targetId)
                         }
-                        viewModel.highlightMessage(targetId)
                     }
                     isReplyPreviewOpen = false
                 },

@@ -98,12 +98,15 @@ internal fun MessagesList(
                     isSelected = item.message.id in selection,
                     isHighlighted = item.message.id == highlightedMessageId,
                     onQuoteClick = { originalId ->
-                        displayIndexById[originalId]?.let { index ->
+                        val index = displayIndexById[originalId]
+                        if (index != null) {
                             scope.launch {
                                 listState.animateScrollAndCenterItem(index = index)
+                                onHighlightMessage(originalId)
                             }
+                        } else {
+                            onHighlightMessage(originalId)
                         }
-                        onHighlightMessage(originalId)
                     },
                     onClick = { topY -> onClick(item.message, topY) },
                     onLongClick = { onLongClick(item.message) },

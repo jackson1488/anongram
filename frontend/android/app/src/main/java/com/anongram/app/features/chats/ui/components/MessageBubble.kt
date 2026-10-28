@@ -136,11 +136,12 @@ internal fun MessageBubble(
             pulseAnim.animateTo(
                 targetValue = 0f,
                 animationSpec = keyframes {
-                    durationMillis = 800
-                    0.92f at 140 using FastOutSlowInEasing
-                    0.18f at 240 using FastOutSlowInEasing
-                    1.0f at 380 using FastOutSlowInEasing
-                    0.0f at 800 using LinearOutSlowInEasing
+                    durationMillis = 1500
+                    0.95f at 180 using FastOutSlowInEasing
+                    0.20f at 340 using FastOutSlowInEasing
+                    1.0f at 560 using FastOutSlowInEasing
+                    0.45f at 900 using FastOutSlowInEasing
+                    0.0f at 1500 using LinearOutSlowInEasing
                 }
             )
         } else {
@@ -268,19 +269,19 @@ internal fun MessageBubble(
                             )
                         }
                     } else {
-                        val pulseScale = 1f + (pulseAlpha * 0.05f)
+                        val pulseScale = 1f + (pulseAlpha * 0.08f)
                         val baseColor = when {
                             isSelected -> scheme.accent.copy(alpha = 0.28f)
                             isIncoming -> CardDark
                             else -> scheme.accent.copy(alpha = 0.16f)
                         }
                         val bubbleColor = if (pulseAlpha > 0f) {
-                            lerp(baseColor, scheme.accent.copy(alpha = 0.72f), pulseAlpha)
+                            lerp(baseColor, scheme.accent.copy(alpha = 0.82f), pulseAlpha)
                         } else {
                             baseColor
                         }
                         val bubbleBorder = when {
-                            pulseAlpha > 0f -> BorderStroke(2.dp, scheme.accent.copy(alpha = 0.6f + pulseAlpha * 0.4f))
+                            pulseAlpha > 0f -> BorderStroke(2.5.dp, scheme.accent.copy(alpha = 0.8f + pulseAlpha * 0.2f))
                             !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
                             else -> null
                         }
@@ -289,7 +290,7 @@ internal fun MessageBubble(
                             shape = bubbleShape(item, isIncoming),
                             color = bubbleColor,
                             border = bubbleBorder,
-                            shadowElevation = (pulseAlpha * 10).dp,
+                            shadowElevation = (pulseAlpha * 16).dp,
                             modifier = Modifier
                                 .widthIn(max = bubbleMaxWidth)
                                 .graphicsLayer {
