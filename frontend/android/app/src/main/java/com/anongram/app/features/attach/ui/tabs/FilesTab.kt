@@ -162,21 +162,29 @@ fun FilesTab(
     ) {
         // Плавающие таблетки сверху в полном экране (ТЗ, шаг 4)
         if (isFullscreen) {
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(AttachSheetBackground)
                     .padding(vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Кнопка назад
+                // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
                 Box(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
                         .background(AttachPillDark)
                         .border(1.dp, AttachBorder, CircleShape)
-                        .clickable { onBack() },
+                        .clickable {
+                            if (isSearchActive) {
+                                isSearchActive = false
+                                searchQuery = ""
+                            } else {
+                                onBack()
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -189,18 +197,18 @@ fun FilesTab(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Заголовок или поле поиска
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(42.dp)
-                        .clip(RoundedCornerShape(21.dp))
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, RoundedCornerShape(21.dp))
-                        .padding(horizontal = 14.dp),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    if (isSearchActive) {
+                if (isSearchActive) {
+                    // Режим поиска: поле ввода на всю ширину
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(21.dp))
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, RoundedCornerShape(21.dp))
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
                         BasicTextField(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
@@ -215,7 +223,40 @@ fun FilesTab(
                             },
                             modifier = Modifier.fillMaxWidth()
                         )
-                    } else {
+                    }
+
+                    // Крестик ТОЛЬКО когда что-то написано в поиск
+                    if (searchQuery.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(AttachPillDark)
+                                .border(1.dp, AttachBorder, CircleShape)
+                                .clickable { searchQuery = "" },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Очистить",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // Обычный режим: заголовок, затем кнопка поиска, затем кнопка фильтра в углу (все 42x42dp)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(42.dp)
+                            .clip(RoundedCornerShape(21.dp))
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, RoundedCornerShape(21.dp))
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
                         Text(
                             text = "Выбрать файл",
                             color = Color.White,
@@ -223,57 +264,41 @@ fun FilesTab(
                             fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
 
-                Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                // Кнопка поиска
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, CircleShape)
-                        .clickable {
-                            isSearchActive = !isSearchActive
-                            if (!isSearchActive) searchQuery = ""
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Поиск",
-                        tint = if (isSearchActive) Color(0xFF8B5CF6) else Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Кнопка сортировки / очистки
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, CircleShape)
-                        .clickable {
-                            if (searchQuery.isNotEmpty()) {
-                                searchQuery = ""
-                            } else {
-                                sortOrder = if (sortOrder == FileSortOrder.BY_DATE) FileSortOrder.BY_NAME else FileSortOrder.BY_DATE
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (searchQuery.isNotEmpty()) {
+                    // 1. Кнопка поиска
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, CircleShape)
+                            .clickable { isSearchActive = true },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Очистить",
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Поиск",
                             tint = Color.White,
                             modifier = Modifier.size(20.dp)
                         )
-                    } else {
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // 2. В угол кнопка фильтра/сортировки
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, CircleShape)
+                            .clickable {
+                                sortOrder = if (sortOrder == FileSortOrder.BY_DATE) FileSortOrder.BY_NAME else FileSortOrder.BY_DATE
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Icon(
                             imageVector = Icons.Rounded.Sort,
                             contentDescription = "Сортировка",
@@ -283,7 +308,7 @@ fun FilesTab(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(4.dp))
         } else {
             Spacer(modifier = Modifier.height(8.dp))
         }

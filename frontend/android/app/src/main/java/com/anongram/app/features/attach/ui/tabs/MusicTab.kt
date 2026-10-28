@@ -294,10 +294,10 @@ private fun MusicTrackRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Play / Pause круглая кнопка
+        // Кнопка воспроизведения
         Box(
             modifier = Modifier
-                .size(46.dp)
+                .size(44.dp)
                 .clip(CircleShape)
                 .background(if (isPlaying) PurpleAccent else AttachSurfaceDark)
                 .clickable { onPlayClick() },
@@ -307,11 +307,22 @@ private fun MusicTrackRow(
                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 contentDescription = "Play/Pause",
                 tint = if (isPlaying) Color.White else PurpleAccent,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(24.dp)
             )
         }
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // Галочка выбора рядом с кнопкой воспроизведения (справа кругляшка нет)
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Выбран",
+                tint = PurpleAccent,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+        }
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -330,32 +341,6 @@ private fun MusicTrackRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-        }
-
-        Spacer(modifier = Modifier.width(10.dp))
-
-        // Кружок выбора справа (ТЗ, шаг 12)
-        Box(
-            modifier = Modifier
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(if (isSelected) PurpleAccent else Color.Transparent)
-                .border(
-                    width = 1.5.dp,
-                    color = if (isSelected) PurpleAccent else Color(0x66FFFFFF),
-                    shape = CircleShape
-                )
-                .clickable { onToggleSelect() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (isSelected) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Выбран",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
         }
     }
 }

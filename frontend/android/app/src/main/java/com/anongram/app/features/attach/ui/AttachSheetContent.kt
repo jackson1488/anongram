@@ -30,8 +30,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -193,16 +195,37 @@ fun AttachSheetContent(
     var isEditorOpen by remember { mutableStateOf(false) }
     var isFullPlayerOpen by remember { mutableStateOf(false) }
     var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+
+    fun clearAllSelected() {
+        selectedMedia.clear()
+        selectedFiles.clear()
+        selectedTracks.clear()
+        selectedContacts.clear()
+        captionText = ""
+    }
+
+    fun requestDismiss() {
+        if (totalSelectedCount > 0) {
+            showDiscardDialog = true
+        } else {
+            dismissAnimated()
+        }
+    }
 
     // Обработка кнопки "Назад"
     BackHandler {
         when {
+            showDiscardDialog -> showDiscardDialog = false
             isAlbumsSheetOpen -> isAlbumsSheetOpen = false
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
             sheetFraction.value > 0.70f -> {
                 scope.launch { sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing)) }
+            }
+            totalSelectedCount > 0 -> {
+                showDiscardDialog = true
             }
             else -> dismissAnimated()
         }
@@ -241,7 +264,12 @@ fun AttachSheetContent(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (sheetFraction.value < 0.50f || available.y > 1000f) {
-                    dismissAnimated()
+                    if (totalSelectedCount > 0) {
+                        scope.launch { sheetFraction.animateTo(0.55f, tween(200)) }
+                        showDiscardDialog = true
+                    } else {
+                        dismissAnimated()
+                    }
                 }
                 return super.onPostFling(consumed, available)
             }
@@ -256,7 +284,7 @@ fun AttachSheetContent(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = scrimAlpha))
-            .clickable { dismissAnimated() }
+            .clickable { requestDismiss() }
     ) {
         // Поверхность шторки вложений (плавающее окно от 50% до 100% высоты)
         Column(
@@ -282,37 +310,46 @@ fun AttachSheetContent(
                     onDragStopped = { velocity ->
                         // Если отпустили ниже 50% — окно уезжает вниз и закрывается (ТЗ, шаг 1)
                         if (sheetFraction.value < 0.50f || velocity > 1200f) {
-                            dismissAnimated()
+                            if (totalSelectedCount > 0) {
+                                scope.launch { sheetFraction.animateTo(0.55f, tween(200)) }
+                                showDiscardDialog = true
+                            } else {
+                                dismissAnimated()
+                            }
                         }
                         // Если отпустили от 50% до 100% — окно остаётся в этом положении без залипания к ступенькам!
                     }
                 )
         ) {
             // 4. ВЕРХНЯЯ НАВИГАЦИЯ ТОЛЬКО В ПОЛНОМ ЭКРАНЕ (ТЗ, шаг 4):
-            // Пока окно меньше 95%: только ручка. Кнопок назад/заголовок/поиск/меню нет.
+            // Пока окно меньше 95%: только тонкая ручка. Кнопок назад/заголовок/поиск/меню нет.
             // Когда окно >= 95%: плавно появляются плавающие таблетки AttachTopBar.
             if (!isFullscreen) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(24.dp),
+                        .height(20.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
                         modifier = Modifier
-                            .padding(vertical = 10.dp)
-                            .width(38.dp)
-                            .height(4.dp)
+                            .padding(vertical = 8.dp)
+                            .width(32.dp)
+                            .height(3.dp)
                             .clip(CircleShape)
-                            .background(Color(0x40FFFFFF))
+                            .background(Color(0x38FFFFFF))
                     )
                 }
             } else if (selectedTab != AttachTab.MUSIC && selectedTab != AttachTab.FILE) {
                 AttachTopBar(
                     title = selectedTab.title,
                     onBack = {
-                        scope.launch {
-                            sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                        if (totalSelectedCount > 0) {
+                            showDiscardDialog = true
+                        } else {
+                            scope.launch {
+                                sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                            }
                         }
                     },
                     centerContent = if (selectedTab == AttachTab.GALLERY) {
@@ -369,7 +406,9 @@ fun AttachSheetContent(
                                 if (selectedMedia.any { it.uri == media.uri }) {
                                     selectedMedia.removeAll { it.uri == media.uri }
                                 } else {
-                                    selectedMedia.add(media)
+                                    if (selectedMedia.size < 99) {
+                                        selectedMedia.add(media)
+                                    }
                                 }
                             },
                             caption = captionText,
@@ -401,8 +440,12 @@ fun AttachSheetContent(
                             },
                             isFullscreen = isFullscreen,
                             onBack = {
-                                scope.launch {
-                                    sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                                if (totalSelectedCount > 0) {
+                                    showDiscardDialog = true
+                                } else {
+                                    scope.launch {
+                                        sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
@@ -464,8 +507,12 @@ fun AttachSheetContent(
                             },
                             isFullscreen = isFullscreen,
                             onBack = {
-                                scope.launch {
-                                    sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                                if (totalSelectedCount > 0) {
+                                    showDiscardDialog = true
+                                } else {
+                                    scope.launch {
+                                        sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                                    }
                                 }
                             },
                             modifier = Modifier.fillMaxSize()
@@ -554,6 +601,56 @@ fun AttachSheetContent(
             FullPlayerSheet(
                 onDismiss = { isFullPlayerOpen = false },
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Диалог подтверждения сброса выбора при выходе
+        if (showDiscardDialog) {
+            AlertDialog(
+                onDismissRequest = { showDiscardDialog = false },
+                title = {
+                    Text(
+                        text = "Сбросить выбор",
+                        color = Color.White,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Закрыть вложения?",
+                        color = Color(0xFFD1D5DB),
+                        fontSize = 15.sp
+                    )
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDiscardDialog = false }) {
+                        Text(
+                            text = "Отмена",
+                            color = Color(0xFFA78BFA),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDiscardDialog = false
+                            clearAllSelected()
+                            dismissAnimated()
+                        }
+                    ) {
+                        Text(
+                            text = "Сбросить",
+                            color = Color(0xFFEF4444),
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                },
+                containerColor = Color(0xFF242424),
+                shape = RoundedCornerShape(18.dp)
             )
         }
     }
