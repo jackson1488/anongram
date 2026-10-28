@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -254,6 +255,23 @@ fun AttachSheetContent(
         }
     }
 
+    val systemGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (!uris.isNullOrEmpty()) {
+            val drafts = uris.map { uri ->
+                val mime = try {
+                    context.contentResolver.getType(uri) ?: ""
+                } catch (_: Exception) {
+                    ""
+                }
+                AttachmentDraft.Media(uri = uri, isVideo = mime.startsWith("video"))
+            }
+            onSend(drafts)
+            dismissAnimated()
+        }
+    }
+
     fun sendAsUncompressed() {
         if (selectedMedia.isEmpty()) return
         val drafts = selectedMedia.mapIndexed { index, media ->
@@ -312,11 +330,17 @@ fun AttachSheetContent(
         }
     }
 
-    // Прокрутка списков без рывков шторки
+    // Плавный скролл шторки 1:1 вместе со списками без резких рывков
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Внутри списков контент скроллится свободно и плавно, не срывая шторку с места
+                // Если шторка раскрыта меньше чем на 100% и тянут вверх — шторка плавно следует за пальцем 1:1
+                if (available.y < 0f && sheetFraction.value < 0.99f && screenHeightPx > 0) {
+                    val deltaFrac = -available.y / screenHeightPx
+                    val nextFrac = (sheetFraction.value + deltaFrac).coerceIn(0.50f, 1.0f)
+                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                    return Offset(0f, available.y)
+                }
                 return Offset.Zero
             }
 
@@ -325,14 +349,37 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // Если контент доскроллен до самого верха и пользователь тянет вниз при 100% раскрытии
-                if (available.y > 40f && sheetFraction.value >= 0.95f) {
-                    scope.launch {
-                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
-                    }
+                // Если список уже доскроллен до самого верха и палец тянет вниз — шторка плавно тянется вниз 1:1
+                if (available.y > 0f && screenHeightPx > 0) {
+                    val deltaFrac = available.y / screenHeightPx
+                    val nextFrac = (sheetFraction.value - deltaFrac).coerceIn(0.20f, 1.0f)
+                    scope.launch { sheetFraction.snapTo(nextFrac) }
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (available.y < -800f && sheetFraction.value < 0.99f) {
+                    sheetFraction.animateTo(1.0f, tween(260, easing = FastOutSlowInEasing))
+                    return available
+                } else if (available.y > 800f) {
+                    if (sheetFraction.value < 0.65f) {
+                        requestDismiss()
+                    } else {
+                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
+                    }
+                    return available
+                } else {
+                    if (sheetFraction.value >= 0.78f) {
+                        sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing))
+                    } else if (sheetFraction.value < 0.38f) {
+                        requestDismiss()
+                    } else if (sheetFraction.value != defaultInitial) {
+                        sheetFraction.animateTo(defaultInitial, tween(240, easing = FastOutSlowInEasing))
+                    }
+                }
+                return Velocity.Zero
             }
         }
     }
@@ -491,8 +538,8 @@ fun AttachSheetContent(
                 }
             }
 
-            // 2. Вуаль-градиент за плавающей шапкой в полном экране
-            if (isFullscreen) {
+            // 2. Вуаль-градиент за плавающей шапкой в полном экране ТОЛЬКО в Галерее
+            if (isFullscreen && selectedTab == AttachTab.GALLERY) {
                 val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                 val headerScrimHeight = statusBarTop + 68.dp
                 Box(
@@ -578,6 +625,21 @@ fun AttachSheetContent(
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.Folder,
+                                            contentDescription = null,
+                                            tint = AttachPurple,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Системная галерея", color = Color.White, fontSize = 14.sp) },
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        systemGalleryLauncher.launch("image/*")
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.PhotoLibrary,
                                             contentDescription = null,
                                             tint = AttachPurple,
                                             modifier = Modifier.size(20.dp)

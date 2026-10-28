@@ -164,43 +164,17 @@ fun ContactsTab(
             Modifier
                 .fillMaxWidth()
                 .safeStatusBarPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .padding(top = 10.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
         } else {
             Modifier
                 .fillMaxWidth()
-                .padding(top = 26.dp, start = 12.dp, end = 12.dp, bottom = 6.dp)
+                .padding(top = 34.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
         }
 
-        Row(
+        Box(
             modifier = headerModifier,
-            verticalAlignment = Alignment.CenterVertically
+            contentAlignment = Alignment.Center
         ) {
-            // Кнопка Назад (всегда видна, очищает поиск или закрывает окно)
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(AttachCardDark)
-                    .border(1.dp, AttachBorder, CircleShape)
-                    .clickable {
-                        if (searchQuery.isNotEmpty()) {
-                            searchQuery = ""
-                        } else {
-                            onBack()
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -234,7 +208,7 @@ fun ContactsTab(
                     unfocusedTextColor = Color.White
                 ),
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .height(50.dp)
                     .onFocusChanged { if (it.isFocused && !isFullscreen) onExpandToFullscreen() }
             )
