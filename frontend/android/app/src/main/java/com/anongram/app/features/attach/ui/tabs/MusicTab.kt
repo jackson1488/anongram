@@ -150,12 +150,33 @@ fun MusicTab(
         modifier = modifier.fillMaxSize()
     ) {
         if (isFullscreen) {
-            Box(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                // Кнопка Назад
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(AttachCardDark)
+                        .border(1.dp, AttachBorder, CircleShape)
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -190,7 +211,7 @@ fun MusicTab(
                         unfocusedTextColor = Color.White
                     ),
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .weight(1f)
                         .height(50.dp)
                 )
             }

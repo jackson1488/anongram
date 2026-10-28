@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,6 +56,7 @@ fun AttachTopBar(
     onToggleSearch: () -> Unit = {},
     onActionClick: () -> Unit = {},
     hasActionMenu: Boolean = true,
+    actionMenuContent: (@Composable () -> Unit)? = null,
     centerContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -177,24 +179,30 @@ fun AttachTopBar(
 
             // Островок 3: Меню действий
             Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(AttachCardDark)
-                    .border(1.dp, AttachBorder, CircleShape),
+                modifier = Modifier.size(50.dp),
                 contentAlignment = Alignment.Center
             ) {
-                IconButton(
-                    onClick = onActionClick,
-                    modifier = Modifier.size(50.dp)
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(CircleShape)
+                        .background(AttachCardDark)
+                        .border(1.dp, AttachBorder, CircleShape),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "Меню действий",
-                        tint = AttachTextPrimary,
-                        modifier = Modifier.size(22.dp)
-                    )
+                    IconButton(
+                        onClick = onActionClick,
+                        modifier = Modifier.size(50.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.MoreVert,
+                            contentDescription = "Меню действий",
+                            tint = AttachTextPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
+                actionMenuContent?.invoke()
             }
         }
     }

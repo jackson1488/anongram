@@ -35,9 +35,16 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.HighQuality
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -89,6 +96,11 @@ import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.mediaeditor.api.MediaEditorScreen
 import com.anongram.app.features.player.api.FullPlayerSheet
 import com.anongram.app.features.player.api.Track
+import android.content.Context
+import android.net.Uri
+import android.provider.OpenableColumns
+import com.anongram.app.features.attach.ui.theme.AttachBorder
+import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import com.anongram.app.features.player.logic.AudioPlayerController
 import kotlinx.coroutines.launch
 
@@ -203,6 +215,73 @@ fun AttachSheetContent(
     var isFullPlayerOpen by remember { mutableStateOf(false) }
     var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var isMoreMenuOpen by remember { mutableStateOf(false) }
+
+    val systemPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (!uris.isNullOrEmpty()) {
+            val drafts = uris.map { uri ->
+                val mime = try {
+                    context.contentResolver.getType(uri) ?: ""
+                } catch (_: Exception) {
+                    ""
+                }
+                if (mime.startsWith("video")) {
+                    AttachmentDraft.Media(uri = uri, isVideo = true)
+                } else if (mime.startsWith("image")) {
+                    AttachmentDraft.Media(uri = uri, isVideo = false)
+                } else {
+                    val meta = getFileMetadataHelper(context, uri)
+                    AttachmentDraft.File(uri = uri, name = meta.name, size = meta.size)
+                }
+            }
+            onSend(drafts)
+            dismissAnimated()
+        }
+    }
+
+    val uncompressedPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetMultipleContents()
+    ) { uris ->
+        if (!uris.isNullOrEmpty()) {
+            val drafts = uris.map { uri ->
+                val meta = getFileMetadataHelper(context, uri)
+                AttachmentDraft.File(uri = uri, name = meta.name, size = meta.size)
+            }
+            onSend(drafts)
+            dismissAnimated()
+        }
+    }
+
+    fun sendAsUncompressed() {
+        if (selectedMedia.isEmpty()) return
+        val drafts = selectedMedia.mapIndexed { index, media ->
+            val meta = getFileMetadataHelper(context, media.uri)
+            AttachmentDraft.File(
+                uri = media.uri,
+                name = meta.name,
+                size = meta.size,
+                caption = if (index == 0) captionText else ""
+            )
+        }
+        onSend(drafts)
+        dismissAnimated()
+    }
+
+    fun sendAsHd() {
+        if (selectedMedia.isEmpty()) return
+        val drafts = selectedMedia.mapIndexed { index, media ->
+            AttachmentDraft.Media(
+                uri = media.uri,
+                isVideo = media.isVideo,
+                caption = if (index == 0) captionText else "",
+                hd = true
+            )
+        }
+        onSend(drafts)
+        dismissAnimated()
+    }
 
     fun clearAllSelected() {
         selectedMedia.clear()
@@ -220,29 +299,30 @@ fun AttachSheetContent(
         }
     }
 
-    // Обработка кнопки "Назад" (из полного экрана возвращает на 50%, а при 50% закрывает/спрашивает сброс)
+    // Обработка кнопки "Назад" (закрывает шторку с любой высоты, либо показывает диалог сброса если есть выбранные)
     BackHandler {
         when {
             showDiscardDialog -> showDiscardDialog = false
             isAlbumsSheetOpen -> isAlbumsSheetOpen = false
+            isMoreMenuOpen -> isMoreMenuOpen = false
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
-            sheetFraction.value > 0.60f -> {
-                scope.launch { sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing)) }
-            }
-            totalSelectedCount > 0 -> {
-                showDiscardDialog = true
-            }
-            else -> dismissAnimated()
+            else -> requestDismiss()
         }
     }
 
-    // Прокрутка списков без рывков шторки
+    // Плавная прокрутка шторки 1:1 и вложенный скролл списков
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Внутри списков контент скроллится свободно и плавно, не срывая шторку с места
+                // Свайп вверх: если шторка раскрыта не полностью (< 0.99f), сначала поднимаем шторку 1:1 с пальцем
+                if (available.y < 0f && sheetFraction.value < 0.99f && screenHeightPx > 0) {
+                    val deltaFrac = -available.y / screenHeightPx
+                    val nextFrac = (sheetFraction.value + deltaFrac).coerceIn(0.50f, 1.0f)
+                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                    return Offset(0f, available.y)
+                }
                 return Offset.Zero
             }
 
@@ -251,14 +331,37 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // Если контент доскроллен до самого верха и пользователь тянет вниз при 100% раскрытии
-                if (available.y > 40f && sheetFraction.value >= 0.95f) {
-                    scope.launch {
-                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
-                    }
+                // Свайп вниз: если список уже на самом верху, тянем шторку вниз 1:1 с пальцем
+                if (available.y > 0f && screenHeightPx > 0) {
+                    val deltaFrac = available.y / screenHeightPx
+                    val nextFrac = (sheetFraction.value - deltaFrac).coerceIn(0.20f, 1.0f)
+                    scope.launch { sheetFraction.snapTo(nextFrac) }
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                if (available.y < -800f && sheetFraction.value < 0.99f) {
+                    sheetFraction.animateTo(1.0f, tween(260, easing = FastOutSlowInEasing))
+                    return available
+                } else if (available.y > 800f) {
+                    if (sheetFraction.value < 0.60f) {
+                        requestDismiss()
+                    } else {
+                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
+                    }
+                    return available
+                } else {
+                    if (sheetFraction.value >= 0.78f) {
+                        sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing))
+                    } else if (sheetFraction.value < 0.38f) {
+                        requestDismiss()
+                    } else if (sheetFraction.value < 0.78f && sheetFraction.value != defaultInitial) {
+                        sheetFraction.animateTo(defaultInitial, tween(240, easing = FastOutSlowInEasing))
+                    }
+                }
+                return Velocity.Zero
             }
         }
     }
@@ -351,15 +454,7 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFullscreen,
-                            onBack = {
-                                if (totalSelectedCount > 0) {
-                                    showDiscardDialog = true
-                                } else {
-                                    scope.launch {
-                                        sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing))
-                                    }
-                                }
-                            },
+                            onBack = { requestDismiss() },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -394,15 +489,7 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFullscreen,
-                            onBack = {
-                                if (sheetFraction.value > 0.60f) {
-                                    scope.launch { sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing)) }
-                                } else if (totalSelectedCount > 0) {
-                                    showDiscardDialog = true
-                                } else {
-                                    dismissAnimated()
-                                }
-                            },
+                            onBack = { requestDismiss() },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -428,15 +515,7 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFullscreen,
-                            onBack = {
-                                if (totalSelectedCount > 0) {
-                                    showDiscardDialog = true
-                                } else {
-                                    scope.launch {
-                                        sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing))
-                                    }
-                                }
-                            },
+                            onBack = { requestDismiss() },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -463,48 +542,151 @@ fun AttachSheetContent(
             }
 
             // 3. Плавающая шапка:
-            // - В полуоткрытом режиме (от 50%): тонкая ручка
+            // 3. Плавающая шапка:
+            // - В полуоткрытом режиме (от 50%): тонкая ручка + островки (в галерее/локации)
             // - В полном экране (>= 95%): плавающие островки
             if (!isFullscreen) {
-                Box(
+                Column(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .height(32.dp)
-                        .draggable(
-                            orientation = Orientation.Vertical,
-                            state = rememberDraggableState { delta ->
-                                if (screenHeightPx > 0) {
-                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.20f, 1.0f)
-                                    scope.launch { sheetFraction.snapTo(nextFrac) }
-                                }
-                            },
-                            onDragStopped = { velocity ->
-                                if (sheetFraction.value < 0.38f || velocity > 1200f) {
-                                    if (totalSelectedCount > 0) {
-                                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(200, easing = FastOutSlowInEasing)) }
-                                        showDiscardDialog = true
-                                    } else {
-                                        dismissAnimated()
-                                    }
-                                } else if (sheetFraction.value < 0.50f) {
-                                    scope.launch { sheetFraction.animateTo(defaultInitial, tween(220, easing = FastOutSlowInEasing)) }
-                                } else if (sheetFraction.value >= 0.94f || velocity < -1200f) {
-                                    scope.launch { sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing)) }
-                                }
-                                // Между 0.50f и 0.94f шторка остаётся ровно там, где её отпустили!
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
+                        .background(
+                            Brush.verticalGradient(
+                                0.0f to AttachSheetBackground,
+                                0.80f to AttachSheetBackground.copy(alpha = 0.95f),
+                                1.0f to Color.Transparent
+                            )
+                        )
                 ) {
                     Box(
                         modifier = Modifier
-                            .padding(vertical = 10.dp)
-                            .width(36.dp)
-                            .height(4.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x40FFFFFF))
-                    )
+                            .fillMaxWidth()
+                            .height(20.dp)
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { delta ->
+                                    if (screenHeightPx > 0) {
+                                        val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.20f, 1.0f)
+                                        scope.launch { sheetFraction.snapTo(nextFrac) }
+                                    }
+                                },
+                                onDragStopped = { velocity ->
+                                    if (sheetFraction.value < 0.38f || velocity > 1200f) {
+                                        requestDismiss()
+                                    } else if (sheetFraction.value >= 0.78f || velocity < -1200f) {
+                                        scope.launch { sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing)) }
+                                    } else {
+                                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(220, easing = FastOutSlowInEasing)) }
+                                    }
+                                }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(36.dp)
+                                .height(4.dp)
+                                .clip(CircleShape)
+                                .background(Color(0x40FFFFFF))
+                        )
+                    }
+
+                    if (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) {
+                        AttachTopBar(
+                            title = selectedTab.title,
+                            onBack = { requestDismiss() },
+                            hasActionMenu = (selectedTab == AttachTab.GALLERY),
+                            onActionClick = { isMoreMenuOpen = true },
+                            actionMenuContent = {
+                                DropdownMenu(
+                                    expanded = isMoreMenuOpen,
+                                    onDismissRequest = { isMoreMenuOpen = false },
+                                    modifier = Modifier
+                                        .background(AttachCardDark)
+                                        .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
+                                        onClick = {
+                                            isMoreMenuOpen = false
+                                            systemPickerLauncher.launch("*/*")
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Folder,
+                                                contentDescription = null,
+                                                tint = AttachPurple,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.sp) },
+                                        onClick = {
+                                            isMoreMenuOpen = false
+                                            if (selectedMedia.isNotEmpty()) {
+                                                sendAsUncompressed()
+                                            } else {
+                                                uncompressedPickerLauncher.launch("*/*")
+                                            }
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.InsertDriveFile,
+                                                contentDescription = null,
+                                                tint = AttachPurple,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    )
+                                    if (selectedMedia.isNotEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Отправить в HD качестве", color = Color.White, fontSize = 14.sp) },
+                                            onClick = {
+                                                isMoreMenuOpen = false
+                                                sendAsHd()
+                                            },
+                                            leadingIcon = {
+                                                Icon(
+                                                    imageVector = Icons.Default.HighQuality,
+                                                    contentDescription = null,
+                                                    tint = AttachPurple,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        )
+                                    }
+                                }
+                            },
+                            centerContent = if (selectedTab == AttachTab.GALLERY) {
+                                {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
+                                            .padding(horizontal = 14.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = selectedAlbum,
+                                            color = Color.White,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Альбомы",
+                                            tint = AttachPurple,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                }
+                            } else null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
             } else if (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) {
                 Box(
@@ -515,18 +697,70 @@ fun AttachSheetContent(
                 ) {
                     AttachTopBar(
                         title = selectedTab.title,
-                        onBack = {
-                            if (sheetFraction.value > 0.60f) {
-                                scope.launch {
-                                    sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
+                        onBack = { requestDismiss() },
+                        hasActionMenu = (selectedTab == AttachTab.GALLERY),
+                        onActionClick = { isMoreMenuOpen = true },
+                        actionMenuContent = {
+                            DropdownMenu(
+                                expanded = isMoreMenuOpen,
+                                onDismissRequest = { isMoreMenuOpen = false },
+                                modifier = Modifier
+                                    .background(AttachCardDark)
+                                    .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        systemPickerLauncher.launch("*/*")
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Folder,
+                                            contentDescription = null,
+                                            tint = AttachPurple,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.sp) },
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        if (selectedMedia.isNotEmpty()) {
+                                            sendAsUncompressed()
+                                        } else {
+                                            uncompressedPickerLauncher.launch("*/*")
+                                        }
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.InsertDriveFile,
+                                            contentDescription = null,
+                                            tint = AttachPurple,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                )
+                                if (selectedMedia.isNotEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("Отправить в HD качестве", color = Color.White, fontSize = 14.sp) },
+                                        onClick = {
+                                            isMoreMenuOpen = false
+                                            sendAsHd()
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Default.HighQuality,
+                                                contentDescription = null,
+                                                tint = AttachPurple,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    )
                                 }
-                            } else if (totalSelectedCount > 0) {
-                                showDiscardDialog = true
-                            } else {
-                                dismissAnimated()
                             }
                         },
-                        hasActionMenu = false,
                         centerContent = if (selectedTab == AttachTab.GALLERY) {
                             {
                                 Row(
@@ -722,3 +956,23 @@ fun AttachSheetContent(
         }
     }
 }
+
+private data class FileMeta(val name: String, val size: Long)
+
+private fun getFileMetadataHelper(context: Context, uri: Uri): FileMeta {
+    var name = "file"
+    var size = 0L
+    try {
+        val cursor = context.contentResolver.query(uri, null, null, null, null)
+        cursor?.use { c ->
+            val nameIndex = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            val sizeIndex = c.getColumnIndex(OpenableColumns.SIZE)
+            if (c.moveToFirst()) {
+                if (nameIndex >= 0) name = c.getString(nameIndex) ?: "file"
+                if (sizeIndex >= 0) size = c.getLong(sizeIndex)
+            }
+        }
+    } catch (_: Exception) {}
+    return FileMeta(name, size)
+}
+

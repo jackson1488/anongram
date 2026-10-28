@@ -219,7 +219,7 @@ fun GalleryTab(
             }
 
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val topGridPadding = if (isFullscreen) statusBarTop + 62.dp else 30.dp
+            val topGridPadding = if (isFullscreen) statusBarTop + 62.dp else 84.dp
 
             // Сетка медиа 3 колонки (ТЗ, шаг 5)
             LazyVerticalGrid(
