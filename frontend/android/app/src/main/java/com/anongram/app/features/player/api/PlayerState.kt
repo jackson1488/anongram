@@ -10,6 +10,7 @@ data class PlayerState(
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val repeatMode: RepeatMode = RepeatMode.OFF,
+    val isShuffle: Boolean = false,
     val isVisible: Boolean = false,
     val isFullPlayerOpen: Boolean = false
 ) {

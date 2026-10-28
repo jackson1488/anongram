@@ -1,16 +1,31 @@
 package com.anongram.app.features.attach.ui.tabs
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.content.ContentUris
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.SurfaceTexture
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
+import android.view.Surface
+import android.view.TextureView
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutLinearInEasing
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
@@ -23,31 +38,42 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import com.anongram.app.features.attach.ui.components.AttachInputBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -66,6 +92,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.features.attach.ui.components.PartialAccessBanner
 import com.anongram.app.features.attach.ui.components.PermissionDeniedView
@@ -81,17 +108,39 @@ data class GalleryMedia(
     val dateAdded: Long = 0L
 )
 
+data class GalleryAlbum(
+    val name: String,
+    val count: Int,
+    val coverUri: Uri?
+)
+
 private val PurpleAccent = Color(0xFF8B5CF6)
+private val CardDark = Color(0xFF131D31)
+private val BorderMuted = Color(0x33FFFFFF)
 
 @Composable
 fun GalleryTab(
     onLaunchCamera: () -> Unit,
     onOpenEditor: (List<EditableMediaItem>) -> Unit,
+    selectedAlbum: String = "Все медиа",
+    onSelectAlbum: (String) -> Unit = {},
+    isAlbumsSheetOpen: Boolean = false,
+    onCloseAlbumsSheet: () -> Unit = {},
+    onOpenAlbumsSheet: () -> Unit = {},
+    selectedMedia: List<GalleryMedia> = emptyList(),
+    onToggleSelectMedia: (GalleryMedia) -> Unit = {},
+    caption: String = "",
+    onCaptionChange: (String) -> Unit = {},
+    onSend: () -> Unit = {},
+    capturedMediaItems: List<GalleryMedia> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var hasPermission by remember {
         mutableStateOf(PermissionUtils.hasGalleryPermission(context))
+    }
+    val hasCameraPerm = remember {
+        PermissionUtils.hasCameraPermission(context)
     }
     val isPartial = remember(hasPermission) {
         PermissionUtils.isGalleryPartialAccess(context)
@@ -115,27 +164,43 @@ fun GalleryTab(
     }
 
     var allMedia by remember { mutableStateOf<List<GalleryMedia>>(emptyList()) }
-    var albums by remember { mutableStateOf<List<String>>(listOf("Все", "Видео")) }
-    var selectedAlbum by remember { mutableStateOf("Все") }
-    var showAlbumMenu by remember { mutableStateOf(false) }
-
-    // Multi-selection list (order matters, max 10)
-    val selectedItems = remember { mutableStateListOf<GalleryMedia>() }
+    var viewerIndex by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
         val loaded = withContext(Dispatchers.IO) {
             loadDeviceGalleryMedia(context)
         }
         allMedia = loaded
-        val bucketNames = loaded.map { it.bucketName }.filter { it.isNotBlank() }.distinct()
-        albums = listOf("Все", "Видео") + bucketNames
     }
 
-    val filteredMedia = remember(allMedia, selectedAlbum) {
-        when (selectedAlbum) {
-            "Все" -> allMedia
-            "Видео" -> allMedia.filter { it.isVideo }
-            else -> allMedia.filter { it.bucketName.equals(selectedAlbum, ignoreCase = true) }
+    val allCombinedMedia = remember(capturedMediaItems, allMedia) {
+        capturedMediaItems + allMedia
+    }
+
+    val albumsList = remember(allCombinedMedia) {
+        val all = GalleryAlbum(
+            name = "Все медиа",
+            count = allCombinedMedia.size,
+            coverUri = allCombinedMedia.firstOrNull()?.uri
+        )
+        val buckets = allCombinedMedia
+            .filter { it.bucketName.isNotBlank() }
+            .groupBy { it.bucketName }
+            .map { (bucket, items) ->
+                GalleryAlbum(
+                    name = bucket,
+                    count = items.size,
+                    coverUri = items.firstOrNull()?.uri
+                )
+            }
+        listOf(all) + buckets
+    }
+
+    val filteredMedia = remember(allCombinedMedia, selectedAlbum) {
+        if (selectedAlbum == "Все медиа" || selectedAlbum == "Все" || selectedAlbum.isBlank()) {
+            allCombinedMedia
+        } else {
+            allCombinedMedia.filter { it.bucketName.equals(selectedAlbum, ignoreCase = true) }
         }
     }
 
@@ -149,13 +214,13 @@ fun GalleryTab(
                 )
             }
 
-            // Album selector pill
+            // Таблетка выбора альбома при неполном экране (в полном экране она отображается в AttachTopBar)
             Row(
                 modifier = Modifier
                     .padding(horizontal = 16.dp, vertical = 6.dp)
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color(0xFF182238))
-                    .clickable { showAlbumMenu = true }
+                    .clickable { onOpenAlbumsSheet() }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -168,143 +233,349 @@ fun GalleryTab(
                 Spacer(modifier = Modifier.width(4.dp))
                 Icon(
                     imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = "Select album",
+                    contentDescription = "Выбор альбома",
                     tint = PurpleAccent
                 )
-
-                DropdownMenu(
-                    expanded = showAlbumMenu,
-                    onDismissRequest = { showAlbumMenu = false },
-                    modifier = Modifier.background(Color(0xFF182238))
-                ) {
-                    albums.forEach { album ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = album,
-                                    color = if (selectedAlbum == album) PurpleAccent else Color.White
-                                )
-                            },
-                            onClick = {
-                                selectedAlbum = album
-                                showAlbumMenu = false
-                            }
-                        )
-                    }
-                }
             }
 
-            // 3-column media grid
+            // Сетка медиа 3 колонки (ТЗ, шаг 5)
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 2.dp),
+                contentPadding = PaddingValues(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 84.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                // First tile: Camera Preview Tile
+                // Первая плитка: живое превью камеры Camera2/CameraX (ТЗ, шаг 5)
                 item {
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .background(Color(0xFF1E293B))
-                            .clickable { onLaunchCamera() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(
-                                imageVector = Icons.Rounded.CameraAlt,
-                                contentDescription = "Camera",
-                                tint = PurpleAccent,
-                                modifier = Modifier.size(36.dp)
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Камера",
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
+                    LiveCameraTile(
+                        hasCameraPermission = hasCameraPerm,
+                        onLaunchCamera = onLaunchCamera
+                    )
                 }
 
-                // Media items
+                // Элементы медиатеки (ТЗ, шаг 9: тап на превью открывает просмотр, тап на кружок — выбор)
                 items(filteredMedia, key = { it.uri.toString() }) { media ->
-                    val selectedIndex = selectedItems.indexOfFirst { it.uri == media.uri }
+                    val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
                     val isSelected = selectedIndex >= 0
 
                     GalleryItemTile(
                         media = media,
                         isSelected = isSelected,
                         selectionNumber = if (isSelected) selectedIndex + 1 else 0,
-                        onToggleSelect = {
-                            if (isSelected) {
-                                selectedItems.removeAll { it.uri == media.uri }
-                            } else {
-                                if (selectedItems.size < 10) {
-                                    selectedItems.add(media)
-                                }
+                        onOpenViewer = {
+                            val idx = filteredMedia.indexOf(media)
+                            if (idx >= 0) {
+                                viewerIndex = idx
                             }
+                        },
+                        onToggleSelect = {
+                            onToggleSelectMedia(media)
                         }
                     )
                 }
             }
         }
 
-        // Bottom Selected Action Bar
+        // Полноэкранный просмотр фото/видео со свайпом влево-вправо (ТЗ, шаг 9)
+        if (viewerIndex != null) {
+            GalleryMediaViewer(
+                mediaList = filteredMedia,
+                initialIndex = viewerIndex ?: 0,
+                selectedMedia = selectedMedia,
+                onToggleSelect = onToggleSelectMedia,
+                caption = caption,
+                onCaptionChange = onCaptionChange,
+                onSend = onSend,
+                onClose = { viewerIndex = null },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Нижнее окно альбомов с анимацией выезда снизу (ТЗ, шаг 5)
         AnimatedVisibility(
-            visible = selectedItems.isNotEmpty(),
-            enter = slideInVertically(initialOffsetY = { it }),
-            exit = slideOutVertically(targetOffsetY = { it }),
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
+            visible = isAlbumsSheetOpen,
+            enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { it }, animationSpec = tween(280, easing = FastOutSlowInEasing)),
+            exit = fadeOut(tween(140)) + slideOutVertically(targetOffsetY = { it }, animationSpec = tween(220, easing = FastOutLinearInEasing)),
+            modifier = Modifier.fillMaxSize()
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFA131D31))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(24.dp))
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            AlbumsBottomSheet(
+                albums = albumsList,
+                selectedAlbum = selectedAlbum,
+                onSelectAlbum = {
+                    onSelectAlbum(it)
+                    onCloseAlbumsSheet()
+                },
+                onDismiss = onCloseAlbumsSheet
+            )
+        }
+    }
+}
+
+/**
+ * Первая плитка Галереи: реальное живое превью камеры со значком камеры в углу (ТЗ, шаг 5).
+ */
+@SuppressLint("MissingPermission")
+@Composable
+private fun LiveCameraTile(
+    hasCameraPermission: Boolean,
+    onLaunchCamera: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .background(Color(0xFF1E293B))
+            .clickable { onLaunchCamera() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (hasCameraPermission) {
+            AndroidView(
+                factory = { ctx ->
+                    TextureView(ctx).apply {
+                        surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                            var cameraDevice: CameraDevice? = null
+                            var captureSession: CameraCaptureSession? = null
+
+                            override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+                                try {
+                                    val manager = ctx.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return
+                                    val cameraId = manager.cameraIdList.firstOrNull { id ->
+                                        manager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+                                    } ?: manager.cameraIdList.firstOrNull() ?: return
+
+                                    manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+                                        override fun onOpened(camera: CameraDevice) {
+                                            cameraDevice = camera
+                                            val previewSurface = Surface(surface)
+                                            val requestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                                                addTarget(previewSurface)
+                                            }
+                                            camera.createCaptureSession(listOf(previewSurface), object : CameraCaptureSession.StateCallback() {
+                                                override fun onConfigured(session: CameraCaptureSession) {
+                                                    captureSession = session
+                                                    try {
+                                                        session.setRepeatingRequest(requestBuilder.build(), null, null)
+                                                    } catch (_: Exception) {}
+                                                }
+                                                override fun onConfigureFailed(session: CameraCaptureSession) {}
+                                            }, null)
+                                        }
+
+                                        override fun onDisconnected(camera: CameraDevice) {
+                                            camera.close()
+                                        }
+
+                                        override fun onError(camera: CameraDevice, error: Int) {
+                                            camera.close()
+                                        }
+                                    }, null)
+                                } catch (_: SecurityException) {
+                                } catch (_: Exception) {}
+                            }
+
+                            override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
+
+                            override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                                captureSession?.close()
+                                cameraDevice?.close()
+                                return true
+                            }
+
+                            override fun onSurfaceTextureUpdated(surface: SurfaceTexture) {}
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Rounded.CameraAlt,
+                    contentDescription = "Камера",
+                    tint = PurpleAccent,
+                    modifier = Modifier.size(34.dp)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Выбрано: ${selectedItems.size} (из 10)",
+                    text = "Камера",
                     color = Color.White,
-                    fontSize = 14.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
 
-                Button(
-                    onClick = {
-                        val editableList = selectedItems.map { m ->
-                            EditableMediaItem(
-                                uri = m.uri,
-                                isVideo = m.isVideo
-                            )
-                        }
-                        onOpenEditor(editableList)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
-                    shape = RoundedCornerShape(16.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
-                ) {
-                    Text(text = "Далее", color = Color.White, fontWeight = FontWeight.Bold)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                        contentDescription = "Next",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+        // Значок камеры в углу (ТЗ, шаг 5)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(6.dp)
+                .size(28.dp)
+                .clip(CircleShape)
+                .background(Color(0x99000000)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.CameraAlt,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(16.dp)
+            )
+        }
+    }
+}
+
+/**
+ * Окно выбора альбомов (ТЗ, шаг 5):
+ * Выезжает снизу, показывает только реальные непустые альбомы устройства с обложкой и количеством.
+ */
+@Composable
+private fun AlbumsBottomSheet(
+    albums: List<GalleryAlbum>,
+    selectedAlbum: String,
+    onSelectAlbum: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0x99000000))
+            .clickable { onDismiss() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.70f)
+                .align(Alignment.BottomCenter)
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(Color(0xFF0F172A))
+                .clickable(enabled = false) {}
+                .padding(top = 12.dp)
+        ) {
+            // Drag handle
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x44FFFFFF))
+                )
+            }
+
+            Text(
+                text = "Альбомы",
+                color = Color.White,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+            )
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 12.dp)
+            ) {
+                items(albums, key = { it.name }) { album ->
+                    val isSelected = album.name.equals(selectedAlbum, ignoreCase = true)
+                    AlbumRowItem(
+                        album = album,
+                        isSelected = isSelected,
+                        onClick = { onSelectAlbum(album.name) }
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AlbumRowItem(
+    album: GalleryAlbum,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    var bitmap by remember(album.coverUri) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(album.coverUri) {
+        album.coverUri?.let { uri ->
+            val bmp = withContext(Dispatchers.IO) {
+                loadMediaThumbnail(context, uri)
+            }
+            bitmap = bmp?.asImageBitmap()
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) PurpleAccent.copy(alpha = 0.15f) else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Обложка альбома
+        Box(
+            modifier = Modifier
+                .size(54.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF1E293B)),
+            contentAlignment = Alignment.Center
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap!!,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Rounded.CameraAlt,
+                    contentDescription = null,
+                    tint = Color(0xFF64748B),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = album.name,
+                color = if (isSelected) PurpleAccent else Color.White,
+                fontSize = 15.sp,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(
+                text = "${album.count} медиа",
+                color = Color(0xFF94A3B8),
+                fontSize = 12.sp
+            )
+        }
+
+        if (isSelected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Выбран",
+                tint = PurpleAccent,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
@@ -314,32 +585,24 @@ private fun GalleryItemTile(
     media: GalleryMedia,
     isSelected: Boolean,
     selectionNumber: Int,
+    onOpenViewer: () -> Unit,
     onToggleSelect: () -> Unit
 ) {
     val context = LocalContext.current
     var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
 
     LaunchedEffect(media.uri) {
-        withContext(Dispatchers.IO) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val bmp = context.contentResolver.loadThumbnail(media.uri, Size(256, 256), null)
-                    bitmap = bmp.asImageBitmap()
-                } else {
-                    val input = context.contentResolver.openInputStream(media.uri)
-                    val opts = BitmapFactory.Options().apply { inSampleSize = 4 }
-                    val bmp = BitmapFactory.decodeStream(input, null, opts)
-                    bitmap = bmp?.asImageBitmap()
-                }
-            } catch (_: Exception) {}
+        val bmp = withContext(Dispatchers.IO) {
+            loadMediaThumbnail(context, media.uri)
         }
+        bitmap = bmp?.asImageBitmap()
     }
 
     Box(
         modifier = Modifier
             .aspectRatio(1f)
             .background(Color(0xFF131D31))
-            .clickable { onToggleSelect() }
+            .clickable { onOpenViewer() }
     ) {
         if (bitmap != null) {
             Image(
@@ -348,19 +611,14 @@ private fun GalleryItemTile(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
-        }
-
-        // Dark dim overlay if selected
-        if (isSelected) {
+        } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(PurpleAccent.copy(alpha = 0.25f))
-                    .border(2.dp, PurpleAccent)
+                    .background(Color(0xFF1A2338))
             )
         }
 
-        // Video indicator badge
         if (media.isVideo) {
             Row(
                 modifier = Modifier
@@ -373,7 +631,7 @@ private fun GalleryItemTile(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Videocam,
-                    contentDescription = null,
+                    contentDescription = "Video",
                     tint = Color.White,
                     modifier = Modifier.size(12.dp)
                 )
@@ -388,7 +646,7 @@ private fun GalleryItemTile(
             }
         }
 
-        // Multi-selection numbered badge on top right
+        // Кружок выбора в правом верхнем углу (ТЗ, шаг 9: ТОЛЬКО выбирает/снимает выбор)
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -400,7 +658,8 @@ private fun GalleryItemTile(
                     width = 1.5.dp,
                     color = if (isSelected) PurpleAccent else Color.White,
                     shape = CircleShape
-                ),
+                )
+                .clickable { onToggleSelect() },
             contentAlignment = Alignment.Center
         ) {
             if (isSelected) {
@@ -415,11 +674,201 @@ private fun GalleryItemTile(
     }
 }
 
+/**
+ * Полноэкранный просмотр медиа (ТЗ, шаг 9):
+ * - Свайп влево-вправо между файлами
+ * - Сверху: кнопка Назад, "3 из 24", кружок выбора
+ * - Снизу: панель ввода с подписью и кнопкой отправки, если есть выбранные
+ * - Видео: большая кнопка Play по центру
+ */
+@Composable
+fun GalleryMediaViewer(
+    mediaList: List<GalleryMedia>,
+    initialIndex: Int,
+    selectedMedia: List<GalleryMedia>,
+    onToggleSelect: (GalleryMedia) -> Unit,
+    caption: String,
+    onCaptionChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    BackHandler { onClose() }
+
+    val safeInitial = initialIndex.coerceIn(0, (mediaList.size - 1).coerceAtLeast(0))
+    val pagerState = rememberPagerState(initialPage = safeInitial, pageCount = { mediaList.size })
+    val currentMedia = mediaList.getOrNull(pagerState.currentPage)
+    val currentSelectedIdx = currentMedia?.let { m -> selectedMedia.indexOfFirst { it.uri == m.uri } } ?: -1
+    val isSelected = currentSelectedIdx >= 0
+
+    val topInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 8.dp
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        // Свайп влево-вправо между файлами
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.fillMaxSize()
+        ) { page ->
+            val item = mediaList.getOrNull(page)
+            if (item != null) {
+                GalleryMediaPageItem(media = item)
+            }
+        }
+
+        // Верхняя панель навигации
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = topInset, start = 8.dp, end = 16.dp)
+                .align(Alignment.TopCenter),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x66000000))
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = Color.White
+                )
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            Text(
+                text = "${pagerState.currentPage + 1} из ${mediaList.size}",
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.weight(1f))
+
+            // Кружок выбора
+            Box(
+                modifier = Modifier
+                    .size(28.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) PurpleAccent else Color(0x66000000))
+                    .border(
+                        width = 1.5.dp,
+                        color = if (isSelected) PurpleAccent else Color.White,
+                        shape = CircleShape
+                    )
+                    .clickable {
+                        currentMedia?.let { onToggleSelect(it) }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Text(
+                        text = (currentSelectedIdx + 1).toString(),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Нижняя панель с подписью и кнопкой отправки при выборе
+        AttachInputBar(
+            caption = caption,
+            onCaptionChange = onCaptionChange,
+            selectedCount = selectedMedia.size,
+            visible = selectedMedia.isNotEmpty(),
+            onSend = onSend,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
+}
+
+@Composable
+private fun GalleryMediaPageItem(
+    media: GalleryMedia,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
+    var isPlayingVideo by remember { mutableStateOf(false) }
+
+    LaunchedEffect(media.uri) {
+        val bmp = withContext(Dispatchers.IO) {
+            try {
+                if (media.isVideo) {
+                    loadMediaThumbnail(context, media.uri)
+                } else {
+                    val stream = context.contentResolver.openInputStream(media.uri)
+                    BitmapFactory.decodeStream(stream).also { stream?.close() }
+                }
+            } catch (_: Exception) {
+                null
+            }
+        }
+        bitmap = bmp?.asImageBitmap()
+    }
+
+    Box(
+        modifier = modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap!!,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Кнопка Play по центру для видео
+        if (media.isVideo) {
+            Box(
+                modifier = Modifier
+                    .size(68.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x99000000))
+                    .border(2.dp, Color.White, CircleShape)
+                    .clickable { isPlayingVideo = !isPlayingVideo },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = "Воспроизвести",
+                    tint = Color.White,
+                    modifier = Modifier.size(42.dp)
+                )
+            }
+        }
+    }
+}
+
 private fun formatVideoTime(ms: Long): String {
     val sec = (ms / 1000).coerceAtLeast(0)
     val m = sec / 60
     val s = sec % 60
     return String.format("%d:%02d", m, s)
+}
+
+private fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
+    return try {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            context.contentResolver.loadThumbnail(uri, Size(300, 300), null)
+        } else {
+            val stream = context.contentResolver.openInputStream(uri)
+            BitmapFactory.decodeStream(stream).also { stream?.close() }
+        }
+    } catch (_: Exception) {
+        null
+    }
 }
 
 private fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
@@ -441,7 +890,7 @@ private fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
             val dateIdx = c.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
 
             var count = 0
-            while (c.moveToNext() && count < 100) {
+            while (c.moveToNext() && count < 200) {
                 val id = if (idIdx >= 0) c.getLong(idIdx) else 0L
                 val bucket = if (bucketIdx >= 0) c.getString(bucketIdx) ?: "" else ""
                 val dateAdded = if (dateIdx >= 0) c.getLong(dateIdx) else 0L
@@ -476,7 +925,7 @@ private fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
             val dateIdx = c.getColumnIndex(MediaStore.Video.Media.DATE_ADDED)
 
             var count = 0
-            while (c.moveToNext() && count < 60) {
+            while (c.moveToNext() && count < 100) {
                 val id = if (idIdx >= 0) c.getLong(idIdx) else 0L
                 val bucket = if (bucketIdx >= 0) c.getString(bucketIdx) ?: "" else ""
                 val dur = if (durIdx >= 0) c.getLong(durIdx) else 0L

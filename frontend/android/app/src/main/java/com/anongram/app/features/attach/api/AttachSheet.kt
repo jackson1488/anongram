@@ -14,6 +14,7 @@ fun AttachSheet(
     recipientName: String = "",
     onDismiss: () -> Unit,
     onSend: (List<AttachmentDraft>) -> Unit,
+    keyboardHeightPx: Int = 0,
     modifier: Modifier = Modifier
 ) {
     if (visible) {
@@ -21,6 +22,7 @@ fun AttachSheet(
             recipientName = recipientName,
             onDismiss = onDismiss,
             onSend = onSend,
+            keyboardHeightPx = keyboardHeightPx,
             modifier = modifier
         )
     }

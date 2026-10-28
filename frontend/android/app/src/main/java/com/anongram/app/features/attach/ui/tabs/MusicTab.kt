@@ -9,6 +9,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,8 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.rounded.Audiotrack
-import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
@@ -36,6 +36,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -45,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -60,12 +62,19 @@ import com.anongram.app.features.player.logic.AudioPlayerController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Check
+
 private val PurpleAccent = Color(0xFF8B5CF6)
 
 @Composable
 fun MusicTab(
     onSelectAudio: (AttachmentDraft.Audio) -> Unit,
     onExpandPlayer: () -> Unit,
+    onExpandToFullscreen: () -> Unit = {},
+    selectedTracks: List<Track> = emptyList(),
+    onToggleSelectTrack: (Track) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -80,6 +89,13 @@ fun MusicTab(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) {
         hasPermission = PermissionUtils.hasMusicPermission(context)
+    }
+
+    // При закрытии вкладки или окна вложений воспроизведение останавливается (ТЗ, шаг 6)
+    DisposableEffect(Unit) {
+        onDispose {
+            controller.stop()
+        }
     }
 
     if (!hasPermission) {
@@ -112,6 +128,14 @@ fun MusicTab(
         }
     }
 
+    val searchInteractionSource = remember { MutableInteractionSource() }
+    val isPressed by searchInteractionSource.collectIsPressedAsState()
+    LaunchedEffect(isPressed) {
+        if (isPressed) {
+            onExpandToFullscreen()
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -119,7 +143,7 @@ fun MusicTab(
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Search field
+        // Поле "Поиск музыки" (ТЗ, шаг 6): тап сразу переводит окно на весь экран
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
@@ -143,6 +167,7 @@ fun MusicTab(
                 }
             },
             singleLine = true,
+            interactionSource = searchInteractionSource,
             shape = RoundedCornerShape(24.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = Color(0xFF131D31),
@@ -155,9 +180,14 @@ fun MusicTab(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp)
+                .onFocusChanged { focusState ->
+                    if (focusState.isFocused) {
+                        onExpandToFullscreen()
+                    }
+                }
         )
 
-        // Mini player right under search field when playing
+        // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
         if (playerState.isVisible && playerState.currentTrack != null) {
             Spacer(modifier = Modifier.height(10.dp))
             MiniPlayer(
@@ -185,15 +215,18 @@ fun MusicTab(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
+                contentPadding = PaddingValues(bottom = 84.dp)
             ) {
                 itemsIndexed(filteredTracks, key = { _, t -> t.id }) { index, track ->
                     val isCurrent = playerState.currentTrack?.id == track.id
                     val isPlaying = isCurrent && playerState.isPlaying
+                    val isSelected = selectedTracks.any { it.id == track.id }
 
                     MusicTrackRow(
                         track = track,
                         isPlaying = isPlaying,
+                        isSelected = isSelected,
                         onPlayClick = {
                             if (isCurrent) {
                                 controller.toggle()
@@ -201,15 +234,8 @@ fun MusicTab(
                                 controller.play(filteredTracks, index)
                             }
                         },
-                        onRowClick = {
-                            onSelectAudio(
-                                AttachmentDraft.Audio(
-                                    uri = track.uri,
-                                    title = track.title,
-                                    artist = track.artist,
-                                    durationMs = track.durationMs
-                                )
-                            )
+                        onToggleSelect = {
+                            onToggleSelectTrack(track)
                         }
                     )
                 }
@@ -222,18 +248,19 @@ fun MusicTab(
 private fun MusicTrackRow(
     track: Track,
     isPlaying: Boolean,
+    isSelected: Boolean,
     onPlayClick: () -> Unit,
-    onRowClick: () -> Unit
+    onToggleSelect: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .clickable { onRowClick() }
+            .clickable { onToggleSelect() }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Play / Pause round button
+        // Play / Pause круглая кнопка
         Box(
             modifier = Modifier
                 .size(46.dp)
@@ -250,12 +277,12 @@ private fun MusicTrackRow(
             )
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                color = Color.White,
+                color = if (isPlaying) PurpleAccent else Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -263,65 +290,82 @@ private fun MusicTrackRow(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${track.artist} • ${formatAudioDuration(track.durationMs)}",
+                text = "${track.artist} • ${track.durationLabel}",
                 color = Color(0xFF94A3B8),
-                fontSize = 13.sp,
+                fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
-    }
-}
 
-private fun formatAudioDuration(ms: Long): String {
-    val totalSec = (ms / 1000).coerceAtLeast(0)
-    val m = totalSec / 60
-    val s = totalSec % 60
-    return String.format("%02d:%02d", m, s)
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // Кружок выбора справа (ТЗ, шаг 12)
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) PurpleAccent else Color.Transparent)
+                .border(
+                    width = 1.5.dp,
+                    color = if (isSelected) PurpleAccent else Color(0x66FFFFFF),
+                    shape = CircleShape
+                )
+                .clickable { onToggleSelect() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Выбран",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
 }
 
 private fun loadDeviceAudio(context: Context): List<Track> {
     val list = mutableListOf<Track>()
     val contentResolver = context.contentResolver
-    val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-    val projection = arrayOf(
-        MediaStore.Audio.Media._ID,
-        MediaStore.Audio.Media.TITLE,
-        MediaStore.Audio.Media.ARTIST,
-        MediaStore.Audio.Media.DURATION
-    )
-    val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-    val sortOrder = "${MediaStore.Audio.Media.TITLE} ASC"
 
     try {
-        val cursor = contentResolver.query(uri, projection, selection, null, sortOrder)
-        cursor?.use { c ->
-            val idIndex = c.getColumnIndex(MediaStore.Audio.Media._ID)
-            val titleIndex = c.getColumnIndex(MediaStore.Audio.Media.TITLE)
-            val artistIndex = c.getColumnIndex(MediaStore.Audio.Media.ARTIST)
-            val durationIndex = c.getColumnIndex(MediaStore.Audio.Media.DURATION)
+        val audioUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
+        val projection = arrayOf(
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.DURATION
+        )
+        val selection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val sortOrder = "${MediaStore.Audio.Media.DATE_ADDED} DESC"
+
+        contentResolver.query(audioUri, projection, selection, null, sortOrder)?.use { c ->
+            val idIdx = c.getColumnIndex(MediaStore.Audio.Media._ID)
+            val titleIdx = c.getColumnIndex(MediaStore.Audio.Media.TITLE)
+            val artistIdx = c.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+            val durIdx = c.getColumnIndex(MediaStore.Audio.Media.DURATION)
 
             while (c.moveToNext()) {
-                val id = if (idIndex >= 0) c.getLong(idIndex) else 0L
-                val title = if (titleIndex >= 0) c.getString(titleIndex) ?: "Без названия" else "Без названия"
-                var artist = if (artistIndex >= 0) c.getString(artistIndex) ?: "" else ""
-                if (artist.isBlank() || artist == "<unknown>") {
-                    artist = "Неизвестный исполнитель"
-                }
-                val duration = if (durationIndex >= 0) c.getLong(durationIndex) else 0L
+                val id = if (idIdx >= 0) c.getLong(idIdx) else 0L
+                val title = if (titleIdx >= 0) c.getString(titleIdx) ?: "Unknown" else "Unknown"
+                val artist = if (artistIdx >= 0) c.getString(artistIdx) ?: "Unknown" else "Unknown"
+                val duration = if (durIdx >= 0) c.getLong(durIdx) else 0L
 
-                val contentUri = ContentUris.withAppendedId(uri, id)
+                val contentUri = ContentUris.withAppendedId(audioUri, id)
                 list.add(
                     Track(
                         id = id.toString(),
                         uri = contentUri,
                         title = title,
-                        artist = artist,
+                        artist = if (artist == "<unknown>") "Unknown Artist" else artist,
                         durationMs = duration
                     )
                 )
             }
         }
     } catch (_: Exception) {}
+
     return list
 }

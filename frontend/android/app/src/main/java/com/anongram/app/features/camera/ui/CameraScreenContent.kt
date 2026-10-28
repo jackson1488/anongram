@@ -36,6 +36,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -375,11 +379,15 @@ fun CameraScreenContent(
             }
         }
 
-        // Top Floating Controls
+        val cameraTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 12.dp
+        val cameraBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 16.dp
+
+        // Top Floating Controls (отступ сверху равен высоте статус-бара + 12dp, ТЗ шаг 8)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 24.dp)
+                .padding(horizontal = 16.dp)
+                .padding(top = cameraTopPadding)
                 .align(Alignment.TopCenter),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
@@ -397,41 +405,14 @@ fun CameraScreenContent(
                     tint = Color.White
                 )
             }
-
-            // Flash mode toggle
-            IconButton(
-                onClick = {
-                    flashMode = when (flashMode) {
-                        FlashMode.AUTO -> FlashMode.ON
-                        FlashMode.ON -> FlashMode.OFF
-                        FlashMode.OFF -> FlashMode.AUTO
-                    }
-                    textureViewRef?.let { startCamera(it) }
-                },
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color(0x66000000))
-            ) {
-                val icon = when (flashMode) {
-                    FlashMode.AUTO -> Icons.Default.FlashAuto
-                    FlashMode.ON -> Icons.Default.FlashOn
-                    FlashMode.OFF -> Icons.Default.FlashOff
-                }
-                Icon(
-                    imageVector = icon,
-                    contentDescription = "Flash",
-                    tint = if (flashMode == FlashMode.OFF) Color.White else Color(0xFF8B5CF6)
-                )
-            }
         }
 
-        // Bottom Controls
+        // Bottom Controls (отступ снизу равен высоте навигационной панели + 16dp, ТЗ шаг 8)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 36.dp),
+                .padding(bottom = cameraBottomPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
@@ -450,7 +431,32 @@ fun CameraScreenContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spacer(modifier = Modifier.size(48.dp))
+                // Внизу слева: вспышка (ТЗ, шаг 5)
+                IconButton(
+                    onClick = {
+                        flashMode = when (flashMode) {
+                            FlashMode.AUTO -> FlashMode.ON
+                            FlashMode.ON -> FlashMode.OFF
+                            FlashMode.OFF -> FlashMode.AUTO
+                        }
+                        textureViewRef?.let { startCamera(it) }
+                    },
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x66000000))
+                ) {
+                    val icon = when (flashMode) {
+                        FlashMode.AUTO -> Icons.Default.FlashAuto
+                        FlashMode.ON -> Icons.Default.FlashOn
+                        FlashMode.OFF -> Icons.Default.FlashOff
+                    }
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = "Flash",
+                        tint = if (flashMode == FlashMode.OFF) Color.White else Color(0xFF8B5CF6)
+                    )
+                }
 
                 // Big Shutter Button with Progress Ring
                 Box(

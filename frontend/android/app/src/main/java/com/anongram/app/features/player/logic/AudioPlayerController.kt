@@ -151,7 +151,13 @@ class AudioPlayerController private constructor(
         val queue = _state.value.queue
         if (queue.isEmpty()) return
         val currentIndex = queue.indexOfFirst { it.id == _state.value.currentTrack?.id }
-        val nextIndex = (currentIndex + 1) % queue.size
+        val nextIndex = if (_state.value.isShuffle && queue.size > 1) {
+            var rand = kotlin.random.Random.nextInt(queue.size)
+            if (rand == currentIndex) rand = (rand + 1) % queue.size
+            rand
+        } else {
+            (currentIndex + 1) % queue.size
+        }
         play(queue, nextIndex)
     }
 
@@ -165,6 +171,10 @@ class AudioPlayerController private constructor(
 
     override fun setRepeat(mode: RepeatMode) {
         _state.update { it.copy(repeatMode = mode) }
+    }
+
+    override fun toggleShuffle() {
+        _state.update { it.copy(isShuffle = !it.isShuffle) }
     }
 
     override fun stop() {

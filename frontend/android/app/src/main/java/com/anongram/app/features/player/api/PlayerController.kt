@@ -15,6 +15,7 @@ interface PlayerController {
     fun next()
     fun prev()
     fun setRepeat(mode: RepeatMode)
+    fun toggleShuffle()
     fun stop()
     fun openFullPlayer()
     fun closeFullPlayer()

@@ -61,7 +61,8 @@ import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.safeStatusBarPadding
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.FileKind
@@ -70,8 +71,6 @@ import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.messages.state.SelfDestruct
 import com.anongram.app.features.attach.api.AttachSheet
 import com.anongram.app.features.attach.api.AttachmentDraft
-import com.anongram.app.features.player.api.MiniPlayer
-import com.anongram.app.features.player.api.FullPlayerSheet
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
 import com.anongram.app.features.chats.ui.components.ChatInputBar
 import com.anongram.app.features.chats.ui.components.DeleteMessageDialog
@@ -119,7 +118,6 @@ fun ChatScreen(
     var isWallpaperOpen by remember { mutableStateOf(false) }
     var isReplyPreviewOpen by remember { mutableStateOf(false) }
     var isSearchListMode by remember { mutableStateOf(false) }
-    var isFullPlayerFromChatOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -218,7 +216,14 @@ fun ChatScreen(
 
         val density = LocalDensity.current
         val haptic = LocalHapticFeedback.current
-        val isKeyboardVisible = WindowInsets.ime.getBottom(density) > 0
+        val keyboardController = LocalSoftwareKeyboardController.current
+        val focusManager = LocalFocusManager.current
+        val currentImeBottom = WindowInsets.ime.getBottom(density)
+        var lastKeyboardHeightPx by remember { mutableIntStateOf(0) }
+        if (currentImeBottom > 0) {
+            lastKeyboardHeightPx = currentImeBottom
+        }
+        val isKeyboardVisible = currentImeBottom > 0
 
         // 1. Содержимое чата: сообщения во всю высоту, скроллятся ПОД плавающей шапкой и ПОД полем ввода
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
@@ -386,7 +391,11 @@ fun ChatScreen(
                             isReplyPreviewOpen = true
                         },
                         onToggleEmoji = viewModel::toggleEmojiPanel,
-                        onOpenAttach = viewModel::openAttach,
+                        onOpenAttach = {
+                            keyboardController?.hide()
+                            focusManager.clearFocus()
+                            viewModel.openAttach()
+                        },
                         onToggleCameraMode = viewModel::toggleCameraMode,
                         onStartRecording = viewModel::startRecording,
                         onLockRecording = viewModel::lockRecording,
@@ -488,12 +497,6 @@ fun ChatScreen(
                 }
             }
 
-            // Плавающий мини-плеер под шапкой (ТЗ: чат кладёт MiniPlayer)
-            MiniPlayer(
-                onExpand = { isFullPlayerFromChatOpen = true },
-                modifier = Modifier.fillMaxWidth()
-            )
-
             // Закреплённое сообщение (шаг 12, Фото 4) — не показывается в режиме поиска и режиме выбора
             if (!state.isSearchOpen && !state.isSelectionMode) {
                 state.pinnedMessage?.let { pinned ->
@@ -526,16 +529,12 @@ fun ChatScreen(
         }
     }
 
-        // Нижнее окно полного плеера при открытии из мини-плеера в чате
-        if (isFullPlayerFromChatOpen) {
-            FullPlayerSheet(onDismiss = { isFullPlayerFromChatOpen = false })
-        }
-
         // Модальное меню вложений Telegram-style (скрепка, ТЗ)
         if (state.isAttachOpen) {
             AttachSheet(
                 visible = true,
                 recipientName = session.title,
+                keyboardHeightPx = lastKeyboardHeightPx,
                 onDismiss = viewModel::closeAttach,
                 onSend = { drafts ->
                     drafts.forEach { draft ->

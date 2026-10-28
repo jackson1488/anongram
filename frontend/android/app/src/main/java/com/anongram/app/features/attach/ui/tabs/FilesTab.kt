@@ -33,10 +33,14 @@ import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SdStorage
 import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -47,6 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -62,6 +67,10 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.absoluteValue
+
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.material.icons.filled.Check
 
 data class DeviceFileItem(
     val uri: Uri,
@@ -80,10 +89,14 @@ enum class FileSortOrder(val title: String) {
 @Composable
 fun FilesTab(
     onSelectFile: (AttachmentDraft.File) -> Unit,
+    onExpandToFullscreen: () -> Unit = {},
+    selectedFiles: List<DeviceFileItem> = emptyList(),
+    onToggleSelectFile: (DeviceFileItem) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var files by remember { mutableStateOf<List<DeviceFileItem>>(emptyList()) }
+    var searchQuery by remember { mutableStateOf("") }
     var sortOrder by remember { mutableStateOf(FileSortOrder.BY_DATE) }
     var showSortMenu by remember { mutableStateOf(false) }
 
@@ -125,11 +138,16 @@ fun FilesTab(
         }
     }
 
-    val sortedFiles = remember(files, sortOrder) {
+    val filteredFiles = remember(files, searchQuery) {
+        if (searchQuery.isBlank()) files
+        else files.filter { it.name.contains(searchQuery.trim(), ignoreCase = true) }
+    }
+
+    val sortedFiles = remember(filteredFiles, sortOrder) {
         when (sortOrder) {
-            FileSortOrder.BY_DATE -> files.sortedByDescending { it.dateModified }
-            FileSortOrder.BY_NAME -> files.sortedBy { it.name.lowercase() }
-            FileSortOrder.BY_SIZE -> files.sortedByDescending { it.size }
+            FileSortOrder.BY_DATE -> filteredFiles.sortedByDescending { it.dateModified }
+            FileSortOrder.BY_NAME -> filteredFiles.sortedBy { it.name.lowercase() }
+            FileSortOrder.BY_SIZE -> filteredFiles.sortedByDescending { it.size }
         }
     }
 
@@ -138,6 +156,46 @@ fun FilesTab(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Поле поиска файлов (ТЗ: при фокусе окно сразу идёт на весь экран)
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text("Поиск файлов", color = Color(0xFF64748B), fontSize = 14.sp) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Поиск",
+                    tint = Color(0xFF94A3B8)
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Очистить",
+                            tint = Color(0xFF94A3B8)
+                        )
+                    }
+                }
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(24.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = Color(0xFF131D31),
+                unfocusedContainerColor = Color(0xFF131D31),
+                focusedBorderColor = Color(0xFF8B5CF6),
+                unfocusedBorderColor = Color(0x22FFFFFF),
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp)
+                .onFocusChanged { if (it.isFocused) onExpandToFullscreen() }
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
         // 3 Cards on top: "Внутреннее хранилище", "Папка приложения", "Галерея"
@@ -260,19 +318,16 @@ fun FilesTab(
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
+                    .weight(1f),
+                contentPadding = PaddingValues(bottom = 84.dp)
             ) {
                 items(sortedFiles, key = { it.uri.toString() }) { file ->
+                    val isSelected = selectedFiles.any { it.uri == file.uri }
                     FileRowItem(
                         file = file,
+                        isSelected = isSelected,
                         onClick = {
-                            onSelectFile(
-                                AttachmentDraft.File(
-                                    uri = file.uri,
-                                    name = file.name,
-                                    size = file.size
-                                )
-                            )
+                            onToggleSelectFile(file)
                         }
                     )
                 }
@@ -324,6 +379,7 @@ private fun StorageActionCard(
 @Composable
 private fun FileRowItem(
     file: DeviceFileItem,
+    isSelected: Boolean,
     onClick: () -> Unit
 ) {
     val fileColor = remember(file.extension) { getFileExtensionColor(file.extension) }
@@ -387,6 +443,32 @@ private fun FileRowItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        // Кружок выбора справа (ТЗ, шаг 12)
+        Box(
+            modifier = Modifier
+                .size(24.dp)
+                .clip(CircleShape)
+                .background(if (isSelected) Color(0xFF8B5CF6) else Color.Transparent)
+                .border(
+                    width = 1.5.dp,
+                    color = if (isSelected) Color(0xFF8B5CF6) else Color(0x66FFFFFF),
+                    shape = CircleShape
+                )
+                .clickable { onClick() },
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Выбран",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }
