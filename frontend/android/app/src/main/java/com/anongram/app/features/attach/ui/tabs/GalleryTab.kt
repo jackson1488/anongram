@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -52,6 +53,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
@@ -221,31 +223,94 @@ fun GalleryTab(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(start = 2.dp, top = 2.dp, end = 2.dp, bottom = 84.dp),
+                contentPadding = PaddingValues(start = 2.dp, top = 30.dp, end = 2.dp, bottom = 84.dp),
                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                // Первая плитка: живое превью камеры Camera2/CameraX (ТЗ, шаг 5)
-                item {
-                    LiveCameraTile(
-                        hasCameraPermission = hasCameraPerm,
-                        onLaunchCamera = onLaunchCamera
-                    )
+                // Первая плитка: живое превью камеры высотой в 2 фото по вертикали (ТЗ, шаг 5)
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(IntrinsicSize.Min),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        // Камера слева: 1 колонка в ширину, 2 фото в высоту
+                        LiveCameraTile(
+                            hasCameraPermission = hasCameraPerm,
+                            onLaunchCamera = onLaunchCamera,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+
+                        // Справа 2x2 фото
+                        Column(
+                            modifier = Modifier.weight(2f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                for (i in 0..1) {
+                                    val media = filteredMedia.getOrNull(i)
+                                    if (media != null) {
+                                        val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
+                                        val isSelected = selectedIndex >= 0
+                                        GalleryItemTile(
+                                            media = media,
+                                            isSelected = isSelected,
+                                            selectionNumber = if (isSelected) selectedIndex + 1 else 0,
+                                            onOpenViewer = { viewerIndex = i },
+                                            onToggleSelect = { onToggleSelectMedia(media) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                for (i in 2..3) {
+                                    val media = filteredMedia.getOrNull(i)
+                                    if (media != null) {
+                                        val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
+                                        val isSelected = selectedIndex >= 0
+                                        GalleryItemTile(
+                                            media = media,
+                                            isSelected = isSelected,
+                                            selectionNumber = if (isSelected) selectedIndex + 1 else 0,
+                                            onOpenViewer = { viewerIndex = i },
+                                            onToggleSelect = { onToggleSelectMedia(media) },
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    } else {
+                                        Spacer(modifier = Modifier.weight(1f))
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
-                // Элементы медиатеки (ТЗ, шаг 9: тап на превью открывает просмотр, тап на кружок — выбор)
-                items(filteredMedia, key = { it.uri.toString() }) { media ->
+                // Остальные элементы медиатеки с 5-го элемента (индекс 4)
+                items(filteredMedia.drop(4), key = { it.uri.toString() }) { media ->
                     val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
                     val isSelected = selectedIndex >= 0
+                    val originalIndex = filteredMedia.indexOf(media)
 
                     GalleryItemTile(
                         media = media,
                         isSelected = isSelected,
                         selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                         onOpenViewer = {
-                            val idx = filteredMedia.indexOf(media)
-                            if (idx >= 0) {
-                                viewerIndex = idx
+                            if (originalIndex >= 0) {
+                                viewerIndex = originalIndex
                             }
                         },
                         onToggleSelect = {
@@ -316,11 +381,10 @@ fun GalleryTab(
 private fun LiveCameraTile(
     hasCameraPermission: Boolean,
     onLaunchCamera: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier.aspectRatio(1f)
 ) {
     Box(
         modifier = modifier
-            .aspectRatio(1f)
             .background(Color(0xFF1E293B))
             .clickable { onLaunchCamera() },
         contentAlignment = Alignment.Center
@@ -502,7 +566,8 @@ private fun GalleryItemTile(
     isSelected: Boolean,
     selectionNumber: Int,
     onOpenViewer: () -> Unit,
-    onToggleSelect: () -> Unit
+    onToggleSelect: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
@@ -515,7 +580,7 @@ private fun GalleryItemTile(
     }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .aspectRatio(1f)
             .background(Color(0xFF131D31))
             .clickable { onOpenViewer() }

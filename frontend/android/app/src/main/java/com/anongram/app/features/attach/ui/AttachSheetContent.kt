@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,7 +47,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -94,12 +97,13 @@ fun AttachSheetContent(
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
     val screenHeightPx = with(density) { screenHeightDp.toPx() }
 
-    // 1. Вычисление начальной высоты окна: если была открыта клавиатура — её высота, но не ниже 50% (ТЗ, шаг 2)
+    // 1. Вычисление начальной высоты окна: если была открыта клавиатура — её высота, но не ниже 40% и не выше 60%
+    val defaultInitial = 0.44f
     val initialFraction = remember {
         if (keyboardHeightPx > 0 && screenHeightPx > 0) {
-            (keyboardHeightPx.toFloat() / screenHeightPx).coerceIn(0.50f, 1.0f)
+            (keyboardHeightPx.toFloat() / screenHeightPx).coerceIn(0.40f, 0.60f)
         } else {
-            0.55f
+            defaultInitial
         }
     }
 
@@ -116,14 +120,14 @@ fun AttachSheetContent(
         } catch (_: Exception) {}
 
         scope.launch {
-            sheetFraction.animateTo(0f, tween(durationMillis = 260, easing = FastOutLinearInEasing))
+            sheetFraction.animateTo(0f, tween(durationMillis = 240, easing = FastOutLinearInEasing))
             onDismiss()
         }
     }
 
-    // Плавный выезд снизу вверх при открытии (~300 мс, FastOutSlowInEasing)
+    // Плавный выезд снизу вверх при открытии (~280 мс, FastOutSlowInEasing)
     LaunchedEffect(Unit) {
-        sheetFraction.animateTo(initialFraction, tween(durationMillis = 300, easing = FastOutSlowInEasing))
+        sheetFraction.animateTo(initialFraction, tween(durationMillis = 280, easing = FastOutSlowInEasing))
     }
 
     var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
@@ -221,8 +225,8 @@ fun AttachSheetContent(
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
-            sheetFraction.value > 0.70f -> {
-                scope.launch { sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing)) }
+            sheetFraction.value > 0.65f -> {
+                scope.launch { sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing)) }
             }
             totalSelectedCount > 0 -> {
                 showDiscardDialog = true
@@ -232,17 +236,14 @@ fun AttachSheetContent(
     }
 
     // 3. Прокрутка растит окно (NestedScrollConnection, ТЗ шаг 3):
-    // - Листаешь вниз (палец вверх): окно растет плавно до 100%, затем скроллится список.
-    // - Листаешь вверх (палец вниз): сначала список до начала, затем окно уменьшается; ниже 50% закрывается.
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // available.y < 0: палец вверх, скролл контента вниз
-                if (available.y < 0f && sheetFraction.value < 1.0f && screenHeightPx > 0) {
-                    val deltaFrac = -available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value + deltaFrac).coerceAtMost(1.0f)
-                    scope.launch { sheetFraction.snapTo(nextFrac) }
-                    return Offset(0f, available.y) // поглощаем жест, список пока не скроллится
+                // Если окно не на весь экран и пользователь скроллит вверх (палец вверх, available.y < -15) — плавно раскрываем на 100%
+                if (available.y < -15f && sheetFraction.value < 0.95f) {
+                    scope.launch {
+                        sheetFraction.animateTo(1.0f, tween(280, easing = FastOutSlowInEasing))
+                    }
                 }
                 return Offset.Zero
             }
@@ -252,20 +253,20 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // available.y > 0: список доскроллился до самого верха, остаток плавно тянет окно вниз
-                if (available.y > 0f && screenHeightPx > 0) {
-                    val deltaFrac = available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value - deltaFrac).coerceIn(0f, 1f)
-                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                // Если контент доскроллен до верха и пользователь тянет вниз (available.y > 25)
+                if (available.y > 25f && sheetFraction.value >= 0.95f) {
+                    scope.launch {
+                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
+                    }
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (sheetFraction.value < 0.50f || available.y > 1000f) {
+                if (sheetFraction.value < 0.35f || available.y > 1000f) {
                     if (totalSelectedCount > 0) {
-                        scope.launch { sheetFraction.animateTo(0.55f, tween(200)) }
+                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(200)) }
                         showDiscardDialog = true
                     } else {
                         dismissAnimated()
@@ -284,109 +285,33 @@ fun AttachSheetContent(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = scrimAlpha))
-            .clickable { requestDismiss() }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) { requestDismiss() }
     ) {
-        // Поверхность шторки вложений (плавающее окно от 50% до 100% высоты)
-        Column(
+        // Поверхность шторки вложений (плавный аппаратный сдвиг через graphicsLayer)
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(fraction)
-                .align(Alignment.BottomCenter)
+                .fillMaxHeight()
+                .graphicsLayer {
+                    translationY = screenHeightPx * (1f - fraction)
+                }
                 .clip(
                     if (isFullscreen) RoundedCornerShape(0.dp)
                     else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                 )
                 .background(AttachSheetBackground)
-                .clickable(enabled = false) {}
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { /* поглощаем клики внутри шторки */ }
                 .nestedScroll(nestedScrollConnection)
-                .draggable(
-                    orientation = Orientation.Vertical,
-                    state = rememberDraggableState { delta ->
-                        if (screenHeightPx > 0) {
-                            val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0f, 1f)
-                            scope.launch { sheetFraction.snapTo(nextFrac) }
-                        }
-                    },
-                    onDragStopped = { velocity ->
-                        // Если отпустили ниже 50% — окно уезжает вниз и закрывается (ТЗ, шаг 1)
-                        if (sheetFraction.value < 0.50f || velocity > 1200f) {
-                            if (totalSelectedCount > 0) {
-                                scope.launch { sheetFraction.animateTo(0.55f, tween(200)) }
-                                showDiscardDialog = true
-                            } else {
-                                dismissAnimated()
-                            }
-                        }
-                        // Если отпустили от 50% до 100% — окно остаётся в этом положении без залипания к ступенькам!
-                    }
-                )
         ) {
-            // 4. ВЕРХНЯЯ НАВИГАЦИЯ ТОЛЬКО В ПОЛНОМ ЭКРАНЕ (ТЗ, шаг 4):
-            // Пока окно меньше 95%: только тонкая ручка. Кнопок назад/заголовок/поиск/меню нет.
-            // Когда окно >= 95%: плавно появляются плавающие таблетки AttachTopBar.
-            if (!isFullscreen) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(vertical = 8.dp)
-                            .width(32.dp)
-                            .height(3.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x38FFFFFF))
-                    )
-                }
-            } else if (selectedTab != AttachTab.MUSIC && selectedTab != AttachTab.FILE) {
-                AttachTopBar(
-                    title = selectedTab.title,
-                    onBack = {
-                        if (totalSelectedCount > 0) {
-                            showDiscardDialog = true
-                        } else {
-                            scope.launch {
-                                sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
-                            }
-                        }
-                    },
-                    centerContent = if (selectedTab == AttachTab.GALLERY) {
-                        {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen },
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = selectedAlbum,
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Альбомы",
-                                    tint = AttachPurple
-                                )
-                            }
-                        }
-                    } else null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp)
-                )
-            }
-
-            // Контентная область вкладок (скроллится под плавающими таблетками)
+            // 1. Контентная область вкладок на весь экран (фото и файлы скроллятся под плавающей шапкой)
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                modifier = Modifier.fillMaxSize()
             ) {
                 when (selectedTab) {
                     AttachTab.GALLERY -> {
@@ -444,7 +369,7 @@ fun AttachSheetContent(
                                     showDiscardDialog = true
                                 } else {
                                     scope.launch {
-                                        sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                                        sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing))
                                     }
                                 }
                             },
@@ -511,7 +436,7 @@ fun AttachSheetContent(
                                     showDiscardDialog = true
                                 } else {
                                     scope.launch {
-                                        sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                                        sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing))
                                     }
                                 }
                             },
@@ -519,25 +444,130 @@ fun AttachSheetContent(
                         )
                     }
                 }
+            }
 
-                // 4. Нижняя панель вкладок: плавно уезжает вниз при >= 95% или при наличии выбранных элементов
-                AttachTabBar(
-                    selectedTab = selectedTab,
-                    onSelectTab = { selectedTab = it },
-                    visible = !isFullscreen && totalSelectedCount == 0,
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                )
-
-                // 11. Плавающая панель ввода подписи при выборе (любой раздел, любая высота)
-                AttachInputBar(
-                    caption = captionText,
-                    onCaptionChange = { captionText = it },
-                    selectedCount = totalSelectedCount,
-                    visible = totalSelectedCount > 0,
-                    onSend = { sendAllSelected() },
-                    modifier = Modifier.align(Alignment.BottomCenter)
+            // 2. Вуаль-градиент за плавающей шапкой в полном экране
+            if (isFullscreen && selectedTab != AttachTab.FILE) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(86.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                0.0f to Color.Black.copy(alpha = 0.85f),
+                                0.65f to Color.Black.copy(alpha = 0.5f),
+                                1.0f to Color.Transparent
+                            )
+                        )
                 )
             }
+
+            // 3. Плавающая шапка:
+            // - В полуоткрытом режиме: только тонкая ручка
+            // - В полном экране: плавающие островки
+            if (!isFullscreen) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(30.dp)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { delta ->
+                                if (screenHeightPx > 0) {
+                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0f, 1f)
+                                    scope.launch { sheetFraction.snapTo(nextFrac) }
+                                }
+                            },
+                            onDragStopped = { velocity ->
+                                if (sheetFraction.value < 0.35f || velocity > 1000f) {
+                                    if (totalSelectedCount > 0) {
+                                        scope.launch { sheetFraction.animateTo(defaultInitial, tween(200)) }
+                                        showDiscardDialog = true
+                                    } else {
+                                        dismissAnimated()
+                                    }
+                                } else if (sheetFraction.value > 0.80f || velocity < -1000f) {
+                                    scope.launch { sheetFraction.animateTo(1.0f, tween(250, easing = FastOutSlowInEasing)) }
+                                }
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .padding(vertical = 8.dp)
+                            .width(32.dp)
+                            .height(3.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x38FFFFFF))
+                    )
+                }
+            } else if (selectedTab != AttachTab.MUSIC && selectedTab != AttachTab.FILE && selectedTab != AttachTab.CONTACT) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(top = 8.dp)
+                ) {
+                    AttachTopBar(
+                        title = selectedTab.title,
+                        onBack = {
+                            if (totalSelectedCount > 0) {
+                                showDiscardDialog = true
+                            } else {
+                                scope.launch {
+                                    sheetFraction.animateTo(defaultInitial, tween(250, easing = FastOutSlowInEasing))
+                                }
+                            }
+                        },
+                        centerContent = if (selectedTab == AttachTab.GALLERY) {
+                            {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen },
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = selectedAlbum,
+                                        color = Color.White,
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Альбомы",
+                                        tint = AttachPurple
+                                    )
+                                }
+                            }
+                        } else null,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            // 4. Нижняя панель вкладок: плавно уезжает вниз при >= 95% или при наличии выбранных элементов
+            AttachTabBar(
+                selectedTab = selectedTab,
+                onSelectTab = { selectedTab = it },
+                visible = !isFullscreen && totalSelectedCount == 0,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+
+            // 5. Плавающая панель ввода подписи при наличии выбранных элементов
+            AttachInputBar(
+                caption = captionText,
+                onCaptionChange = { captionText = it },
+                selectedCount = totalSelectedCount,
+                visible = totalSelectedCount > 0,
+                onSend = { sendAllSelected() },
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
 
         // Окно Камеры (CameraX / Camera2, ТЗ шаг 5 и шаг 8)

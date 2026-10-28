@@ -392,9 +392,17 @@ fun ChatScreen(
                         },
                         onToggleEmoji = viewModel::toggleEmojiPanel,
                         onOpenAttach = {
+                            val hadKeyboard = isKeyboardVisible
                             keyboardController?.hide()
                             focusManager.clearFocus()
-                            viewModel.openAttach()
+                            if (hadKeyboard) {
+                                scope.launch {
+                                    kotlinx.coroutines.delay(160)
+                                    viewModel.openAttach()
+                                }
+                            } else {
+                                viewModel.openAttach()
+                            }
                         },
                         onToggleCameraMode = viewModel::toggleCameraMode,
                         onStartRecording = viewModel::startRecording,

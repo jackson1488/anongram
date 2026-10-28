@@ -69,7 +69,7 @@ fun AttachTabBar(
                 modifier = Modifier
                     .shadow(elevation = 16.dp, shape = RoundedCornerShape(28.dp), ambientColor = Color.Black, spotColor = Color.Black)
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xE610192D))
+                    .background(Color(0xF0181818))
                     .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 6.dp, vertical = 5.dp),

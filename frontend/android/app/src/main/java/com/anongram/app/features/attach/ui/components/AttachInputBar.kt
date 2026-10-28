@@ -79,7 +79,7 @@ fun AttachInputBar(
                     .fillMaxWidth()
                     .shadow(elevation = 16.dp, shape = RoundedCornerShape(28.dp), ambientColor = Color.Black, spotColor = Color.Black)
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xF5131D31))
+                    .background(Color(0xF51E1E1E))
                     .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
                     .padding(start = 12.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically

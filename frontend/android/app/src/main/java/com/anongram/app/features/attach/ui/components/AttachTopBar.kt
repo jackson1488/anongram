@@ -67,7 +67,7 @@ fun AttachTopBar(
         // Островок 1: Кнопка Назад
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(46.dp)
                 .clip(CircleShape)
                 .background(AttachCardDark)
                 .border(1.dp, AttachBorder, CircleShape),
@@ -75,13 +75,13 @@ fun AttachTopBar(
         ) {
             IconButton(
                 onClick = onBack,
-                modifier = Modifier.size(42.dp)
+                modifier = Modifier.size(46.dp)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Назад / Свернуть",
                     tint = AttachTextPrimary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
         }
@@ -92,11 +92,11 @@ fun AttachTopBar(
         Box(
             modifier = Modifier
                 .weight(1f)
-                .height(42.dp)
-                .clip(RoundedCornerShape(21.dp))
+                .height(46.dp)
+                .clip(RoundedCornerShape(23.dp))
                 .background(AttachCardDark)
-                .border(1.dp, AttachBorder, RoundedCornerShape(21.dp))
-                .padding(horizontal = 12.dp),
+                .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
+                .padding(horizontal = 14.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             if (centerContent != null) {
@@ -178,7 +178,7 @@ fun AttachTopBar(
             // Островок 3: Меню действий
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(46.dp)
                     .clip(CircleShape)
                     .background(AttachCardDark)
                     .border(1.dp, AttachBorder, CircleShape),
@@ -186,13 +186,13 @@ fun AttachTopBar(
             ) {
                 IconButton(
                     onClick = onActionClick,
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(46.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,
                         contentDescription = "Меню действий",
                         tint = AttachTextPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

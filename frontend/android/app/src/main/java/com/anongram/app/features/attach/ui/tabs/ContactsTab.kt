@@ -58,6 +58,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import com.anongram.app.features.attach.ui.theme.AttachBorder
+import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -156,7 +158,7 @@ fun ContactsTab(
                 .fillMaxSize()
                 .padding(horizontal = 16.dp)
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
             // Поле "Поиск контактов" (работает по имени и номеру, при фокусе разворачивает окно)
             OutlinedTextField(
@@ -184,10 +186,10 @@ fun ContactsTab(
                 singleLine = true,
                 shape = RoundedCornerShape(24.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFF131D31),
-                    unfocusedContainerColor = Color(0xFF131D31),
+                    focusedContainerColor = AttachCardDark,
+                    unfocusedContainerColor = AttachCardDark,
                     focusedBorderColor = PurpleAccent,
-                    unfocusedBorderColor = Color(0x22FFFFFF),
+                    unfocusedBorderColor = AttachBorder,
                     focusedTextColor = Color.White,
                     unfocusedTextColor = Color.White
                 ),

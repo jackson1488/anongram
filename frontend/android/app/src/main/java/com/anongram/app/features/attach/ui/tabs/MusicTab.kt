@@ -150,76 +150,51 @@ fun MusicTab(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(26.dp))
 
-        // Единое поле поиска музыки (в полный экран интегрирует плавающую кнопку назад)
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (isFullscreen) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, CircleShape)
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+        // Единое поле поиска музыки на весь экран (без кнопки назад)
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = Color(0xFF94A3B8)
+                )
+            },
+            trailingIcon = {
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = Color(0xFF94A3B8)
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(10.dp))
-            }
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF94A3B8)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear",
-                                tint = Color(0xFF94A3B8)
-                            )
-                        }
+            },
+            singleLine = true,
+            interactionSource = searchInteractionSource,
+            shape = RoundedCornerShape(24.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = AttachCardDark,
+                unfocusedContainerColor = AttachCardDark,
+                focusedBorderColor = PurpleAccent,
+                unfocusedBorderColor = AttachBorder,
+                focusedTextColor = Color.White,
+                unfocusedTextColor = Color.White
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+                .onFocusChanged { focusState ->
+                    if (focusState.isFocused) {
+                        onExpandToFullscreen()
                     }
-                },
-                singleLine = true,
-                interactionSource = searchInteractionSource,
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AttachCardDark,
-                    unfocusedContainerColor = AttachCardDark,
-                    focusedBorderColor = PurpleAccent,
-                    unfocusedBorderColor = Color(0x22FFFFFF),
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp)
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused) {
-                            onExpandToFullscreen()
-                        }
-                    }
-            )
-        }
+                }
+        )
 
         // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
         if (playerState.isVisible && playerState.currentTrack != null) {
@@ -294,35 +269,49 @@ private fun MusicTrackRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Кнопка воспроизведения
+        // Кнопка воспроизведения с оверлеем выбора (не сдвигает название трека)
         Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(if (isPlaying) PurpleAccent else AttachSurfaceDark)
-                .clickable { onPlayClick() },
+            modifier = Modifier.size(44.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                contentDescription = "Play/Pause",
-                tint = if (isPlaying) Color.White else PurpleAccent,
-                modifier = Modifier.size(24.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+                    .background(if (isPlaying) PurpleAccent else AttachSurfaceDark)
+                    .clickable { onPlayClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                    contentDescription = "Play/Pause",
+                    tint = if (isPlaying) Color.White else PurpleAccent,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Маленькая зеленая галочка в углу проигрывателя
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(16.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF22C55E))
+                        .border(1.5.dp, AttachSheetBackground, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Выбран",
+                        tint = Color.White,
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.width(10.dp))
-
-        // Галочка выбора рядом с кнопкой воспроизведения (справа кругляшка нет)
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Выбран",
-                tint = PurpleAccent,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-        }
+        Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
             Text(

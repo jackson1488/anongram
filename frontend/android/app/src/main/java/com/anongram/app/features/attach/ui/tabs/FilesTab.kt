@@ -174,7 +174,7 @@ fun FilesTab(
                 // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .size(46.dp)
                         .clip(CircleShape)
                         .background(AttachPillDark)
                         .border(1.dp, AttachBorder, CircleShape)
@@ -192,7 +192,7 @@ fun FilesTab(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
 
@@ -203,10 +203,10 @@ fun FilesTab(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp)
-                            .clip(RoundedCornerShape(21.dp))
+                            .height(46.dp)
+                            .clip(RoundedCornerShape(23.dp))
                             .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(21.dp))
+                            .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
                             .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -231,7 +231,7 @@ fun FilesTab(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .size(42.dp)
+                                .size(46.dp)
                                 .clip(CircleShape)
                                 .background(AttachPillDark)
                                 .border(1.dp, AttachBorder, CircleShape)
@@ -242,19 +242,19 @@ fun FilesTab(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Очистить",
                                 tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(22.dp)
                             )
                         }
                     }
                 } else {
-                    // Обычный режим: заголовок, затем кнопка поиска, затем кнопка фильтра в углу (все 42x42dp)
+                    // Обычный режим: заголовок, затем кнопка поиска, затем кнопка фильтра в углу (все 46x46dp)
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(42.dp)
-                            .clip(RoundedCornerShape(21.dp))
+                            .height(46.dp)
+                            .clip(RoundedCornerShape(23.dp))
                             .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(21.dp))
+                            .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
                             .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -271,7 +271,7 @@ fun FilesTab(
                     // 1. Кнопка поиска
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(46.dp)
                             .clip(CircleShape)
                             .background(AttachPillDark)
                             .border(1.dp, AttachBorder, CircleShape)
@@ -282,7 +282,7 @@ fun FilesTab(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Поиск",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -291,7 +291,7 @@ fun FilesTab(
                     // 2. В угол кнопка фильтра/сортировки
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
+                            .size(46.dp)
                             .clip(CircleShape)
                             .background(AttachPillDark)
                             .border(1.dp, AttachBorder, CircleShape)
@@ -304,7 +304,7 @@ fun FilesTab(
                             imageVector = Icons.Rounded.Sort,
                             contentDescription = "Сортировка",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
