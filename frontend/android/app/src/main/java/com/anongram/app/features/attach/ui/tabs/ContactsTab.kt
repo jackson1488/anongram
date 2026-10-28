@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clip
 import com.anongram.app.features.attach.ui.theme.AttachBorder
 import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -157,16 +158,97 @@ fun ContactsTab(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
+        val contentTopPadding = if (isFullscreen) 74.dp else 90.dp
+
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp)
         ) {
+            Spacer(modifier = Modifier.height(contentTopPadding))
+
+            if (filteredContacts.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (contacts.isEmpty()) "Загрузка контактов..." else "Контакты не найдены",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 84.dp)
+                ) {
+                    groupedContacts.forEach { (letter, contactList) ->
+                        stickyHeader(key = "header_$letter") {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xCC161616))
+                                    .padding(vertical = 4.dp, horizontal = 8.dp)
+                            ) {
+                                Text(
+                                    text = letter.toString(),
+                                    color = PurpleAccent,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        items(contactList, key = { it.name + it.phones.firstOrNull() }) { contact ->
+                            val isSelected = selectedContacts.any { it.name == contact.name }
+                            ContactListItemRow(
+                                contact = contact,
+                                isSelected = isSelected,
+                                onClick = { quickCardContact = contact },
+                                onLongClick = { onToggleSelectContact(contact) }
+                            )
+                            HorizontalDivider(
+                                color = Color(0x15FFFFFF),
+                                thickness = 0.5.dp,
+                                modifier = Modifier.padding(start = 58.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Мягкая легкая полупрозрачная вуаль-градиент сверху (чуть-чуть затемнено)
+        val scrimHeight = if (isFullscreen) 84.dp else 96.dp
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(scrimHeight)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Black.copy(alpha = 0.35f),
+                        0.65f to Color.Black.copy(alpha = 0.15f),
+                        1.0f to Color.Transparent
+                    )
+                )
+        )
+
+        // Плавающий островок поиска (прозрачно вокруг, контент скроллится под ним)
         val headerModifier = if (isFullscreen) {
             Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .safeStatusBarPadding()
                 .padding(top = 10.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
         } else {
             Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .padding(top = 34.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
         }
@@ -212,70 +294,6 @@ fun ContactsTab(
                     .height(50.dp)
                     .onFocusChanged { if (it.isFocused && !isFullscreen) onExpandToFullscreen() }
             )
-        }
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 14.dp)
-            ) {
-                Spacer(modifier = Modifier.height(6.dp))
-
-                if (filteredContacts.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = if (contacts.isEmpty()) "Загрузка контактов..." else "Контакты не найдены",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 14.sp
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        contentPadding = PaddingValues(bottom = 84.dp)
-                    ) {
-                    groupedContacts.forEach { (letter, contactList) ->
-                        stickyHeader(key = "header_$letter") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xFF0F172A))
-                                    .padding(vertical = 4.dp, horizontal = 8.dp)
-                            ) {
-                                Text(
-                                    text = letter.toString(),
-                                    color = PurpleAccent,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        items(contactList, key = { it.name + it.phones.firstOrNull() }) { contact ->
-                            val isSelected = selectedContacts.any { it.name == contact.name }
-                            ContactListItemRow(
-                                contact = contact,
-                                isSelected = isSelected,
-                                onClick = { quickCardContact = contact },
-                                onLongClick = { onToggleSelectContact(contact) }
-                            )
-                            HorizontalDivider(
-                                color = Color(0x15FFFFFF),
-                                thickness = 0.5.dp,
-                                modifier = Modifier.padding(start = 58.dp)
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 

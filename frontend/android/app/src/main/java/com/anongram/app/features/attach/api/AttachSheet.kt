@@ -15,6 +15,8 @@ fun AttachSheet(
     onDismiss: () -> Unit,
     onSend: (List<AttachmentDraft>) -> Unit,
     keyboardHeightPx: Int = 0,
+    wasKeyboardOpen: Boolean = false,
+    onRestoreKeyboard: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (visible) {
@@ -23,6 +25,8 @@ fun AttachSheet(
             onDismiss = onDismiss,
             onSend = onSend,
             keyboardHeightPx = keyboardHeightPx,
+            wasKeyboardOpen = wasKeyboardOpen,
+            onRestoreKeyboard = onRestoreKeyboard,
             modifier = modifier
         )
     }

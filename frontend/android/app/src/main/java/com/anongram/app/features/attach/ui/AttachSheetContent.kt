@@ -52,6 +52,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.Dialog
 import com.anongram.app.core.ui.safeStatusBarPadding
+import android.app.Activity
+import android.content.Intent
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -111,17 +116,26 @@ fun AttachSheetContent(
     onDismiss: () -> Unit,
     onSend: (List<AttachmentDraft>) -> Unit,
     keyboardHeightPx: Int = 0,
+    wasKeyboardOpen: Boolean = false,
+    onRestoreKeyboard: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
     val screenHeightPx = with(density) { screenHeightDp.toPx() }
 
-    // 1. Начальная высота окна: строго 50% (0.50f)
-    val defaultInitial = 0.50f
-    val initialFraction = remember { defaultInitial }
+    // 1. Начальная высота окна: не менее 50%, и не меньше высоты клавиатуры
+    val defaultInitial = remember(keyboardHeightPx, screenHeightPx) {
+        if (screenHeightPx > 0 && keyboardHeightPx > 0) {
+            val khFrac = keyboardHeightPx.toFloat() / screenHeightPx
+            maxOf(0.50f, khFrac + 0.05f).coerceIn(0.50f, 0.85f)
+        } else {
+            0.50f
+        }
+    }
 
     // 2. Единая анимируемая высота окна через Animatable
     val sheetFraction = remember { Animatable(0f) }
@@ -130,19 +144,31 @@ fun AttachSheetContent(
     fun dismissAnimated() {
         if (isClosing) return
         isClosing = true
-        // Закрыл окно вложений: останавливаем воспроизведение (ТЗ, шаг 6)
         try {
             AudioPlayerController.getInstance(context).stop()
         } catch (_: Exception) {}
 
+        // Если клавиатура была открыта до вызова шторки, начинаем показ клавиатуры под закрывающейся шторкой
+        if (wasKeyboardOpen) {
+            onRestoreKeyboard()
+        }
+
         scope.launch {
-            sheetFraction.animateTo(0f, tween(durationMillis = 280, easing = FastOutLinearInEasing))
+            sheetFraction.animateTo(0f, tween(durationMillis = 250, easing = FastOutLinearInEasing))
             onDismiss()
         }
     }
 
     // Плавный выезд снизу вверх при открытии (~300 мс, FastOutSlowInEasing)
     LaunchedEffect(Unit) {
+        if (wasKeyboardOpen && keyboardHeightPx > 0) {
+            launch {
+                // Системную клавиатуру скрываем ТОЛЬКО когда верх шторки перекрыл клавиатуру
+                snapshotFlow { sheetFraction.value * screenHeightPx }
+                    .first { it >= keyboardHeightPx * 0.90f && it > 0 }
+                keyboardController?.hide()
+            }
+        }
         sheetFraction.animateTo(defaultInitial, tween(durationMillis = 300, easing = FastOutSlowInEasing))
     }
 
@@ -217,6 +243,41 @@ fun AttachSheetContent(
     var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
+
+    val systemChooserLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val data = result.data
+            val uris = mutableListOf<Uri>()
+            data?.clipData?.let { clip ->
+                for (i in 0 until clip.itemCount) {
+                    clip.getItemAt(i)?.uri?.let { uris.add(it) }
+                }
+            } ?: data?.data?.let { uri ->
+                uris.add(uri)
+            }
+            if (uris.isNotEmpty()) {
+                val drafts = uris.map { uri ->
+                    val mime = try {
+                        context.contentResolver.getType(uri) ?: ""
+                    } catch (_: Exception) {
+                        ""
+                    }
+                    if (mime.startsWith("video")) {
+                        AttachmentDraft.Media(uri = uri, isVideo = true)
+                    } else if (mime.startsWith("image")) {
+                        AttachmentDraft.Media(uri = uri, isVideo = false)
+                    } else {
+                        val meta = getFileMetadataHelper(context, uri)
+                        AttachmentDraft.File(uri = uri, name = meta.name, size = meta.size)
+                    }
+                }
+                onSend(drafts)
+                dismissAnimated()
+            }
+        }
+    }
 
     val systemPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetMultipleContents()
@@ -334,12 +395,14 @@ fun AttachSheetContent(
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Если шторка раскрыта меньше чем на 100% и тянут вверх — шторка плавно следует за пальцем 1:1
-                if (available.y < 0f && sheetFraction.value < 0.99f && screenHeightPx > 0) {
+                // Листаешь вниз (палец вверх available.y < 0): шторка растёт вслед за пальцем до 100%, остаток отдаёт списку
+                if (available.y < 0f && sheetFraction.value < 0.999f && screenHeightPx > 0) {
                     val deltaFrac = -available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value + deltaFrac).coerceIn(0.50f, 1.0f)
+                    val nextFrac = (sheetFraction.value + deltaFrac).coerceAtMost(1.0f)
+                    val consumedFrac = nextFrac - sheetFraction.value
                     scope.launch { sheetFraction.snapTo(nextFrac) }
-                    return Offset(0f, available.y)
+                    val consumedY = -consumedFrac * screenHeightPx
+                    return Offset(0f, consumedY)
                 }
                 return Offset.Zero
             }
@@ -349,10 +412,10 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // Если список уже доскроллен до самого верха и палец тянет вниз — шторка плавно тянется вниз 1:1
+                // Листаешь вверх (палец вниз available.y > 0): сначала скроллится список до начала, потом шторка плавно уменьшается
                 if (available.y > 0f && screenHeightPx > 0) {
                     val deltaFrac = available.y / screenHeightPx
-                    val nextFrac = (sheetFraction.value - deltaFrac).coerceIn(0.20f, 1.0f)
+                    val nextFrac = (sheetFraction.value - deltaFrac).coerceAtLeast(0.15f)
                     scope.launch { sheetFraction.snapTo(nextFrac) }
                     return Offset(0f, available.y)
                 }
@@ -360,24 +423,22 @@ fun AttachSheetContent(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y < -800f && sheetFraction.value < 0.99f) {
-                    sheetFraction.animateTo(1.0f, tween(260, easing = FastOutSlowInEasing))
+                if (available.y < -1000f && sheetFraction.value < 0.99f) {
+                    sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing))
                     return available
-                } else if (available.y > 800f) {
-                    if (sheetFraction.value < 0.65f) {
-                        requestDismiss()
-                    } else {
-                        sheetFraction.animateTo(defaultInitial, tween(260, easing = FastOutSlowInEasing))
-                    }
+                } else if (available.y > 1000f) {
+                    // Резкий свайп вниз: закрывается с анимацией
+                    requestDismiss()
                     return available
                 } else {
-                    if (sheetFraction.value >= 0.78f) {
-                        sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing))
-                    } else if (sheetFraction.value < 0.38f) {
+                    // Положение свободное от 50% до 100% высоты, без прилипания.
+                    // Отпустили ниже 50%: закрывается с анимацией.
+                    if (sheetFraction.value < 0.48f) {
                         requestDismiss()
-                    } else if (sheetFraction.value != defaultInitial) {
-                        sheetFraction.animateTo(defaultInitial, tween(240, easing = FastOutSlowInEasing))
+                    } else if (sheetFraction.value >= 0.98f) {
+                        sheetFraction.animateTo(1.0f, tween(200, easing = FastOutSlowInEasing))
                     }
+                    // В диапазоне от 50% до 100% шторка свободно остаётся на месте без залипания!
                 }
                 return Velocity.Zero
             }
@@ -386,7 +447,9 @@ fun AttachSheetContent(
 
     val fraction = sheetFraction.value
     val isFullscreen = fraction >= 0.95f
-    val scrimAlpha = (fraction * 0.65f).coerceIn(0f, 0.65f)
+    val topNavAlpha = ((fraction - 0.90f) / 0.05f).coerceIn(0f, 1f)
+    val handleAlpha = (1f - ((fraction - 0.88f) / 0.07f)).coerceIn(0f, 1f)
+    val scrimAlpha = (fraction * 0.70f).coerceIn(0f, 0.70f)
 
     Box(
         modifier = modifier
@@ -539,7 +602,7 @@ fun AttachSheetContent(
             }
 
             // 2. Вуаль-градиент за плавающей шапкой в полном экране ТОЛЬКО в Галерее
-            if (isFullscreen && selectedTab == AttachTab.GALLERY) {
+            if (topNavAlpha > 0f && selectedTab == AttachTab.GALLERY) {
                 val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
                 val headerScrimHeight = statusBarTop + 68.dp
                 Box(
@@ -547,6 +610,7 @@ fun AttachSheetContent(
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .height(headerScrimHeight)
+                        .graphicsLayer { alpha = topNavAlpha }
                         .background(
                             Brush.verticalGradient(
                                 0.0f to Color.Black.copy(alpha = 0.85f),
@@ -557,30 +621,26 @@ fun AttachSheetContent(
                 )
             }
 
-            // 3. Плавающая шапка:
-            // 3. Плавающая шапка:
-            // - В полуоткрытом режиме (< 95%): только тонкая ручка
-            // - В полном экране (>= 95%): плавающие островки
-            if (!isFullscreen) {
+            // 3. Ручка перетаскивания (плавно исчезает при приближении к 95%)
+            if (handleAlpha > 0f) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .height(32.dp)
+                        .graphicsLayer { alpha = handleAlpha }
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { delta ->
                                 if (screenHeightPx > 0) {
-                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.20f, 1.0f)
+                                    val nextFrac = (sheetFraction.value - (delta / screenHeightPx)).coerceIn(0.15f, 1.0f)
                                     scope.launch { sheetFraction.snapTo(nextFrac) }
                                 }
                             },
                             onDragStopped = { velocity ->
-                                if (sheetFraction.value < 0.38f || velocity > 1200f) {
+                                if (sheetFraction.value < 0.48f || velocity > 1000f) {
                                     requestDismiss()
-                                } else if (sheetFraction.value < 0.50f) {
-                                    scope.launch { sheetFraction.animateTo(defaultInitial, tween(220, easing = FastOutSlowInEasing)) }
-                                } else if (sheetFraction.value >= 0.94f || velocity < -1200f) {
+                                } else if (velocity < -1000f || sheetFraction.value >= 0.98f) {
                                     scope.launch { sheetFraction.animateTo(1.0f, tween(240, easing = FastOutSlowInEasing)) }
                                 }
                             }
@@ -596,12 +656,16 @@ fun AttachSheetContent(
                             .background(Color(0x40FFFFFF))
                     )
                 }
-            } else if (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) {
+            }
+
+            // 4. Плавающая шапка (плавно появляется от 90% до 95%)
+            if (topNavAlpha > 0f && (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION)) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .fillMaxWidth()
                         .safeStatusBarPadding()
+                        .graphicsLayer { alpha = topNavAlpha }
                 ) {
                     AttachTopBar(
                         title = selectedTab.title,
@@ -620,7 +684,12 @@ fun AttachSheetContent(
                                     text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
                                     onClick = {
                                         isMoreMenuOpen = false
-                                        systemPickerLauncher.launch("*/*")
+                                        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                            type = "*/*"
+                                            addCategory(Intent.CATEGORY_OPENABLE)
+                                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                                        }
+                                        systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
                                     },
                                     leadingIcon = {
                                         Icon(

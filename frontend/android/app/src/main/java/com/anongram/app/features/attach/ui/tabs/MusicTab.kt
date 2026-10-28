@@ -48,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -146,16 +147,98 @@ fun MusicTab(
         }
     }
 
-    Column(
+    Box(
         modifier = modifier.fillMaxSize()
     ) {
+        val contentTopPadding = if (isFullscreen) 74.dp else 90.dp
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 14.dp)
+        ) {
+            Spacer(modifier = Modifier.height(contentTopPadding))
+
+            // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
+            if (playerState.isVisible && playerState.currentTrack != null) {
+                MiniPlayer(
+                    onExpand = onExpandPlayer,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            if (filteredTracks.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 84.dp)
+                ) {
+                    itemsIndexed(filteredTracks, key = { _, t -> t.id }) { index, track ->
+                        val isCurrent = playerState.currentTrack?.id == track.id
+                        val isPlaying = isCurrent && playerState.isPlaying
+                        val isSelected = selectedTracks.any { it.id == track.id }
+
+                        MusicTrackRow(
+                            track = track,
+                            isPlaying = isPlaying,
+                            isSelected = isSelected,
+                            onPlayClick = {
+                                if (isCurrent) {
+                                    controller.toggle()
+                                } else {
+                                    controller.play(filteredTracks, index)
+                                }
+                            },
+                            onToggleSelect = {
+                                onToggleSelectTrack(track)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // Мягкая легкая полупрозрачная вуаль-градиент сверху (чуть-чуть затемнено)
+        val scrimHeight = if (isFullscreen) 84.dp else 96.dp
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(scrimHeight)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Black.copy(alpha = 0.35f),
+                        0.65f to Color.Black.copy(alpha = 0.15f),
+                        1.0f to Color.Transparent
+                    )
+                )
+        )
+
+        // Плавающий островок поиска (прозрачно вокруг, контент скроллится под ним)
         val headerModifier = if (isFullscreen) {
             Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .safeStatusBarPadding()
                 .padding(top = 10.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
         } else {
             Modifier
+                .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .padding(top = 34.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
         }
@@ -206,68 +289,6 @@ fun MusicTab(
                         }
                     }
             )
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 14.dp)
-        ) {
-            // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
-            if (playerState.isVisible && playerState.currentTrack != null) {
-                Spacer(modifier = Modifier.height(10.dp))
-                MiniPlayer(
-                    onExpand = onExpandPlayer,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (filteredTracks.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 14.sp
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 84.dp)
-                ) {
-                    itemsIndexed(filteredTracks, key = { _, t -> t.id }) { index, track ->
-                        val isCurrent = playerState.currentTrack?.id == track.id
-                        val isPlaying = isCurrent && playerState.isPlaying
-                        val isSelected = selectedTracks.any { it.id == track.id }
-
-                        MusicTrackRow(
-                            track = track,
-                            isPlaying = isPlaying,
-                            isSelected = isSelected,
-                            onPlayClick = {
-                                if (isCurrent) {
-                                    controller.toggle()
-                                } else {
-                                    controller.play(filteredTracks, index)
-                                }
-                            },
-                            onToggleSelect = {
-                                onToggleSelectTrack(track)
-                            }
-                        )
-                    }
-                }
-            }
         }
     }
 }

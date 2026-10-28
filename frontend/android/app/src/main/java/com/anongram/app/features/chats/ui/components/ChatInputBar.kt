@@ -52,7 +52,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
@@ -109,6 +110,7 @@ internal fun ChatInputBar(
     onLockRecording: () -> Unit,
     onCancelRecording: () -> Unit,
     onStopLockedRecording: () -> Unit,
+    focusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -192,7 +194,9 @@ internal fun ChatInputBar(
                                 textValue = newText
                                 onInputChange(newText)
                             },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
                             textStyle = TextStyle(
                                 color = TextPrimary,
                                 fontSize = 15.sp,

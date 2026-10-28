@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -218,6 +219,7 @@ fun ChatScreen(
         val haptic = LocalHapticFeedback.current
         val keyboardController = LocalSoftwareKeyboardController.current
         val focusManager = LocalFocusManager.current
+        val inputFocusRequester = remember { FocusRequester() }
         val currentImeBottom = WindowInsets.ime.getBottom(density)
         var lastKeyboardHeightPx by remember { mutableIntStateOf(0) }
         if (currentImeBottom > 0) {
@@ -225,9 +227,21 @@ fun ChatScreen(
         }
         val isKeyboardVisible = currentImeBottom > 0
 
+        var wasKeyboardOpenWhenAttached by remember { mutableStateOf(false) }
+        var frozenKeyboardHeightPx by remember { mutableIntStateOf(0) }
+
+        // Обновляем замороженную высоту, если клавиатура поменяла размер (язык, режим)
+        if (state.isAttachOpen && wasKeyboardOpenWhenAttached && currentImeBottom > 0) {
+            frozenKeyboardHeightPx = currentImeBottom
+        }
+
+        val isChatImeFrozen = state.isAttachOpen && wasKeyboardOpenWhenAttached
+        val chatBottomImePx = if (isChatImeFrozen) frozenKeyboardHeightPx else currentImeBottom
+        val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
+
         // 1. Содержимое чата: сообщения во всю высоту, скроллятся ПОД плавающей шапкой и ПОД полем ввода
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
-        val bottomListPadding = if (isKeyboardVisible) 80.dp else 104.dp
+        val bottomListPadding = if (effectiveKeyboardVisible) 80.dp else 104.dp
 
         // Контейнер чата (сообщения, плавающая шапка и поле ввода) — блюрится при открытии превью ответа
         Box(
@@ -238,7 +252,7 @@ fun ChatScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .imePadding()
+                    .padding(bottom = with(density) { chatBottomImePx.toDp() })
             ) {
             if (state.isSearchOpen && isSearchListMode) {
                 val searchMatchingMessages = remember(state.messages, state.searchMatches) {
@@ -333,9 +347,9 @@ fun ChatScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .imePadding()
+                .padding(bottom = with(density) { chatBottomImePx.toDp() })
                 .safeNavigationBarPadding()
-                .padding(bottom = if (isKeyboardVisible) 4.dp else 24.dp)
+                .padding(bottom = if (effectiveKeyboardVisible) 4.dp else 24.dp)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 if (state.isSearchOpen) {
@@ -392,13 +406,21 @@ fun ChatScreen(
                         },
                         onToggleEmoji = viewModel::toggleEmojiPanel,
                         onOpenAttach = {
+                            if (isKeyboardVisible) {
+                                wasKeyboardOpenWhenAttached = true
+                                frozenKeyboardHeightPx = lastKeyboardHeightPx
+                            } else {
+                                wasKeyboardOpenWhenAttached = false
+                                frozenKeyboardHeightPx = 0
+                            }
                             viewModel.openAttach()
                         },
                         onToggleCameraMode = viewModel::toggleCameraMode,
                         onStartRecording = viewModel::startRecording,
                         onLockRecording = viewModel::lockRecording,
                         onCancelRecording = viewModel::cancelRecording,
-                        onStopLockedRecording = viewModel::stopLockedRecording
+                        onStopLockedRecording = viewModel::stopLockedRecording,
+                        focusRequester = inputFocusRequester
                     )
 
                     // Панель эмодзи/стикеров под полем ввода (шаг 6)
@@ -532,8 +554,18 @@ fun ChatScreen(
             AttachSheet(
                 visible = true,
                 recipientName = session.title,
-                keyboardHeightPx = lastKeyboardHeightPx,
-                onDismiss = viewModel::closeAttach,
+                keyboardHeightPx = frozenKeyboardHeightPx,
+                wasKeyboardOpen = wasKeyboardOpenWhenAttached,
+                onRestoreKeyboard = {
+                    try {
+                        inputFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    } catch (_: Exception) {}
+                },
+                onDismiss = {
+                    wasKeyboardOpenWhenAttached = false
+                    viewModel.closeAttach()
+                },
                 onSend = { drafts ->
                     drafts.forEach { draft ->
                         when (draft) {
