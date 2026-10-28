@@ -38,7 +38,7 @@ import androidx.compose.material.icons.filled.CropRotate
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.AlertDialog
@@ -218,7 +218,7 @@ fun MediaEditorContent(
                     .background(Color(0x66000000))
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
                     tint = Color.White
                 )
