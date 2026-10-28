@@ -59,6 +59,14 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.Job
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitVerticalDragOrCancellation
+import androidx.compose.ui.input.pointer.positionChange
+import kotlinx.coroutines.channels.Channel
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -139,25 +147,29 @@ fun AttachSheetContent(
         }
     }
 
-    // 2. Единая реактивная высота окна: синхронный отклик 1:1 без очередей корутин
-    var fraction by remember { mutableFloatStateOf(0f) }
-    var animJob by remember { mutableStateOf<Job?>(null) }
+    val defaultInitialOffsetPx = remember(defaultInitial, screenHeightPx) {
+        screenHeightPx * (1f - defaultInitial)
+    }
+
+    // 2. Положение шторки через Animatable (смещение в пикселях от 0 = fullscreen до screenHeightPx = закрыто)
+    val sheetOffsetY = remember { Animatable(screenHeightPx) }
     var isClosing by remember { mutableStateOf(false) }
 
-    fun animateToFraction(
-        target: Float,
-        duration: Int = 240,
+    // Порог 95% вычисляется через derivedStateOf: перекомпозиция происходит ТОЛЬКО при пересечении порога!
+    val isFullscreen by remember {
+        derivedStateOf { sheetOffsetY.value <= screenHeightPx * 0.05f }
+    }
+
+    fun animateToOffset(
+        targetOffset: Float,
+        duration: Int = 260,
         onEnd: () -> Unit = {}
     ) {
-        animJob?.cancel()
-        animJob = scope.launch {
-            animate(
-                initialValue = fraction,
-                targetValue = target,
+        scope.launch {
+            sheetOffsetY.animateTo(
+                targetValue = targetOffset,
                 animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)
-            ) { value, _ ->
-                fraction = value
-            }
+            )
             onEnd()
         }
     }
@@ -174,7 +186,7 @@ fun AttachSheetContent(
             onRestoreKeyboard()
         }
 
-        animateToFraction(0f, duration = 240) {
+        animateToOffset(screenHeightPx, duration = 240) {
             onDismiss()
         }
     }
@@ -184,12 +196,21 @@ fun AttachSheetContent(
         if (wasKeyboardOpen && keyboardHeightPx > 0) {
             launch {
                 // Системную клавиатуру скрываем ТОЛЬКО когда верх шторки перекрыл клавиатуру
-                snapshotFlow { fraction * screenHeightPx }
+                snapshotFlow { screenHeightPx - sheetOffsetY.value }
                     .first { it >= keyboardHeightPx * 0.90f && it > 0 }
                 keyboardController?.hide()
             }
         }
-        animateToFraction(defaultInitial, 300)
+        animateToOffset(defaultInitialOffsetPx, duration = 280)
+    }
+
+    val scrollChannel = remember { Channel<Float>(Channel.UNLIMITED) }
+    LaunchedEffect(Unit) {
+        for (delta in scrollChannel) {
+            val current = sheetOffsetY.value
+            val next = (current + delta).coerceIn(0f, screenHeightPx)
+            sheetOffsetY.snapTo(next)
+        }
     }
 
     var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
@@ -408,23 +429,21 @@ fun AttachSheetContent(
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
-            fraction >= 0.95f -> animateToFraction(defaultInitial, 240)
+            isFullscreen -> animateToOffset(defaultInitialOffsetPx, 240)
             else -> requestDismiss()
         }
     }
 
-    // Плавный скролл шторки 1:1 вместе со списками без задержек и рывков
+    // Плавный скролл шторки 1:1 вместе со списками через channel без создания корутин на каждое событие
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                // Листаешь вниз (палец вверх available.y < 0): шторка растёт вслед за пальцем до 100%, синхронно 1:1
-                if (available.y < 0f && fraction < 0.999f && screenHeightPx > 0) {
-                    animJob?.cancel()
-                    val deltaFrac = -available.y / screenHeightPx
-                    val nextFrac = (fraction + deltaFrac).coerceAtMost(1.0f)
-                    val consumedFrac = nextFrac - fraction
-                    fraction = nextFrac
-                    val consumedY = -consumedFrac * screenHeightPx
+                // Палец вверх (available.y < 0): тянем шторку вверх к 0f (fullscreen)
+                if (available.y < 0f && sheetOffsetY.value > 0f) {
+                    val current = sheetOffsetY.value
+                    val newTarget = (current + available.y).coerceAtLeast(0f)
+                    val consumedY = newTarget - current
+                    scrollChannel.trySend(consumedY)
                     return Offset(0f, consumedY)
                 }
                 return Offset.Zero
@@ -435,41 +454,37 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // Листаешь вверх (палец вниз available.y > 0): сначала скроллится список до начала, потом шторка плавно уменьшается
-                if (available.y > 0f && screenHeightPx > 0) {
-                    animJob?.cancel()
-                    val deltaFrac = available.y / screenHeightPx
-                    val nextFrac = (fraction - deltaFrac).coerceAtLeast(0.15f)
-                    fraction = nextFrac
-                    return Offset(0f, available.y)
+                // Палец вниз (available.y > 0): когда список доскроллен до самого верха, шторка плавно уменьшается
+                if (available.y > 0f) {
+                    val current = sheetOffsetY.value
+                    val newTarget = (current + available.y).coerceAtMost(screenHeightPx)
+                    val consumedY = newTarget - current
+                    scrollChannel.trySend(consumedY)
+                    return Offset(0f, consumedY)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                // Если шторка ещё не на весь экран (fraction < 0.99f):
-                if (fraction < 0.99f) {
+                // Если шторка ещё не на весь экран:
+                if (sheetOffsetY.value > screenHeightPx * 0.05f) {
                     if (available.y < -800f) {
-                        // Резкий свайп вверх: мгновенно и плавно летит на весь экран
-                        animateToFraction(1.0f, 220)
+                        animateToOffset(0f, 240)
                         return available
                     } else if (available.y > 800f) {
-                        // Резкий свайп вниз:
-                        if (fraction > 0.60f) {
-                            // С фулл шторки вниз НЕ закрывает, а фиксирует положение 50!
-                            animateToFraction(defaultInitial, 240)
+                        if (sheetOffsetY.value < screenHeightPx * 0.40f) {
+                            animateToOffset(defaultInitialOffsetPx, 240)
                         } else {
-                            // С 50% закрывает с анимацией
                             requestDismiss()
                         }
                         return available
                     } else {
-                        // Положение свободное от 50% до 100% высоты, без прилипания.
-                        // Отпустили ниже 45%: закрывается с анимацией.
-                        if (fraction < 0.45f) {
+                        if (sheetOffsetY.value > defaultInitialOffsetPx + screenHeightPx * 0.10f) {
                             requestDismiss()
-                        } else if (fraction >= 0.95f) {
-                            animateToFraction(1.0f, 180)
+                        } else if (sheetOffsetY.value < defaultInitialOffsetPx * 0.5f) {
+                            animateToOffset(0f, 240)
+                        } else {
+                            animateToOffset(defaultInitialOffsetPx, 240)
                         }
                     }
                     return Velocity.Zero
@@ -478,10 +493,9 @@ fun AttachSheetContent(
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                // Список доскроллен до самого верха и остался резкий свайп вниз:
                 if (available.y > 800f) {
-                    if (fraction > 0.60f) {
-                        animateToFraction(defaultInitial, 240)
+                    if (sheetOffsetY.value < screenHeightPx * 0.40f) {
+                        animateToOffset(defaultInitialOffsetPx, 240)
                     } else {
                         requestDismiss()
                     }
@@ -492,26 +506,32 @@ fun AttachSheetContent(
         }
     }
 
-    val isFullscreen = fraction >= 0.95f
-    val topNavAlpha = ((fraction - 0.90f) / 0.05f).coerceIn(0f, 1f)
-    val handleAlpha = (1f - ((fraction - 0.88f) / 0.07f)).coerceIn(0f, 1f)
-    val scrimAlpha = (fraction * 0.70f).coerceIn(0f, 0.70f)
-
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black.copy(alpha = scrimAlpha))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null
-            ) { requestDismiss() }
+        modifier = modifier.fillMaxSize()
     ) {
-        // Поверхность шторки вложений (плавающее окно от 50% до 100% высоты, всегда прижатое к низу экрана)
+        // Затемнение сзади шторки отдельным слоем через graphicsLayer alpha
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
+                .fillMaxSize()
+                .graphicsLayer {
+                    val progress = (1f - (sheetOffsetY.value / screenHeightPx)).coerceIn(0f, 1f)
+                    alpha = progress * 0.70f
+                }
+                .background(Color.Black)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { requestDismiss() }
+        )
+
+        // Поверхность шторки вложений (всегда полная высота экрана, аппаратный сдвиг через graphicsLayer translationY)
+        Box(
+            modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(fraction)
+                .fillMaxHeight()
+                .graphicsLayer {
+                    translationY = sheetOffsetY.value
+                }
                 .clip(
                     if (isFullscreen) RoundedCornerShape(0.dp)
                     else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
@@ -566,7 +586,7 @@ fun AttachSheetContent(
                                 dismissAnimated()
                             },
                             onExpandToFullscreen = {
-                                animateToFraction(1.0f, 240)
+                                animateToOffset(0f, 240)
                             },
                             selectedFiles = selectedFiles,
                             onToggleSelectFile = { file ->
@@ -599,7 +619,7 @@ fun AttachSheetContent(
                                 dismissAnimated()
                             },
                             onExpandToFullscreen = {
-                                animateToFraction(1.0f, 240)
+                                animateToOffset(0f, 240)
                             },
                             selectedContacts = selectedContacts,
                             onToggleSelectContact = { contact ->
@@ -624,7 +644,7 @@ fun AttachSheetContent(
                             },
                             onExpandPlayer = { isFullPlayerOpen = true },
                             onExpandToFullscreen = {
-                                animateToFraction(1.0f, 240)
+                                animateToOffset(0f, 240)
                             },
                             selectedTracks = selectedTracks,
                             onToggleSelectTrack = { track ->
@@ -643,219 +663,249 @@ fun AttachSheetContent(
             }
 
             // 2. Вуаль-градиент за плавающей шапкой в полном экране ТОЛЬКО в Галерее
-            if (topNavAlpha > 0f && selectedTab == AttachTab.GALLERY) {
-                val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                val headerScrimHeight = statusBarTop + 68.dp
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val headerScrimHeight = statusBarTop + 68.dp
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(headerScrimHeight)
+                    .graphicsLayer {
+                        val isGallery = (selectedTab == AttachTab.GALLERY)
+                        if (!isGallery) {
+                            alpha = 0f
+                        } else {
+                            val appearProgress = (1f - (sheetOffsetY.value / (screenHeightPx * 0.10f))).coerceIn(0f, 1f)
+                            alpha = appearProgress
+                        }
+                    }
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Black.copy(alpha = 0.85f),
+                            0.65f to Color.Black.copy(alpha = 0.55f),
+                            1.0f to Color.Transparent
+                        )
+                    )
+            )
+
+            // 3. Ручка перетаскивания (плавно исчезает при приближении к 95%)
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(36.dp)
+                    .graphicsLayer {
+                        val fadeProgress = ((sheetOffsetY.value - screenHeightPx * 0.05f) / (screenHeightPx * 0.05f)).coerceIn(0f, 1f)
+                        alpha = fadeProgress
+                    }
+                    .pointerInput(screenHeightPx) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val velocityTracker = VelocityTracker()
+                            velocityTracker.addPosition(down.uptimeMillis, down.position)
+                            var pointerId = down.id
+
+                            while (true) {
+                                val change = awaitVerticalDragOrCancellation(pointerId) ?: break
+                                velocityTracker.addPosition(change.uptimeMillis, change.position)
+                                val delta = change.positionChange().y
+                                change.consume()
+                                val next = (sheetOffsetY.value + delta).coerceIn(0f, screenHeightPx)
+                                sheetOffsetY.snapTo(next)
+                            }
+
+                            val velocityY = velocityTracker.calculateVelocity().y
+                            if (velocityY < -800f || sheetOffsetY.value <= screenHeightPx * 0.05f) {
+                                animateToOffset(0f, 240)
+                            } else if (velocityY > 800f) {
+                                if (sheetOffsetY.value < screenHeightPx * 0.40f) {
+                                    animateToOffset(defaultInitialOffsetPx, 240)
+                                } else {
+                                    requestDismiss()
+                                }
+                            } else {
+                                if (sheetOffsetY.value > defaultInitialOffsetPx + screenHeightPx * 0.10f) {
+                                    requestDismiss()
+                                } else if (sheetOffsetY.value < defaultInitialOffsetPx * 0.5f) {
+                                    animateToOffset(0f, 240)
+                                } else {
+                                    animateToOffset(defaultInitialOffsetPx, 240)
+                                }
+                            }
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(headerScrimHeight)
-                        .graphicsLayer { alpha = topNavAlpha }
-                        .background(
-                            Brush.verticalGradient(
-                                0.0f to Color.Black.copy(alpha = 0.85f),
-                                0.65f to Color.Black.copy(alpha = 0.55f),
-                                1.0f to Color.Transparent
-                            )
-                        )
+                        .padding(vertical = 10.dp)
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x40FFFFFF))
                 )
             }
 
-            // 3. Ручка перетаскивания (плавно исчезает при приближении к 95%)
-            if (handleAlpha > 0f) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(32.dp)
-                        .graphicsLayer { alpha = handleAlpha }
-                        .draggable(
-                            orientation = Orientation.Vertical,
-                            state = rememberDraggableState { delta ->
-                                if (screenHeightPx > 0) {
-                                    animJob?.cancel()
-                                    val nextFrac = (fraction - (delta / screenHeightPx)).coerceIn(0.15f, 1.0f)
-                                    fraction = nextFrac
-                                }
-                            },
-                            onDragStopped = { velocity ->
-                                if (velocity < -800f || fraction >= 0.98f) {
-                                    // Резкий свайп вверх: на весь экран
-                                    animateToFraction(1.0f, 220)
-                                } else if (velocity > 800f) {
-                                    // Резкий свайп вниз:
-                                    if (fraction > 0.60f) {
-                                        // С фулл шторки вниз НЕ закрывает, а фиксирует положение 50!
-                                        animateToFraction(defaultInitial, 240)
-                                    } else {
-                                        // С 50% закрывает
-                                        requestDismiss()
-                                    }
-                                } else {
-                                    if (fraction < 0.45f) {
-                                        requestDismiss()
-                                    } else if (fraction >= 0.95f) {
-                                        animateToFraction(1.0f, 180)
-                                    }
-                                }
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .padding(vertical = 10.dp)
-                            .width(36.dp)
-                            .height(4.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x40FFFFFF))
-                    )
-                }
-            }
-
             // 4. Плавающая шапка (плавно появляется от 90% до 95%)
-            if (topNavAlpha > 0f && (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION)) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .safeStatusBarPadding()
-                        .graphicsLayer { alpha = topNavAlpha }
-                ) {
-                    AttachTopBar(
-                        title = selectedTab.title,
-                        onBack = { requestDismiss() },
-                        hasActionMenu = (selectedTab == AttachTab.GALLERY),
-                        onActionClick = { isMoreMenuOpen = true },
-                        actionMenuContent = {
-                            DropdownMenu(
-                                expanded = isMoreMenuOpen,
-                                onDismissRequest = { isMoreMenuOpen = false },
-                                modifier = Modifier
-                                    .background(AttachCardDark)
-                                    .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
-                                    onClick = {
-                                        isMoreMenuOpen = false
-                                        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                                            type = "*/*"
-                                            addCategory(Intent.CATEGORY_OPENABLE)
-                                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                                        }
-                                        systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Folder,
-                                            contentDescription = null,
-                                            tint = AttachPurple,
-                                            modifier = Modifier.size(20.dp)
-                                        )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .safeStatusBarPadding()
+                    .graphicsLayer {
+                        val hasTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION)
+                        if (!hasTopBar) {
+                            alpha = 0f
+                        } else {
+                            val appearProgress = (1f - (sheetOffsetY.value / (screenHeightPx * 0.10f))).coerceIn(0f, 1f)
+                            alpha = appearProgress
+                        }
+                    }
+            ) {
+                AttachTopBar(
+                    title = selectedTab.title,
+                    onBack = {
+                        if (isFullscreen) {
+                            animateToOffset(defaultInitialOffsetPx, 240)
+                        } else {
+                            requestDismiss()
+                        }
+                    },
+                    hasActionMenu = (selectedTab == AttachTab.GALLERY),
+                    onActionClick = { isMoreMenuOpen = true },
+                    actionMenuContent = {
+                        DropdownMenu(
+                            expanded = isMoreMenuOpen,
+                            onDismissRequest = { isMoreMenuOpen = false },
+                            modifier = Modifier
+                                .background(AttachCardDark)
+                                .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
+                                onClick = {
+                                    isMoreMenuOpen = false
+                                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                        type = "*/*"
+                                        addCategory(Intent.CATEGORY_OPENABLE)
+                                        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                                     }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Системная галерея", color = Color.White, fontSize = 14.sp) },
-                                    onClick = {
-                                        isMoreMenuOpen = false
-                                        systemGalleryLauncher.launch("image/*")
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.PhotoLibrary,
-                                            contentDescription = null,
-                                            tint = AttachPurple,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.sp) },
-                                    onClick = {
-                                        isMoreMenuOpen = false
-                                        if (selectedMedia.isNotEmpty()) {
-                                            sendAsUncompressed()
-                                        } else {
-                                            uncompressedPickerLauncher.launch("*/*")
-                                        }
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.InsertDriveFile,
-                                            contentDescription = null,
-                                            tint = AttachPurple,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                )
-                                if (selectedMedia.isNotEmpty()) {
-                                    DropdownMenuItem(
-                                        text = { Text("Отправить в HD качестве", color = Color.White, fontSize = 14.sp) },
-                                        onClick = {
-                                            isMoreMenuOpen = false
-                                            sendAsHd()
-                                        },
-                                        leadingIcon = {
-                                            Icon(
-                                                imageVector = Icons.Default.HighQuality,
-                                                contentDescription = null,
-                                                tint = AttachPurple,
-                                                modifier = Modifier.size(20.dp)
-                                            )
-                                        }
-                                    )
-                                }
-                            }
-                        },
-                        centerContent = if (selectedTab == AttachTab.GALLERY) {
-                            {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                        .padding(horizontal = 14.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = selectedAlbum,
-                                        color = Color.White,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        modifier = Modifier.weight(1f)
-                                    )
+                                    systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
+                                },
+                                leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.ArrowDropDown,
-                                        contentDescription = "Альбомы",
+                                        imageVector = Icons.Outlined.Folder,
+                                        contentDescription = null,
                                         tint = AttachPurple,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Системная галерея", color = Color.White, fontSize = 14.sp) },
+                                onClick = {
+                                    isMoreMenuOpen = false
+                                    systemGalleryLauncher.launch("image/*")
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.PhotoLibrary,
+                                        contentDescription = null,
+                                        tint = AttachPurple,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Файлы (без сжатия)", color = Color.White, fontSize = 14.sp) },
+                                onClick = {
+                                    isMoreMenuOpen = false
+                                    if (selectedMedia.isNotEmpty()) {
+                                        sendAsUncompressed()
+                                    } else {
+                                        uncompressedPickerLauncher.launch("*/*")
+                                    }
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.InsertDriveFile,
+                                        contentDescription = null,
+                                        tint = AttachPurple,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+                            if (selectedMedia.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Отправить в HD качестве", color = Color.White, fontSize = 14.sp) },
+                                    onClick = {
+                                        isMoreMenuOpen = false
+                                        sendAsHd()
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.HighQuality,
+                                            contentDescription = null,
+                                            tint = AttachPurple,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                )
                             }
-                        } else null,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+                        }
+                    },
+                    centerContent = if (selectedTab == AttachTab.GALLERY) {
+                        {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
+                                    .padding(horizontal = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = selectedAlbum,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Альбомы",
+                                    tint = AttachPurple,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    } else null,
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
 
-            // 4. Нижняя панель вкладок: плавно уезжает вниз при >= 95%, при наличии выбранных элементов, при открытой карточке контакта или когда шторку тянут вниз
+            // 5. Нижняя панель вкладок (парящая над экраном, управляется через graphicsLayer)
             AttachTabBar(
                 selectedTab = selectedTab,
                 onSelectTab = { selectedTab = it },
-                visible = !isFullscreen && totalSelectedCount == 0 && !isQuickContactOpen,
+                visible = true,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .graphicsLayer {
-                        val dragOffsetDown = if (fraction < defaultInitial) {
-                            (defaultInitial - fraction) * screenHeightPx
-                        } else 0f
-                        translationY = dragOffsetDown
+                        val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
+                        val isNearFullscreen = sheetOffsetY.value <= screenHeightPx * 0.05f
+                        if (isCardOrSelectionOpen || isNearFullscreen) {
+                            alpha = 0f
+                            translationY = 300f
+                        } else {
+                            alpha = 1f
+                            val dragDownOffset = maxOf(0f, sheetOffsetY.value - defaultInitialOffsetPx)
+                            translationY = dragDownOffset
+                        }
                     }
             )
 
-            // 5. Плавающая панель ввода подписи при наличии выбранных элементов
+            // 6. Плавающая панель ввода подписи при наличии выбранных элементов
             AttachInputBar(
                 caption = captionText,
                 onCaptionChange = { captionText = it },
@@ -865,10 +915,8 @@ fun AttachSheetContent(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .graphicsLayer {
-                        val dragOffsetDown = if (fraction < defaultInitial) {
-                            (defaultInitial - fraction) * screenHeightPx
-                        } else 0f
-                        translationY = dragOffsetDown
+                        val dragDownOffset = maxOf(0f, sheetOffsetY.value - defaultInitialOffsetPx)
+                        translationY = dragDownOffset
                     }
             )
         }

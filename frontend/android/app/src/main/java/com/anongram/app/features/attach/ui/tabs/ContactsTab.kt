@@ -83,6 +83,7 @@ import kotlin.math.absoluteValue
  */
 const val DEMO_CONTACTS = true
 
+@androidx.compose.runtime.Immutable
 data class DeviceContact(
     val name: String,
     val phones: List<String>,

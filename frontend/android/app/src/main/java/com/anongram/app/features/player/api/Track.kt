@@ -5,6 +5,7 @@ import android.net.Uri
 /**
  * Музыкальный трек в очереди плеера (ТЗ, player).
  */
+@androidx.compose.runtime.Immutable
 data class Track(
     val id: String,
     val uri: Uri,

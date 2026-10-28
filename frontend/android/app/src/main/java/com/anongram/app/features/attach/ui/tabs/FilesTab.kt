@@ -78,6 +78,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.absoluteValue
 
+@androidx.compose.runtime.Immutable
 data class DeviceFileItem(
     val uri: Uri,
     val name: String,

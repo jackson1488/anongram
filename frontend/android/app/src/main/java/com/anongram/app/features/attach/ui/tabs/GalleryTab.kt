@@ -103,6 +103,9 @@ import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class GalleryMedia(
     val uri: Uri,
     val isVideo: Boolean,
@@ -111,6 +114,7 @@ data class GalleryMedia(
     val dateAdded: Long = 0L
 )
 
+@Immutable
 data class GalleryAlbum(
     val name: String,
     val count: Int,
@@ -843,14 +847,21 @@ private fun formatVideoTime(ms: Long): String {
     return String.format("%d:%02d", m, s)
 }
 
+private val thumbnailCache = android.util.LruCache<Uri, Bitmap>(150)
+
 internal fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
+    thumbnailCache.get(uri)?.let { return it }
     return try {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            context.contentResolver.loadThumbnail(uri, Size(300, 300), null)
+        val bmp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            context.contentResolver.loadThumbnail(uri, Size(260, 260), null)
         } else {
             val stream = context.contentResolver.openInputStream(uri)
             BitmapFactory.decodeStream(stream).also { stream?.close() }
         }
+        if (bmp != null) {
+            thumbnailCache.put(uri, bmp)
+        }
+        bmp
     } catch (_: Exception) {
         null
     }
