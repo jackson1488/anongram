@@ -467,7 +467,7 @@ class ChatMessagesViewModel(
             _uiState.update { it.copy(highlightedMessageId = null) }
             delay(32)
             _uiState.update { it.copy(highlightedMessageId = id) }
-            delay(1800)
+            delay(2200)
             _uiState.update {
                 if (it.highlightedMessageId == id) it.copy(highlightedMessageId = null) else it
             }

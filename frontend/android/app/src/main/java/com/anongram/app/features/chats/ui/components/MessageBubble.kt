@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -133,21 +134,18 @@ internal fun MessageBubble(
     LaunchedEffect(isHighlighted) {
         if (isHighlighted) {
             pulseAnim.snapTo(0f)
-            pulseAnim.animateTo(
-                targetValue = 0f,
-                animationSpec = keyframes {
-                    durationMillis = 1500
-                    0.95f at 180 using FastOutSlowInEasing
-                    0.20f at 340 using FastOutSlowInEasing
-                    1.0f at 560 using FastOutSlowInEasing
-                    0.45f at 900 using FastOutSlowInEasing
-                    0.0f at 1500 using LinearOutSlowInEasing
-                }
-            )
+            // Двойной пульс (сердцебиение) как в Telegram:
+            // 1. Первый резкий подъём и полуспад
+            pulseAnim.animateTo(1f, tween(durationMillis = 180, easing = FastOutSlowInEasing))
+            pulseAnim.animateTo(0.2f, tween(durationMillis = 140, easing = LinearOutSlowInEasing))
+            // 2. Второй резкий подъём и плавное угасание
+            pulseAnim.animateTo(1f, tween(durationMillis = 200, easing = FastOutSlowInEasing))
+            pulseAnim.animateTo(0f, tween(durationMillis = 850, easing = LinearOutSlowInEasing))
         } else {
             pulseAnim.snapTo(0f)
         }
     }
+    val pulseAlpha = pulseAnim.value
 
     var dragOffsetPx by remember { mutableFloatStateOf(0f) }
     var bubbleTopY by remember { mutableFloatStateOf(0f) }
@@ -157,6 +155,13 @@ internal fun MessageBubble(
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .then(
+                if (pulseAlpha > 0f) {
+                    Modifier.background(scheme.accent.copy(alpha = pulseAlpha * 0.22f))
+                } else {
+                    Modifier
+                }
+            )
             .pointerInput(item.message.id) {
                 detectHorizontalDragGestures(
                     onDragEnd = {
@@ -248,7 +253,6 @@ internal fun MessageBubble(
                 Column(
                     horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
                 ) {
-                    val pulseAlpha = pulseAnim.value
                     if (message.isStickerOnly) {
                         // Стикер рисуется без пузыря (шаг 6) с подсветкой при сердцебиении
                         Box(
