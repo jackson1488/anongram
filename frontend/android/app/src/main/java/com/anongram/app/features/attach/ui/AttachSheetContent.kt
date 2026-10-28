@@ -147,7 +147,6 @@ fun AttachSheetContent(
     fun animateToFraction(
         target: Float,
         duration: Int = 240,
-        velocity: Float = 0f,
         onEnd: () -> Unit = {}
     ) {
         animJob?.cancel()
@@ -155,7 +154,6 @@ fun AttachSheetContent(
             animate(
                 initialValue = fraction,
                 targetValue = target,
-                initialVelocity = velocity,
                 animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)
             ) { value, _ ->
                 fraction = value
@@ -449,29 +447,45 @@ fun AttachSheetContent(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y < -800f && fraction < 0.99f) {
-                    // Резкий свайп вверх: мгновенно летит на весь экран
-                    animateToFraction(1.0f, 220, velocity = available.y)
-                    return available
-                } else if (available.y > 800f) {
-                    // Резкий свайп вниз:
-                    if (fraction > 0.60f) {
-                        // С фулл шторки вниз НЕ закрывает, а фиксирует положение 50!
-                        animateToFraction(defaultInitial, 240, velocity = available.y)
+                // Если шторка ещё не на весь экран (fraction < 0.99f):
+                if (fraction < 0.99f) {
+                    if (available.y < -800f) {
+                        // Резкий свайп вверх: мгновенно и плавно летит на весь экран
+                        animateToFraction(1.0f, 220)
+                        return available
+                    } else if (available.y > 800f) {
+                        // Резкий свайп вниз:
+                        if (fraction > 0.60f) {
+                            // С фулл шторки вниз НЕ закрывает, а фиксирует положение 50!
+                            animateToFraction(defaultInitial, 240)
+                        } else {
+                            // С 50% закрывает с анимацией
+                            requestDismiss()
+                        }
+                        return available
                     } else {
-                        // С 50% закрывает с анимацией
+                        // Положение свободное от 50% до 100% высоты, без прилипания.
+                        // Отпустили ниже 45%: закрывается с анимацией.
+                        if (fraction < 0.45f) {
+                            requestDismiss()
+                        } else if (fraction >= 0.95f) {
+                            animateToFraction(1.0f, 180)
+                        }
+                    }
+                    return Velocity.Zero
+                }
+                return Velocity.Zero
+            }
+
+            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                // Список доскроллен до самого верха и остался резкий свайп вниз:
+                if (available.y > 800f) {
+                    if (fraction > 0.60f) {
+                        animateToFraction(defaultInitial, 240)
+                    } else {
                         requestDismiss()
                     }
                     return available
-                } else {
-                    // Положение свободное от 50% до 100% высоты, без прилипания.
-                    // Отпустили ниже 45%: закрывается с анимацией.
-                    if (fraction < 0.45f) {
-                        requestDismiss()
-                    } else if (fraction >= 0.95f) {
-                        animateToFraction(1.0f, 180)
-                    }
-                    // В диапазоне от 50% до 95% шторка свободно остаётся на месте без залипания!
                 }
                 return Velocity.Zero
             }
@@ -668,12 +682,12 @@ fun AttachSheetContent(
                             onDragStopped = { velocity ->
                                 if (velocity < -800f || fraction >= 0.98f) {
                                     // Резкий свайп вверх: на весь экран
-                                    animateToFraction(1.0f, 220, velocity = velocity)
+                                    animateToFraction(1.0f, 220)
                                 } else if (velocity > 800f) {
                                     // Резкий свайп вниз:
                                     if (fraction > 0.60f) {
                                         // С фулл шторки вниз НЕ закрывает, а фиксирует положение 50!
-                                        animateToFraction(defaultInitial, 240, velocity = velocity)
+                                        animateToFraction(defaultInitial, 240)
                                     } else {
                                         // С 50% закрывает
                                         requestDismiss()
@@ -826,12 +840,19 @@ fun AttachSheetContent(
                 }
             }
 
-            // 4. Нижняя панель вкладок: плавно уезжает вниз при >= 95%, при наличии выбранных элементов или при открытой карточке контакта
+            // 4. Нижняя панель вкладок: плавно уезжает вниз при >= 95%, при наличии выбранных элементов, при открытой карточке контакта или когда шторку тянут вниз
             AttachTabBar(
                 selectedTab = selectedTab,
                 onSelectTab = { selectedTab = it },
                 visible = !isFullscreen && totalSelectedCount == 0 && !isQuickContactOpen,
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .graphicsLayer {
+                        val dragOffsetDown = if (fraction < defaultInitial) {
+                            (defaultInitial - fraction) * screenHeightPx
+                        } else 0f
+                        translationY = dragOffsetDown
+                    }
             )
 
             // 5. Плавающая панель ввода подписи при наличии выбранных элементов
@@ -841,7 +862,14 @@ fun AttachSheetContent(
                 selectedCount = totalSelectedCount,
                 visible = totalSelectedCount > 0,
                 onSend = { sendAllSelected() },
-                modifier = Modifier.align(Alignment.BottomCenter)
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .graphicsLayer {
+                        val dragOffsetDown = if (fraction < defaultInitial) {
+                            (defaultInitial - fraction) * screenHeightPx
+                        } else 0f
+                        translationY = dragOffsetDown
+                    }
             )
         }
 
