@@ -152,23 +152,25 @@ fun AttachSheetContent(
             )
         }
 
-        selectedFiles.forEach { file ->
+        selectedFiles.forEachIndexed { index, file ->
             drafts.add(
                 AttachmentDraft.File(
                     uri = file.uri,
                     name = file.name,
-                    size = file.size
+                    size = file.size,
+                    caption = if (index == 0) captionText else ""
                 )
             )
         }
 
-        selectedTracks.forEach { track ->
+        selectedTracks.forEachIndexed { index, track ->
             drafts.add(
                 AttachmentDraft.Audio(
                     uri = track.uri,
                     title = track.title,
                     artist = track.artist,
-                    durationMs = track.durationMs
+                    durationMs = track.durationMs,
+                    caption = if (index == 0) captionText else ""
                 )
             )
         }
@@ -227,22 +229,18 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                // available.y > 0: список доскроллился до самого верха, остаток уменьшает высоту окна
+                // available.y > 0: список доскроллился до самого верха, остаток плавно тянет окно вниз
                 if (available.y > 0f && screenHeightPx > 0) {
                     val deltaFrac = available.y / screenHeightPx
-                    val nextFrac = sheetFraction.value - deltaFrac
-                    if (nextFrac < 0.50f) {
-                        dismissAnimated()
-                    } else {
-                        scope.launch { sheetFraction.snapTo(nextFrac) }
-                    }
+                    val nextFrac = (sheetFraction.value - deltaFrac).coerceIn(0f, 1f)
+                    scope.launch { sheetFraction.snapTo(nextFrac) }
                     return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (sheetFraction.value < 0.50f) {
+                if (sheetFraction.value < 0.50f || available.y > 1000f) {
                     dismissAnimated()
                 }
                 return super.onPostFling(consumed, available)
@@ -309,7 +307,7 @@ fun AttachSheetContent(
                             .background(Color(0x40FFFFFF))
                     )
                 }
-            } else {
+            } else if (selectedTab != AttachTab.MUSIC && selectedTab != AttachTab.FILE) {
                 AttachTopBar(
                     title = selectedTab.title,
                     onBack = {
@@ -322,7 +320,7 @@ fun AttachSheetContent(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { isAlbumsSheetOpen = true },
+                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen },
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
@@ -401,6 +399,12 @@ fun AttachSheetContent(
                                     selectedFiles.add(file)
                                 }
                             },
+                            isFullscreen = isFullscreen,
+                            onBack = {
+                                scope.launch {
+                                    sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
+                                }
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -456,6 +460,12 @@ fun AttachSheetContent(
                                     selectedTracks.removeAll { it.id == track.id }
                                 } else {
                                     selectedTracks.add(track)
+                                }
+                            },
+                            isFullscreen = isFullscreen,
+                            onBack = {
+                                scope.launch {
+                                    sheetFraction.animateTo(0.55f, tween(250, easing = FastOutSlowInEasing))
                                 }
                             },
                             modifier = Modifier.fillMaxSize()

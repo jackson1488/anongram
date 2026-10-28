@@ -66,6 +66,13 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.filled.Check
 
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import com.anongram.app.features.attach.ui.theme.AttachBorder
+import com.anongram.app.features.attach.ui.theme.AttachCardDark
+import com.anongram.app.features.attach.ui.theme.AttachPillDark
+import com.anongram.app.features.attach.ui.theme.AttachSheetBackground
+import com.anongram.app.features.attach.ui.theme.AttachSurfaceDark
+
 private val PurpleAccent = Color(0xFF8B5CF6)
 
 @Composable
@@ -75,6 +82,8 @@ fun MusicTab(
     onExpandToFullscreen: () -> Unit = {},
     selectedTracks: List<Track> = emptyList(),
     onToggleSelectTrack: (Track) -> Unit = {},
+    isFullscreen: Boolean = false,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -143,49 +152,74 @@ fun MusicTab(
     ) {
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Поле "Поиск музыки" (ТЗ, шаг 6): тап сразу переводит окно на весь экран
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = { Text("Поиск музыки", color = Color(0xFF64748B), fontSize = 14.sp) },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = Color(0xFF94A3B8)
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
-                            tint = Color(0xFF94A3B8)
-                        )
-                    }
+        // Единое поле поиска музыки (в полный экран интегрирует плавающую кнопку назад)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isFullscreen) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(AttachPillDark)
+                        .border(1.dp, AttachBorder, CircleShape)
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
-            },
-            singleLine = true,
-            interactionSource = searchInteractionSource,
-            shape = RoundedCornerShape(24.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedContainerColor = Color(0xFF131D31),
-                unfocusedContainerColor = Color(0xFF131D31),
-                focusedBorderColor = PurpleAccent,
-                unfocusedBorderColor = Color(0x22FFFFFF),
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .onFocusChanged { focusState ->
-                    if (focusState.isFocused) {
-                        onExpandToFullscreen()
+                Spacer(modifier = Modifier.width(10.dp))
+            }
+
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF94A3B8)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
                     }
-                }
-        )
+                },
+                singleLine = true,
+                interactionSource = searchInteractionSource,
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AttachCardDark,
+                    unfocusedContainerColor = AttachCardDark,
+                    focusedBorderColor = PurpleAccent,
+                    unfocusedBorderColor = Color(0x22FFFFFF),
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused) {
+                            onExpandToFullscreen()
+                        }
+                    }
+            )
+        }
 
         // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
         if (playerState.isVisible && playerState.currentTrack != null) {
@@ -265,7 +299,7 @@ private fun MusicTrackRow(
             modifier = Modifier
                 .size(46.dp)
                 .clip(CircleShape)
-                .background(if (isPlaying) PurpleAccent else Color(0xFF1E293B))
+                .background(if (isPlaying) PurpleAccent else AttachSurfaceDark)
                 .clickable { onPlayClick() },
             contentAlignment = Alignment.Center
         ) {

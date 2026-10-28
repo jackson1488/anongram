@@ -214,30 +214,6 @@ fun GalleryTab(
                 )
             }
 
-            // Таблетка выбора альбома при неполном экране (в полном экране она отображается в AttachTopBar)
-            Row(
-                modifier = Modifier
-                    .padding(horizontal = 16.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF182238))
-                    .clickable { onOpenAlbumsSheet() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = selectedAlbum,
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    imageVector = Icons.Default.ArrowDropDown,
-                    contentDescription = "Выбор альбома",
-                    tint = PurpleAccent
-                )
-            }
-
             // Сетка медиа 3 колонки (ТЗ, шаг 5)
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
@@ -294,22 +270,39 @@ fun GalleryTab(
             )
         }
 
-        // Нижнее окно альбомов с анимацией выезда снизу (ТЗ, шаг 5)
-        AnimatedVisibility(
-            visible = isAlbumsSheetOpen,
-            enter = fadeIn(tween(180)) + slideInVertically(initialOffsetY = { it }, animationSpec = tween(280, easing = FastOutSlowInEasing)),
-            exit = fadeOut(tween(140)) + slideOutVertically(targetOffsetY = { it }, animationSpec = tween(220, easing = FastOutLinearInEasing)),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            AlbumsBottomSheet(
-                albums = albumsList,
-                selectedAlbum = selectedAlbum,
-                onSelectAlbum = {
-                    onSelectAlbum(it)
-                    onCloseAlbumsSheet()
-                },
-                onDismiss = onCloseAlbumsSheet
-            )
+        // Выпадающее меню альбомов (floating dropdown popup, ТЗ скрин media_1793211707146.png)
+        if (isAlbumsSheetOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onCloseAlbumsSheet() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(start = 12.dp, top = 4.dp, end = 48.dp, bottom = 24.dp)
+                        .widthIn(min = 220.dp, max = 290.dp)
+                        .fillMaxHeight(0.78f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF212121))
+                        .border(0.5.dp, Color(0x22FFFFFF), RoundedCornerShape(20.dp))
+                        .clickable(enabled = false) {}
+                        .padding(vertical = 8.dp)
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        items(albumsList, key = { it.name }) { album ->
+                            AlbumDropdownRowItem(
+                                album = album,
+                                onClick = {
+                                    onSelectAlbum(album.name)
+                                    onCloseAlbumsSheet()
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -428,80 +421,9 @@ private fun LiveCameraTile(
     }
 }
 
-/**
- * Окно выбора альбомов (ТЗ, шаг 5):
- * Выезжает снизу, показывает только реальные непустые альбомы устройства с обложкой и количеством.
- */
 @Composable
-private fun AlbumsBottomSheet(
-    albums: List<GalleryAlbum>,
-    selectedAlbum: String,
-    onSelectAlbum: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0x99000000))
-            .clickable { onDismiss() }
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.70f)
-                .align(Alignment.BottomCenter)
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color(0xFF0F172A))
-                .clickable(enabled = false) {}
-                .padding(top = 12.dp)
-        ) {
-            // Drag handle
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(36.dp)
-                        .height(4.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x44FFFFFF))
-                )
-            }
-
-            Text(
-                text = "Альбомы",
-                color = Color.White,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
-            )
-
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 12.dp)
-            ) {
-                items(albums, key = { it.name }) { album ->
-                    val isSelected = album.name.equals(selectedAlbum, ignoreCase = true)
-                    AlbumRowItem(
-                        album = album,
-                        isSelected = isSelected,
-                        onClick = { onSelectAlbum(album.name) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AlbumRowItem(
+private fun AlbumDropdownRowItem(
     album: GalleryAlbum,
-    isSelected: Boolean,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -519,18 +441,16 @@ private fun AlbumRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) PurpleAccent.copy(alpha = 0.15f) else Color.Transparent)
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Обложка альбома
+        // Квадратная превьюшка 38x38dp со скруглением 6dp (media_1793211707146.png)
         Box(
             modifier = Modifier
-                .size(54.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(Color(0xFF1E293B)),
+                .size(38.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(Color(0xFF333333)),
             contentAlignment = Alignment.Center
         ) {
             if (bitmap != null) {
@@ -544,37 +464,32 @@ private fun AlbumRowItem(
                 Icon(
                     imageVector = Icons.Rounded.CameraAlt,
                     contentDescription = null,
-                    tint = Color(0xFF64748B),
-                    modifier = Modifier.size(24.dp)
+                    tint = Color(0xFF888888),
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.width(14.dp))
+        Spacer(modifier = Modifier.width(12.dp))
 
-        Column(modifier = Modifier.weight(1f)) {
+        // Название альбома жирным белым и сразу серым количество
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
                 text = album.name,
-                color = if (isSelected) PurpleAccent else Color.White,
+                color = Color.White,
                 fontSize = 15.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "${album.count} медиа",
-                color = Color(0xFF94A3B8),
-                fontSize = 12.sp
-            )
-        }
-
-        if (isSelected) {
-            Icon(
-                imageVector = Icons.Default.Check,
-                contentDescription = "Выбран",
-                tint = PurpleAccent,
-                modifier = Modifier.size(20.dp)
+                text = album.count.toString(),
+                color = Color(0xFF9E9E9E),
+                fontSize = 14.sp
             )
         }
     }
@@ -858,7 +773,7 @@ private fun formatVideoTime(ms: Long): String {
     return String.format("%d:%02d", m, s)
 }
 
-private fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
+internal fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
     return try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             context.contentResolver.loadThumbnail(uri, Size(300, 300), null)

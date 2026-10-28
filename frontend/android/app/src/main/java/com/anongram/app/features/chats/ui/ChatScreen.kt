@@ -555,7 +555,8 @@ fun ChatScreen(
                                 }
                                 val sizeLabel = "${draft.size / 1024} КБ"
                                 viewModel.sendAttachment(
-                                    MessageAttachment.File(name = draft.name, sizeLabel = sizeLabel, kind = kind)
+                                    MessageAttachment.File(name = draft.name, sizeLabel = sizeLabel, kind = kind),
+                                    caption = draft.caption
                                 )
                             }
                             is AttachmentDraft.Location -> {
@@ -578,7 +579,8 @@ fun ChatScreen(
                                 val sec = (draft.durationMs % 60000) / 1000
                                 val durLabel = String.format("%d:%02d", min, sec)
                                 viewModel.sendAttachment(
-                                    MessageAttachment.Music(title = draft.title, artist = draft.artist, durationLabel = durLabel, colorSeed = 2)
+                                    MessageAttachment.Music(title = draft.title, artist = draft.artist, durationLabel = durLabel, colorSeed = 2),
+                                    caption = draft.caption
                                 )
                             }
                         }

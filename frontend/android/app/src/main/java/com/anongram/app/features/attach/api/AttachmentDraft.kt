@@ -20,7 +20,8 @@ sealed interface AttachmentDraft {
     data class File(
         val uri: Uri,
         val name: String,
-        val size: Long
+        val size: Long,
+        val caption: String = ""
     ) : AttachmentDraft
 
     /** Фиксированная геопозиция */
@@ -46,6 +47,7 @@ sealed interface AttachmentDraft {
         val uri: Uri,
         val title: String,
         val artist: String,
-        val durationMs: Long
+        val durationMs: Long,
+        val caption: String = ""
     ) : AttachmentDraft
 }
