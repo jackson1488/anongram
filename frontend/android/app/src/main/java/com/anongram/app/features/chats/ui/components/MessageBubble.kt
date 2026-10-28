@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -135,11 +136,11 @@ internal fun MessageBubble(
             pulseAnim.animateTo(
                 targetValue = 0f,
                 animationSpec = keyframes {
-                    durationMillis = 750
-                    0.85f at 120 using FastOutSlowInEasing
-                    0.15f at 220 using FastOutSlowInEasing
-                    0.95f at 340 using FastOutSlowInEasing
-                    0.0f at 750 using LinearOutSlowInEasing
+                    durationMillis = 800
+                    0.92f at 140 using FastOutSlowInEasing
+                    0.18f at 240 using FastOutSlowInEasing
+                    1.0f at 380 using FastOutSlowInEasing
+                    0.0f at 800 using LinearOutSlowInEasing
                 }
             )
         } else {
@@ -267,18 +268,19 @@ internal fun MessageBubble(
                             )
                         }
                     } else {
+                        val pulseScale = 1f + (pulseAlpha * 0.05f)
                         val baseColor = when {
                             isSelected -> scheme.accent.copy(alpha = 0.28f)
                             isIncoming -> CardDark
                             else -> scheme.accent.copy(alpha = 0.16f)
                         }
                         val bubbleColor = if (pulseAlpha > 0f) {
-                            lerp(baseColor, scheme.accent, pulseAlpha * 0.75f)
+                            lerp(baseColor, scheme.accent.copy(alpha = 0.72f), pulseAlpha)
                         } else {
                             baseColor
                         }
                         val bubbleBorder = when {
-                            pulseAlpha > 0f -> BorderStroke(2.dp, scheme.accent.copy(alpha = 0.5f + pulseAlpha * 0.5f))
+                            pulseAlpha > 0f -> BorderStroke(2.dp, scheme.accent.copy(alpha = 0.6f + pulseAlpha * 0.4f))
                             !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
                             else -> null
                         }
@@ -287,8 +289,13 @@ internal fun MessageBubble(
                             shape = bubbleShape(item, isIncoming),
                             color = bubbleColor,
                             border = bubbleBorder,
+                            shadowElevation = (pulseAlpha * 10).dp,
                             modifier = Modifier
                                 .widthIn(max = bubbleMaxWidth)
+                                .graphicsLayer {
+                                    scaleX = pulseScale
+                                    scaleY = pulseScale
+                                }
                                 .clip(bubbleShape(item, isIncoming))
                                 .combinedClickable(
                                     onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },

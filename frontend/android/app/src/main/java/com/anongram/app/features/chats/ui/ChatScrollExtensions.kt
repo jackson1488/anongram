@@ -1,21 +1,50 @@
 package com.anongram.app.features.chats.ui
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
 
 /**
- * Плавная прокрутка с центрированием элемента по вертикали в LazyColumn.
+ * Плавная прокрутка с точным центрированием элемента по вертикали экрана в LazyColumn.
  * Поддерживает reverseLayout = true (чат, где index = 0 внизу экрана):
- * В reverseLayout положительный scrollOffset смещает целевой элемент вверх от нижнего края,
- * поэтому scrollOffset = (viewportHeight - itemHeight) / 2 помещает сообщение ровно по центру экрана.
+ * В reverseLayout = true:
+ * - viewportStartOffset находится у нижнего края.
+ * - offset элементов отсчитывается от нижнего края вверх.
+ * - Чтобы поместить центр элемента ровно в центр области просмотра:
+ *   targetCenterOffset = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset) / 2
+ *   itemCenterOffset = item.offset + item.size / 2
+ *   diff = itemCenterOffset - targetCenterOffset
+ *   animateScrollBy(diff)
  */
 suspend fun LazyListState.animateScrollAndCenterItem(
-    index: Int,
-    defaultItemHeightPx: Int = 200
+    index: Int
 ) {
-    val viewportHeight = layoutInfo.viewportSize.height
-    val existingItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
-    val itemHeight = existingItem?.size ?: defaultItemHeightPx
-    val centeringOffset = ((viewportHeight - itemHeight) / 2).coerceAtLeast(0)
+    if (index < 0) return
 
-    animateScrollToItem(index = index, scrollOffset = centeringOffset)
+    val visibleItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+    val viewportSpan = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).takeIf { it > 0 }
+        ?: layoutInfo.viewportSize.height.takeIf { it > 0 }
+        ?: 1200
+    val viewportCenter = viewportSpan / 2
+
+    if (visibleItem != null) {
+        val itemCenter = visibleItem.offset + visibleItem.size / 2
+        val diff = (itemCenter - viewportCenter).toFloat()
+        if (kotlin.math.abs(diff) > 2f) {
+            animateScrollBy(diff, tween(durationMillis = 350, easing = FastOutSlowInEasing))
+        }
+    } else {
+        // Если элемент за пределами экрана — сначала подводим к нему список
+        scrollToItem(index)
+        val measuredItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
+        if (measuredItem != null) {
+            val itemCenter = measuredItem.offset + measuredItem.size / 2
+            val diff = (itemCenter - viewportCenter).toFloat()
+            if (kotlin.math.abs(diff) > 2f) {
+                scrollBy(diff)
+            }
+        }
+    }
 }

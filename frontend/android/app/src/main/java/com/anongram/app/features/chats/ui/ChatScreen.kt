@@ -318,7 +318,24 @@ fun ChatScreen(
             }
         }
 
-        // 1b. Парящее поле ввода поверх списка сообщений (область вокруг прозрачная, сообщения проплывают сквозь неё)
+        // 1c. Мягкая затемняющая вуаль-градиент за полем ввода (скрывает сообщения под полем ввода как в Telegram)
+        val bottomScrimHeight = if (isKeyboardVisible) 110.dp else 136.dp
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(bottomScrimHeight)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.28f to ObsidianBlack.copy(alpha = 0.85f),
+                        0.62f to ObsidianBlack.copy(alpha = 0.98f),
+                        1.0f to ObsidianBlack
+                    )
+                )
+        )
+
+        // 1b. Парящее поле ввода поверх списка сообщений (на фоне затемняющей вуали)
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -331,8 +348,12 @@ fun ChatScreen(
                 if (state.isSearchOpen) {
                     val counterText = if (isSearchListMode) {
                         formatResultsCount(state.searchMatches.size)
-                    } else {
+                    } else if (state.searchQuery.isNotBlank() && state.searchMatches.isEmpty()) {
+                        "Ничего не найдено"
+                    } else if (state.searchCounter.isNotBlank()) {
                         state.searchCounter
+                    } else {
+                        "0 из 0"
                     }
                     val canOpenList = state.searchMatches.isNotEmpty() && state.searchQuery.isNotBlank()
                     ChatSearchBottomBar(

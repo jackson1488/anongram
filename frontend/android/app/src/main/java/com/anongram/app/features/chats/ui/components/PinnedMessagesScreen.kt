@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -86,6 +87,8 @@ internal fun PinnedMessagesScreen(
         else -> "$count закреплённых сообщений"
     }
 
+    val scheme = LocalAnonGramScheme.current
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -104,16 +107,17 @@ internal fun PinnedMessagesScreen(
                 .safeStatusBarPadding()
                 .safeNavigationBarPadding()
         ) {
-            // Верхняя плавающая панель в стиле островков
-            Row(
+            // Верхняя плавающая панель: кнопка назад слева и компактный центрированный островок с количеством
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                contentAlignment = Alignment.Center
             ) {
-                // Островок 1: Кнопка назад (увеличенная)
+                // Островок 1: Кнопка назад слева
                 Box(
                     modifier = Modifier
+                        .align(Alignment.CenterStart)
                         .size(48.dp)
                         .clip(CircleShape)
                         .background(IslandBackground)
@@ -133,41 +137,24 @@ internal fun PinnedMessagesScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                // Островок 2: Заголовок и демо-проверка лимита 99
-                Row(
+                // Островок 2: Заголовок по центру — заканчивается ровно после слова «сообщение»
+                Box(
                     modifier = Modifier
-                        .weight(1f)
+                        .align(Alignment.Center)
+                        .wrapContentWidth()
                         .height(48.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .background(IslandBackground)
                         .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = titleText,
                         color = TextPrimary,
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f)
+                        fontWeight = FontWeight.SemiBold
                     )
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(CardDark)
-                            .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
-                            .clickable(onClick = onTriggerLimitDemo)
-                            .padding(horizontal = 8.dp, vertical = 5.dp)
-                    ) {
-                        Text(
-                            text = "Лимит 99",
-                            color = FlameOrange,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
                 }
             }
 
@@ -193,10 +180,24 @@ internal fun PinnedMessagesScreen(
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 12.dp)
                     ) {
-                        items(pinnedMessages, key = { it.id }) { message ->
+                        itemsIndexed(pinnedMessages, key = { _, message -> message.id }) { index, message ->
                             Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                                DateChip(epochMs = message.epochMs)
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "#${index + 1}",
+                                        color = scheme.accent,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    DateChip(epochMs = message.epochMs)
+                                }
+                                Spacer(modifier = Modifier.height(2.dp))
                                 MessageBubble(
                                     item = MessageRenderItem(
                                         message = message,

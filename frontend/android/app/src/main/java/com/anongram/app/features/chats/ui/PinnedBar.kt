@@ -95,9 +95,9 @@ internal fun PinnedBar(
     }
 
     val headerTitle = if (totalCount > 1) {
-        "Закреплённое сообщение (${currentIndex + 1}/$totalCount)"
+        "#${currentIndex + 1} Закреплённое сообщение (${currentIndex + 1}/$totalCount)"
     } else {
-        "Закреплённое сообщение"
+        "#1 Закреплённое сообщение"
     }
 
     Box(
@@ -108,18 +108,17 @@ internal fun PinnedBar(
     ) {
         Row(
             modifier = Modifier
-                .wrapContentWidth()
-                .widthIn(min = 180.dp, max = 340.dp)
-                .clip(RoundedCornerShape(22.dp))
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
                 .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
-                .padding(start = 12.dp, top = 4.dp, bottom = 4.dp, end = 4.dp),
+                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                .padding(start = 14.dp, top = 5.dp, bottom = 5.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Тело: клик для перехода к сообщению / циклического переключения
             Row(
                 modifier = Modifier
-                    .weight(1f, fill = false)
+                    .weight(1f)
                     .clip(RoundedCornerShape(16.dp))
                     .clickable(onClick = onNavigateToPinned)
                     .padding(vertical = 4.dp, horizontal = 4.dp),
