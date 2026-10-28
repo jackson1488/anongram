@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.features.attach.ui.theme.AttachBorder
 import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import com.anongram.app.features.attach.ui.theme.AttachPurple
@@ -48,11 +50,16 @@ import com.anongram.app.features.attach.ui.theme.AttachTextSecondary
 fun PermissionDeniedView(
     icon: ImageVector = Icons.Outlined.Lock,
     title: String = "Нужен доступ",
-    description: String,
-    onRequestPermission: () -> Unit,
-    onOpenSettings: () -> Unit,
+    description: String = "",
+    message: String = description,
+    onRequestPermission: () -> Unit = {},
+    onOpenSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val effectiveDescription = if (message.isNotBlank()) message else description
+    val effectiveOpenSettings = onOpenSettings ?: { PermissionUtils.openAppSettings(context) }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -87,7 +94,7 @@ fun PermissionDeniedView(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = description,
+                text = effectiveDescription,
                 color = AttachTextSecondary,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
@@ -108,7 +115,7 @@ fun PermissionDeniedView(
                     )
                 }
                 OutlinedButton(
-                    onClick = onOpenSettings,
+                    onClick = effectiveOpenSettings,
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = AttachTextPrimary)
                 ) {
@@ -125,9 +132,11 @@ fun PermissionDeniedView(
  */
 @Composable
 fun PartialAccessBanner(
-    onSelectMore: () -> Unit,
+    onSelectMore: () -> Unit = {},
+    onManageAccess: () -> Unit = onSelectMore,
     modifier: Modifier = Modifier
 ) {
+    val clickHandler = if (onSelectMore != {}) onSelectMore else onManageAccess
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -166,6 +175,7 @@ fun PartialAccessBanner(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
+                    .clickable { clickHandler() }
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }

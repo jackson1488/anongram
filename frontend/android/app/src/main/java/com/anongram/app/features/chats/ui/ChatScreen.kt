@@ -53,6 +53,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.FlameOrange
@@ -516,7 +517,7 @@ fun ChatScreen(
         if (state.isAttachOpen) {
             AttachSheet(
                 visible = true,
-                recipientName = session.peerName,
+                recipientName = session.title,
                 onDismiss = viewModel::closeAttach,
                 onSend = { drafts ->
                     drafts.forEach { draft ->
