@@ -1170,10 +1170,6 @@ fun AttachSheetContent(
                     isPreviewOrderOpen = false
                     dismissAnimated()
                 },
-                onUpdateOrderAndSpoilers = { updatedList ->
-                    selectedMedia.clear()
-                    selectedMedia.addAll(updatedList)
-                },
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(95f)
