@@ -108,13 +108,16 @@ import kotlinx.coroutines.withContext
 
 import androidx.compose.runtime.Immutable
 
+import com.anongram.app.features.attach.ui.components.SpoilerOverlay
+
 @Immutable
 data class GalleryMedia(
     val uri: Uri,
     val isVideo: Boolean,
     val durationMs: Long = 0L,
     val bucketName: String = "",
-    val dateAdded: Long = 0L
+    val dateAdded: Long = 0L,
+    val hasSpoiler: Boolean = false
 )
 
 @Immutable
@@ -286,12 +289,13 @@ fun GalleryTab(
                                         if (media != null) {
                                             val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
                                             val isSelected = selectedIndex >= 0
+                                            val effectiveMedia = if (isSelected) selectedMedia[selectedIndex] else media
                                             GalleryItemTile(
-                                                media = media,
+                                                media = effectiveMedia,
                                                 isSelected = isSelected,
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                                                 onOpenViewer = { openViewerHelper(i) },
-                                                onToggleSelect = { onToggleSelectMedia(media) },
+                                                onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
                                                 modifier = Modifier.weight(1f).fillMaxHeight()
                                             )
                                         } else {
@@ -309,12 +313,13 @@ fun GalleryTab(
                                         if (media != null) {
                                             val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
                                             val isSelected = selectedIndex >= 0
+                                            val effectiveMedia = if (isSelected) selectedMedia[selectedIndex] else media
                                             GalleryItemTile(
-                                                media = media,
+                                                media = effectiveMedia,
                                                 isSelected = isSelected,
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                                                 onOpenViewer = { openViewerHelper(i) },
-                                                onToggleSelect = { onToggleSelectMedia(media) },
+                                                onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
                                                 modifier = Modifier.weight(1f).fillMaxHeight()
                                             )
                                         } else {
@@ -331,10 +336,11 @@ fun GalleryTab(
                 items(filteredMedia.drop(4), key = { it.uri.toString() }) { media ->
                     val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
                     val isSelected = selectedIndex >= 0
+                    val effectiveMedia = if (isSelected) selectedMedia[selectedIndex] else media
                     val originalIndex = filteredMedia.indexOf(media)
 
                     GalleryItemTile(
-                        media = media,
+                        media = effectiveMedia,
                         isSelected = isSelected,
                         selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                         onOpenViewer = {
@@ -343,7 +349,7 @@ fun GalleryTab(
                             }
                         },
                         onToggleSelect = {
-                            onToggleSelectMedia(media)
+                            onToggleSelectMedia(effectiveMedia)
                         }
                     )
                 }
@@ -634,6 +640,11 @@ private fun GalleryItemTile(
                     )
                 }
             }
+        }
+
+        // Анимированный спойлер, если включён
+        if (isSelected && media.hasSpoiler) {
+            SpoilerOverlay(modifier = Modifier.fillMaxSize())
         }
 
         // Кружок выбора в правом верхнем углу (ТЗ, шаг 9: ТОЛЬКО выбирает/снимает выбор)

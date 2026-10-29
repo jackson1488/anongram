@@ -13,7 +13,9 @@ sealed interface AttachmentDraft {
         val isVideo: Boolean,
         val caption: String = "",
         val hd: Boolean = false,
-        val ttl: MediaTtl = MediaTtl.Never
+        val ttl: MediaTtl = MediaTtl.Never,
+        val hasSpoiler: Boolean = false,
+        val ungrouped: Boolean = false
     ) : AttachmentDraft
 
     /** Файл любого типа без сжатия */

@@ -47,20 +47,28 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.LayersClear
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhotoLibrary
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.attach.ui.components.PreviewOrderScreen
 import android.app.Activity
 import android.content.Intent
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -314,7 +322,8 @@ fun AttachSheetContent(
                 AttachmentDraft.Media(
                     uri = media.uri,
                     isVideo = media.isVideo,
-                    caption = if (index == 0) captionText else ""
+                    caption = if (index == 0) captionText else "",
+                    hasSpoiler = media.hasSpoiler
                 )
             )
         }
@@ -359,6 +368,8 @@ fun AttachSheetContent(
     var isCameraOpen by remember { mutableStateOf(false) }
     var isEditorOpen by remember { mutableStateOf(false) }
     var isFullPlayerOpen by remember { mutableStateOf(false) }
+    var isPreviewOrderOpen by remember { mutableStateOf(false) }
+    var isGalleryOptionsMenuOpen by remember { mutableStateOf(false) }
     var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
     var isAttachEmojiOpen by remember { mutableStateOf(false) }
@@ -467,6 +478,30 @@ fun AttachSheetContent(
         dismissAnimated()
     }
 
+    fun sendAsUngrouped() {
+        if (selectedMedia.isEmpty()) return
+        val drafts = selectedMedia.mapIndexed { index, media ->
+            AttachmentDraft.Media(
+                uri = media.uri,
+                isVideo = media.isVideo,
+                caption = if (index == 0) captionText else "",
+                hasSpoiler = media.hasSpoiler,
+                ungrouped = true
+            )
+        }
+        onSend(drafts)
+        dismissAnimated()
+    }
+
+    fun toggleSpoilerForSelectedMedia() {
+        if (selectedMedia.isEmpty()) return
+        val allHaveSpoiler = selectedMedia.all { it.hasSpoiler }
+        val target = !allHaveSpoiler
+        val updated = selectedMedia.map { it.copy(hasSpoiler = target) }
+        selectedMedia.clear()
+        selectedMedia.addAll(updated)
+    }
+
     fun sendAsHd() {
         if (selectedMedia.isEmpty()) return
         val drafts = selectedMedia.mapIndexed { index, media ->
@@ -474,6 +509,7 @@ fun AttachSheetContent(
                 uri = media.uri,
                 isVideo = media.isVideo,
                 caption = if (index == 0) captionText else "",
+                hasSpoiler = media.hasSpoiler,
                 hd = true
             )
         }
@@ -501,11 +537,13 @@ fun AttachSheetContent(
     // Обработка кнопки "Назад" (закрывает шторку с любой высоты, либо показывает диалог сброса если есть выбранные)
     BackHandler {
         when {
+            isPreviewOrderOpen -> isPreviewOrderOpen = false
             viewingMediaList != null -> viewingMediaList = null
             showDiscardDialog -> showDiscardDialog = false
             isAttachEmojiOpen -> isAttachEmojiOpen = false
             quickCardContact != null -> quickCardContact = null
             isAlbumsSheetOpen -> isAlbumsSheetOpen = false
+            isGalleryOptionsMenuOpen -> isGalleryOptionsMenuOpen = false
             isMoreMenuOpen -> isMoreMenuOpen = false
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
@@ -588,32 +626,71 @@ fun AttachSheetContent(
                         indication = null
                     ) { /* поглощаем клики внутри шторки */ }
             ) {
-                // ручка: тянуть можно за неё
-                Box(
-                    Modifier.fillMaxWidth().height(14.dp)
-                        .draggable(
-                            orientation = Orientation.Vertical,
-                            state = rememberDraggableState { d ->
-                                val maxOffset = if (totalSelectedCount > 0) halfOffset + 35f else H
-                                offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
-                            },
-                            onDragStarted = { anim?.cancel() },
-                            onDragStopped = { v -> release(v) }
-                        )
-                        .graphicsLayer {
-                            val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
-                            alpha = fadeProgress
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    val isThinHandle = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.MUSIC)
+                val isGalleryWithSelection = (selectedTab == AttachTab.GALLERY && selectedMedia.isNotEmpty())
+                if (isGalleryWithSelection && !isFull) {
                     Box(
-                        modifier = Modifier
-                            .width(if (isThinHandle) 24.dp else 28.dp)
-                            .height(if (isThinHandle) 1.5.dp else 2.5.dp)
-                            .clip(CircleShape)
-                            .background(if (isThinHandle) Color(0x33FFFFFF) else Color(0x4DFFFFFF))
-                    )
+                        Modifier.fillMaxWidth()
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { d ->
+                                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 35f else H
+                                    offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
+                                },
+                                onDragStarted = { anim?.cancel() },
+                                onDragStopped = { v -> release(v) }
+                            )
+                    ) {
+                        GallerySelectionBar(
+                            title = getGallerySelectionTitle(selectedMedia),
+                            hasMoreItems = selectedMedia.size >= 2,
+                            onOpenPreviewOrder = {
+                                if (selectedMedia.size >= 2) {
+                                    isPreviewOrderOpen = true
+                                }
+                            },
+                            onOptionsClick = { isGalleryOptionsMenuOpen = true }
+                        )
+
+                        GallerySelectionOptionsMenu(
+                            expanded = isGalleryOptionsMenuOpen,
+                            onDismissRequest = { isGalleryOptionsMenuOpen = false },
+                            canUngroup = selectedMedia.size >= 2,
+                            allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
+                            onSendUncompressed = { sendAsUncompressed() },
+                            onSendUngrouped = { sendAsUngrouped() },
+                            onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
+                            onSendHd = { sendAsHd() },
+                            modifier = Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = 8.dp)
+                        )
+                    }
+                } else {
+                    // ручка: тянуть можно за неё
+                    Box(
+                        Modifier.fillMaxWidth().height(14.dp)
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { d ->
+                                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 35f else H
+                                    offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
+                                },
+                                onDragStarted = { anim?.cancel() },
+                                onDragStopped = { v -> release(v) }
+                            )
+                            .graphicsLayer {
+                                val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
+                                alpha = fadeProgress
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val isThinHandle = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.MUSIC)
+                        Box(
+                            modifier = Modifier
+                                .width(if (isThinHandle) 24.dp else 28.dp)
+                                .height(if (isThinHandle) 1.5.dp else 2.5.dp)
+                                .clip(CircleShape)
+                                .background(if (isThinHandle) Color(0x33FFFFFF) else Color(0x4DFFFFFF))
+                        )
+                    }
                 }
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -773,55 +850,31 @@ fun AttachSheetContent(
                 hasActionMenu = (selectedTab == AttachTab.GALLERY),
                 onActionClick = { isMoreMenuOpen = true },
                 actionMenuContent = {
-                    DropdownMenu(
-                        expanded = isMoreMenuOpen,
-                        onDismissRequest = { isMoreMenuOpen = false },
-                        modifier = Modifier
-                            .background(AttachCardDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Показать списком", color = Color.White, fontSize = 14.sp) },
-                            onClick = { isMoreMenuOpen = false },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Folder,
-                                    contentDescription = null,
-                                    tint = AttachPurple,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
+                    if (selectedTab == AttachTab.GALLERY && selectedMedia.isNotEmpty()) {
+                        GallerySelectionOptionsMenu(
+                            expanded = isMoreMenuOpen,
+                            onDismissRequest = { isMoreMenuOpen = false },
+                            canUngroup = selectedMedia.size >= 2,
+                            allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
+                            onSendUncompressed = { sendAsUncompressed() },
+                            onSendUngrouped = { sendAsUngrouped() },
+                            onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
+                            onSendHd = { sendAsHd() }
                         )
-                        DropdownMenuItem(
-                            text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
-                            onClick = {
-                                isMoreMenuOpen = false
-                                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                                    type = "*/*"
-                                    addCategory(Intent.CATEGORY_OPENABLE)
-                                    putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                                }
-                                systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.Folder,
-                                    contentDescription = null,
-                                    tint = AttachPurple,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        )
-                        if (selectedMedia.isNotEmpty()) {
+                    } else {
+                        DropdownMenu(
+                            expanded = isMoreMenuOpen,
+                            onDismissRequest = { isMoreMenuOpen = false },
+                            modifier = Modifier
+                                .background(AttachCardDark)
+                                .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
+                        ) {
                             DropdownMenuItem(
-                                text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.sp) },
-                                onClick = {
-                                    isMoreMenuOpen = false
-                                    sendAsUncompressed()
-                                },
+                                text = { Text("Показать списком", color = Color.White, fontSize = 14.sp) },
+                                onClick = { isMoreMenuOpen = false },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Outlined.InsertDriveFile,
+                                        imageVector = Icons.Outlined.Folder,
                                         contentDescription = null,
                                         tint = AttachPurple,
                                         modifier = Modifier.size(20.dp)
@@ -829,21 +882,25 @@ fun AttachSheetContent(
                                 }
                             )
                             DropdownMenuItem(
-                                text = { Text("Отправить в HD качестве", color = Color.White, fontSize = 14.sp) },
+                                text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
                                 onClick = {
                                     isMoreMenuOpen = false
-                                    sendAsHd()
+                                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                        type = "*/*"
+                                        addCategory(Intent.CATEGORY_OPENABLE)
+                                        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                                    }
+                                    systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
                                 },
                                 leadingIcon = {
                                     Icon(
-                                        imageVector = Icons.Default.HighQuality,
+                                        imageVector = Icons.Outlined.Folder,
                                         contentDescription = null,
                                         tint = AttachPurple,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
                             )
-                        } else {
                             DropdownMenuItem(
                                 text = { Text("Файлы (без сжатия)", color = Color.White, fontSize = 14.sp) },
                                 onClick = {
@@ -864,28 +921,59 @@ fun AttachSheetContent(
                 },
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
-                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = displayAlbumTitle,
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Альбомы",
-                                tint = AttachPurple,
-                                modifier = Modifier.size(24.dp)
-                            )
+                        if (selectedMedia.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .then(
+                                        if (selectedMedia.size >= 2) Modifier.clickable { isPreviewOrderOpen = true }
+                                        else Modifier
+                                    )
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = getGallerySelectionTitle(selectedMedia),
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (selectedMedia.size >= 2) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Предпросмотр",
+                                        tint = Color(0xFFB0B0B0),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = displayAlbumTitle,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Альбомы",
+                                    tint = AttachPurple,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 } else null,
@@ -1014,6 +1102,53 @@ fun AttachSheetContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(100f)
+            )
+        }
+
+        // Экран предпросмотра порядка и спойлера (ТЗ: Экран предпросмотра выбора сообщений)
+        if (isPreviewOrderOpen) {
+            PreviewOrderScreen(
+                initialMediaList = selectedMedia.toList(),
+                caption = captionText,
+                onCaptionChange = { captionText = it },
+                onClose = { isPreviewOrderOpen = false },
+                onSend = { orderedMedia, isUncompressed, isUngrouped, isHd ->
+                    val drafts = mutableListOf<AttachmentDraft>()
+                    orderedMedia.forEachIndexed { index, media ->
+                        if (isUncompressed) {
+                            val meta = getFileMetadataHelper(context, media.uri)
+                            drafts.add(
+                                AttachmentDraft.File(
+                                    uri = media.uri,
+                                    name = meta.name,
+                                    size = meta.size,
+                                    caption = if (index == 0) captionText else ""
+                                )
+                            )
+                        } else {
+                            drafts.add(
+                                AttachmentDraft.Media(
+                                    uri = media.uri,
+                                    isVideo = media.isVideo,
+                                    caption = if (index == 0) captionText else "",
+                                    hd = isHd,
+                                    hasSpoiler = media.hasSpoiler,
+                                    ungrouped = isUngrouped
+                                )
+                            )
+                        }
+                    }
+                    onSend(drafts)
+                    isPreviewOrderOpen = false
+                    dismissAnimated()
+                },
+                onUpdateOrderAndSpoilers = { updatedList ->
+                    selectedMedia.clear()
+                    selectedMedia.addAll(updatedList)
+                },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(95f)
             )
         }
 
@@ -1200,4 +1335,200 @@ private fun getFileMetadataHelper(context: Context, uri: Uri): FileMeta {
     } catch (_: Exception) {}
     return FileMeta(name, size)
 }
+
+private fun getGallerySelectionTitle(items: List<GalleryMedia>): String {
+    val count = items.size
+    if (count == 0) return ""
+    val hasVideo = items.any { it.isVideo }
+    val hasPhoto = items.any { !it.isVideo }
+    val isOnlyPhoto = hasPhoto && !hasVideo
+    val isOnlyVideo = hasVideo && !hasPhoto
+
+    return when {
+        isOnlyPhoto -> {
+            val mod10 = count % 10
+            val mod100 = count % 100
+            val word = when {
+                mod100 in 11..19 -> "фотографий"
+                mod10 == 1 -> "фотография"
+                mod10 in 2..4 -> "фотографии"
+                else -> "фотографий"
+            }
+            val verb = if (count == 1) "Выбрана" else "Выбрано"
+            "$verb $count $word"
+        }
+        isOnlyVideo -> {
+            val mod10 = count % 10
+            val mod100 = count % 100
+            val word = when {
+                mod100 in 11..19 -> "видео"
+                mod10 == 1 -> "видео"
+                mod10 in 2..4 -> "видео"
+                else -> "видео"
+            }
+            val verb = if (count == 1) "Выбрано" else "Выбрано"
+            "$verb $count $word"
+        }
+        else -> {
+            val mod10 = count % 10
+            val mod100 = count % 100
+            val word = when {
+                mod100 in 11..19 -> "медиа"
+                mod10 == 1 -> "медиа"
+                mod10 in 2..4 -> "медиа"
+                else -> "медиа"
+            }
+            "Выбрано $count $word"
+        }
+    }
+}
+
+@Composable
+private fun GallerySelectionBar(
+    title: String,
+    hasMoreItems: Boolean,
+    onOpenPreviewOrder: () -> Unit,
+    onOptionsClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .then(
+                    if (hasMoreItems) Modifier.clip(RoundedCornerShape(8.dp)).clickable { onOpenPreviewOrder() }
+                    else Modifier
+                ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                color = Color.White,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            if (hasMoreItems) {
+                Spacer(modifier = Modifier.width(6.dp))
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "Предпросмотр",
+                    tint = Color(0xFFB0B0B0),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+
+        IconButton(
+            onClick = onOptionsClick,
+            modifier = Modifier.size(36.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.MoreVert,
+                contentDescription = "Опции",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun GallerySelectionOptionsMenu(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    canUngroup: Boolean,
+    allHaveSpoiler: Boolean,
+    onSendUncompressed: () -> Unit,
+    onSendUngrouped: () -> Unit,
+    onToggleSpoiler: () -> Unit,
+    onSendHd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier
+            .background(AttachCardDark)
+            .border(1.dp, AttachBorder, RoundedCornerShape(14.dp))
+    ) {
+        DropdownMenuItem(
+            text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.sp) },
+            onClick = {
+                onDismissRequest()
+                onSendUncompressed()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.InsertDriveFile,
+                    contentDescription = null,
+                    tint = AttachPurple,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+
+        if (canUngroup) {
+            DropdownMenuItem(
+                text = { Text("Отправить без группировки", color = Color.White, fontSize = 14.sp) },
+                onClick = {
+                    onDismissRequest()
+                    onSendUngrouped()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.LayersClear,
+                        contentDescription = null,
+                        tint = AttachPurple,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            )
+        }
+
+        DropdownMenuItem(
+            text = {
+                Text(
+                    text = if (allHaveSpoiler) "Отменить скрытие" else "Скрыть под спойлер",
+                    color = Color.White,
+                    fontSize = 14.sp
+                )
+            },
+            onClick = {
+                onDismissRequest()
+                onToggleSpoiler()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = if (allHaveSpoiler) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
+                    contentDescription = null,
+                    tint = AttachPurple,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+
+        DropdownMenuItem(
+            text = { Text("Отправить в HD-качестве", color = Color.White, fontSize = 14.sp) },
+            onClick = {
+                onDismissRequest()
+                onSendHd()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.HighQuality,
+                    contentDescription = null,
+                    tint = AttachPurple,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
+    }
+}
+
 
