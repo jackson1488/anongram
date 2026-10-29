@@ -178,7 +178,7 @@ fun AttachSheetContent(
                     }
                 // Если после затухания остановилась ниже половины (H * 0.5f) — мягко закрыть:
                 if (offsetPx > halfOffset) {
-                    animate(offsetPx, H, animationSpec = tween(250, FastOutSlowInEasing)) { x, _ ->
+                    animate(offsetPx, H, animationSpec = tween(250, easing = FastOutSlowInEasing)) { x, _ ->
                         offsetPx = x
                     }
                     currentOnDismiss()

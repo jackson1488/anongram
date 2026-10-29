@@ -421,6 +421,7 @@ fun FilesTab(
                 }
             }
         }
+    }
 }
 
 @Composable
