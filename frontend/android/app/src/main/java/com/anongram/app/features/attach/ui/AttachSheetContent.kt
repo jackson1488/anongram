@@ -789,88 +789,21 @@ fun AttachSheetContent(
                 }
 
                 // В полураскрытой шторке: компактная плашка поверх сетки (не сдвигает саму сетку!)
-                AnimatedVisibility(
+                GallerySelectionOverlay(
                     visible = (selectedTab == AttachTab.GALLERY && selectedMedia.isNotEmpty() && !isFull),
-                    enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-                    exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+                    onOpenPreview = { isPreviewOrderOpen = true },
+                    isMenuOpen = isGalleryOptionsMenuOpen,
+                    onMenuOpenChange = { isGalleryOptionsMenuOpen = it },
+                    allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
+                    onSendUncompressed = { sendAsUncompressed() },
+                    onSendUngrouped = { sendAsUngrouped() },
+                    onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
+                    onSendHd = { sendAsHd() },
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 4.dp, start = 12.dp, end = 12.dp)
                         .zIndex(20f)
-                ) {
-                    Surface(
-                        color = Color(0xEE1E1E22),
-                        shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
-                        modifier = Modifier.wrapContentSize()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Галерея",
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            IconButton(
-                                onClick = { isPreviewOrderOpen = true },
-                                modifier = Modifier.size(26.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                    contentDescription = "Предпросмотр",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(4.dp))
-
-                            Box {
-                                IconButton(
-                                    onClick = { isGalleryOptionsMenuOpen = true },
-                                    modifier = Modifier.size(26.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.MoreVert,
-                                        contentDescription = "Опции",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-
-                                GallerySelectionOptionsMenu(
-                                    expanded = isGalleryOptionsMenuOpen,
-                                    onDismissRequest = { isGalleryOptionsMenuOpen = false },
-                                    allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
-                                    onOpenPreview = {
-                                        isGalleryOptionsMenuOpen = false
-                                        isPreviewOrderOpen = true
-                                    },
-                                    onSendUncompressed = {
-                                        isGalleryOptionsMenuOpen = false
-                                        sendAsUncompressed()
-                                    },
-                                    onSendUngrouped = {
-                                        isGalleryOptionsMenuOpen = false
-                                        sendAsUngrouped()
-                                    },
-                                    onToggleSpoiler = {
-                                        isGalleryOptionsMenuOpen = false
-                                        toggleSpoilerForSelectedMedia()
-                                    },
-                                    onSendHd = {
-                                        isGalleryOptionsMenuOpen = false
-                                        sendAsHd()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
+                )
             }
         }
 
@@ -1640,6 +1573,82 @@ private fun GallerySelectionOptionsMenu(
                 )
             }
         )
+    }
+}
+
+@Composable
+private fun GallerySelectionOverlay(
+    visible: Boolean,
+    onOpenPreview: () -> Unit,
+    isMenuOpen: Boolean,
+    onMenuOpenChange: (Boolean) -> Unit,
+    allHaveSpoiler: Boolean,
+    onSendUncompressed: () -> Unit,
+    onSendUngrouped: () -> Unit,
+    onToggleSpoiler: () -> Unit,
+    onSendHd: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    androidx.compose.animation.AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
+        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+        modifier = modifier
+    ) {
+        Surface(
+            color = Color(0xEE1E1E22),
+            shape = RoundedCornerShape(20.dp),
+            border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
+            modifier = Modifier.wrapContentSize()
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Галерея",
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = onOpenPreview,
+                    modifier = Modifier.size(26.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Предпросмотр",
+                        tint = Color.White,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                Box {
+                    IconButton(
+                        onClick = { onMenuOpenChange(true) },
+                        modifier = Modifier.size(26.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.MoreVert,
+                            contentDescription = "Опции",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    GallerySelectionOptionsMenu(
+                        expanded = isMenuOpen,
+                        onDismissRequest = { onMenuOpenChange(false) },
+                        allHaveSpoiler = allHaveSpoiler,
+                        onOpenPreview = onOpenPreview,
+                        onSendUncompressed = onSendUncompressed,
+                        onSendUngrouped = onSendUngrouped,
+                        onToggleSpoiler = onToggleSpoiler,
+                        onSendHd = onSendHd
+                    )
+                }
+            }
+        }
     }
 }
 
