@@ -1,12 +1,15 @@
 package com.anongram.app.features.attach.ui.components
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
@@ -31,15 +34,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.HighQuality
+import androidx.compose.material.icons.outlined.GridOff
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -52,6 +58,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -62,27 +69,26 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.zIndex
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.attach.ui.tabs.GalleryMedia
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import com.anongram.app.features.attach.ui.theme.AttachPurple
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * Экран предпросмотра и изменения порядка медиа (ТЗ: Экран предпросмотра выбора сообщений).
+ * Экран предпросмотра и изменения порядка медиа:
  * - Открывается на том же уровне высоты, где находилась шторка (initialOffsetPx)
- * - Свободно тащится вверх (до 100%) и вниз (до закрытия)
- * - Слева вверху: "< Предпросмотр"
- * - Справа вверху: кнопка "⋮" с выпадающим меню (Без сжатия, HD, Спойлер)
- * - На фоне: обои текущего чата (WallpaperBackground) с мягким затемнением
- * - В центре: карточки в рамке с фиолетовой обводкой (border 1.5.dp AttachPurple), как на макете
- * - На карточках: бейджи порядка (1), (2)..., качественный блюр и мерцающие частицы спойлера
- * - Тап по карточке переключает спойлер; свайп меняет порядок фото
- * - Внизу: плашка "Перетащите для изменения порядка" и поле ввода с кнопкой отправки
+ * - Сверху тонкая ручка; при свайпе вниз появляется диалог "Сбросить выбор?"
+ * - Кнопка "< Предпросмотр" и системный жест "Назад" возвращают в галерею
+ * - Одиночный тап по фото: открывает полноэкранный просмотр фото
+ * - Зажатие (long-press): карточка уменьшается (scale 0.92) и перетаскивается с обменом местами (swap)
+ * - Сетка коллажа адаптируется до 20 элементов в альбоме
  */
 @Composable
 fun PreviewOrderScreen(
@@ -92,22 +98,27 @@ fun PreviewOrderScreen(
     onClose: () -> Unit,
     onSend: (List<GalleryMedia>, Boolean, Boolean, Boolean) -> Unit,
     onUpdateOrderAndSpoilers: (List<GalleryMedia>) -> Unit = {},
+    onDiscardSelection: () -> Unit = {},
     chatId: String = "",
     initialOffsetPx: Float = 0f,
     onOffsetChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val orderedList = remember { mutableStateListOf<GalleryMedia>().apply { addAll(initialMediaList) } }
     var isMenuOpen by remember { mutableStateOf(false) }
     var isUncompressed by remember { mutableStateOf(false) }
     var isUngrouped by remember { mutableStateOf(false) }
     var isHd by remember { mutableStateOf(false) }
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
+    var viewingPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     fun handleClose() {
         onUpdateOrderAndSpoilers(orderedList.toList())
         onClose()
     }
 
+    // Системный жест "Назад" плавно возвращает в галерею
     BackHandler { handleClose() }
 
     val allHaveSpoiler = orderedList.isNotEmpty() && orderedList.all { it.hasSpoiler }
@@ -120,14 +131,6 @@ fun PreviewOrderScreen(
         onUpdateOrderAndSpoilers(orderedList.toList())
     }
 
-    fun toggleSpoilerForIndex(index: Int) {
-        if (index in orderedList.indices) {
-            val item = orderedList[index]
-            orderedList[index] = item.copy(hasSpoiler = !item.hasSpoiler)
-            onUpdateOrderAndSpoilers(orderedList.toList())
-        }
-    }
-
     fun swapItems(fromIdx: Int, toIdx: Int) {
         if (fromIdx in orderedList.indices && toIdx in orderedList.indices && fromIdx != toIdx) {
             val item = orderedList.removeAt(fromIdx)
@@ -137,8 +140,7 @@ fun PreviewOrderScreen(
     }
 
     BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         val H = constraints.maxHeight.toFloat()
         val halfOffset = H * 0.5f
@@ -163,17 +165,56 @@ fun PreviewOrderScreen(
             )
         }
 
-        // 2. Контейнер экрана предпросмотра на фоне обоев чата (макет media_1793295326790.png)
+        // 2. Контейнер экрана предпросмотра на текущей высоте шторки
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer { translationY = previewOffsetPx }
+                .background(
+                    color = Color(0xFF131317),
+                    shape = RoundedCornerShape(topStart = if (previewOffsetPx > 15f) 20.dp else 0.dp, topEnd = if (previewOffsetPx > 15f) 20.dp else 0.dp)
+                )
                 .safeStatusBarPadding()
         ) {
+            // Тонкая ручка для перемещения шторки вверх/вниз
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp)
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { d ->
+                            previewOffsetPx = (previewOffsetPx + d).coerceAtLeast(0f)
+                            onOffsetChange(previewOffsetPx)
+                        },
+                        onDragStopped = { v ->
+                            if (v > 850f || previewOffsetPx > halfOffset + 80f) {
+                                // Потянули вниз: показываем диалог "Сбросить выбор?"
+                                showDiscardConfirmDialog = true
+                            } else if (previewOffsetPx < halfOffset * 0.5f) {
+                                previewOffsetPx = 0f
+                                onOffsetChange(0f)
+                            } else {
+                                previewOffsetPx = halfOffset
+                                onOffsetChange(halfOffset)
+                            }
+                        }
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 4.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color(0x66FFFFFF))
+                )
+            }
+
             // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Кнопка "< Предпросмотр"
@@ -216,15 +257,15 @@ fun PreviewOrderScreen(
                         expanded = isMenuOpen,
                         onDismissRequest = { isMenuOpen = false },
                         modifier = Modifier
-                            .background(AttachCardDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(14.dp))
+                            .background(Color(0xFF222226), RoundedCornerShape(16.dp))
+                            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
                     ) {
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     text = if (isUncompressed) "Отменить сжатие" else "Отправить без сжатия",
                                     color = Color.White,
-                                    fontSize = 14.sp
+                                    fontSize = 14.5.sp
                                 )
                             },
                             onClick = {
@@ -244,9 +285,31 @@ fun PreviewOrderScreen(
                         DropdownMenuItem(
                             text = {
                                 Text(
+                                    text = if (isUngrouped) "Отменить группировку" else "Отправить без группировки",
+                                    color = Color.White,
+                                    fontSize = 14.5.sp
+                                )
+                            },
+                            onClick = {
+                                isUngrouped = !isUngrouped
+                                isMenuOpen = false
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.GridOff,
+                                    contentDescription = null,
+                                    tint = if (isUngrouped) AttachPurple else Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(
                                     text = if (allHaveSpoiler) "Отменить спойлер" else "Скрыть под спойлер",
                                     color = Color.White,
-                                    fontSize = 14.sp
+                                    fontSize = 14.5.sp
                                 )
                             },
                             onClick = {
@@ -268,7 +331,7 @@ fun PreviewOrderScreen(
                                 Text(
                                     text = if (isHd) "Стандартное качество" else "Отправить в HD-качестве",
                                     color = Color.White,
-                                    fontSize = 14.sp
+                                    fontSize = 14.5.sp
                                 )
                             },
                             onClick = {
@@ -277,7 +340,7 @@ fun PreviewOrderScreen(
                             },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Filled.HighQuality,
+                                    imageVector = Icons.Default.HighQuality,
                                     contentDescription = null,
                                     tint = if (isHd) AttachPurple else Color.White,
                                     modifier = Modifier.size(20.dp)
@@ -288,9 +351,9 @@ fun PreviewOrderScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.08f))
+            Spacer(modifier = Modifier.weight(0.04f))
 
-            // 3. Основная область: карточки медиа в рамке с фиолетовой обводкой (1 в 1 как на макете media_1793295326790.png)
+            // 3. Основная область: карточки медиа в рамке с фиолетовой обводкой (коллаж до 20 фото)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -300,61 +363,108 @@ fun PreviewOrderScreen(
                     .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(20.dp))
                     .background(Color(0xFF131317))
             ) {
-                if (orderedList.size == 2) {
-                    Row(modifier = Modifier.fillMaxSize()) {
+                when {
+                    orderedList.size == 1 -> {
                         PreviewCollageItem(
                             media = orderedList[0],
                             orderNumber = 1,
-                            onToggleSpoiler = { toggleSpoilerForIndex(0) },
-                            onDragSwap = { swapItems(0, 1) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(1.5.dp)
-                                .fillMaxHeight()
-                                .background(Color(0xFFC084FC))
-                        )
-                        PreviewCollageItem(
-                            media = orderedList[1],
-                            orderNumber = 2,
-                            onToggleSpoiler = { toggleSpoilerForIndex(1) },
-                            onDragSwap = { swapItems(1, 0) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
+                            onPhotoClick = { viewingPhotoUri = it },
+                            onDragSwap = {},
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
-                } else if (orderedList.size == 1) {
-                    PreviewCollageItem(
-                        media = orderedList[0],
-                        orderNumber = 1,
-                        onToggleSpoiler = { toggleSpoilerForIndex(0) },
-                        onDragSwap = {},
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        itemsIndexed(orderedList, key = { _, item -> item.uri.toString() }) { index, item ->
+                    orderedList.size == 2 -> {
+                        Row(modifier = Modifier.fillMaxSize()) {
                             PreviewCollageItem(
-                                media = item,
-                                orderNumber = index + 1,
-                                onToggleSpoiler = { toggleSpoilerForIndex(index) },
-                                onDragSwap = {
-                                    val target = if (index < orderedList.size - 1) index + 1 else index - 1
-                                    swapItems(index, target)
-                                },
+                                media = orderedList[0],
+                                orderNumber = 1,
+                                onPhotoClick = { viewingPhotoUri = it },
+                                onDragSwap = { swapItems(0, 1) },
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .aspectRatio(0.72f)
+                                    .weight(1f)
+                                    .fillMaxHeight()
                             )
+                            Box(
+                                modifier = Modifier
+                                    .width(1.5.dp)
+                                    .fillMaxHeight()
+                                    .background(Color(0xFFC084FC))
+                            )
+                            PreviewCollageItem(
+                                media = orderedList[1],
+                                orderNumber = 2,
+                                onPhotoClick = { viewingPhotoUri = it },
+                                onDragSwap = { swapItems(1, 0) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                            )
+                        }
+                    }
+                    orderedList.size == 3 -> {
+                        Row(modifier = Modifier.fillMaxSize()) {
+                            PreviewCollageItem(
+                                media = orderedList[0],
+                                orderNumber = 1,
+                                onPhotoClick = { viewingPhotoUri = it },
+                                onDragSwap = { swapItems(0, 1) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight()
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .width(1.5.dp)
+                                    .fillMaxHeight()
+                                    .background(Color(0xFFC084FC))
+                            )
+                            Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                                PreviewCollageItem(
+                                    media = orderedList[1],
+                                    orderNumber = 2,
+                                    onPhotoClick = { viewingPhotoUri = it },
+                                    onDragSwap = { swapItems(1, 2) },
+                                    modifier = Modifier.fillMaxWidth().weight(1f)
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.5.dp)
+                                        .background(Color(0xFFC084FC))
+                                )
+                                PreviewCollageItem(
+                                    media = orderedList[2],
+                                    orderNumber = 3,
+                                    onPhotoClick = { viewingPhotoUri = it },
+                                    onDragSwap = { swapItems(2, 0) },
+                                    modifier = Modifier.fillMaxWidth().weight(1f)
+                                )
+                            }
+                        }
+                    }
+                    else -> {
+                        // Для 4-20 фото: адаптивная сетка коллажа
+                        val cols = if (orderedList.size <= 4) 2 else 3
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(cols),
+                            modifier = Modifier.fillMaxSize(),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
+                            itemsIndexed(orderedList, key = { _, item -> item.uri.toString() }) { index, item ->
+                                PreviewCollageItem(
+                                    media = item,
+                                    orderNumber = index + 1,
+                                    onPhotoClick = { viewingPhotoUri = it },
+                                    onDragSwap = {
+                                        val target = if (index < orderedList.size - 1) index + 1 else index - 1
+                                        swapItems(index, target)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .aspectRatio(0.85f)
+                                )
+                            }
                         }
                     }
                 }
@@ -378,7 +488,7 @@ fun PreviewOrderScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(0.08f))
+            Spacer(modifier = Modifier.weight(0.04f))
 
             // 5. Нижняя панель ввода подписи и круглая кнопка отправки с бейджем количества
             AttachInputBar(
@@ -392,28 +502,126 @@ fun PreviewOrderScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+
+        // Диалог "Сбросить выбор?" при свайпе шторки вниз
+        if (showDiscardConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDiscardConfirmDialog = false
+                    previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                    onOffsetChange(previewOffsetPx)
+                },
+                title = {
+                    Text(
+                        text = "Сбросить выбор?",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Вы действительно хотите сбросить выбор фотографий?",
+                        color = Color(0xFFCCCCCC),
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDiscardConfirmDialog = false
+                            onDiscardSelection()
+                            handleClose()
+                        }
+                    ) {
+                        Text("Сбросить", color = Color(0xFFFF5252), fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showDiscardConfirmDialog = false
+                            previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                            onOffsetChange(previewOffsetPx)
+                        }
+                    ) {
+                        Text("Отмена", color = Color.White)
+                    }
+                },
+                containerColor = Color(0xFF222226),
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+
+        // Полноэкранный просмотр фото по одиночному клику
+        if (viewingPhotoUri != null) {
+            Dialog(
+                onDismissRequest = { viewingPhotoUri = null },
+                properties = DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black)
+                        .clickable { viewingPhotoUri = null }
+                ) {
+                    var fullBitmap by remember(viewingPhotoUri) { mutableStateOf<ImageBitmap?>(null) }
+                    LaunchedEffect(viewingPhotoUri) {
+                        val b = withContext(Dispatchers.IO) {
+                            loadMediaThumbnail(context, viewingPhotoUri!!)
+                        }
+                        fullBitmap = b?.asImageBitmap()
+                    }
+                    if (fullBitmap != null) {
+                        Image(
+                            bitmap = fullBitmap!!,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                    IconButton(
+                        onClick = { viewingPhotoUri = null },
+                        modifier = Modifier
+                            .safeStatusBarPadding()
+                            .padding(8.dp)
+                            .align(Alignment.TopStart)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 /**
  * Элемент коллажа в экране предпросмотра:
- * - Качественный Gaussian Blur при включении спойлера
- * - Эффект мерцающих частиц спойлера
- * - Фиолетовый кружок с номером порядка (1), (2)...
- * - Тап переключает спойлер
- * - Свайп влево/вправо меняет порядок
+ * - Одиночный тап: полноэкранный просмотр
+ * - Долгое нажатие (зажатие): карточка уменьшается (scale 0.92) и перетаскивается пальцем (drag & drop)
+ * - Спойлерный блюр и мерцающие частицы, если спойлер включён
+ * - Фиолетовый круглый бейдж порядка (1), (2)...
  */
 @Composable
 private fun PreviewCollageItem(
     media: GalleryMedia,
     orderNumber: Int,
-    onToggleSpoiler: () -> Unit,
+    onPhotoClick: (Uri) -> Unit,
     onDragSwap: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
-    var dragAccumulated by remember { mutableFloatStateOf(0f) }
+    var isDragging by remember { mutableStateOf(false) }
+    var dragAccumulated by remember { mutableStateOf(Offset.Zero) }
+
+    val scale by animateFloatAsState(targetValue = if (isDragging) 0.92f else 1.0f)
+    val zIndexVal = if (isDragging) 10f else 1f
 
     LaunchedEffect(media.uri) {
         val bmp = withContext(Dispatchers.IO) {
@@ -424,17 +632,35 @@ private fun PreviewCollageItem(
 
     Box(
         modifier = modifier
+            .zIndex(zIndexVal)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                translationX = if (isDragging) dragAccumulated.x * 0.35f else 0f
+                translationY = if (isDragging) dragAccumulated.y * 0.35f else 0f
+            }
             .background(Color(0xFF1E1E1E))
-            .clickable { onToggleSpoiler() }
-            .pointerInput(media.uri) {
-                detectHorizontalDragGestures(
-                    onDragEnd = { dragAccumulated = 0f },
-                    onDragCancel = { dragAccumulated = 0f },
-                    onHorizontalDrag = { _, dragAmount ->
+            .clickable { onPhotoClick(media.uri) }
+            .pointerInput(orderNumber) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = {
+                        isDragging = true
+                        dragAccumulated = Offset.Zero
+                    },
+                    onDragEnd = {
+                        isDragging = false
+                        dragAccumulated = Offset.Zero
+                    },
+                    onDragCancel = {
+                        isDragging = false
+                        dragAccumulated = Offset.Zero
+                    },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
                         dragAccumulated += dragAmount
-                        if (kotlin.math.abs(dragAccumulated) > 60f) {
+                        if (dragAccumulated.getDistance() > 80f) {
                             onDragSwap()
-                            dragAccumulated = 0f
+                            dragAccumulated = Offset.Zero
                         }
                     }
                 )
@@ -461,15 +687,16 @@ private fun PreviewCollageItem(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(8.dp)
-                .size(28.dp)
+                .size(26.dp)
                 .clip(CircleShape)
-                .background(AttachPurple),
+                .background(Color(0xFFC084FC))
+                .border(1.5.dp, Color(0xFF1E1E1E), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = orderNumber.toString(),
                 color = Color.White,
-                fontSize = 14.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold
             )
         }
