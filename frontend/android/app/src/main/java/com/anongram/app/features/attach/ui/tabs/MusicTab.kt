@@ -17,7 +17,11 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
 import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
@@ -150,7 +154,7 @@ fun MusicTab(
 
     val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val isPlayerVisible = playerState.isVisible && playerState.currentTrack != null
-    val topOffsetDp = if (isFullscreen) statusBarTopDp + 6.dp else 4.dp
+    val topOffsetDp = statusBarTopDp + 6.dp
     val headerContentHeight = if (isPlayerVisible) 100.dp else 48.dp
     val totalHeaderHeight = topOffsetDp + headerContentHeight
 
@@ -185,48 +189,70 @@ fun MusicTab(
                 )
                 .zIndex(10f)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF94A3B8)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear",
-                                tint = Color(0xFF94A3B8)
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                interactionSource = searchInteractionSource,
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AttachCardDark,
-                    unfocusedContainerColor = AttachCardDark,
-                    focusedBorderColor = PurpleAccent,
-                    unfocusedBorderColor = AttachBorder,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
+            var isFocused by remember { mutableStateOf(false) }
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused && !isFullscreen) {
-                            onExpandToFullscreen()
-                        }
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(AttachCardDark)
+                    .border(1.dp, if (isFocused) PurpleAccent else AttachBorder, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Search",
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "Поиск музыки",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 14.sp
+                        )
                     }
-            )
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        interactionSource = searchInteractionSource,
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        ),
+                        cursorBrush = SolidColor(PurpleAccent),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                isFocused = focusState.isFocused
+                                if (focusState.isFocused && !isFullscreen) {
+                                    onExpandToFullscreen()
+                                }
+                            }
+                    )
+                }
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { searchQuery = "" },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
 
             if (isPlayerVisible) {
                 Spacer(modifier = Modifier.height(6.dp))

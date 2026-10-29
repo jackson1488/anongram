@@ -108,6 +108,7 @@ import com.anongram.app.features.attach.api.AttachmentDraft
 import com.anongram.app.features.attach.ui.components.AttachInputBar
 import com.anongram.app.features.attach.ui.components.AttachTabBar
 import com.anongram.app.features.attach.ui.components.AttachTopBar
+import com.anongram.app.features.attach.ui.tabs.ContactQuickCardSheet
 import com.anongram.app.features.attach.ui.tabs.ContactsTab
 import com.anongram.app.features.attach.ui.tabs.DeviceContact
 import com.anongram.app.features.attach.ui.tabs.DeviceFileItem
@@ -188,22 +189,19 @@ fun AttachSheetContent(
                     close()
                 }
             } else {
-                // Плавный свайп пальцем (свободное перемещение):
+                // Плавный свайп пальцем (свободное перемещение и мягкая доводка):
                 when {
-                    offsetPx <= H * 0.12f -> {
-                        // Дотянули почти до верха — плавно доводим до 100%
-                        animateTo(0f, ms = 220, isFling = false)
+                    offsetPx < halfOffset * 0.5f -> {
+                        // Провели вверх дальше половины пути — плавно доводим до 100%
+                        animateTo(0f, ms = 240, isFling = false)
                     }
-                    offsetPx > halfOffset + H * 0.08f -> {
-                        // Стянули существенно ниже половины — закрываем
-                        close()
-                    }
-                    offsetPx > halfOffset -> {
-                        // Чуть ниже 50% — возвращаем ровно на 50%
-                        animateTo(halfOffset, ms = 180, isFling = false)
+                    offsetPx <= halfOffset + H * 0.06f -> {
+                        // Около 50% — ровно фиксируем на 50%
+                        animateTo(halfOffset, ms = 200, isFling = false)
                     }
                     else -> {
-                        // В диапазоне от 12% до 50% шторка свободно остаётся на месте, где отпустил палец!
+                        // Оттянули вниз ниже половины — закрываем
+                        close()
                     }
                 }
             }
@@ -238,7 +236,8 @@ fun AttachSheetContent(
     var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
     var selectedAlbum by remember { mutableStateOf("Все медиа") }
     var isAlbumsSheetOpen by remember { mutableStateOf(false) }
-    var isQuickContactOpen by remember { mutableStateOf(false) }
+    var quickCardContact by remember { mutableStateOf<DeviceContact?>(null) }
+    val isQuickContactOpen by remember { derivedStateOf { quickCardContact != null } }
 
     // Выбранные элементы по всем вкладкам (ТЗ, шаг 11)
     val selectedMedia = remember { mutableStateListOf<GalleryMedia>() }
@@ -446,12 +445,12 @@ fun AttachSheetContent(
     BackHandler {
         when {
             showDiscardDialog -> showDiscardDialog = false
+            quickCardContact != null -> quickCardContact = null
             isAlbumsSheetOpen -> isAlbumsSheetOpen = false
             isMoreMenuOpen -> isMoreMenuOpen = false
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
-            offsetPx < halfOffset - 20f -> animateTo(halfOffset, 240)
             else -> requestDismiss()
         }
     }
@@ -546,12 +545,13 @@ fun AttachSheetContent(
                         },
                     contentAlignment = Alignment.Center
                 ) {
+                    val isGallery = (selectedTab == AttachTab.GALLERY)
                     Box(
                         modifier = Modifier
-                            .width(28.dp)
-                            .height(2.5.dp)
+                            .width(if (isGallery) 24.dp else 28.dp)
+                            .height(if (isGallery) 1.5.dp else 2.5.dp)
                             .clip(CircleShape)
-                            .background(Color(0x4DFFFFFF))
+                            .background(if (isGallery) Color(0x33FFFFFF) else Color(0x4DFFFFFF))
                     )
                 }
 
@@ -606,13 +606,7 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFull,
-                            onBack = {
-                                if (offsetPx < halfOffset - 20f) {
-                                    animateTo(halfOffset, 240)
-                                } else {
-                                    requestDismiss()
-                                }
-                            },
+                            onBack = { requestDismiss() },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -645,14 +639,9 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFull,
-                            onBack = {
-                                if (offsetPx < halfOffset - 20f) {
-                                    animateTo(halfOffset, 240)
-                                } else {
-                                    requestDismiss()
-                                }
-                            },
-                            onQuickCardVisibilityChange = { isQuickContactOpen = it },
+                            onBack = { requestDismiss() },
+                            onQuickCardVisibilityChange = {},
+                            onOpenQuickCard = { quickCardContact = it },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -676,13 +665,7 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFull,
-                            onBack = {
-                                if (offsetPx < halfOffset - 20f) {
-                                    animateTo(halfOffset, 240)
-                                } else {
-                                    requestDismiss()
-                                }
-                            },
+                            onBack = { requestDismiss() },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -720,13 +703,7 @@ fun AttachSheetContent(
         if (showTopBar) {
             AttachTopBar(
                 title = selectedTab.title,
-                onBack = {
-                    if (offsetPx < halfOffset - 20f) {
-                        animateTo(halfOffset, 240)
-                    } else {
-                        requestDismiss()
-                    }
-                },
+                onBack = { requestDismiss() },
                 hasActionMenu = (selectedTab == AttachTab.GALLERY),
                 onActionClick = { isMoreMenuOpen = true },
                 actionMenuContent = {
@@ -1035,6 +1012,25 @@ fun AttachSheetContent(
                     }
                 }
             }
+        }
+
+        if (quickCardContact != null) {
+            ContactQuickCardSheet(
+                contact = quickCardContact!!,
+                onSend = { phoneToSend ->
+                    onSend(
+                        listOf(
+                            AttachmentDraft.Contact(
+                                name = quickCardContact!!.name,
+                                phones = listOf(phoneToSend)
+                            )
+                        )
+                    )
+                    quickCardContact = null
+                    dismissAnimated()
+                },
+                onDismiss = { quickCardContact = null }
+            )
         }
     }
 }

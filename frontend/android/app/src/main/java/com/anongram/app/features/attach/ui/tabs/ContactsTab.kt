@@ -44,6 +44,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
@@ -110,6 +113,7 @@ fun ContactsTab(
     isFullscreen: Boolean = false,
     onBack: () -> Unit = {},
     onQuickCardVisibilityChange: (Boolean) -> Unit = {},
+    onOpenQuickCard: (DeviceContact) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -136,11 +140,6 @@ fun ContactsTab(
 
     var contacts by remember { mutableStateOf<List<DeviceContact>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
-    var quickCardContact by remember { mutableStateOf<DeviceContact?>(null) }
-
-    LaunchedEffect(quickCardContact) {
-        onQuickCardVisibilityChange(quickCardContact != null)
-    }
 
     LaunchedEffect(Unit) {
         contacts = withContext(Dispatchers.IO) {
@@ -176,7 +175,7 @@ fun ContactsTab(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(if (isFullscreen) statusBarTopDp + 68.dp else 64.dp)
+                .height(statusBarTopDp + 68.dp)
                 .zIndex(5f)
                 .background(
                     Brush.verticalGradient(
@@ -199,43 +198,67 @@ fun ContactsTab(
                 )
                 .zIndex(10f)
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Поиск контактов", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Поиск",
-                        tint = Color(0xFF94A3B8)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Очистить",
-                                tint = Color(0xFF94A3B8)
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                shape = RoundedCornerShape(24.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AttachCardDark,
-                    unfocusedContainerColor = AttachCardDark,
-                    focusedBorderColor = PurpleAccent,
-                    unfocusedBorderColor = AttachBorder,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
+            var isFocused by remember { mutableStateOf(false) }
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .onFocusChanged { if (it.isFocused && !isFullscreen) onExpandToFullscreen() }
-            )
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(AttachCardDark)
+                    .border(1.dp, if (isFocused) PurpleAccent else AttachBorder, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Search,
+                    contentDescription = "Поиск",
+                    tint = Color(0xFF94A3B8),
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "Поиск контактов",
+                            color = Color(0xFF94A3B8),
+                            fontSize = 14.sp
+                        )
+                    }
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp
+                        ),
+                        cursorBrush = SolidColor(PurpleAccent),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged {
+                                isFocused = it.isFocused
+                                if (it.isFocused && !isFullscreen) onExpandToFullscreen()
+                            }
+                    )
+                }
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { searchQuery = "" },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Очистить",
+                            tint = Color(0xFF94A3B8),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
         }
 
         // Список контактов (zIndex = 1f) — прокручивается ПОЗАДИ строки поиска
@@ -259,7 +282,7 @@ fun ContactsTab(
                     .padding(horizontal = 14.dp)
                     .zIndex(1f),
                 contentPadding = PaddingValues(
-                    top = if (isFullscreen) statusBarTopDp + 58.dp else 56.dp,
+                    top = statusBarTopDp + 58.dp,
                     bottom = 84.dp
                 )
             ) {
@@ -268,7 +291,13 @@ fun ContactsTab(
                     ContactListItemRow(
                         contact = contact,
                         isSelected = isSelected,
-                        onClick = { quickCardContact = contact },
+                        onClick = {
+                            if (selectedContacts.isNotEmpty()) {
+                                onToggleSelectContact(contact)
+                            } else {
+                                onOpenQuickCard(contact)
+                            }
+                        },
                         onLongClick = { onToggleSelectContact(contact) }
                     )
                     HorizontalDivider(
@@ -278,23 +307,6 @@ fun ContactsTab(
                     )
                 }
             }
-        }
-
-        // Быстрое нижнее окно контакта (ТЗ, шаг 15: компактное окно по высоте контента)
-        if (quickCardContact != null) {
-            ContactQuickCardSheet(
-                contact = quickCardContact!!,
-                onSend = { phoneToSend ->
-                    onSelectContact(
-                        AttachmentDraft.Contact(
-                            name = quickCardContact!!.name,
-                            phones = listOf(phoneToSend)
-                        )
-                    )
-                    quickCardContact = null
-                },
-                onDismiss = { quickCardContact = null }
-            )
         }
     }
 }
@@ -398,7 +410,7 @@ private fun ContactListItemRow(
  * фиксированная высота по контенту, большой аватар, имя, ID/номер, кнопка "Отправить контакт".
  */
 @Composable
-private fun ContactQuickCardSheet(
+internal fun ContactQuickCardSheet(
     contact: DeviceContact,
     onSend: (String) -> Unit,
     onDismiss: () -> Unit

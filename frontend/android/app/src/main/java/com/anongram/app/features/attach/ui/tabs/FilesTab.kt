@@ -812,145 +812,14 @@ private fun FilesGallerySubScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Плавающие таблетки сверху (высота 50dp как у ChatTopBar)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier.padding(top = 4.dp))
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Островок 1: Кнопка Назад (размер 50dp как у ChatTopBar)
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(CircleShape)
-                    .background(AttachPillDark)
-                    .border(1.dp, AttachBorder, CircleShape)
-                    .clickable { onBack() },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Островок 2: Заголовок «Все медиа»
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(50.dp)
-                    .clip(RoundedCornerShape(25.dp))
-                    .background(AttachPillDark)
-                    .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(
-                    text = "Все медиа",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            // Островок 3: Меню действий из 3 точек
-            Box(
-                modifier = Modifier.size(50.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                var menuExpanded by remember { mutableStateOf(false) }
-
-                Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, CircleShape)
-                        .clickable { menuExpanded = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "Меню действий",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                    modifier = Modifier.background(AttachCardDark)
-                ) {
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                if (isGridMode) "Показать списком" else "В виде сетки",
-                                color = Color.White,
-                                fontSize = 14.sp
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = if (isGridMode) Icons.Outlined.FormatListBulleted else Icons.Outlined.GridView,
-                                contentDescription = null,
-                                tint = Color(0xFFA78BFA)
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            isGridMode = !isGridMode
-                            prefs.edit().putBoolean("files_gallery_grid_mode", isGridMode).apply()
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = {
-                            Text(
-                                "Открыть в...",
-                                color = Color.White,
-                                fontSize = 14.sp
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = Icons.Outlined.OpenInNew,
-                                contentDescription = null,
-                                tint = Color(0xFFA78BFA)
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            try {
-                                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                                    type = "*/*"
-                                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
-                                    addCategory(Intent.CATEGORY_OPENABLE)
-                                }
-                                openInChooserLauncher.launch(Intent.createChooser(intent, "Открыть в..."))
-                            } catch (_: Exception) {}
-                        }
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(4.dp))
+    Box(modifier = modifier.fillMaxSize()) {
+        val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
         if (mediaList.isEmpty()) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
+                    .fillMaxSize()
+                    .zIndex(1f),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -963,10 +832,10 @@ private fun FilesGallerySubScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .fillMaxSize()
+                    .zIndex(1f)
                     .padding(horizontal = 4.dp),
-                contentPadding = PaddingValues(bottom = 84.dp),
+                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 84.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -980,10 +849,10 @@ private fun FilesGallerySubScreen(
         } else {
             LazyColumn(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f)
+                    .fillMaxSize()
+                    .zIndex(1f)
                     .padding(horizontal = 14.dp),
-                contentPadding = PaddingValues(bottom = 84.dp)
+                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 84.dp)
             ) {
                 items(mediaList, key = { it.uri.toString() }) { media ->
                     FilesGalleryListItem(
@@ -995,6 +864,160 @@ private fun FilesGallerySubScreen(
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(start = 64.dp)
                     )
+                }
+            }
+        }
+
+        // Плавающая шапка сверху с вуалью-градиентом (как в основной Галерее)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .zIndex(10f)
+        ) {
+            // Фоновый градиент (scrim) СЗАДИ плавающей шапки
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(statusBarTopDp + 68.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to AttachSheetBackground,
+                            0.75f to AttachSheetBackground.copy(alpha = 0.95f),
+                            1.0f to Color.Transparent
+                        )
+                    )
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Островок 1: Кнопка Назад (размер 50dp как у ChatTopBar)
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(AttachPillDark)
+                        .border(1.dp, AttachBorder, CircleShape)
+                        .clickable { onBack() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Островок 2: Заголовок «Все медиа (без сжатия)»
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(25.dp))
+                        .background(AttachPillDark)
+                        .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(
+                        text = "Все медиа (без сжатия)",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Островок 3: Меню действий из 3 точек
+                Box(
+                    modifier = Modifier.size(50.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    var menuExpanded by remember { mutableStateOf(false) }
+
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, CircleShape)
+                            .clickable { menuExpanded = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.MoreVert,
+                            contentDescription = "Меню действий",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        modifier = Modifier.background(AttachCardDark)
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    if (isGridMode) "Показать списком" else "В виде сетки",
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (isGridMode) Icons.Outlined.FormatListBulleted else Icons.Outlined.GridView,
+                                    contentDescription = null,
+                                    tint = Color(0xFFA78BFA)
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                isGridMode = !isGridMode
+                                prefs.edit().putBoolean("files_gallery_grid_mode", isGridMode).apply()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "Открыть в...",
+                                    color = Color.White,
+                                    fontSize = 14.sp
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.OpenInNew,
+                                    contentDescription = null,
+                                    tint = Color(0xFFA78BFA)
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                try {
+                                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                        type = "*/*"
+                                        putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                                        addCategory(Intent.CATEGORY_OPENABLE)
+                                    }
+                                    openInChooserLauncher.launch(Intent.createChooser(intent, "Открыть в..."))
+                                } catch (_: Exception) {}
+                            }
+                        )
+                    }
                 }
             }
         }

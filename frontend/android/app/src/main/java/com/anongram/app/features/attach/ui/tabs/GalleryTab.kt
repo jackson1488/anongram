@@ -13,6 +13,8 @@ import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.HandlerThread
 import android.provider.MediaStore
 import android.util.Size
 import android.view.Surface
@@ -34,6 +36,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -223,7 +226,7 @@ fun GalleryTab(
             }
 
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val topGridPadding = if (isFullscreen) statusBarTop + 62.dp else 28.dp
+            val topGridPadding = statusBarTop + 60.dp
 
             // Сетка медиа 3 колонки (ТЗ, шаг 5)
             LazyVerticalGrid(
@@ -237,68 +240,72 @@ fun GalleryTab(
             ) {
                 // Первая плитка: живое превью камеры высотой в 2 фото по вертикали (ТЗ, шаг 5)
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(IntrinsicSize.Min),
-                        horizontalArrangement = Arrangement.spacedBy(2.dp)
-                    ) {
-                        // Камера слева: 1 колонка в ширину, 2 фото в высоту
-                        LiveCameraTile(
-                            hasCameraPermission = hasCameraPerm,
-                            onLaunchCamera = onLaunchCamera,
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val colWidth = (maxWidth - 4.dp) / 3
+                        val tileHeight = colWidth * 2 + 2.dp
+                        Row(
                             modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-
-                        // Справа 2x2 фото
-                        Column(
-                            modifier = Modifier.weight(2f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                                .fillMaxWidth()
+                                .height(tileHeight),
+                            horizontalArrangement = Arrangement.spacedBy(2.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                            // Камера слева: 1 колонка в ширину, 2 фото в высоту
+                            LiveCameraTile(
+                                hasCameraPermission = hasCameraPerm,
+                                onLaunchCamera = onLaunchCamera,
+                                modifier = Modifier
+                                    .width(colWidth)
+                                    .fillMaxHeight()
+                            )
+
+                            // Справа 2x2 фото
+                            Column(
+                                modifier = Modifier.weight(2f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
-                                for (i in 0..1) {
-                                    val media = filteredMedia.getOrNull(i)
-                                    if (media != null) {
-                                        val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
-                                        val isSelected = selectedIndex >= 0
-                                        GalleryItemTile(
-                                            media = media,
-                                            isSelected = isSelected,
-                                            selectionNumber = if (isSelected) selectedIndex + 1 else 0,
-                                            onOpenViewer = { viewerIndex = i },
-                                            onToggleSelect = { onToggleSelectMedia(media) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    } else {
-                                        Spacer(modifier = Modifier.weight(1f))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().height(colWidth),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    for (i in 0..1) {
+                                        val media = filteredMedia.getOrNull(i)
+                                        if (media != null) {
+                                            val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
+                                            val isSelected = selectedIndex >= 0
+                                            GalleryItemTile(
+                                                media = media,
+                                                isSelected = isSelected,
+                                                selectionNumber = if (isSelected) selectedIndex + 1 else 0,
+                                                onOpenViewer = { viewerIndex = i },
+                                                onToggleSelect = { onToggleSelectMedia(media) },
+                                                modifier = Modifier.weight(1f).fillMaxHeight()
+                                            )
+                                        } else {
+                                            Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
+                                        }
                                     }
                                 }
-                            }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(2.dp)
-                            ) {
-                                for (i in 2..3) {
-                                    val media = filteredMedia.getOrNull(i)
-                                    if (media != null) {
-                                        val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
-                                        val isSelected = selectedIndex >= 0
-                                        GalleryItemTile(
-                                            media = media,
-                                            isSelected = isSelected,
-                                            selectionNumber = if (isSelected) selectedIndex + 1 else 0,
-                                            onOpenViewer = { viewerIndex = i },
-                                            onToggleSelect = { onToggleSelectMedia(media) },
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    } else {
-                                        Spacer(modifier = Modifier.weight(1f))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().height(colWidth),
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                                ) {
+                                    for (i in 2..3) {
+                                        val media = filteredMedia.getOrNull(i)
+                                        if (media != null) {
+                                            val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
+                                            val isSelected = selectedIndex >= 0
+                                            GalleryItemTile(
+                                                media = media,
+                                                isSelected = isSelected,
+                                                selectionNumber = if (isSelected) selectedIndex + 1 else 0,
+                                                onOpenViewer = { viewerIndex = i },
+                                                onToggleSelect = { onToggleSelectMedia(media) },
+                                                modifier = Modifier.weight(1f).fillMaxHeight()
+                                            )
+                                        } else {
+                                            Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
+                                        }
                                     }
                                 }
                             }
@@ -404,9 +411,16 @@ private fun LiveCameraTile(
                         surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                             var cameraDevice: CameraDevice? = null
                             var captureSession: CameraCaptureSession? = null
+                            var cameraThread: HandlerThread? = null
+                            var cameraHandler: Handler? = null
 
                             override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
                                 try {
+                                    val thread = HandlerThread("CameraBackgroundThread").apply { start() }
+                                    cameraThread = thread
+                                    val handler = Handler(thread.looper)
+                                    cameraHandler = handler
+
                                     val manager = ctx.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return
                                     val cameraId = manager.cameraIdList.firstOrNull { id ->
                                         manager.getCameraCharacteristics(id).get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
@@ -415,19 +429,21 @@ private fun LiveCameraTile(
                                     manager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                                         override fun onOpened(camera: CameraDevice) {
                                             cameraDevice = camera
-                                            val previewSurface = Surface(surface)
-                                            val requestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                                                addTarget(previewSurface)
-                                            }
-                                            camera.createCaptureSession(listOf(previewSurface), object : CameraCaptureSession.StateCallback() {
-                                                override fun onConfigured(session: CameraCaptureSession) {
-                                                    captureSession = session
-                                                    try {
-                                                        session.setRepeatingRequest(requestBuilder.build(), null, null)
-                                                    } catch (_: Exception) {}
+                                            try {
+                                                val previewSurface = Surface(surface)
+                                                val requestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                                                    addTarget(previewSurface)
                                                 }
-                                                override fun onConfigureFailed(session: CameraCaptureSession) {}
-                                            }, null)
+                                                camera.createCaptureSession(listOf(previewSurface), object : CameraCaptureSession.StateCallback() {
+                                                    override fun onConfigured(session: CameraCaptureSession) {
+                                                        captureSession = session
+                                                        try {
+                                                            session.setRepeatingRequest(requestBuilder.build(), null, handler)
+                                                        } catch (_: Exception) {}
+                                                    }
+                                                    override fun onConfigureFailed(session: CameraCaptureSession) {}
+                                                }, handler)
+                                            } catch (_: Exception) {}
                                         }
 
                                         override fun onDisconnected(camera: CameraDevice) {
@@ -437,7 +453,7 @@ private fun LiveCameraTile(
                                         override fun onError(camera: CameraDevice, error: Int) {
                                             camera.close()
                                         }
-                                    }, null)
+                                    }, handler)
                                 } catch (_: SecurityException) {
                                 } catch (_: Exception) {}
                             }
@@ -445,8 +461,11 @@ private fun LiveCameraTile(
                             override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) {}
 
                             override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                                captureSession?.close()
-                                cameraDevice?.close()
+                                try {
+                                    captureSession?.close()
+                                    cameraDevice?.close()
+                                    cameraThread?.quitSafely()
+                                } catch (_: Exception) {}
                                 return true
                             }
 
