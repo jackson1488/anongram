@@ -166,23 +166,29 @@ fun AttachSheetContent(
                 end()
             }
         }
-        fun close() = animateTo(H, 250) { currentOnDismiss() }
-        fun release(velocityY: Float, cap: Float = 3000f) {
+        fun close() = animateTo(H, 240) { currentOnDismiss() }
+        fun release(velocityY: Float) {
             anim?.cancel()
-            anim = scope.launch {
-                val v = velocityY.coerceIn(-cap, cap)
-                AnimationState(initialValue = offsetPx, initialVelocity = v)
-                    .animateDecay(exponentialDecay(frictionMultiplier = 1.4f)) {
-                        offsetPx = value.coerceIn(0f, H)
-                        if (value <= 0f || value >= H) cancelAnimation()
-                    }
-                // Если после затухания остановилась ниже половины (H * 0.5f) — мягко закрыть:
-                if (offsetPx > halfOffset) {
-                    animate(offsetPx, H, animationSpec = tween(250, easing = FastOutSlowInEasing)) { x, _ ->
-                        offsetPx = x
-                    }
-                    currentOnDismiss()
+            if (velocityY < -800f && offsetPx > 0f) {
+                // Резкий свайп вверх: мгновенно и плавно летит на весь экран
+                animateTo(0f, 220)
+            } else if (velocityY > 800f) {
+                // Резкий свайп вниз:
+                if (offsetPx < H * 0.40f) {
+                    // С полноэкранного режима вниз фиксирует удобные 50%
+                    animateTo(halfOffset, 240)
+                } else {
+                    // С 50% закрывает с мягкой анимацией
+                    close()
                 }
+            } else {
+                // Свободное положение от 50% до 100%:
+                if (offsetPx <= H * 0.05f) {
+                    animateTo(0f, 180)
+                } else if (offsetPx > halfOffset) {
+                    close()
+                }
+                // В диапазоне от 5% до 50% шторка свободно остаётся на месте без залипания!
             }
         }
 
@@ -198,11 +204,6 @@ fun AttachSheetContent(
         }
 
         val isFull by remember { derivedStateOf { offsetPx <= H * 0.05f } }
-        val topNavAlpha by animateFloatAsState(
-            targetValue = if (isFull) 1f else 0f,
-            animationSpec = tween(150),
-            label = "topNavAlpha"
-        )
 
         fun dismissAnimated() {
             if (isClosing) return
@@ -465,15 +466,21 @@ fun AttachSheetContent(
                 return Offset.Zero
             }
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (offsetPx > 0f) {
-                    release(available.y, cap = 3000f)
+                if (available.y < -800f && offsetPx > 0f) {
+                    release(available.y)
+                    return available
+                } else if (available.y > 800f && offsetPx > 0f) {
+                    release(available.y)
+                    return available
+                } else if (offsetPx > 0f && (offsetPx <= H * 0.05f || offsetPx > halfOffset)) {
+                    release(available.y)
                     return available
                 }
                 return Velocity.Zero
             }
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (available.y > 0f) {
-                    release(available.y, cap = 1500f)
+                    release(available.y)
                     return available
                 }
                 return Velocity.Zero
@@ -485,7 +492,7 @@ fun AttachSheetContent(
     Box(
         Modifier.fillMaxSize()
             .graphicsLayer {
-                alpha = ((H - offsetPx) / halfOffset).coerceIn(0f, 1f) * 0.6f
+                alpha = ((H - offsetPx) / H * 0.70f).coerceIn(0f, 0.70f)
             }
             .background(Color.Black)
             .clickable(
@@ -504,10 +511,7 @@ fun AttachSheetContent(
         ) {
             Column(
                 Modifier.fillMaxSize()
-                    .clip(
-                        if (isFull) RoundedCornerShape(0.dp)
-                        else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                    )
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .background(AttachSheetBackground)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -523,10 +527,10 @@ fun AttachSheetContent(
                                 offsetPx = (offsetPx + d).coerceIn(0f, H)
                             },
                             onDragStarted = { anim?.cancel() },
-                            onDragStopped = { v -> release(v, cap = 3000f) }
+                            onDragStopped = { v -> release(v) }
                         )
                         .graphicsLayer {
-                            val fadeProgress = ((offsetPx - H * 0.05f) / (H * 0.05f)).coerceIn(0f, 1f)
+                            val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
                             alpha = fadeProgress
                         },
                     contentAlignment = Alignment.Center
@@ -658,7 +662,7 @@ fun AttachSheetContent(
         }
 
         // 2. Вуаль-градиент за плавающей шапкой в полном экране ТОЛЬКО в Галерее
-        val showGalleryScrim = (selectedTab == AttachTab.GALLERY) && topNavAlpha > 0.01f
+        val showGalleryScrim = (selectedTab == AttachTab.GALLERY)
         if (showGalleryScrim) {
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             val headerScrimHeight = statusBarTop + 68.dp
@@ -669,7 +673,8 @@ fun AttachSheetContent(
                     .height(headerScrimHeight)
                     .zIndex(9f)
                     .graphicsLayer {
-                        alpha = topNavAlpha
+                        val p = ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                        alpha = p
                     }
                     .background(
                         Brush.verticalGradient(
@@ -682,7 +687,7 @@ fun AttachSheetContent(
         }
 
         // 4. Плавающая шапка
-        val showTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) && topNavAlpha > 0.01f
+        val showTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION)
         if (showTopBar) {
             AttachTopBar(
                 title = selectedTab.title,
@@ -704,6 +709,18 @@ fun AttachSheetContent(
                             .border(1.dp, AttachBorder, RoundedCornerShape(12.dp))
                     ) {
                         DropdownMenuItem(
+                            text = { Text("Показать списком", color = Color.White, fontSize = 14.sp) },
+                            onClick = { isMoreMenuOpen = false },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Outlined.Folder,
+                                    contentDescription = null,
+                                    tint = AttachPurple,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        )
+                        DropdownMenuItem(
                             text = { Text("Открыть в...", color = Color.White, fontSize = 14.sp) },
                             onClick = {
                                 isMoreMenuOpen = false
@@ -723,41 +740,22 @@ fun AttachSheetContent(
                                 )
                             }
                         )
-                        DropdownMenuItem(
-                            text = { Text("Системная галерея", color = Color.White, fontSize = 14.sp) },
-                            onClick = {
-                                isMoreMenuOpen = false
-                                systemGalleryLauncher.launch("image/*")
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.PhotoLibrary,
-                                    contentDescription = null,
-                                    tint = AttachPurple,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Файлы (без сжатия)", color = Color.White, fontSize = 14.sp) },
-                            onClick = {
-                                isMoreMenuOpen = false
-                                if (selectedMedia.isNotEmpty()) {
-                                    sendAsUncompressed()
-                                } else {
-                                    uncompressedPickerLauncher.launch("*/*")
-                                }
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Outlined.InsertDriveFile,
-                                    contentDescription = null,
-                                    tint = AttachPurple,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        )
                         if (selectedMedia.isNotEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.sp) },
+                                onClick = {
+                                    isMoreMenuOpen = false
+                                    sendAsUncompressed()
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.InsertDriveFile,
+                                        contentDescription = null,
+                                        tint = AttachPurple,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
                             DropdownMenuItem(
                                 text = { Text("Отправить в HD качестве", color = Color.White, fontSize = 14.sp) },
                                 onClick = {
@@ -767,6 +765,22 @@ fun AttachSheetContent(
                                 leadingIcon = {
                                     Icon(
                                         imageVector = Icons.Default.HighQuality,
+                                        contentDescription = null,
+                                        tint = AttachPurple,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text("Файлы (без сжатия)", color = Color.White, fontSize = 14.sp) },
+                                onClick = {
+                                    isMoreMenuOpen = false
+                                    uncompressedPickerLauncher.launch("image/*")
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.InsertDriveFile,
                                         contentDescription = null,
                                         tint = AttachPurple,
                                         modifier = Modifier.size(20.dp)
@@ -808,8 +822,9 @@ fun AttachSheetContent(
                     .safeStatusBarPadding()
                     .zIndex(10f)
                     .graphicsLayer {
-                        alpha = topNavAlpha
-                        translationY = -8.dp.toPx() * (1f - topNavAlpha)
+                        val p = ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                        alpha = p
+                        translationY = -8.dp.toPx() * (1f - p)
                     }
             )
         }
@@ -828,8 +843,9 @@ fun AttachSheetContent(
                 visible = true,
                 modifier = Modifier.graphicsLayer {
                     val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
-                    alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavAlpha)
-                    translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavAlpha)
+                    val topNavP = ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                    alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavP)
+                    translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavP)
                 }
             )
 

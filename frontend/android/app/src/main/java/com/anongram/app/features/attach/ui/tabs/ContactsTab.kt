@@ -256,36 +256,26 @@ fun ContactsTab(
                     translationY = statusBarTopPx * topProgress
                 }
         ) {
-            Row(
+            // Мягкое затемнение сверху под статус-бар
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 28.dp, start = 14.dp, end = 14.dp, bottom = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (topProgress > 0.01f) {
-                    Box(
-                        modifier = Modifier
-                            .width(46.dp * topProgress)
-                            .height(46.dp)
-                            .graphicsLayer {
-                                alpha = topProgress
-                            }
-                            .clip(CircleShape)
-                            .background(AttachCardDark)
-                            .border(1.dp, AttachBorder, CircleShape)
-                            .clickable { onBack() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                    .height(28.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color(0xCC161616),
+                                Color.Transparent
+                            )
                         )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp * topProgress))
-                }
+                    )
+            )
 
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 14.dp, vertical = 2.dp)
+            ) {
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
@@ -319,7 +309,7 @@ fun ContactsTab(
                         unfocusedTextColor = Color.White
                     ),
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
                         .height(48.dp)
                         .onFocusChanged { if (it.isFocused && !isFullscreen) onExpandToFullscreen() }
                 )

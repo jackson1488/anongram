@@ -162,142 +162,16 @@ fun FilesTab(
         }
     }
 
-    val topProgress by animateFloatAsState(
-        targetValue = if (isFullscreen) 1f else 0f,
-        animationSpec = tween(150),
-        label = "filesTopProgress"
-    )
-
-    Box(
+    Column(
         modifier = modifier.fillMaxSize()
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Spacer(modifier = Modifier.height(28.dp))
-
-
-        // Общая вертикальная карточка со скруглёнными углами (ТЗ, скрин media_1793211129173.png)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp)
-                .clip(RoundedCornerShape(18.dp))
-                .background(AttachCardDark)
-        ) {
-            // 1. Внутреннее хранилище
-            StorageCardRow(
-                title = "Внутреннее хранилище",
-                subtitle = "Поиск в файловой системе",
-                icon = Icons.Outlined.SdStorage,
-                iconBackground = Color(0xFF22C55E),
-                onClick = { documentPickerLauncher.launch(arrayOf("*/*")) }
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 68.dp),
-                color = Color(0x1AFFFFFF),
-                thickness = 0.5.dp
-            )
-
-            // 2. AnonGram
-            StorageCardRow(
-                title = "AnonGram",
-                subtitle = "Поиск в папке приложения",
-                icon = Icons.Outlined.Folder,
-                iconBackground = Color(0xFF8B5CF6),
-                onClick = {
-                    val appFiles = context.filesDir.listFiles()?.map { f ->
-                        DeviceFileItem(
-                            uri = Uri.fromFile(f),
-                            name = f.name,
-                            size = f.length(),
-                            dateModified = f.lastModified(),
-                            extension = f.extension
-                        )
-                    } ?: emptyList()
-                    files = appFiles
-                }
-            )
-
-            HorizontalDivider(
-                modifier = Modifier.padding(start = 68.dp),
-                color = Color(0x1AFFFFFF),
-                thickness = 0.5.dp
-            )
-
-            // 3. Галерея
-            StorageCardRow(
-                title = "Галерея",
-                subtitle = "Для отправки изображений без сжатия",
-                icon = Icons.Outlined.PhotoLibrary,
-                iconBackground = Color(0xFFF59E0B),
-                onClick = { galleryPickerLauncher.launch("*/*") }
-            )
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 14.dp)
-        ) {
-            // Заголовок раздела под карточкой (ТЗ: фиолетовый текст media_1793211129173.png)
-            Text(
-                text = sortOrder.title,
-                color = Color(0xFFA78BFA),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 4.dp)
-            )
-
-            if (sortedFiles.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Файлы не найдены",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 14.sp
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 84.dp)
-                ) {
-                    items(sortedFiles, key = { it.uri.toString() }) { file ->
-                        val isSelected = selectedFiles.any { it.uri == file.uri }
-                        FileRowItem(
-                            file = file,
-                            isSelected = isSelected,
-                            onClick = {
-                                onToggleSelectFile(file)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (topProgress > 0.01f) {
+        // Плавающие таблетки сверху в полном экране (высота 50dp как у ChatTopBar)
+        if (isFullscreen) {
             Row(
                 modifier = Modifier
-                    .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp)
-                    .zIndex(10f)
-                    .graphicsLayer {
-                        alpha = topProgress
-                        translationY = -8.dp.toPx() * (1f - topProgress)
-                    },
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
@@ -376,8 +250,26 @@ fun FilesTab(
                         }
                     }
                 } else {
-                    // Обычный режим: по краям таблетки поиска и сортировки
-                    Spacer(modifier = Modifier.weight(1f))
+                    // Обычный режим: заголовок «Выбрать файл», затем кнопка поиска, затем кнопка фильтра в углу (все 50x50dp)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(25.dp))
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        Text(
+                            text = "Выбрать файл",
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // 1. Кнопка поиска
                     Box(
@@ -416,6 +308,117 @@ fun FilesTab(
                             contentDescription = "Сортировка",
                             tint = Color.White,
                             modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+        } else {
+            Spacer(modifier = Modifier.height(30.dp))
+        }
+
+        // Общая вертикальная карточка со скруглёнными углами (ТЗ, скрин media_1793211129173.png)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(AttachCardDark)
+        ) {
+            // 1. Внутреннее хранилище
+            StorageCardRow(
+                title = "Внутреннее хранилище",
+                subtitle = "Поиск в файловой системе",
+                icon = Icons.Outlined.SdStorage,
+                iconBackground = Color(0xFF22C55E),
+                onClick = { documentPickerLauncher.launch(arrayOf("*/*")) }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 68.dp),
+                color = Color(0x1AFFFFFF),
+                thickness = 0.5.dp
+            )
+
+            // 2. AnonGram
+            StorageCardRow(
+                title = "AnonGram",
+                subtitle = "Поиск в папке приложения",
+                icon = Icons.Outlined.Folder,
+                iconBackground = Color(0xFF8B5CF6),
+                onClick = {
+                    val appFiles = context.filesDir.listFiles()?.map { f ->
+                        DeviceFileItem(
+                            uri = Uri.fromFile(f),
+                            name = f.name,
+                            size = f.length(),
+                            dateModified = f.lastModified(),
+                            extension = f.extension
+                        )
+                    } ?: emptyList()
+                    files = appFiles
+                }
+            )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(start = 68.dp),
+                color = Color(0x1AFFFFFF),
+                thickness = 0.5.dp
+            )
+
+            // 3. Галерея
+            StorageCardRow(
+                title = "Галерея",
+                subtitle = "Для отправки изображений без сжатия",
+                icon = Icons.Outlined.PhotoLibrary,
+                iconBackground = Color(0xFFF59E0B),
+                onClick = { galleryPickerLauncher.launch("image/*") }
+            )
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 14.dp)
+        ) {
+            // Заголовок раздела под карточкой (ТЗ: фиолетовый текст media_1793211129173.png)
+            Text(
+                text = sortOrder.title,
+                color = Color(0xFFA78BFA),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 4.dp)
+            )
+
+            if (sortedFiles.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Файлы не найдены",
+                        color = Color(0xFF94A3B8),
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(bottom = 84.dp)
+                ) {
+                    items(sortedFiles, key = { it.uri.toString() }) { file ->
+                        val isSelected = selectedFiles.any { it.uri == file.uri }
+                        FileRowItem(
+                            file = file,
+                            isSelected = isSelected,
+                            onClick = {
+                                onToggleSelectFile(file)
+                            }
                         )
                     }
                 }
