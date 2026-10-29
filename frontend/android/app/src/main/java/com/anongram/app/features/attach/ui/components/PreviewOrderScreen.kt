@@ -182,22 +182,6 @@ fun PreviewOrderScreen(
             )
         }
 
-        val sheetDragState = rememberDraggableState { delta ->
-            previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
-            onOffsetChange(previewOffsetPx)
-        }
-        val onSheetDragStopped: (Float) -> Unit = { velocity ->
-            if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
-                showDiscardConfirmDialog = true
-            } else if (velocity < -400f || previewOffsetPx < halfOffset * 0.45f) {
-                previewOffsetPx = 0f
-                onOffsetChange(0f)
-            } else {
-                previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
-                onOffsetChange(previewOffsetPx)
-            }
-        }
-
         // 2. Шторка предпросмотра (плавает как шторка от 0 до halfOffset)
         Box(
             modifier = Modifier
@@ -211,8 +195,21 @@ fun PreviewOrderScreen(
                     .background(Color(0xFF1E1E22))
                     .draggable(
                         orientation = Orientation.Vertical,
-                        state = sheetDragState,
-                        onDragStopped = onSheetDragStopped
+                        state = rememberDraggableState { delta ->
+                            previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
+                            onOffsetChange(previewOffsetPx)
+                        },
+                        onDragStopped = { velocity ->
+                            if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
+                                showDiscardConfirmDialog = true
+                            } else if (velocity < -400f || previewOffsetPx < halfOffset * 0.45f) {
+                                previewOffsetPx = 0f
+                                onOffsetChange(0f)
+                            } else {
+                                previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                                onOffsetChange(previewOffsetPx)
+                            }
+                        }
                     )
             ) {
                 // Тонкая ручка шторки сверху, за которую можно тянуть
