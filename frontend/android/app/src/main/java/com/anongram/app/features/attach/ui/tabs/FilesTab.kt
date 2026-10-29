@@ -378,6 +378,7 @@ fun FilesTab(
                 }
             }
         }
+    }
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
