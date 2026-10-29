@@ -631,10 +631,10 @@ fun AttachSheetContent(
                         indication = null
                     ) { /* поглощаем клики внутри шторки */ }
             ) {
-                val isGalleryWithSelection = (selectedTab == AttachTab.GALLERY && selectedMedia.isNotEmpty())
-                if (isGalleryWithSelection && !isFull) {
+                val isGalleryTab = (selectedTab == AttachTab.GALLERY)
+                if (isGalleryTab && !isFull) {
                     Box(
-                        Modifier.fillMaxWidth()
+                        Modifier.fillMaxWidth().height(44.dp)
                             .draggable(
                                 orientation = Orientation.Vertical,
                                 state = rememberDraggableState { d ->
@@ -643,30 +643,40 @@ fun AttachSheetContent(
                                 },
                                 onDragStarted = { anim?.cancel() },
                                 onDragStopped = { v -> release(v) }
-                            )
+                            ),
+                        contentAlignment = Alignment.Center
                     ) {
-                        GallerySelectionBar(
-                            title = getGallerySelectionTitle(selectedMedia),
-                            hasMoreItems = selectedMedia.size >= 2,
-                            onOpenPreviewOrder = {
-                                if (selectedMedia.size >= 2) {
-                                    isPreviewOrderOpen = true
+                        if (selectedMedia.isNotEmpty()) {
+                            GallerySelectionBar(
+                                title = getGallerySelectionTitle(selectedMedia),
+                                hasMoreItems = selectedMedia.size >= 2,
+                                onOpenPreviewOrder = {
+                                    if (selectedMedia.size >= 2) {
+                                        isPreviewOrderOpen = true
+                                    }
+                                },
+                                onOptionsClick = { isGalleryOptionsMenuOpen = true },
+                                menuContent = {
+                                    GallerySelectionOptionsMenu(
+                                        expanded = isGalleryOptionsMenuOpen,
+                                        onDismissRequest = { isGalleryOptionsMenuOpen = false },
+                                        allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
+                                        onSendUncompressed = { sendAsUncompressed() },
+                                        onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
+                                        onSendHd = { sendAsHd() }
+                                    )
                                 }
-                            },
-                            onOptionsClick = { isGalleryOptionsMenuOpen = true },
-                            menuContent = {
-                                GallerySelectionOptionsMenu(
-                                    expanded = isGalleryOptionsMenuOpen,
-                                    onDismissRequest = { isGalleryOptionsMenuOpen = false },
-                                    canUngroup = selectedMedia.size >= 2,
-                                    allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
-                                    onSendUncompressed = { sendAsUncompressed() },
-                                    onSendUngrouped = { sendAsUngrouped() },
-                                    onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
-                                    onSendHd = { sendAsHd() }
-                                )
-                            }
-                        )
+                            )
+                        } else {
+                            // ручка по центру (высота 44.dp зарезервирована заранее, сетка никогда не прыгает)
+                            Box(
+                                modifier = Modifier
+                                    .width(24.dp)
+                                    .height(1.5.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x33FFFFFF))
+                            )
+                        }
                     }
                 } else {
                     // ручка: тянуть можно за неё
@@ -861,10 +871,8 @@ fun AttachSheetContent(
                         GallerySelectionOptionsMenu(
                             expanded = isMoreMenuOpen,
                             onDismissRequest = { isMoreMenuOpen = false },
-                            canUngroup = selectedMedia.size >= 2,
                             allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
                             onSendUncompressed = { sendAsUncompressed() },
-                            onSendUngrouped = { sendAsUngrouped() },
                             onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
                             onSendHd = { sendAsHd() }
                         )
@@ -932,10 +940,6 @@ fun AttachSheetContent(
                             Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .then(
-                                        if (selectedMedia.size >= 2) Modifier.clickable { isPreviewOrderOpen = true }
-                                        else Modifier
-                                    )
                                     .padding(horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -949,12 +953,17 @@ fun AttachSheetContent(
                                 )
                                 if (selectedMedia.size >= 2) {
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Предпросмотр",
-                                        tint = Color(0xFFB0B0B0),
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    IconButton(
+                                        onClick = { isPreviewOrderOpen = true },
+                                        modifier = Modifier.size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = "Предпросмотр",
+                                            tint = Color(0xFFB0B0B0),
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -1125,6 +1134,12 @@ fun AttachSheetContent(
                 onCaptionChange = { captionText = it },
                 onClose = { isPreviewOrderOpen = false },
                 chatId = chatId,
+                initialOffsetPx = offsetPx,
+                onOffsetChange = { offsetPx = it },
+                onUpdateOrderAndSpoilers = { newOrder ->
+                    selectedMedia.clear()
+                    selectedMedia.addAll(newOrder)
+                },
                 onSend = { orderedMedia, isUncompressed, isUngrouped, isHd ->
                     val drafts = mutableListOf<AttachmentDraft>()
                     orderedMedia.forEachIndexed { index, media ->
@@ -1408,17 +1423,12 @@ private fun GallerySelectionBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(48.dp)
+            .height(44.dp)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            modifier = Modifier
-                .weight(1f)
-                .then(
-                    if (hasMoreItems) Modifier.clip(RoundedCornerShape(8.dp)).clickable { onOpenPreviewOrder() }
-                    else Modifier
-                ),
+            modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -1428,13 +1438,18 @@ private fun GallerySelectionBar(
                 fontWeight = FontWeight.SemiBold
             )
             if (hasMoreItems) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "Предпросмотр",
-                    tint = Color(0xFFB0B0B0),
-                    modifier = Modifier.size(16.dp)
-                )
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = onOpenPreviewOrder,
+                    modifier = Modifier.size(28.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "Предпросмотр",
+                        tint = Color(0xFFB0B0B0),
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
         }
 
@@ -1459,10 +1474,8 @@ private fun GallerySelectionBar(
 private fun GallerySelectionOptionsMenu(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
-    canUngroup: Boolean,
     allHaveSpoiler: Boolean,
     onSendUncompressed: () -> Unit,
-    onSendUngrouped: () -> Unit,
     onToggleSpoiler: () -> Unit,
     onSendHd: () -> Unit,
     modifier: Modifier = Modifier
@@ -1490,28 +1503,26 @@ private fun GallerySelectionOptionsMenu(
             }
         )
 
-        if (canUngroup) {
-            DropdownMenuItem(
-                text = { Text("Отправить без группировки", color = Color.White, fontSize = 14.sp) },
-                onClick = {
-                    onDismissRequest()
-                    onSendUngrouped()
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.LayersClear,
-                        contentDescription = null,
-                        tint = AttachPurple,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            )
-        }
+        DropdownMenuItem(
+            text = { Text("Отправить в HD-качестве", color = Color.White, fontSize = 14.sp) },
+            onClick = {
+                onDismissRequest()
+                onSendHd()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Default.HighQuality,
+                    contentDescription = null,
+                    tint = AttachPurple,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
 
         DropdownMenuItem(
             text = {
                 Text(
-                    text = if (allHaveSpoiler) "Отменить скрытие" else "Скрыть под спойлер",
+                    text = if (allHaveSpoiler) "Отменить спойлер" else "Скрыть под спойлер",
                     color = Color.White,
                     fontSize = 14.sp
                 )
@@ -1523,22 +1534,6 @@ private fun GallerySelectionOptionsMenu(
             leadingIcon = {
                 Icon(
                     imageVector = if (allHaveSpoiler) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                    contentDescription = null,
-                    tint = AttachPurple,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        )
-
-        DropdownMenuItem(
-            text = { Text("Отправить в HD-качестве", color = Color.White, fontSize = 14.sp) },
-            onClick = {
-                onDismissRequest()
-                onSendHd()
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.HighQuality,
                     contentDescription = null,
                     tint = AttachPurple,
                     modifier = Modifier.size(20.dp)

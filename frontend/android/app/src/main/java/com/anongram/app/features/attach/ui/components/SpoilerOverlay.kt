@@ -62,21 +62,21 @@ fun SpoilerOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xE608080A))
+            .background(Color(0x66000000))
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
 
-            // Мягкое свечение в верхней части для эффекта звёздного сияния как в Telegram
+            // Мягкое свечение для эффекта звёздного сияния как в Telegram
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.16f), Color.Transparent),
-                    center = Offset(w * 0.60f, h * 0.38f),
-                    radius = minOf(w, h) * 0.70f
+                    colors = listOf(Color.White.copy(alpha = 0.22f), Color(0x33FFFFFF), Color.Transparent),
+                    center = Offset(w * 0.50f, h * 0.40f),
+                    radius = minOf(w, h) * 0.85f
                 ),
-                radius = minOf(w, h) * 0.70f,
-                center = Offset(w * 0.60f, h * 0.38f)
+                radius = minOf(w, h) * 0.85f,
+                center = Offset(w * 0.50f, h * 0.40f)
             )
 
             particles.forEach { p ->
