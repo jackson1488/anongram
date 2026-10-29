@@ -466,13 +466,7 @@ fun AttachSheetContent(
                 return Offset.Zero
             }
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (available.y < -800f && offsetPx > 0f) {
-                    release(available.y)
-                    return available
-                } else if (available.y > 800f && offsetPx > 0f) {
-                    release(available.y)
-                    return available
-                } else if (offsetPx > 0f && (offsetPx <= H * 0.05f || offsetPx > halfOffset)) {
+                if (offsetPx > 0f) {
                     release(available.y)
                     return available
                 }
@@ -595,7 +589,13 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFull,
-                            onBack = { requestDismiss() },
+                            onBack = {
+                                if (isFull) {
+                                    animateTo(halfOffset, 240)
+                                } else {
+                                    requestDismiss()
+                                }
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -628,7 +628,13 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFull,
-                            onBack = { requestDismiss() },
+                            onBack = {
+                                if (isFull) {
+                                    animateTo(halfOffset, 240)
+                                } else {
+                                    requestDismiss()
+                                }
+                            },
                             onQuickCardVisibilityChange = { isQuickContactOpen = it },
                             modifier = Modifier.fillMaxSize()
                         )
@@ -653,7 +659,13 @@ fun AttachSheetContent(
                                 }
                             },
                             isFullscreen = isFull,
-                            onBack = { requestDismiss() },
+                            onBack = {
+                                if (isFull) {
+                                    animateTo(halfOffset, 240)
+                                } else {
+                                    requestDismiss()
+                                }
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
