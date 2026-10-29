@@ -3,7 +3,11 @@ package com.anongram.app.features.attach.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.animateDecay
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -11,6 +15,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -69,6 +75,7 @@ import androidx.compose.ui.input.pointer.positionChange
 import kotlinx.coroutines.channels.Channel
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -80,6 +87,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -159,11 +167,22 @@ fun AttachSheetContent(
             }
         }
         fun close() = animateTo(H, 250) { currentOnDismiss() }
-        fun settle(velocityY: Float) {   // velocityY > 0 = вниз
-            when {
-                velocityY > 1500f || offsetPx > halfOffset -> close()
-                velocityY < -1500f -> animateTo(0f, 250)
-                // иначе остаётся где отпустили
+        fun release(velocityY: Float, cap: Float = 3000f) {
+            anim?.cancel()
+            anim = scope.launch {
+                val v = velocityY.coerceIn(-cap, cap)
+                AnimationState(initialValue = offsetPx, initialVelocity = v)
+                    .animateDecay(exponentialDecay(frictionMultiplier = 1.4f)) {
+                        offsetPx = value.coerceIn(0f, H)
+                        if (value <= 0f || value >= H) cancelAnimation()
+                    }
+                // Если после затухания остановилась ниже половины (H * 0.5f) — мягко закрыть:
+                if (offsetPx > halfOffset) {
+                    animate(offsetPx, H, animationSpec = tween(250, FastOutSlowInEasing)) { x, _ ->
+                        offsetPx = x
+                    }
+                    currentOnDismiss()
+                }
             }
         }
 
@@ -179,6 +198,11 @@ fun AttachSheetContent(
         }
 
         val isFull by remember { derivedStateOf { offsetPx <= H * 0.05f } }
+        val topNavAlpha by animateFloatAsState(
+            targetValue = if (isFull) 1f else 0f,
+            animationSpec = tween(150),
+            label = "topNavAlpha"
+        )
 
         fun dismissAnimated() {
             if (isClosing) return
@@ -441,11 +465,17 @@ fun AttachSheetContent(
                 return Offset.Zero
             }
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (offsetPx > 0f) { settle(available.y); return available }
+                if (offsetPx > 0f) {
+                    release(available.y, cap = 3000f)
+                    return available
+                }
                 return Velocity.Zero
             }
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (available.y > 0f) { settle(available.y); return available }
+                if (available.y > 0f) {
+                    release(available.y, cap = 1500f)
+                    return available
+                }
                 return Velocity.Zero
             }
         }
@@ -465,49 +495,50 @@ fun AttachSheetContent(
     )
 
     // Шторка: ВСЕГДА на всю высоту, двигается только translationY
-    Box(
-        Modifier.fillMaxSize()
-            .graphicsLayer { translationY = offsetPx }
-            .nestedScroll(connection)
-    ) {
-        Column(
+    @OptIn(ExperimentalFoundationApi::class)
+    CompositionLocalProvider(LocalOverscrollConfiguration provides null) {
+        Box(
             Modifier.fillMaxSize()
-                .clip(
-                    if (isFull) RoundedCornerShape(0.dp)
-                    else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
-                )
-                .background(AttachSheetBackground)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { /* поглощаем клики внутри шторки */ }
+                .graphicsLayer { translationY = offsetPx }
+                .nestedScroll(connection)
         ) {
-            // ручка: тянуть можно за неё
-            Box(
-                Modifier.fillMaxWidth().height(36.dp)
-                    .draggable(
-                        orientation = Orientation.Vertical,
-                        state = rememberDraggableState { d ->
-                            offsetPx = (offsetPx + d).coerceIn(0f, H)
-                        },
-                        onDragStarted = { anim?.cancel() },
-                        onDragStopped = { v -> settle(v) }
+            Column(
+                Modifier.fillMaxSize()
+                    .clip(
+                        if (isFull) RoundedCornerShape(0.dp)
+                        else RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
                     )
-                    .graphicsLayer {
-                        val fadeProgress = ((offsetPx - H * 0.05f) / (H * 0.05f)).coerceIn(0f, 1f)
-                        alpha = fadeProgress
-                    },
-                contentAlignment = Alignment.Center
+                    .background(AttachSheetBackground)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* поглощаем клики внутри шторки */ }
             ) {
+                // ручка: тянуть можно за неё
                 Box(
-                    modifier = Modifier
-                        .padding(vertical = 10.dp)
-                        .width(36.dp)
-                        .height(4.dp)
-                        .clip(CircleShape)
-                        .background(Color(0x40FFFFFF))
-                )
-            }
+                    Modifier.fillMaxWidth().height(24.dp)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { d ->
+                                offsetPx = (offsetPx + d).coerceIn(0f, H)
+                            },
+                            onDragStarted = { anim?.cancel() },
+                            onDragStopped = { v -> release(v, cap = 3000f) }
+                        )
+                        .graphicsLayer {
+                            val fadeProgress = ((offsetPx - H * 0.05f) / (H * 0.05f)).coerceIn(0f, 1f)
+                            alpha = fadeProgress
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(36.dp)
+                            .height(4.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x40FFFFFF))
+                    )
+                }
 
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (selectedTab) {
@@ -627,32 +658,32 @@ fun AttachSheetContent(
         }
 
         // 2. Вуаль-градиент за плавающей шапкой в полном экране ТОЛЬКО в Галерее
-        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        val headerScrimHeight = statusBarTop + 68.dp
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(headerScrimHeight)
-                .graphicsLayer {
-                    val isGallery = (selectedTab == AttachTab.GALLERY)
-                    if (!isGallery) {
-                        alpha = 0f
-                    } else {
-                        val appearProgress = (1f - (offsetPx / (H * 0.10f))).coerceIn(0f, 1f)
-                        alpha = appearProgress
+        val showGalleryScrim = (selectedTab == AttachTab.GALLERY) && topNavAlpha > 0.01f
+        if (showGalleryScrim) {
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            val headerScrimHeight = statusBarTop + 68.dp
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(headerScrimHeight)
+                    .zIndex(9f)
+                    .graphicsLayer {
+                        alpha = topNavAlpha
                     }
-                }
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to Color.Black.copy(alpha = 0.85f),
-                        0.65f to Color.Black.copy(alpha = 0.55f),
-                        1.0f to Color.Transparent
+                    .background(
+                        Brush.verticalGradient(
+                            0.0f to Color.Black.copy(alpha = 0.85f),
+                            0.65f to Color.Black.copy(alpha = 0.55f),
+                            1.0f to Color.Transparent
+                        )
                     )
-                )
-        )
+            )
+        }
 
-            // 4. Плавающая шапка
+        // 4. Плавающая шапка
+        val showTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) && topNavAlpha > 0.01f
+        if (showTopBar) {
             AttachTopBar(
                 title = selectedTab.title,
                 onBack = {
@@ -775,51 +806,47 @@ fun AttachSheetContent(
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .safeStatusBarPadding()
+                    .zIndex(10f)
                     .graphicsLayer {
-                        val showForTab = selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION
-                        if (!showForTab) {
-                            alpha = 0f
-                            translationY = -100f
-                        } else {
-                            val p = (1f - offsetPx / (H * 0.08f)).coerceIn(0f, 1f)
-                            alpha = p
-                            translationY = -50f * (1f - p)
-                        }
+                        alpha = topNavAlpha
+                        translationY = -8.dp.toPx() * (1f - topNavAlpha)
                     }
             )
-
-            // 5. Нижняя панель вкладок и ввода (парящая над экраном, управляется через translationY)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .graphicsLayer {
-                        translationY = -minOf(offsetPx, halfOffset)
-                    }
-            ) {
-                AttachTabBar(
-                    selectedTab = selectedTab,
-                    onSelectTab = { selectedTab = it },
-                    visible = true,
-                    modifier = Modifier.graphicsLayer {
-                        val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
-                        alpha = if (isCardOrSelectionOpen || isFull) 0f else 1f
-                        translationY = if (isCardOrSelectionOpen || isFull) 200f else 0f
-                    }
-                )
-
-                AttachInputBar(
-                    caption = captionText,
-                    onCaptionChange = { captionText = it },
-                    selectedCount = totalSelectedCount,
-                    visible = totalSelectedCount > 0,
-                    onSend = { sendAllSelected() },
-                    modifier = Modifier.graphicsLayer {
-                        alpha = if (totalSelectedCount > 0) 1f else 0f
-                        translationY = if (totalSelectedCount > 0) 0f else 200f
-                    }
-                )
-            }
         }
+
+        // 5. Нижняя панель вкладок и ввода (парящая над экраном, управляется через translationY)
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .graphicsLayer {
+                    translationY = -minOf(offsetPx, halfOffset)
+                }
+        ) {
+            AttachTabBar(
+                selectedTab = selectedTab,
+                onSelectTab = { selectedTab = it },
+                visible = true,
+                modifier = Modifier.graphicsLayer {
+                    val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
+                    alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavAlpha)
+                    translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavAlpha)
+                }
+            )
+
+            AttachInputBar(
+                caption = captionText,
+                onCaptionChange = { captionText = it },
+                selectedCount = totalSelectedCount,
+                visible = totalSelectedCount > 0,
+                onSend = { sendAllSelected() },
+                modifier = Modifier.graphicsLayer {
+                    alpha = if (totalSelectedCount > 0) 1f else 0f
+                    translationY = if (totalSelectedCount > 0) 0f else 200f
+                }
+            )
+        }
+    }
+}
 
         // Окно Камеры (CameraX / Camera2, ТЗ шаг 5 и шаг 8)
         if (isCameraOpen) {

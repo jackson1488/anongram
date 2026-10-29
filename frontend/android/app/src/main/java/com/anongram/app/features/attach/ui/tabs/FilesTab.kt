@@ -8,7 +8,11 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import com.anongram.app.core.ui.safeStatusBarPadding
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -158,160 +162,20 @@ fun FilesTab(
         }
     }
 
-    Column(
+    val topProgress by animateFloatAsState(
+        targetValue = if (isFullscreen) 1f else 0f,
+        animationSpec = tween(150),
+        label = "filesTopProgress"
+    )
+
+    Box(
         modifier = modifier.fillMaxSize()
     ) {
-        // Плавающие таблетки сверху в полном экране (высота 50dp как у ChatTopBar)
-        if (isFullscreen) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
-                Box(
-                    modifier = Modifier
-                        .size(50.dp)
-                        .clip(CircleShape)
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, CircleShape)
-                        .clickable {
-                            if (isSearchActive) {
-                                isSearchActive = false
-                                searchQuery = ""
-                            } else {
-                                onBack()
-                            }
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Spacer(modifier = Modifier.height(28.dp))
 
-                Spacer(modifier = Modifier.width(8.dp))
-
-                if (isSearchActive) {
-                    // Режим поиска: поле ввода на всю ширину
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp)
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
-                            .padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            singleLine = true,
-                            textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
-                            cursorBrush = SolidColor(Color(0xFF8B5CF6)),
-                            decorationBox = { inner ->
-                                if (searchQuery.isEmpty()) {
-                                    Text("Поиск файлов...", color = Color(0xFF94A3B8), fontSize = 14.sp)
-                                }
-                                inner()
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    }
-
-                    // Крестик ТОЛЬКО когда что-то написано в поиск
-                    if (searchQuery.isNotEmpty()) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .background(AttachPillDark)
-                                .border(1.dp, AttachBorder, CircleShape)
-                                .clickable { searchQuery = "" },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Очистить",
-                                tint = Color.White,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                    }
-                } else {
-                    // Обычный режим: заголовок, затем кнопка поиска, затем кнопка фильтра в углу (все 50x50dp)
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(50.dp)
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
-                            .padding(horizontal = 14.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(
-                            text = "Выбрать файл",
-                            color = Color.White,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // 1. Кнопка поиска
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, CircleShape)
-                            .clickable { isSearchActive = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Поиск",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    // 2. В угол кнопка фильтра/сортировки
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .clip(CircleShape)
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, CircleShape)
-                            .clickable {
-                                sortOrder = if (sortOrder == FileSortOrder.BY_DATE) FileSortOrder.BY_NAME else FileSortOrder.BY_DATE
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Sort,
-                            contentDescription = "Сортировка",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-        } else {
-            Spacer(modifier = Modifier.height(30.dp))
-        }
 
         // Общая вертикальная карточка со скруглёнными углами (ТЗ, скрин media_1793211129173.png)
         Column(
@@ -421,6 +285,142 @@ fun FilesTab(
             }
         }
     }
+
+    if (topProgress > 0.01f) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
+                    .zIndex(10f)
+                    .graphicsLayer {
+                        alpha = topProgress
+                        translationY = -8.dp.toPx() * (1f - topProgress)
+                    },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(AttachPillDark)
+                        .border(1.dp, AttachBorder, CircleShape)
+                        .clickable {
+                            if (isSearchActive) {
+                                isSearchActive = false
+                                searchQuery = ""
+                            } else {
+                                onBack()
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                if (isSearchActive) {
+                    // Режим поиска: поле ввода на всю ширину
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(50.dp)
+                            .clip(RoundedCornerShape(25.dp))
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                            .padding(horizontal = 14.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
+                            cursorBrush = SolidColor(Color(0xFF8B5CF6)),
+                            decorationBox = { inner ->
+                                if (searchQuery.isEmpty()) {
+                                    Text("Поиск файлов...", color = Color(0xFF94A3B8), fontSize = 14.sp)
+                                }
+                                inner()
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    // Крестик ТОЛЬКО когда что-то написано в поиск
+                    if (searchQuery.isNotEmpty()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(AttachPillDark)
+                                .border(1.dp, AttachBorder, CircleShape)
+                                .clickable { searchQuery = "" },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Очистить",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                } else {
+                    // Обычный режим: по краям таблетки поиска и сортировки
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // 1. Кнопка поиска
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, CircleShape)
+                            .clickable { isSearchActive = true },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Поиск",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    // 2. В угол кнопка фильтра/сортировки
+                    Box(
+                        modifier = Modifier
+                            .size(50.dp)
+                            .clip(CircleShape)
+                            .background(AttachPillDark)
+                            .border(1.dp, AttachBorder, CircleShape)
+                            .clickable {
+                                sortOrder = if (sortOrder == FileSortOrder.BY_DATE) FileSortOrder.BY_NAME else FileSortOrder.BY_DATE
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Sort,
+                            contentDescription = "Сортировка",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+        }
 }
 
 @Composable

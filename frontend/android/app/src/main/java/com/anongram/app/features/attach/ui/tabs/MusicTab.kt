@@ -7,6 +7,14 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.graphicsLayer
 import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -150,7 +158,7 @@ fun MusicTab(
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        val contentTopPadding = if (isFullscreen) 74.dp else 90.dp
+        val contentTopPadding = 86.dp
 
         Column(
             modifier = Modifier
@@ -213,81 +221,111 @@ fun MusicTab(
             }
         }
 
-        // Вуаль-градиент сверху как в Галерее (затемнено сверху, контент скроллится под плавающим островком)
-        val scrimHeight = if (isFullscreen) 84.dp else 96.dp
-        Box(
+        val density = LocalDensity.current
+        val statusBarTopPx = with(density) {
+            WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx()
+        }
+        val topProgress by animateFloatAsState(
+            targetValue = if (isFullscreen) 1f else 0f,
+            animationSpec = tween(150),
+            label = "musicTopProgress"
+        )
+
+        Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(scrimHeight)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to Color.Black.copy(alpha = 0.85f),
-                        0.65f to Color.Black.copy(alpha = 0.50f),
-                        1.0f to Color.Transparent
-                    )
-                )
-        )
-
-        // Плавающий островок поиска (прозрачно вокруг, контент скроллится под ним)
-        val headerModifier = if (isFullscreen) {
-            Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .safeStatusBarPadding()
-                .padding(top = 10.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
-        } else {
-            Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(top = 34.dp, start = 14.dp, end = 14.dp, bottom = 6.dp)
-        }
-
-        Box(
-            modifier = headerModifier,
-            contentAlignment = Alignment.Center
+                .zIndex(10f)
+                .graphicsLayer {
+                    translationY = statusBarTopPx * topProgress
+                }
         ) {
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Default.Search,
-                        contentDescription = "Search",
-                        tint = Color(0xFF94A3B8)
-                    )
-                },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Clear",
-                                tint = Color(0xFF94A3B8)
-                            )
-                        }
-                    }
-                },
-                singleLine = true,
-                interactionSource = searchInteractionSource,
-                shape = RoundedCornerShape(25.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = AttachCardDark,
-                    unfocusedContainerColor = AttachCardDark,
-                    focusedBorderColor = PurpleAccent,
-                    unfocusedBorderColor = AttachBorder,
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White
-                ),
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
-                    .onFocusChanged { focusState ->
-                        if (focusState.isFocused && !isFullscreen) {
-                            onExpandToFullscreen()
-                        }
+                    .padding(top = 28.dp, start = 14.dp, end = 14.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (topProgress > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .width(46.dp * topProgress)
+                            .height(46.dp)
+                            .graphicsLayer {
+                                alpha = topProgress
+                            }
+                            .clip(CircleShape)
+                            .background(AttachCardDark)
+                            .border(1.dp, AttachBorder, CircleShape)
+                            .clickable { onBack() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.width(8.dp * topProgress))
+                }
+
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search",
+                            tint = Color(0xFF94A3B8)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear",
+                                    tint = Color(0xFF94A3B8)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    interactionSource = searchInteractionSource,
+                    shape = RoundedCornerShape(24.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AttachCardDark,
+                        unfocusedContainerColor = AttachCardDark,
+                        focusedBorderColor = PurpleAccent,
+                        unfocusedBorderColor = AttachBorder,
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp)
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused && !isFullscreen) {
+                                onExpandToFullscreen()
+                            }
+                        }
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(16.dp)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                AttachSheetBackground.copy(alpha = 0.65f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
         }
     }
