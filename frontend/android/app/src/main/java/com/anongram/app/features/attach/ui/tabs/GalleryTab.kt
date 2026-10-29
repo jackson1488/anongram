@@ -144,6 +144,8 @@ fun GalleryTab(
     onSend: () -> Unit = {},
     capturedMediaItems: List<GalleryMedia> = emptyList(),
     isFullscreen: Boolean = false,
+    onOpenViewer: ((List<GalleryMedia>, Int) -> Unit)? = null,
+    onAlbumsLoaded: ((List<GalleryAlbum>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -207,6 +209,10 @@ fun GalleryTab(
         listOf(all) + buckets
     }
 
+    LaunchedEffect(albumsList) {
+        onAlbumsLoaded?.invoke(albumsList)
+    }
+
     val filteredMedia = remember(allCombinedMedia, selectedAlbum) {
         if (selectedAlbum == "Все медиа" || selectedAlbum == "Все" || selectedAlbum.isBlank()) {
             allCombinedMedia
@@ -226,7 +232,15 @@ fun GalleryTab(
             }
 
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val topGridPadding = statusBarTop + 60.dp
+            val topGridPadding = if (isFullscreen) statusBarTop + 64.dp else 6.dp
+
+            val openViewerHelper: (Int) -> Unit = { index ->
+                if (onOpenViewer != null) {
+                    onOpenViewer(filteredMedia, index)
+                } else {
+                    viewerIndex = index
+                }
+            }
 
             // Сетка медиа 3 колонки (ТЗ, шаг 5)
             LazyVerticalGrid(
@@ -276,7 +290,7 @@ fun GalleryTab(
                                                 media = media,
                                                 isSelected = isSelected,
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
-                                                onOpenViewer = { viewerIndex = i },
+                                                onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(media) },
                                                 modifier = Modifier.weight(1f).fillMaxHeight()
                                             )
@@ -299,7 +313,7 @@ fun GalleryTab(
                                                 media = media,
                                                 isSelected = isSelected,
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
-                                                onOpenViewer = { viewerIndex = i },
+                                                onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(media) },
                                                 modifier = Modifier.weight(1f).fillMaxHeight()
                                             )
@@ -325,7 +339,7 @@ fun GalleryTab(
                         selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                         onOpenViewer = {
                             if (originalIndex >= 0) {
-                                viewerIndex = originalIndex
+                                openViewerHelper(originalIndex)
                             }
                         },
                         onToggleSelect = {
@@ -336,8 +350,8 @@ fun GalleryTab(
             }
         }
 
-        // Полноэкранный просмотр фото/видео со свайпом влево-вправо (ТЗ, шаг 9)
-        if (viewerIndex != null) {
+        // Полноэкранный просмотр фото/видео со свайпом влево-вправо (если не перехвачен родителем)
+        if (viewerIndex != null && onOpenViewer == null) {
             GalleryMediaViewer(
                 mediaList = filteredMedia,
                 initialIndex = viewerIndex ?: 0,
@@ -349,41 +363,6 @@ fun GalleryTab(
                 onClose = { viewerIndex = null },
                 modifier = Modifier.fillMaxSize()
             )
-        }
-
-        // Выпадающее меню альбомов (floating dropdown popup, ТЗ скрин media_1793211707146.png)
-        if (isAlbumsSheetOpen) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clickable { onCloseAlbumsSheet() }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .padding(start = 12.dp, top = 4.dp, end = 48.dp, bottom = 24.dp)
-                        .widthIn(min = 220.dp, max = 290.dp)
-                        .fillMaxHeight(0.78f)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF212121))
-                        .border(0.5.dp, Color(0x22FFFFFF), RoundedCornerShape(20.dp))
-                        .clickable(enabled = false) {}
-                        .padding(vertical = 8.dp)
-                ) {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        items(albumsList, key = { it.name }) { album ->
-                            AlbumDropdownRowItem(
-                                album = album,
-                                onClick = {
-                                    onSelectAlbum(album.name)
-                                    onCloseAlbumsSheet()
-                                }
-                            )
-                        }
-                    }
-                }
-            }
         }
     }
 }
@@ -514,8 +493,9 @@ private fun LiveCameraTile(
 }
 
 @Composable
-private fun AlbumDropdownRowItem(
+fun AlbumDropdownRowItem(
     album: GalleryAlbum,
+    isSelected: Boolean = false,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -533,6 +513,7 @@ private fun AlbumDropdownRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (isSelected) Color(0x227C4DFF) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -565,12 +546,13 @@ private fun AlbumDropdownRowItem(
         Spacer(modifier = Modifier.width(12.dp))
 
         // Название альбома жирным белым и сразу серым количество
+        val displayName = if (album.name == "Все медиа") "Галерея" else album.name
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = album.name,
+                text = displayName,
                 color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,

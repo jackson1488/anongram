@@ -130,6 +130,14 @@ import android.provider.OpenableColumns
 import com.anongram.app.features.attach.ui.theme.AttachBorder
 import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import com.anongram.app.features.player.logic.AudioPlayerController
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.runtime.mutableIntStateOf
+import com.anongram.app.features.attach.ui.tabs.AlbumDropdownRowItem
+import com.anongram.app.features.attach.ui.tabs.GalleryAlbum
+import com.anongram.app.features.attach.ui.tabs.GalleryMediaViewer
 import kotlinx.coroutines.launch
 
 @Composable
@@ -157,6 +165,23 @@ fun AttachSheetContent(
         var anim by remember { mutableStateOf<Job?>(null) }
         var isClosing by remember { mutableStateOf(false) }
 
+        // Выбранные элементы по всем вкладкам (ТЗ, шаг 11)
+        val selectedMedia = remember { mutableStateListOf<GalleryMedia>() }
+        val selectedFiles = remember { mutableStateListOf<DeviceFileItem>() }
+        val selectedTracks = remember { mutableStateListOf<Track>() }
+        val selectedContacts = remember { mutableStateListOf<DeviceContact>() }
+        val capturedMediaList = remember { mutableStateListOf<GalleryMedia>() }
+        var captionText by remember { mutableStateOf("") }
+        var showDiscardDialog by remember { mutableStateOf(false) }
+
+        val totalSelectedCount by remember {
+            derivedStateOf { selectedMedia.size + selectedFiles.size + selectedTracks.size + selectedContacts.size }
+        }
+
+        var availableAlbums by remember { mutableStateOf<List<GalleryAlbum>>(emptyList()) }
+        var viewingMediaList by remember { mutableStateOf<List<GalleryMedia>?>(null) }
+        var viewingMediaIndex by remember { mutableIntStateOf(0) }
+
         val DecelerateEasing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
         val SmoothInOutEasing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
 
@@ -172,9 +197,53 @@ fun AttachSheetContent(
                 end()
             }
         }
-        fun close() = animateTo(H, 240, isFling = true) { currentOnDismiss() }
+
+        fun forceDismiss() {
+            if (isClosing) return
+            isClosing = true
+            try {
+                AudioPlayerController.getInstance(context).stop()
+            } catch (_: Exception) {}
+            if (wasKeyboardOpen) {
+                onRestoreKeyboard()
+            }
+            animateTo(H, 240, isFling = true) { currentOnDismiss() }
+        }
+
+        fun close() {
+            if (totalSelectedCount > 0) {
+                showDiscardDialog = true
+                animateTo(halfOffset, 200, isFling = false)
+                return
+            }
+            forceDismiss()
+        }
+
         fun release(velocityY: Float) {
             anim?.cancel()
+            if (totalSelectedCount > 0) {
+                // Защита: шторка не может опуститься ниже 50% при наличии выбранных элементов
+                if (velocityY < -350f && offsetPx > 0f) {
+                    animateTo(0f, ms = 260, isFling = true)
+                } else if (velocityY > 350f) {
+                    if (offsetPx < halfOffset - 20f) {
+                        animateTo(halfOffset, ms = 260, isFling = true)
+                    } else {
+                        showDiscardDialog = true
+                        animateTo(halfOffset, ms = 260, isFling = true)
+                    }
+                } else {
+                    if (offsetPx < halfOffset * 0.5f) {
+                        animateTo(0f, ms = 240, isFling = false)
+                    } else {
+                        if (offsetPx > halfOffset + 15f) {
+                            showDiscardDialog = true
+                        }
+                        animateTo(halfOffset, ms = 200, isFling = false)
+                    }
+                }
+                return
+            }
             // velocityY < 0 = свайп вверх, velocityY > 0 = свайп вниз
             if (velocityY < -350f && offsetPx > 0f) {
                 // Резкий свайп вверх: аккуратно и плавно до конца 100 едет без фризов
@@ -222,15 +291,12 @@ fun AttachSheetContent(
 
         fun dismissAnimated() {
             if (isClosing) return
-            isClosing = true
-            try {
-                AudioPlayerController.getInstance(context).stop()
-            } catch (_: Exception) {}
-
-            if (wasKeyboardOpen) {
-                onRestoreKeyboard()
+            if (totalSelectedCount > 0) {
+                showDiscardDialog = true
+                animateTo(halfOffset, 200, isFling = false)
+                return
             }
-            close()
+            forceDismiss()
         }
 
     var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
@@ -238,16 +304,6 @@ fun AttachSheetContent(
     var isAlbumsSheetOpen by remember { mutableStateOf(false) }
     var quickCardContact by remember { mutableStateOf<DeviceContact?>(null) }
     val isQuickContactOpen by remember { derivedStateOf { quickCardContact != null } }
-
-    // Выбранные элементы по всем вкладкам (ТЗ, шаг 11)
-    val selectedMedia = remember { mutableStateListOf<GalleryMedia>() }
-    val selectedFiles = remember { mutableStateListOf<DeviceFileItem>() }
-    val selectedTracks = remember { mutableStateListOf<Track>() }
-    val selectedContacts = remember { mutableStateListOf<DeviceContact>() }
-    val capturedMediaList = remember { mutableStateListOf<GalleryMedia>() }
-    var captionText by remember { mutableStateOf("") }
-
-    val totalSelectedCount = selectedMedia.size + selectedFiles.size + selectedTracks.size + selectedContacts.size
 
     fun sendAllSelected() {
         if (totalSelectedCount == 0) return
@@ -304,7 +360,6 @@ fun AttachSheetContent(
     var isEditorOpen by remember { mutableStateOf(false) }
     var isFullPlayerOpen by remember { mutableStateOf(false) }
     var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
     var isAttachEmojiOpen by remember { mutableStateOf(false) }
 
@@ -446,6 +501,7 @@ fun AttachSheetContent(
     // Обработка кнопки "Назад" (закрывает шторку с любой высоты, либо показывает диалог сброса если есть выбранные)
     BackHandler {
         when {
+            viewingMediaList != null -> viewingMediaList = null
             showDiscardDialog -> showDiscardDialog = false
             isAttachEmojiOpen -> isAttachEmojiOpen = false
             quickCardContact != null -> quickCardContact = null
@@ -477,7 +533,8 @@ fun AttachSheetContent(
                 val dy = available.y
                 if (dy > 0f) {                         // палец вниз, список уже в начале
                     anim?.cancel()
-                    val new = (offsetPx + dy).coerceAtMost(H)
+                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 35f else H
+                    val new = (offsetPx + dy).coerceAtMost(maxOffset)
                     val used = new - offsetPx
                     offsetPx = new
                     return Offset(0f, used)
@@ -537,7 +594,8 @@ fun AttachSheetContent(
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { d ->
-                                offsetPx = (offsetPx + d).coerceIn(0f, H)
+                                val maxOffset = if (totalSelectedCount > 0) halfOffset + 35f else H
+                                offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
                             },
                             onDragStarted = { anim?.cancel() },
                             onDragStopped = { v -> release(v) }
@@ -587,6 +645,11 @@ fun AttachSheetContent(
                             onSend = { sendAllSelected() },
                             capturedMediaItems = capturedMediaList,
                             isFullscreen = isFull,
+                            onOpenViewer = { list, idx ->
+                                viewingMediaList = list
+                                viewingMediaIndex = idx
+                            },
+                            onAlbumsLoaded = { availableAlbums = it },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -801,21 +864,22 @@ fun AttachSheetContent(
                 },
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
+                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                .padding(horizontal = 14.dp),
+                                .padding(horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = selectedAlbum,
+                                text = displayAlbumTitle,
                                 color = Color.White,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
-                                modifier = Modifier.weight(1f)
                             )
+                            Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
                                 contentDescription = "Альбомы",
@@ -880,6 +944,78 @@ fun AttachSheetContent(
         }
     }
 }
+
+        // Выпадающее меню альбомов (floating dropdown popup прямо под шапкой с высоким zIndex)
+        if (isAlbumsSheetOpen && availableAlbums.isNotEmpty()) {
+            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(50f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { isAlbumsSheetOpen = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(
+                            start = 58.dp,
+                            top = statusBarTop + 58.dp,
+                            end = 24.dp,
+                            bottom = 24.dp
+                        )
+                        .widthIn(min = 230.dp, max = 290.dp)
+                        .fillMaxHeight(0.70f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xFF212121))
+                        .border(0.5.dp, Color(0x22FFFFFF), RoundedCornerShape(20.dp))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { /* consume clicks inside menu */ }
+                        .padding(vertical = 8.dp)
+                ) {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(availableAlbums, key = { it.name }) { album ->
+                            AlbumDropdownRowItem(
+                                album = album,
+                                isSelected = (album.name == selectedAlbum || (album.name == "Все медиа" && (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея"))),
+                                onClick = {
+                                    selectedAlbum = album.name
+                                    isAlbumsSheetOpen = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Полноэкранный просмотр фото со свайпом влево-вправо поверх всего экрана
+        if (viewingMediaList != null) {
+            GalleryMediaViewer(
+                mediaList = viewingMediaList!!,
+                initialIndex = viewingMediaIndex,
+                selectedMedia = selectedMedia,
+                onToggleSelect = { media ->
+                    if (selectedMedia.any { it.uri == media.uri }) {
+                        selectedMedia.removeAll { it.uri == media.uri }
+                    } else {
+                        if (selectedMedia.size < 99) {
+                            selectedMedia.add(media)
+                        }
+                    }
+                },
+                caption = captionText,
+                onCaptionChange = { captionText = it },
+                onSend = { sendAllSelected() },
+                onClose = { viewingMediaList = null },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(100f)
+            )
+        }
 
         // Окно Камеры (CameraX / Camera2, ТЗ шаг 5 и шаг 8)
         if (isCameraOpen) {
@@ -1008,7 +1144,7 @@ fun AttachSheetContent(
                                     .clickable {
                                         showDiscardDialog = false
                                         clearAllSelected()
-                                        dismissAnimated()
+                                        forceDismiss()
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
