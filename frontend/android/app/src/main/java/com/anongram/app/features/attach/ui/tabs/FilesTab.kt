@@ -151,6 +151,7 @@ fun FilesTab(
     }
 
     var files by remember { mutableStateOf<List<DeviceFileItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
     var sortOrder by remember { mutableStateOf(FileSortOrder.BY_DATE) }
@@ -188,9 +189,11 @@ fun FilesTab(
     }
 
     LaunchedEffect(Unit) {
+        isLoading = true
         files = withContext(Dispatchers.IO) {
             loadDeviceRecentFiles(context)
         }
+        isLoading = false
     }
 
     val filteredFiles = remember(files, searchQuery) {
@@ -462,7 +465,11 @@ fun FilesTab(
                 )
             }
 
-            if (sortedFiles.isEmpty()) {
+            if (isLoading) {
+                item(key = "files_loading_skeleton") {
+                    com.anongram.app.features.attach.ui.components.RecentFilesSkeleton()
+                }
+            } else if (sortedFiles.isEmpty()) {
                 item(key = "empty_state") {
                     Box(
                         modifier = Modifier

@@ -139,9 +139,11 @@ fun ContactsTab(
     }
 
     var contacts by remember { mutableStateOf<List<DeviceContact>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        isLoading = true
         contacts = withContext(Dispatchers.IO) {
             if (DEMO_CONTACTS) {
                 generateDemoContacts()
@@ -149,6 +151,7 @@ fun ContactsTab(
                 loadDeviceContacts(context)
             }
         }
+        isLoading = false
     }
 
     val filteredContacts = remember(contacts, searchQuery) {
@@ -262,7 +265,16 @@ fun ContactsTab(
         }
 
         // Список контактов (zIndex = 1f) — прокручивается ПОЗАДИ строки поиска
-        if (filteredContacts.isEmpty()) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = statusBarTopDp + 58.dp)
+                    .zIndex(1f)
+            ) {
+                com.anongram.app.features.attach.ui.components.ContactsListSkeleton()
+            }
+        } else if (filteredContacts.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -270,7 +282,7 @@ fun ContactsTab(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (contacts.isEmpty()) "Загрузка контактов..." else "Контакты не найдены",
+                    text = if (contacts.isEmpty()) "Контакты не найдены" else "Ничего не найдено",
                     color = Color(0xFF94A3B8),
                     fontSize = 14.sp
                 )

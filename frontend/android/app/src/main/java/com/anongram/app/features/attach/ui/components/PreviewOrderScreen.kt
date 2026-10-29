@@ -182,6 +182,22 @@ fun PreviewOrderScreen(
             )
         }
 
+        val sheetDragState = rememberDraggableState { delta ->
+            previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
+            onOffsetChange(previewOffsetPx)
+        }
+        val onSheetDragStopped: (Float) -> Unit = { velocity ->
+            if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
+                showDiscardConfirmDialog = true
+            } else if (velocity < -400f || previewOffsetPx < halfOffset * 0.45f) {
+                previewOffsetPx = 0f
+                onOffsetChange(0f)
+            } else {
+                previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                onOffsetChange(previewOffsetPx)
+            }
+        }
+
         // 2. Шторка предпросмотра (плавает как шторка от 0 до halfOffset)
         Box(
             modifier = Modifier
@@ -193,34 +209,17 @@ fun PreviewOrderScreen(
                     .fillMaxSize()
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .background(Color(0xFF1E1E22))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { /* поглощаем клики внутри шторки */ }
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = sheetDragState,
+                        onDragStopped = onSheetDragStopped
+                    )
             ) {
                 // Тонкая ручка шторки сверху, за которую можно тянуть
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(18.dp)
-                        .draggable(
-                            orientation = Orientation.Vertical,
-                            state = rememberDraggableState { delta ->
-                                previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
-                                onOffsetChange(previewOffsetPx)
-                            },
-                            onDragStopped = { velocity ->
-                                if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
-                                    showDiscardConfirmDialog = true
-                                } else if (velocity < -600f) {
-                                    previewOffsetPx = 0f
-                                    onOffsetChange(0f)
-                                } else {
-                                    previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
-                                    onOffsetChange(previewOffsetPx)
-                                }
-                            }
-                        ),
+                        .height(18.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -232,29 +231,11 @@ fun PreviewOrderScreen(
                     )
                 }
 
-                // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа (можно тянуть вверх/вниз)
+                // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                        .draggable(
-                            orientation = Orientation.Vertical,
-                            state = rememberDraggableState { delta ->
-                                previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
-                                onOffsetChange(previewOffsetPx)
-                            },
-                            onDragStopped = { velocity ->
-                                if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
-                                    showDiscardConfirmDialog = true
-                                } else if (velocity < -600f) {
-                                    previewOffsetPx = 0f
-                                    onOffsetChange(0f)
-                                } else {
-                                    previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
-                                    onOffsetChange(previewOffsetPx)
-                                }
-                            }
-                        ),
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Кнопка "< Предпросмотр"
@@ -397,8 +378,8 @@ fun PreviewOrderScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(350.dp)
-                    .padding(horizontal = 24.dp)
+                    .height(310.dp)
+                    .padding(horizontal = 20.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(20.dp))
                     .background(Color(0xFF131317))
@@ -419,7 +400,9 @@ fun PreviewOrderScreen(
                                 media = orderedList[0],
                                 orderNumber = 1,
                                 onPhotoClick = { viewingPhotoUri = it },
-                                onDragSwap = { swapItems(0, 1) },
+                                onDragSwap = { offset ->
+                                    if (offset.x > 30f || offset.getDistance() > 45f) swapItems(0, 1)
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
@@ -434,7 +417,9 @@ fun PreviewOrderScreen(
                                 media = orderedList[1],
                                 orderNumber = 2,
                                 onPhotoClick = { viewingPhotoUri = it },
-                                onDragSwap = { swapItems(1, 0) },
+                                onDragSwap = { offset ->
+                                    if (offset.x < -30f || offset.getDistance() > 45f) swapItems(1, 0)
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
@@ -447,7 +432,11 @@ fun PreviewOrderScreen(
                                 media = orderedList[0],
                                 orderNumber = 1,
                                 onPhotoClick = { viewingPhotoUri = it },
-                                onDragSwap = { swapItems(0, 1) },
+                                onDragSwap = { offset ->
+                                    if (offset.x > 30f) {
+                                        if (offset.y > 40f) swapItems(0, 2) else swapItems(0, 1)
+                                    }
+                                },
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxHeight()
@@ -463,7 +452,10 @@ fun PreviewOrderScreen(
                                     media = orderedList[1],
                                     orderNumber = 2,
                                     onPhotoClick = { viewingPhotoUri = it },
-                                    onDragSwap = { swapItems(1, 2) },
+                                    onDragSwap = { offset ->
+                                        if (offset.x < -30f) swapItems(1, 0)
+                                        else if (offset.y > 30f) swapItems(1, 2)
+                                    },
                                     modifier = Modifier.fillMaxWidth().weight(1f)
                                 )
                                 Box(
@@ -476,7 +468,10 @@ fun PreviewOrderScreen(
                                     media = orderedList[2],
                                     orderNumber = 3,
                                     onPhotoClick = { viewingPhotoUri = it },
-                                    onDragSwap = { swapItems(2, 0) },
+                                    onDragSwap = { offset ->
+                                        if (offset.x < -30f) swapItems(2, 0)
+                                        else if (offset.y < -30f) swapItems(2, 1)
+                                    },
                                     modifier = Modifier.fillMaxWidth().weight(1f)
                                 )
                             }
@@ -497,13 +492,18 @@ fun PreviewOrderScreen(
                                     media = item,
                                     orderNumber = index + 1,
                                     onPhotoClick = { viewingPhotoUri = it },
-                                    onDragSwap = {
-                                        val target = if (index < displayCount - 1) index + 1 else index - 1
-                                        swapItems(index, target)
+                                    onDragSwap = { offset ->
+                                        val deltaX = if (offset.x > 35f) 1 else if (offset.x < -35f) -1 else 0
+                                        val deltaY = if (offset.y > 35f) cols else if (offset.y < -35f) -cols else 0
+                                        val delta = if (deltaX != 0 || deltaY != 0) deltaX + deltaY else if (offset.x > 0) 1 else -1
+                                        val target = (index + delta).coerceIn(0, displayCount - 1)
+                                        if (target != index) {
+                                            swapItems(index, target)
+                                        }
                                     },
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .aspectRatio(0.85f)
+                                        .aspectRatio(0.92f)
                                 )
                             }
                         }
@@ -665,7 +665,7 @@ private fun PreviewCollageItem(
     media: GalleryMedia,
     orderNumber: Int,
     onPhotoClick: (Uri) -> Unit,
-    onDragSwap: () -> Unit,
+    onDragSwap: (Offset) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -707,6 +707,9 @@ private fun PreviewCollageItem(
                     },
                     onDragEnd = {
                         isDragging = false
+                        if (dragAccumulated.getDistance() > 36f) {
+                            onDragSwap(dragAccumulated)
+                        }
                         dragAccumulated = Offset.Zero
                     },
                     onDragCancel = {
@@ -716,10 +719,6 @@ private fun PreviewCollageItem(
                     onDrag = { change, dragAmount ->
                         change.consume()
                         dragAccumulated += dragAmount
-                        if (dragAccumulated.getDistance() > 70f) {
-                            onDragSwap()
-                            dragAccumulated = Offset.Zero
-                        }
                     }
                 )
             }

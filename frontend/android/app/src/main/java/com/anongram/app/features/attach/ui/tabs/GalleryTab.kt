@@ -181,13 +181,16 @@ fun GalleryTab(
     }
 
     var allMedia by remember { mutableStateOf<List<GalleryMedia>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var viewerIndex by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
+        isLoading = true
         val loaded = withContext(Dispatchers.IO) {
             loadDeviceGalleryMedia(context)
         }
         allMedia = loaded
+        isLoading = false
     }
 
     val allCombinedMedia = remember(capturedMediaItems, allMedia) {
@@ -245,16 +248,24 @@ fun GalleryTab(
                 }
             }
 
-            // Сетка медиа 3 колонки (ТЗ, шаг 5)
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp)
-            ) {
+            if (isLoading && filteredMedia.isEmpty()) {
+                com.anongram.app.features.attach.ui.components.GalleryGridSkeleton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp)
+                )
+            } else {
+                // Сетка медиа 3 колонки (ТЗ, шаг 5)
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                 // Первая плитка: живое превью камеры высотой в 2 фото по вертикали (ТЗ, шаг 5)
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -353,6 +364,7 @@ fun GalleryTab(
                         }
                     )
                 }
+            }
             }
         }
 

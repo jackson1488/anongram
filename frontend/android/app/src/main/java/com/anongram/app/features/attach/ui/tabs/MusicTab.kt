@@ -126,12 +126,15 @@ fun MusicTab(
     }
 
     var tracks by remember { mutableStateOf<List<Track>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
+        isLoading = true
         tracks = withContext(Dispatchers.IO) {
             loadDeviceAudio(context)
         }
+        isLoading = false
     }
 
     val filteredTracks = remember(tracks, searchQuery) {
@@ -264,7 +267,16 @@ fun MusicTab(
         }
 
         // Список треков (zIndex = 1f) — скроллится ПОЗАДИ поиска и плеера
-        if (filteredTracks.isEmpty()) {
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = totalHeaderHeight + 6.dp)
+                    .zIndex(1f)
+            ) {
+                com.anongram.app.features.attach.ui.components.MusicListSkeleton()
+            }
+        } else if (filteredTracks.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
