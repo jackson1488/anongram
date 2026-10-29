@@ -177,6 +177,7 @@ fun PreviewOrderScreen(
                     color = Color(0x33FFFFFF),
                     shape = RoundedCornerShape(topStart = if (previewOffsetPx > 15f) 20.dp else 0.dp, topEnd = if (previewOffsetPx > 15f) 20.dp else 0.dp)
                 )
+        ) {
             // Шапка и ручка экрана предпросмотра: свободно тащится вверх и вниз
             Column(
                 modifier = Modifier
