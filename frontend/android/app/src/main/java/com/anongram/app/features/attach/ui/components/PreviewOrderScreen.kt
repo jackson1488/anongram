@@ -160,82 +160,137 @@ fun PreviewOrderScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        showDiscardConfirmDialog = true
+                    }
             )
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFF0F0F12))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        showDiscardConfirmDialog = true
+                    }
             )
         }
 
-        // 2. Экран предпросмотра (плавает как шторка от 0 до halfOffset)
-        Column(
+        // 2. Шторка предпросмотра (плавает как шторка от 0 до halfOffset)
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { translationY = previewOffsetPx }
-                .safeStatusBarPadding()
         ) {
-            // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа (можно тянуть вверх/вниз)
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                    .draggable(
-                        orientation = Orientation.Vertical,
-                        state = rememberDraggableState { delta ->
-                            previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
-                            onOffsetChange(previewOffsetPx)
-                        },
-                        onDragStopped = { velocity ->
-                            if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
-                                showDiscardConfirmDialog = true
-                            } else if (velocity < -600f) {
-                                previewOffsetPx = 0f
-                                onOffsetChange(0f)
-                            } else {
-                                previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
-                                onOffsetChange(previewOffsetPx)
-                            }
-                        }
-                    ),
-                verticalAlignment = Alignment.CenterVertically
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(Color(0xFF1E1E22))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* поглощаем клики внутри шторки */ }
             ) {
-                // Кнопка "< Предпросмотр"
-                Row(
+                // Тонкая ручка шторки сверху, за которую можно тянуть
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .clickable { handleClose() }
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .height(18.dp)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { delta ->
+                                previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
+                                onOffsetChange(previewOffsetPx)
+                            },
+                            onDragStopped = { velocity ->
+                                if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
+                                    showDiscardConfirmDialog = true
+                                } else if (velocity < -600f) {
+                                    previewOffsetPx = 0f
+                                    onOffsetChange(0f)
+                                } else {
+                                    previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                                    onOffsetChange(previewOffsetPx)
+                                }
+                            }
+                        ),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Предпросмотр",
-                        color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.SemiBold
+                    Box(
+                        modifier = Modifier
+                            .width(28.dp)
+                            .height(2.5.dp)
+                            .clip(CircleShape)
+                            .background(Color(0x4DFFFFFF))
                     )
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
-
-                // Кнопка "⋮" с выпадающим меню (строго одна иконка справа)
-                Box {
-                    IconButton(onClick = { isMenuOpen = true }) {
+                // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа (можно тянуть вверх/вниз)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { delta ->
+                                previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
+                                onOffsetChange(previewOffsetPx)
+                            },
+                            onDragStopped = { velocity ->
+                                if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
+                                    showDiscardConfirmDialog = true
+                                } else if (velocity < -600f) {
+                                    previewOffsetPx = 0f
+                                    onOffsetChange(0f)
+                                } else {
+                                    previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                                    onOffsetChange(previewOffsetPx)
+                                }
+                            }
+                        ),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Кнопка "< Предпросмотр"
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable { handleClose() }
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                         Icon(
-                            imageVector = Icons.Outlined.MoreVert,
-                            contentDescription = "Опции",
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
                             tint = Color.White,
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Предпросмотр",
+                            color = Color.White,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Кнопка "⋮" с выпадающим меню (строго одна иконка справа)
+                    Box {
+                        IconButton(onClick = { isMenuOpen = true }) {
+                            Icon(
+                                imageVector = Icons.Outlined.MoreVert,
+                                contentDescription = "Опции",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
 
                     DropdownMenu(
                         expanded = isMenuOpen,
@@ -473,9 +528,10 @@ fun PreviewOrderScreen(
                 )
             }
 
-            // Свободное пространство с обоями чата
+            // Свободное пространство
             Spacer(modifier = Modifier.weight(1f))
             Spacer(modifier = Modifier.height(72.dp))
+        }
         }
 
         // 3. Парящий фиксированный островок ввода подписи внизу

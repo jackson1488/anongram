@@ -638,10 +638,11 @@ fun AttachSheetContent(
                     Spacer(modifier = Modifier.height(topHandlePad))
                 }
 
-                // В полураскрытом состоянии Галереи: полоса ручки / выбора при выделении
-                // Высота ВСЕГДА фиксированная 44.dp для Галереи (сетка фото ниже не дергается при выборе!)
+                // В полураскрытом состоянии Галереи: тонкая полоска ручки (18.dp)
+                // При выборе медиа: сверху появляется компактная полоса выбора (36.dp)
                 val isGallery = (selectedTab == AttachTab.GALLERY)
-                val handleHeight = if (isGallery) 44.dp else 16.dp
+                val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty() && !isFull)
+                val handleHeight = if (isGalleryWithSelection) 36.dp else 18.dp
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -849,32 +850,7 @@ fun AttachSheetContent(
                                 .background(Color(0xFF222226), RoundedCornerShape(16.dp))
                                 .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
                         ) {
-                            if (selectedMedia.size >= 2) {
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text("Просмотреть сообщение", color = Color.White, fontSize = 14.5.sp)
-                                            Spacer(modifier = Modifier.weight(1f))
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                                contentDescription = null,
-                                                tint = Color(0xFF8E8E93),
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        isTopBarMenuOpen = false
-                                        isPreviewOrderOpen = true
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                                    }
-                                )
-                            }
+
                             DropdownMenuItem(
                                 text = { Text("Открыть в...", color = Color.White, fontSize = 14.5.sp) },
                                 onClick = {
@@ -1401,7 +1377,7 @@ private fun GallerySelectionBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(44.dp)
+            .height(36.dp)
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1412,14 +1388,14 @@ private fun GallerySelectionBar(
             Text(
                 text = title,
                 color = Color.White,
-                fontSize = 16.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
             if (hasMoreItems) {
                 Spacer(modifier = Modifier.width(4.dp))
                 Box(
                     modifier = Modifier
-                        .size(28.dp)
+                        .size(24.dp)
                         .clip(CircleShape)
                         .clickable(onClick = onOpenPreviewOrder),
                     contentAlignment = Alignment.Center
@@ -1427,20 +1403,20 @@ private fun GallerySelectionBar(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Предпросмотр",
-                        tint = Color(0xFFB0B0B0),
-                        modifier = Modifier.size(16.dp)
+                        tint = Color(0xFFC084FC),
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }
         }
 
         Box(
-            modifier = Modifier.size(36.dp),
+            modifier = Modifier.size(32.dp),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(32.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onOptionsClick),
                 contentAlignment = Alignment.Center
@@ -1449,7 +1425,7 @@ private fun GallerySelectionBar(
                     imageVector = Icons.Outlined.MoreVert,
                     contentDescription = "Опции",
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
             menuContent?.invoke()
