@@ -111,7 +111,6 @@ fun PreviewOrderScreen(
     var isUncompressed by remember { mutableStateOf(false) }
     var isUngrouped by remember { mutableStateOf(false) }
     var isHd by remember { mutableStateOf(false) }
-    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
     var viewingPhotoUri by remember { mutableStateOf<Uri?>(null) }
 
     fun handleClose() {
@@ -140,13 +139,11 @@ fun PreviewOrderScreen(
         }
     }
 
-    BoxWithConstraints(
+    var isEmojiPanelOpen by remember { mutableStateOf(false) }
+
+    Box(
         modifier = modifier.fillMaxSize()
     ) {
-        val H = constraints.maxHeight.toFloat()
-        val halfOffset = H * 0.5f
-        var previewOffsetPx by remember(H) { mutableFloatStateOf(initialOffsetPx.coerceIn(0f, halfOffset)) }
-
         // 1. Обои текущего чата на фоне с затемнением
         if (chatId.isNotBlank()) {
             WallpaperBackground(
@@ -166,56 +163,17 @@ fun PreviewOrderScreen(
             )
         }
 
-        // 2. Контейнер экрана предпросмотра на текущей высоте шторки
+        // 2. Экран предпросмотра на чистых обоях чата (макет media_1793303524768.png)
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { translationY = previewOffsetPx }
-                .background(
-                    color = Color(0xFF131317),
-                    shape = RoundedCornerShape(topStart = if (previewOffsetPx > 15f) 20.dp else 0.dp, topEnd = if (previewOffsetPx > 15f) 20.dp else 0.dp)
-                )
                 .safeStatusBarPadding()
         ) {
-            // Тонкая ручка для перемещения шторки вверх/вниз
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(20.dp)
-                    .draggable(
-                        orientation = Orientation.Vertical,
-                        state = rememberDraggableState { d ->
-                            previewOffsetPx = (previewOffsetPx + d).coerceAtLeast(0f)
-                            onOffsetChange(previewOffsetPx)
-                        },
-                        onDragStopped = { v ->
-                            if (v > 850f || previewOffsetPx > halfOffset + 80f) {
-                                // Потянули вниз: показываем диалог "Сбросить выбор?"
-                                showDiscardConfirmDialog = true
-                            } else if (previewOffsetPx < halfOffset * 0.5f) {
-                                previewOffsetPx = 0f
-                                onOffsetChange(0f)
-                            } else {
-                                previewOffsetPx = halfOffset
-                                onOffsetChange(halfOffset)
-                            }
-                        }
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 36.dp, height = 4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color(0x66FFFFFF))
-                )
-            }
-
             // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Кнопка "< Предпросмотр"
@@ -501,57 +459,10 @@ fun PreviewOrderScreen(
                 onSend = {
                     onSend(orderedList.toList(), isUncompressed, isUngrouped, isHd)
                 },
+                isEmojiOpen = isEmojiPanelOpen,
+                onToggleEmoji = { isEmojiPanelOpen = !isEmojiPanelOpen },
+                onCloseEmoji = { isEmojiPanelOpen = false },
                 modifier = Modifier.fillMaxWidth()
-            )
-        }
-
-        // Диалог "Сбросить выбор?" при свайпе шторки вниз
-        if (showDiscardConfirmDialog) {
-            AlertDialog(
-                onDismissRequest = {
-                    showDiscardConfirmDialog = false
-                    previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
-                    onOffsetChange(previewOffsetPx)
-                },
-                title = {
-                    Text(
-                        text = "Сбросить выбор?",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 17.sp
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Вы действительно хотите сбросить выбор фотографий?",
-                        color = Color(0xFFCCCCCC),
-                        fontSize = 14.sp
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            showDiscardConfirmDialog = false
-                            onDiscardSelection()
-                            handleClose()
-                        }
-                    ) {
-                        Text("Сбросить", color = Color(0xFFFF5252), fontWeight = FontWeight.SemiBold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = {
-                            showDiscardConfirmDialog = false
-                            previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
-                            onOffsetChange(previewOffsetPx)
-                        }
-                    ) {
-                        Text("Отмена", color = Color.White)
-                    }
-                },
-                containerColor = Color(0xFF222226),
-                shape = RoundedCornerShape(16.dp)
             )
         }
 
