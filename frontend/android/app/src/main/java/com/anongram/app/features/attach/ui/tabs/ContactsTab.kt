@@ -164,170 +164,120 @@ fun ContactsTab(
         }
     }
 
-    // Группировка по буквам алфавита для stickyHeader (ТЗ, шаг 14)
-    val groupedContacts = remember(filteredContacts) {
-        filteredContacts
-            .groupBy { it.name.firstOrNull()?.uppercaseChar() ?: '#' }
-            .toSortedMap()
+    val sortedContacts = remember(filteredContacts) {
+        filteredContacts.sortedBy { it.name.lowercase() }
     }
 
+    val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
     Box(modifier = modifier.fillMaxSize()) {
-        val contentTopPadding = 86.dp
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp)
-        ) {
-            Spacer(modifier = Modifier.height(contentTopPadding))
-
-            if (filteredContacts.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (contacts.isEmpty()) "Загрузка контактов..." else "Контакты не найдены",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 14.sp
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 84.dp)
-                ) {
-                    groupedContacts.forEach { (letter, contactList) ->
-                        stickyHeader(key = "header_$letter") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(Color(0xCC161616))
-                                    .padding(vertical = 4.dp, horizontal = 8.dp)
-                            ) {
-                                Text(
-                                    text = letter.toString(),
-                                    color = PurpleAccent,
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-
-                        items(contactList, key = { it.name + it.phones.firstOrNull() }) { contact ->
-                            val isSelected = selectedContacts.any { it.name == contact.name }
-                            ContactListItemRow(
-                                contact = contact,
-                                isSelected = isSelected,
-                                onClick = { quickCardContact = contact },
-                                onLongClick = { onToggleSelectContact(contact) }
-                            )
-                            HorizontalDivider(
-                                color = Color(0x15FFFFFF),
-                                thickness = 0.5.dp,
-                                modifier = Modifier.padding(start = 58.dp)
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        val density = LocalDensity.current
-        val statusBarTopPx = with(density) {
-            WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx()
-        }
-        val topProgress by animateFloatAsState(
-            targetValue = if (isFullscreen) 1f else 0f,
-            animationSpec = tween(150),
-            label = "contactsTopProgress"
-        )
-
-        Column(
+        // Фоновый градиент (scrim) СЗАДИ поиска, переходящий в прозрачность (zIndex = 5f)
+        Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .zIndex(10f)
-                .graphicsLayer {
-                    translationY = statusBarTopPx * topProgress
-                }
-        ) {
-            // Мягкое затемнение сверху под статус-бар
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(28.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xCC161616),
-                                Color.Transparent
-                            )
-                        )
+                .height(if (isFullscreen) statusBarTopDp + 68.dp else 64.dp)
+                .zIndex(5f)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to AttachSheetBackground,
+                        0.75f to AttachSheetBackground.copy(alpha = 0.95f),
+                        1.0f to Color.Transparent
                     )
-            )
+                )
+        )
 
-            Box(
+        // Парящая строка поиска сверху (zIndex = 10f)
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = if (isFullscreen) statusBarTopDp + 6.dp else 4.dp
+                )
+                .zIndex(10f)
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Поиск контактов", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Поиск",
+                        tint = Color(0xFF94A3B8)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Очистить",
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AttachCardDark,
+                    unfocusedContainerColor = AttachCardDark,
+                    focusedBorderColor = PurpleAccent,
+                    unfocusedBorderColor = AttachBorder,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 2.dp)
+                    .height(48.dp)
+                    .onFocusChanged { if (it.isFocused && !isFullscreen) onExpandToFullscreen() }
+            )
+        }
+
+        // Список контактов (zIndex = 1f) — прокручивается ПОЗАДИ строки поиска
+        if (filteredContacts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(1f),
+                contentAlignment = Alignment.Center
             ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Поиск контактов", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Поиск",
-                            tint = Color(0xFF94A3B8)
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Очистить",
-                                    tint = Color(0xFF94A3B8)
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AttachCardDark,
-                        unfocusedContainerColor = AttachCardDark,
-                        focusedBorderColor = PurpleAccent,
-                        unfocusedBorderColor = AttachBorder,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .onFocusChanged { if (it.isFocused && !isFullscreen) onExpandToFullscreen() }
+                Text(
+                    text = if (contacts.isEmpty()) "Загрузка контактов..." else "Контакты не найдены",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 14.sp
                 )
             }
-
-            Box(
+        } else {
+            LazyColumn(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(16.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                AttachSheetBackground.copy(alpha = 0.65f),
-                                Color.Transparent
-                            )
-                        )
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp)
+                    .zIndex(1f),
+                contentPadding = PaddingValues(
+                    top = if (isFullscreen) statusBarTopDp + 58.dp else 56.dp,
+                    bottom = 84.dp
+                )
+            ) {
+                items(sortedContacts, key = { it.name + (it.phones.firstOrNull() ?: "") }) { contact ->
+                    val isSelected = selectedContacts.any { it.name == contact.name }
+                    ContactListItemRow(
+                        contact = contact,
+                        isSelected = isSelected,
+                        onClick = { quickCardContact = contact },
+                        onLongClick = { onToggleSelectContact(contact) }
                     )
-            )
+                    HorizontalDivider(
+                        color = Color(0x15FFFFFF),
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(start = 58.dp)
+                    )
+                }
+            }
         }
 
         // Быстрое нижнее окно контакта (ТЗ, шаг 15: компактное окно по высоте контента)

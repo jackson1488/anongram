@@ -110,13 +110,6 @@ fun MusicTab(
         hasPermission = PermissionUtils.hasMusicPermission(context)
     }
 
-    // При закрытии вкладки или окна вложений воспроизведение останавливается (ТЗ, шаг 6)
-    DisposableEffect(Unit) {
-        onDispose {
-            controller.stop()
-        }
-    }
-
     if (!hasPermission) {
         PermissionDeniedView(
             message = "Для просмотра и отправки аудиофайлов предоставьте доступ к медиатеке.",
@@ -155,168 +148,141 @@ fun MusicTab(
         }
     }
 
+    val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val isPlayerVisible = playerState.isVisible && playerState.currentTrack != null
+    val topOffsetDp = if (isFullscreen) statusBarTopDp + 6.dp else 4.dp
+    val headerContentHeight = if (isPlayerVisible) 100.dp else 48.dp
+    val totalHeaderHeight = topOffsetDp + headerContentHeight
+
     Box(
         modifier = modifier.fillMaxSize()
     ) {
-        val contentTopPadding = 86.dp
-
-        Column(
+        // Фоновый градиент (scrim) СЗАДИ поиска и мини-плеера (zIndex = 5f)
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 14.dp)
-        ) {
-            Spacer(modifier = Modifier.height(contentTopPadding))
-
-            // Мини-плеер СТРОГО под полем поиска (ТЗ, шаг 6): пауза, "Исполнитель - Название", крестик, линия прогресса
-            if (playerState.isVisible && playerState.currentTrack != null) {
-                MiniPlayer(
-                    onExpand = onExpandPlayer,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            if (filteredTracks.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
-                        color = Color(0xFF94A3B8),
-                        fontSize = 14.sp
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .height(totalHeaderHeight + 20.dp)
+                .zIndex(5f)
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to AttachSheetBackground,
+                        0.8f to AttachSheetBackground.copy(alpha = 0.95f),
+                        1.0f to Color.Transparent
                     )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(bottom = 84.dp)
-                ) {
-                    itemsIndexed(filteredTracks, key = { _, t -> t.id }) { index, track ->
-                        val isCurrent = playerState.currentTrack?.id == track.id
-                        val isPlaying = isCurrent && playerState.isPlaying
-                        val isSelected = selectedTracks.any { it.id == track.id }
-
-                        MusicTrackRow(
-                            track = track,
-                            isPlaying = isPlaying,
-                            isSelected = isSelected,
-                            onPlayClick = {
-                                if (isCurrent) {
-                                    controller.toggle()
-                                } else {
-                                    controller.play(filteredTracks, index)
-                                }
-                            },
-                            onToggleSelect = {
-                                onToggleSelectTrack(track)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-
-        val density = LocalDensity.current
-        val statusBarTopPx = with(density) {
-            WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx()
-        }
-        val topProgress by animateFloatAsState(
-            targetValue = if (isFullscreen) 1f else 0f,
-            animationSpec = tween(150),
-            label = "musicTopProgress"
+                )
         )
 
+        // Парящая шапка поиска и мини-плеера (zIndex = 10f)
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
+                .padding(
+                    start = 14.dp,
+                    end = 14.dp,
+                    top = topOffsetDp
+                )
                 .zIndex(10f)
-                .graphicsLayer {
-                    translationY = statusBarTopPx * topProgress
-                }
         ) {
-            // Мягкое затемнение сверху под статус-бар
-            Box(
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Search",
+                        tint = Color(0xFF94A3B8)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { searchQuery = "" }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Clear",
+                                tint = Color(0xFF94A3B8)
+                            )
+                        }
+                    }
+                },
+                singleLine = true,
+                interactionSource = searchInteractionSource,
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = AttachCardDark,
+                    unfocusedContainerColor = AttachCardDark,
+                    focusedBorderColor = PurpleAccent,
+                    unfocusedBorderColor = AttachBorder,
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(28.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xCC161616),
-                                Color.Transparent
-                            )
-                        )
-                    )
+                    .height(48.dp)
+                    .onFocusChanged { focusState ->
+                        if (focusState.isFocused && !isFullscreen) {
+                            onExpandToFullscreen()
+                        }
+                    }
             )
 
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 2.dp)
-            ) {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    placeholder = { Text("Поиск музыки", color = Color(0xFF94A3B8), fontSize = 14.sp) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = Color(0xFF94A3B8)
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    tint = Color(0xFF94A3B8)
-                                )
-                            }
-                        }
-                    },
-                    singleLine = true,
-                    interactionSource = searchInteractionSource,
-                    shape = RoundedCornerShape(24.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AttachCardDark,
-                        unfocusedContainerColor = AttachCardDark,
-                        focusedBorderColor = PurpleAccent,
-                        unfocusedBorderColor = AttachBorder,
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .onFocusChanged { focusState ->
-                            if (focusState.isFocused && !isFullscreen) {
-                                onExpandToFullscreen()
-                            }
-                        }
+            if (isPlayerVisible) {
+                Spacer(modifier = Modifier.height(6.dp))
+                MiniPlayer(
+                    onExpand = onExpandPlayer,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
 
+        // Список треков (zIndex = 1f) — скроллится ПОЗАДИ поиска и плеера
+        if (filteredTracks.isEmpty()) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(16.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                AttachSheetBackground.copy(alpha = 0.65f),
-                                Color.Transparent
-                            )
-                        )
+                    .fillMaxSize()
+                    .zIndex(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 14.sp
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp)
+                    .zIndex(1f),
+                contentPadding = PaddingValues(
+                    top = totalHeaderHeight + 8.dp,
+                    bottom = 84.dp
+                )
+            ) {
+                itemsIndexed(filteredTracks, key = { _, t -> t.id }) { index, track ->
+                    val isCurrent = playerState.currentTrack?.id == track.id
+                    val isPlaying = isCurrent && playerState.isPlaying
+                    val isSelected = selectedTracks.any { it.id == track.id }
+
+                    MusicTrackRow(
+                        track = track,
+                        isPlaying = isPlaying,
+                        isSelected = isSelected,
+                        onPlayClick = {
+                            if (isCurrent) {
+                                controller.toggle()
+                            } else {
+                                controller.play(filteredTracks, index)
+                            }
+                        },
+                        onToggleSelect = {
+                            onToggleSelectTrack(track)
+                        }
                     )
-            )
+                }
         }
     }
 }

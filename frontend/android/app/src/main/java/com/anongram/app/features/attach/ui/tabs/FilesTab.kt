@@ -2,10 +2,13 @@ package com.anongram.app.features.attach.ui.tabs
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
@@ -23,6 +26,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,10 +47,17 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FormatListBulleted
+import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.SdStorage
 import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -107,6 +121,31 @@ fun FilesTab(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    var isGallerySubScreenOpen by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = isGallerySubScreenOpen) {
+        isGallerySubScreenOpen = false
+    }
+
+    if (isGallerySubScreenOpen) {
+        FilesGallerySubScreen(
+            isFullscreen = isFullscreen,
+            onBack = { isGallerySubScreenOpen = false },
+            onSelectMediaAsFile = { media ->
+                val meta = getFileMetadata(context, media.uri)
+                onSelectFile(
+                    AttachmentDraft.File(
+                        uri = media.uri,
+                        name = meta.name,
+                        size = meta.size
+                    )
+                )
+            },
+            modifier = modifier
+        )
+        return
+    }
+
     var files by remember { mutableStateOf<List<DeviceFileItem>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var isSearchActive by remember { mutableStateOf(false) }
@@ -379,7 +418,7 @@ fun FilesTab(
                         subtitle = "Для отправки изображений без сжатия",
                         icon = Icons.Outlined.PhotoLibrary,
                         iconBackground = Color(0xFFF59E0B),
-                        onClick = { galleryPickerLauncher.launch("image/*") }
+                        onClick = { isGallerySubScreenOpen = true }
                     )
                 }
             }
@@ -714,4 +753,386 @@ private fun getFileMetadata(context: Context, uri: Uri): Metadata {
         }
     } catch (_: Exception) {}
     return Metadata(name, size)
+}
+
+@Composable
+private fun FilesGallerySubScreen(
+    isFullscreen: Boolean,
+    onBack: () -> Unit,
+    onSelectMediaAsFile: (GalleryMedia) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("anongram_attach_prefs", Context.MODE_PRIVATE) }
+    var isGridMode by remember {
+        mutableStateOf(prefs.getBoolean("files_gallery_grid_mode", true))
+    }
+
+    var mediaList by remember { mutableStateOf<List<GalleryMedia>>(emptyList()) }
+    LaunchedEffect(Unit) {
+        mediaList = withContext(Dispatchers.IO) {
+            loadDeviceGalleryMedia(context)
+        }
+    }
+
+    val openInChooserLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val uri = result.data?.data
+        if (uri != null) {
+            val isVid = try {
+                context.contentResolver.getType(uri)?.startsWith("video") == true
+            } catch (_: Exception) { false }
+            onSelectMediaAsFile(GalleryMedia(uri = uri, isVideo = isVid))
+        }
+    }
+
+    Column(modifier = modifier.fillMaxSize()) {
+        // Плавающие таблетки сверху (высота 50dp как у ChatTopBar)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier.padding(top = 4.dp))
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Островок 1: Кнопка Назад (размер 50dp как у ChatTopBar)
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
+                    .background(AttachPillDark)
+                    .border(1.dp, AttachBorder, CircleShape)
+                    .clickable { onBack() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Островок 2: Заголовок «Все медиа»
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(25.dp))
+                    .background(AttachPillDark)
+                    .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Text(
+                    text = "Все медиа",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Островок 3: Меню действий из 3 точек
+            Box(
+                modifier = Modifier.size(50.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                var menuExpanded by remember { mutableStateOf(false) }
+
+                Box(
+                    modifier = Modifier
+                        .size(50.dp)
+                        .clip(CircleShape)
+                        .background(AttachPillDark)
+                        .border(1.dp, AttachBorder, CircleShape)
+                        .clickable { menuExpanded = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Меню действий",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                    modifier = Modifier.background(AttachCardDark)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                if (isGridMode) "Показать списком" else "В виде сетки",
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = if (isGridMode) Icons.Outlined.FormatListBulleted else Icons.Outlined.GridView,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA)
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            isGridMode = !isGridMode
+                            prefs.edit().putBoolean("files_gallery_grid_mode", isGridMode).apply()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                "Открыть в...",
+                                color = Color.White,
+                                fontSize = 14.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.OpenInNew,
+                                contentDescription = null,
+                                tint = Color(0xFFA78BFA)
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            try {
+                                val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                    type = "*/*"
+                                    putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                                    addCategory(Intent.CATEGORY_OPENABLE)
+                                }
+                                openInChooserLauncher.launch(Intent.createChooser(intent, "Открыть в..."))
+                            } catch (_: Exception) {}
+                        }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        if (mediaList.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Медиафайлы не найдены",
+                    color = Color(0xFF94A3B8),
+                    fontSize = 14.sp
+                )
+            }
+        } else if (isGridMode) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 4.dp),
+                contentPadding = PaddingValues(bottom = 84.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                items(mediaList, key = { it.uri.toString() }) { media ->
+                    FilesGalleryGridItem(
+                        media = media,
+                        onClick = { onSelectMediaAsFile(media) }
+                    )
+                }
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 14.dp),
+                contentPadding = PaddingValues(bottom = 84.dp)
+            ) {
+                items(mediaList, key = { it.uri.toString() }) { media ->
+                    FilesGalleryListItem(
+                        media = media,
+                        onClick = { onSelectMediaAsFile(media) }
+                    )
+                    HorizontalDivider(
+                        color = Color(0x15FFFFFF),
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(start = 64.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilesGalleryGridItem(
+    media: GalleryMedia,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    var thumbnail by remember(media.uri) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(media.uri) {
+        thumbnail = withContext(Dispatchers.IO) {
+            loadMediaThumbnail(context, media.uri)
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(8.dp))
+            .background(AttachCardDark)
+            .clickable(onClick = onClick)
+    ) {
+        if (thumbnail != null) {
+            Image(
+                bitmap = thumbnail!!.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (media.isVideo) Icons.Rounded.Videocam else Icons.Outlined.PhotoLibrary,
+                    contentDescription = null,
+                    tint = Color(0x66FFFFFF),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+        }
+
+        if (media.isVideo) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(4.dp)
+                    .background(Color(0xCC000000), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 4.dp, vertical = 2.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Videocam,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    if (media.durationMs > 0) {
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            text = formatDuration(media.durationMs),
+                            color = Color.White,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilesGalleryListItem(
+    media: GalleryMedia,
+    onClick: () -> Unit
+) {
+    val context = LocalContext.current
+    var thumbnail by remember(media.uri) { mutableStateOf<Bitmap?>(null) }
+    val meta = remember(media.uri) { getFileMetadata(context, media.uri) }
+
+    LaunchedEffect(media.uri) {
+        thumbnail = withContext(Dispatchers.IO) {
+            loadMediaThumbnail(context, media.uri)
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(AttachCardDark),
+            contentAlignment = Alignment.Center
+        ) {
+            if (thumbnail != null) {
+                Image(
+                    bitmap = thumbnail!!.asImageBitmap(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Icon(
+                    imageVector = if (media.isVideo) Icons.Rounded.Videocam else Icons.Outlined.PhotoLibrary,
+                    contentDescription = null,
+                    tint = Color(0x88FFFFFF),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            if (media.isVideo) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .background(Color(0xCC000000), RoundedCornerShape(topStart = 4.dp))
+                        .padding(horizontal = 3.dp, vertical = 1.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Videocam,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(10.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = meta.name,
+                color = Color.White,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "${formatFileSize(meta.size)}${if (media.isVideo && media.durationMs > 0) " • ${formatDuration(media.durationMs)}" else ""}",
+                color = Color(0xFF94A3B8),
+                fontSize = 12.sp
+            )
+        }
+    }
+}
+
+private fun formatDuration(ms: Long): String {
+    val sec = ms / 1000
+    val m = sec / 60
+    val s = sec % 60
+    return String.format(Locale.getDefault(), "%d:%02d", m, s)
 }

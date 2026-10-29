@@ -514,7 +514,7 @@ fun AttachSheetContent(
             ) {
                 // ручка: тянуть можно за неё
                 Box(
-                    Modifier.fillMaxWidth().height(24.dp)
+                    Modifier.fillMaxWidth().height(16.dp)
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { d ->
@@ -531,10 +531,10 @@ fun AttachSheetContent(
                 ) {
                     Box(
                         modifier = Modifier
-                            .width(36.dp)
-                            .height(4.dp)
+                            .width(28.dp)
+                            .height(2.5.dp)
                             .clip(CircleShape)
-                            .background(Color(0x40FFFFFF))
+                            .background(Color(0x4DFFFFFF))
                     )
                 }
 

@@ -867,7 +867,7 @@ internal fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
     }
 }
 
-private fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
+internal fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
     val list = mutableListOf<GalleryMedia>()
     val contentResolver = context.contentResolver
 
