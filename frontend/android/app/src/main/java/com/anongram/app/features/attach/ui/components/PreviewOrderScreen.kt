@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
@@ -353,12 +354,12 @@ fun PreviewOrderScreen(
 
             Spacer(modifier = Modifier.weight(0.04f))
 
-            // 3. Основная область: карточки медиа в рамке с фиолетовой обводкой (коллаж до 20 фото)
+            // 3. Основная область: мини-коллаж сообщения (ТЗ: точно по макету media_1793295326790.png)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)
-                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .height(290.dp)
+                    .padding(horizontal = 24.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(20.dp))
                     .background(Color(0xFF131317))
@@ -474,7 +475,7 @@ fun PreviewOrderScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 10.dp)
+                    .padding(top = 10.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(Color(0x993E2E28))
                     .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
@@ -488,7 +489,8 @@ fun PreviewOrderScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(0.04f))
+            // Свободное пространство с обоями чата
+            Spacer(modifier = Modifier.weight(1f))
 
             // 5. Нижняя панель ввода подписи и круглая кнопка отправки с бейджем количества
             AttachInputBar(
@@ -640,7 +642,11 @@ private fun PreviewCollageItem(
                 translationY = if (isDragging) dragAccumulated.y * 0.35f else 0f
             }
             .background(Color(0xFF1E1E1E))
-            .clickable { onPhotoClick(media.uri) }
+            .pointerInput(media.uri) {
+                detectTapGestures(
+                    onTap = { onPhotoClick(media.uri) }
+                )
+            }
             .pointerInput(orderNumber) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = {

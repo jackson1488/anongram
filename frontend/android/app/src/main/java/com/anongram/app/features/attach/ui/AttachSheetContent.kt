@@ -14,10 +14,13 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
@@ -238,50 +241,41 @@ fun AttachSheetContent(
 
         fun release(velocityY: Float) {
             anim?.cancel()
-            if (totalSelectedCount > 0) {
-                // Защита: шторка не может опуститься ниже 50% при наличии выбранных элементов
-                if (velocityY < -850f && offsetPx > 0f) {
-                    animateTo(0f, ms = 260, isFling = true)
-                } else if (velocityY > 850f) {
-                    if (offsetPx < halfOffset - 20f) {
+            // Резкий свайп вверх: доводим до 100%
+            if (velocityY < -850f && offsetPx > 0f) {
+                animateTo(0f, ms = 260, isFling = true)
+                return
+            }
+            // Резкий свайп вниз
+            if (velocityY > 850f) {
+                if (totalSelectedCount > 0) {
+                    if (offsetPx >= halfOffset - 20f) {
+                        showDiscardDialog = true
                         animateTo(halfOffset, ms = 260, isFling = true)
                     } else {
-                        showDiscardDialog = true
                         animateTo(halfOffset, ms = 260, isFling = true)
                     }
                 } else {
-                    // Свободная фиксация в ЛЮБОМ месте от 50% до 100%!
-                    if (offsetPx > halfOffset + 15f) {
-                        showDiscardDialog = true
-                        animateTo(halfOffset, ms = 200, isFling = false)
+                    if (offsetPx < halfOffset - 20f) {
+                        animateTo(halfOffset, ms = 260, isFling = true)
                     } else {
-                        // Оставляем шторку ровно на той высоте, где отпустил пользователь
-                        offsetPx = offsetPx.coerceIn(0f, halfOffset)
+                        close()
                     }
                 }
                 return
             }
-            // velocityY < 0 = свайп вверх, velocityY > 0 = свайп вниз
-            if (velocityY < -850f && offsetPx > 0f) {
-                // Резкий свайп вверх: доводим до 100%
-                animateTo(0f, ms = 260, isFling = true)
-            } else if (velocityY > 850f) {
-                // Резкий свайп вниз:
-                if (offsetPx < halfOffset - 20f) {
-                    animateTo(halfOffset, ms = 260, isFling = true)
-                } else {
-                    close()
-                }
+
+            // Плавное отпускание (плавучая шторка!):
+            // Шторка свободно фиксируется ровно на той высоте, где её отпустил палец (от 0 до halfOffset)
+            if (offsetPx <= halfOffset) {
+                offsetPx = offsetPx.coerceIn(0f, halfOffset)
+            } else if (offsetPx <= halfOffset + 80f) {
+                animateTo(halfOffset, ms = 200, isFling = false)
             } else {
-                // Плавное отпускание пальца: свободная фиксация в ЛЮБОМ месте от 50% до 100%!
-                if (offsetPx <= halfOffset) {
-                    // Фиксируется в любом месте от 50% до 100%
-                    offsetPx = offsetPx.coerceIn(0f, halfOffset)
-                } else if (offsetPx <= halfOffset + H * 0.12f) {
-                    // Чуть ниже 50% — ровно возвращаем на 50%
+                if (totalSelectedCount > 0) {
+                    showDiscardDialog = true
                     animateTo(halfOffset, ms = 200, isFling = false)
                 } else {
-                    // Оттянули вниз ниже половины — закрываем
                     close()
                 }
             }
@@ -582,7 +576,7 @@ fun AttachSheetContent(
                 val dy = available.y
                 if (dy > 0f) {                         // палец вниз, список уже в начале
                     anim?.cancel()
-                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 35f else H
+                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
                     val new = (offsetPx + dy).coerceAtMost(maxOffset)
                     val used = new - offsetPx
                     offsetPx = new
@@ -637,13 +631,20 @@ fun AttachSheetContent(
                         indication = null
                     ) { /* поглощаем клики внутри шторки */ }
             ) {
+                // В полноэкранном режиме учитываем верхний статус-бар
+                val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+                val topHandlePad = if (isFull) statusBarTop else 0.dp
+                if (topHandlePad > 0.dp) {
+                    Spacer(modifier = Modifier.height(topHandlePad))
+                }
+
                 // ручка: тянуть можно за неё, высота всегда фиксированная 16.dp, сетка ниже не прыгает
                 Box(
                     Modifier.fillMaxWidth().height(16.dp)
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { d ->
-                                val maxOffset = if (totalSelectedCount > 0) halfOffset + 35f else H
+                                val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
                                 offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
                             },
                             onDragStarted = { anim?.cancel() },
@@ -662,6 +663,33 @@ fun AttachSheetContent(
                             .height(if (isThinHandle) 1.5.dp else 2.5.dp)
                             .clip(CircleShape)
                             .background(if (isThinHandle) Color(0x33FFFFFF) else Color(0x4DFFFFFF))
+                    )
+                }
+
+                // Шапка Галереи (в своей выделенной строке над сеткой, никогда не перекрывает фото и не дергает сетку)
+                if (selectedTab == AttachTab.GALLERY) {
+                    val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
+                    GalleryTopHeader(
+                        albumTitle = displayAlbumTitle,
+                        onBack = { requestDismiss() },
+                        onOpenAlbums = { isAlbumsSheetOpen = !isAlbumsSheetOpen },
+                        hasSelection = selectedMedia.isNotEmpty(),
+                        onOpenPreview = { isPreviewOrderOpen = true },
+                        isMenuOpen = isGalleryOptionsMenuOpen,
+                        onMenuOpenChange = { isGalleryOptionsMenuOpen = it },
+                        allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
+                        onSendUncompressed = { sendAsUncompressed() },
+                        onSendUngrouped = { sendAsUngrouped() },
+                        onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
+                        onSendHd = { sendAsHd() },
+                        onOpenIn = {
+                            val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                type = "*/*"
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                                putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+                            }
+                            systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
+                        }
                     )
                 }
 
@@ -788,183 +816,18 @@ fun AttachSheetContent(
                     }
                 }
 
-                // В полураскрытой шторке: компактная плашка поверх сетки (не сдвигает саму сетку!)
-                GallerySelectionOverlay(
-                    visible = (selectedTab == AttachTab.GALLERY && selectedMedia.isNotEmpty() && !isFull),
-                    onOpenPreview = { isPreviewOrderOpen = true },
-                    isMenuOpen = isGalleryOptionsMenuOpen,
-                    onMenuOpenChange = { isGalleryOptionsMenuOpen = it },
-                    allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
-                    onSendUncompressed = { sendAsUncompressed() },
-                    onSendUngrouped = { sendAsUngrouped() },
-                    onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
-                    onSendHd = { sendAsHd() },
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 4.dp, start = 12.dp, end = 12.dp)
-                        .zIndex(20f)
-                )
             }
         }
 
-        // 2. Вуаль-градиент за плавающей шапкой в полном экране ТОЛЬКО в Галерее
-        val showGalleryScrim = (selectedTab == AttachTab.GALLERY)
-        if (showGalleryScrim) {
-            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val headerScrimHeight = statusBarTop + 68.dp
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(headerScrimHeight)
-                    .zIndex(9f)
-                    .graphicsLayer {
-                        val p = ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
-                        alpha = p
-                    }
-                    .background(
-                        Brush.verticalGradient(
-                            0.0f to Color.Black.copy(alpha = 0.85f),
-                            0.65f to Color.Black.copy(alpha = 0.55f),
-                            1.0f to Color.Transparent
-                        )
-                    )
-            )
-        }
-
-        // 4. Плавающая шапка
-        val showTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION)
+        // 4. Плавающая шапка для Геопозиции
+        val showTopBar = (selectedTab == AttachTab.LOCATION)
         if (showTopBar) {
             AttachTopBar(
                 title = selectedTab.title,
                 onBack = { requestDismiss() },
-                hasActionMenu = (selectedTab == AttachTab.GALLERY),
-                onActionClick = { isMoreMenuOpen = true },
-                actionMenuContent = {
-                    if (selectedTab == AttachTab.GALLERY) {
-                        if (selectedMedia.isNotEmpty()) {
-                            GallerySelectionOptionsMenu(
-                                expanded = isMoreMenuOpen,
-                                onDismissRequest = { isMoreMenuOpen = false },
-                                allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
-                                onOpenPreview = {
-                                    isMoreMenuOpen = false
-                                    isPreviewOrderOpen = true
-                                },
-                                onSendUncompressed = {
-                                    isMoreMenuOpen = false
-                                    sendAsUncompressed()
-                                },
-                                onSendUngrouped = {
-                                    isMoreMenuOpen = false
-                                    sendAsUngrouped()
-                                },
-                                onToggleSpoiler = {
-                                    isMoreMenuOpen = false
-                                    toggleSpoilerForSelectedMedia()
-                                },
-                                onSendHd = {
-                                    isMoreMenuOpen = false
-                                    sendAsHd()
-                                }
-                            )
-                        } else {
-                            DropdownMenu(
-                                expanded = isMoreMenuOpen,
-                                onDismissRequest = { isMoreMenuOpen = false },
-                                modifier = Modifier
-                                    .background(Color(0xFF222226), RoundedCornerShape(16.dp))
-                                    .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Открыть в...", color = Color.White, fontSize = 14.5.sp) },
-                                    onClick = {
-                                        isMoreMenuOpen = false
-                                        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                                            type = "*/*"
-                                            addCategory(Intent.CATEGORY_OPENABLE)
-                                            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                                        }
-                                        systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.Folder,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                )
-
-                                DropdownMenuItem(
-                                    text = { Text("Отправить в HD-качестве", color = Color.White, fontSize = 14.5.sp) },
-                                    onClick = {
-                                        isMoreMenuOpen = false
-                                        sendAsHd()
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Default.HighQuality,
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                )
-                            }
-                        }
-                    }
-                },
-                centerContent = if (selectedTab == AttachTab.GALLERY) {
-                    {
-                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = displayAlbumTitle,
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Альбомы",
-                                    tint = AttachPurple,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-
-                            if (selectedMedia.isNotEmpty()) {
-                                Spacer(modifier = Modifier.width(4.dp))
-                                IconButton(
-                                    onClick = { isPreviewOrderOpen = true },
-                                    modifier = Modifier.size(28.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Предпросмотр",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                } else null,
+                hasActionMenu = false,
+                actionMenuContent = null,
+                centerContent = null,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
@@ -1577,8 +1440,11 @@ private fun GallerySelectionOptionsMenu(
 }
 
 @Composable
-private fun GallerySelectionOverlay(
-    visible: Boolean,
+private fun GalleryTopHeader(
+    albumTitle: String,
+    onBack: () -> Unit,
+    onOpenAlbums: () -> Unit,
+    hasSelection: Boolean,
     onOpenPreview: () -> Unit,
     isMenuOpen: Boolean,
     onMenuOpenChange: (Boolean) -> Unit,
@@ -1587,64 +1453,174 @@ private fun GallerySelectionOverlay(
     onSendUngrouped: () -> Unit,
     onToggleSpoiler: () -> Unit,
     onSendHd: () -> Unit,
+    onOpenIn: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    androidx.compose.animation.AnimatedVisibility(
-        visible = visible,
-        enter = slideInVertically(initialOffsetY = { -it }) + fadeIn(),
-        exit = slideOutVertically(targetOffsetY = { -it }) + fadeOut(),
+    Row(
         modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
+        // Островок 1: Кнопка "Назад" (круг 42dp как в media_1793295082275.png)
         Surface(
-            color = Color(0xEE1E1E22),
-            shape = RoundedCornerShape(20.dp),
-            border = BorderStroke(0.5.dp, Color(0x33FFFFFF)),
-            modifier = Modifier.wrapContentSize()
+            color = Color(0xDD222226),
+            shape = CircleShape,
+            border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+            modifier = Modifier.size(42.dp)
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Островок 2: Таблетка "Галерея ▾" и кнопка ">" (как в media_1793295082275.png)
+        Surface(
+            color = Color(0xDD222226),
+            shape = RoundedCornerShape(22.dp),
+            border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+            modifier = Modifier
+                .weight(1f)
+                .height(42.dp)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Галерея",
-                    color = Color.White,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                IconButton(
-                    onClick = onOpenPreview,
-                    modifier = Modifier.size(26.dp)
+                Row(
+                    modifier = Modifier
+                        .clickable { onOpenAlbums() }
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text(
+                        text = albumTitle,
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Предпросмотр",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                        imageVector = Icons.Default.ArrowDropDown,
+                        contentDescription = "Альбомы",
+                        tint = Color(0xFFC084FC),
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-                Spacer(modifier = Modifier.width(4.dp))
-                Box {
-                    IconButton(
-                        onClick = { onMenuOpenChange(true) },
-                        modifier = Modifier.size(26.dp)
+
+                Spacer(modifier = Modifier.weight(1f))
+
+                // Стрелка ">" перехода в предпросмотр при выборе 1+ фото
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = hasSelection,
+                    enter = fadeIn() + androidx.compose.animation.scaleIn(),
+                    exit = fadeOut() + androidx.compose.animation.scaleOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFC084FC))
+                            .clickable { onOpenPreview() },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.MoreVert,
-                            contentDescription = "Опции",
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = "Предпросмотр",
                             tint = Color.White,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
-                    GallerySelectionOptionsMenu(
-                        expanded = isMenuOpen,
-                        onDismissRequest = { onMenuOpenChange(false) },
-                        allHaveSpoiler = allHaveSpoiler,
-                        onOpenPreview = onOpenPreview,
-                        onSendUncompressed = onSendUncompressed,
-                        onSendUngrouped = onSendUngrouped,
-                        onToggleSpoiler = onToggleSpoiler,
-                        onSendHd = onSendHd
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Островок 3: Кнопка "⋮" в своей выделенной области справа вверху (круг 42dp)
+        Box {
+            Surface(
+                color = Color(0xDD222226),
+                shape = CircleShape,
+                border = BorderStroke(1.dp, Color(0x33FFFFFF)),
+                modifier = Modifier.size(42.dp)
+            ) {
+                IconButton(
+                    onClick = { onMenuOpenChange(true) },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Опции",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
+            if (hasSelection) {
+                GallerySelectionOptionsMenu(
+                    expanded = isMenuOpen,
+                    onDismissRequest = { onMenuOpenChange(false) },
+                    allHaveSpoiler = allHaveSpoiler,
+                    onOpenPreview = onOpenPreview,
+                    onSendUncompressed = onSendUncompressed,
+                    onSendUngrouped = onSendUngrouped,
+                    onToggleSpoiler = onToggleSpoiler,
+                    onSendHd = onSendHd
+                )
+            } else {
+                DropdownMenu(
+                    expanded = isMenuOpen,
+                    onDismissRequest = { onMenuOpenChange(false) },
+                    modifier = Modifier
+                        .background(Color(0xFF222226), RoundedCornerShape(16.dp))
+                        .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Открыть в...", color = Color.White, fontSize = 14.5.sp) },
+                        onClick = {
+                            onMenuOpenChange(false)
+                            onOpenIn()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Folder,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Отправить в HD-качестве", color = Color.White, fontSize = 14.5.sp) },
+                        onClick = {
+                            onMenuOpenChange(false)
+                            onSendHd()
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.HighQuality,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     )
                 }
             }
