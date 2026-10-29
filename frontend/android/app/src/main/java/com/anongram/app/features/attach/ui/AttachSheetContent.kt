@@ -537,7 +537,7 @@ fun AttachSheetContent(
                             onCaptionChange = { captionText = it },
                             onSend = { sendAllSelected() },
                             capturedMediaItems = capturedMediaList,
-                            isFullscreen = isFullscreen,
+                            isFullscreen = isFull,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -549,7 +549,7 @@ fun AttachSheetContent(
                                 dismissAnimated()
                             },
                             onExpandToFullscreen = {
-                                animateToOffset(0f, 240)
+                                animateTo(0f, 240)
                             },
                             selectedFiles = selectedFiles,
                             onToggleSelectFile = { file ->
@@ -559,7 +559,7 @@ fun AttachSheetContent(
                                     selectedFiles.add(file)
                                 }
                             },
-                            isFullscreen = isFullscreen,
+                            isFullscreen = isFull,
                             onBack = { requestDismiss() },
                             modifier = Modifier.fillMaxSize()
                         )
