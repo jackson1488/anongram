@@ -153,6 +153,8 @@ fun AttachSheetContent(
 
     // 2. Положение шторки через Animatable (смещение в пикселях от 0 = fullscreen до screenHeightPx = закрыто)
     val sheetOffsetY = remember { Animatable(screenHeightPx) }
+    var virtualOffset by remember { mutableFloatStateOf(screenHeightPx) }
+    var animationJob by remember { mutableStateOf<Job?>(null) }
     var isClosing by remember { mutableStateOf(false) }
 
     // Порог 95% вычисляется через derivedStateOf: перекомпозиция происходит ТОЛЬКО при пересечении порога!
@@ -162,14 +164,17 @@ fun AttachSheetContent(
 
     fun animateToOffset(
         targetOffset: Float,
-        duration: Int = 260,
+        duration: Int = 240,
         onEnd: () -> Unit = {}
     ) {
-        scope.launch {
+        virtualOffset = targetOffset
+        animationJob?.cancel()
+        animationJob = scope.launch {
             sheetOffsetY.animateTo(
                 targetValue = targetOffset,
                 animationSpec = tween(durationMillis = duration, easing = FastOutSlowInEasing)
             )
+            virtualOffset = sheetOffsetY.value
             onEnd()
         }
     }
@@ -206,10 +211,16 @@ fun AttachSheetContent(
 
     val scrollChannel = remember { Channel<Float>(Channel.UNLIMITED) }
     LaunchedEffect(Unit) {
-        for (delta in scrollChannel) {
+        for (firstDelta in scrollChannel) {
+            var totalDelta = firstDelta
+            while (true) {
+                val next = scrollChannel.tryReceive().getOrNull() ?: break
+                totalDelta += next
+            }
             val current = sheetOffsetY.value
-            val next = (current + delta).coerceIn(0f, screenHeightPx)
+            val next = (current + totalDelta).coerceIn(0f, screenHeightPx)
             sheetOffsetY.snapTo(next)
+            virtualOffset = next
         }
     }
 
@@ -438,11 +449,18 @@ fun AttachSheetContent(
     val nestedScrollConnection = remember {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (source != NestedScrollSource.UserInput) {
+                    return Offset.Zero
+                }
+                if (animationJob?.isActive == true) {
+                    animationJob?.cancel()
+                    virtualOffset = sheetOffsetY.value
+                }
                 // Палец вверх (available.y < 0): тянем шторку вверх к 0f (fullscreen)
-                if (available.y < 0f && sheetOffsetY.value > 0f) {
-                    val current = sheetOffsetY.value
-                    val newTarget = (current + available.y).coerceAtLeast(0f)
-                    val consumedY = newTarget - current
+                if (available.y < 0f && virtualOffset > 0f) {
+                    val newVirtual = (virtualOffset + available.y).coerceAtLeast(0f)
+                    val consumedY = newVirtual - virtualOffset
+                    virtualOffset = newVirtual
                     scrollChannel.trySend(consumedY)
                     return Offset(0f, consumedY)
                 }
@@ -454,11 +472,14 @@ fun AttachSheetContent(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
+                if (source != NestedScrollSource.UserInput) {
+                    return Offset.Zero
+                }
                 // Палец вниз (available.y > 0): когда список доскроллен до самого верха, шторка плавно уменьшается
                 if (available.y > 0f) {
-                    val current = sheetOffsetY.value
-                    val newTarget = (current + available.y).coerceAtMost(screenHeightPx)
-                    val consumedY = newTarget - current
+                    val newVirtual = (virtualOffset + available.y).coerceAtMost(screenHeightPx)
+                    val consumedY = newVirtual - virtualOffset
+                    virtualOffset = newVirtual
                     scrollChannel.trySend(consumedY)
                     return Offset(0f, consumedY)
                 }
@@ -467,34 +488,34 @@ fun AttachSheetContent(
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 // Если шторка ещё не на весь экран:
-                if (sheetOffsetY.value > screenHeightPx * 0.05f) {
-                    if (available.y < -800f) {
+                if (virtualOffset > screenHeightPx * 0.05f) {
+                    if (available.y < -300f) {
                         animateToOffset(0f, 240)
                         return available
-                    } else if (available.y > 800f) {
-                        if (sheetOffsetY.value < screenHeightPx * 0.40f) {
+                    } else if (available.y > 300f) {
+                        if (virtualOffset < screenHeightPx * 0.40f) {
                             animateToOffset(defaultInitialOffsetPx, 240)
                         } else {
                             requestDismiss()
                         }
                         return available
                     } else {
-                        if (sheetOffsetY.value > defaultInitialOffsetPx + screenHeightPx * 0.10f) {
+                        if (virtualOffset > defaultInitialOffsetPx + screenHeightPx * 0.10f) {
                             requestDismiss()
-                        } else if (sheetOffsetY.value < defaultInitialOffsetPx * 0.5f) {
+                        } else if (virtualOffset < defaultInitialOffsetPx * 0.6f) {
                             animateToOffset(0f, 240)
                         } else {
                             animateToOffset(defaultInitialOffsetPx, 240)
                         }
+                        return available
                     }
-                    return Velocity.Zero
                 }
                 return Velocity.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (available.y > 800f) {
-                    if (sheetOffsetY.value < screenHeightPx * 0.40f) {
+                if (available.y > 300f) {
+                    if (virtualOffset < screenHeightPx * 0.40f) {
                         animateToOffset(defaultInitialOffsetPx, 240)
                     } else {
                         requestDismiss()
@@ -693,7 +714,7 @@ fun AttachSheetContent(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .height(36.dp)
+                    .height(48.dp)
                     .graphicsLayer {
                         val fadeProgress = ((sheetOffsetY.value - screenHeightPx * 0.05f) / (screenHeightPx * 0.05f)).coerceIn(0f, 1f)
                         alpha = fadeProgress
@@ -701,6 +722,10 @@ fun AttachSheetContent(
                     .pointerInput(screenHeightPx) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
+                            if (animationJob?.isActive == true) {
+                                animationJob?.cancel()
+                                virtualOffset = sheetOffsetY.value
+                            }
                             val velocityTracker = VelocityTracker()
                             velocityTracker.addPosition(down.uptimeMillis, down.position)
                             var pointerId = down.id
@@ -710,22 +735,23 @@ fun AttachSheetContent(
                                 velocityTracker.addPosition(change.uptimeMillis, change.position)
                                 val delta = change.positionChange().y
                                 change.consume()
+                                virtualOffset = (virtualOffset + delta).coerceIn(0f, screenHeightPx)
                                 scrollChannel.trySend(delta)
                             }
 
                             val velocityY = velocityTracker.calculateVelocity().y
-                            if (velocityY < -800f || sheetOffsetY.value <= screenHeightPx * 0.05f) {
+                            if (velocityY < -300f || virtualOffset <= screenHeightPx * 0.05f) {
                                 animateToOffset(0f, 240)
-                            } else if (velocityY > 800f) {
-                                if (sheetOffsetY.value < screenHeightPx * 0.40f) {
+                            } else if (velocityY > 300f) {
+                                if (virtualOffset < screenHeightPx * 0.40f) {
                                     animateToOffset(defaultInitialOffsetPx, 240)
                                 } else {
                                     requestDismiss()
                                 }
                             } else {
-                                if (sheetOffsetY.value > defaultInitialOffsetPx + screenHeightPx * 0.10f) {
+                                if (virtualOffset > defaultInitialOffsetPx + screenHeightPx * 0.10f) {
                                     requestDismiss()
-                                } else if (sheetOffsetY.value < defaultInitialOffsetPx * 0.5f) {
+                                } else if (virtualOffset < defaultInitialOffsetPx * 0.6f) {
                                     animateToOffset(0f, 240)
                                 } else {
                                     animateToOffset(defaultInitialOffsetPx, 240)
@@ -745,22 +771,14 @@ fun AttachSheetContent(
                 )
             }
 
-            // 4. Плавающая шапка (плавно появляется от 90% до 95%)
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .safeStatusBarPadding()
-                    .graphicsLayer {
-                        val hasTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION)
-                        if (!hasTopBar) {
-                            alpha = 0f
-                        } else {
-                            val appearProgress = (1f - (sheetOffsetY.value / (screenHeightPx * 0.10f))).coerceIn(0f, 1f)
-                            alpha = appearProgress
-                        }
-                    }
-            ) {
+            // 4. Плавающая шапка (появляется только в полноэкранном режиме >= 95%, не перехватывает жесты ручки)
+            if (isFullscreen) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .safeStatusBarPadding()
+                ) {
                 AttachTopBar(
                     title = selectedTab.title,
                     onBack = {
@@ -882,6 +900,7 @@ fun AttachSheetContent(
                     modifier = Modifier.fillMaxWidth()
                 )
             }
+        }
 
             // 5. Нижняя панель вкладок (парящая над экраном, управляется через graphicsLayer)
             AttachTabBar(
