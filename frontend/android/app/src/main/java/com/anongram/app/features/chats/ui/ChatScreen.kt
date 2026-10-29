@@ -553,6 +553,7 @@ fun ChatScreen(
         if (state.isAttachOpen) {
             AttachSheet(
                 visible = true,
+                chatId = session.id,
                 recipientName = session.title,
                 keyboardHeightPx = frozenKeyboardHeightPx,
                 wasKeyboardOpen = wasKeyboardOpenWhenAttached,

@@ -11,6 +11,7 @@ import com.anongram.app.features.attach.ui.AttachSheetContent
 @Composable
 fun AttachSheet(
     visible: Boolean,
+    chatId: String = "",
     recipientName: String = "",
     onDismiss: () -> Unit,
     onSend: (List<AttachmentDraft>) -> Unit,
@@ -21,6 +22,7 @@ fun AttachSheet(
 ) {
     if (visible) {
         AttachSheetContent(
+            chatId = chatId,
             recipientName = recipientName,
             onDismiss = onDismiss,
             onSend = onSend,

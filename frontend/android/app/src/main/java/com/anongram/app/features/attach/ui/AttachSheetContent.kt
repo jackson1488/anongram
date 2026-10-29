@@ -44,6 +44,8 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
@@ -150,6 +152,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun AttachSheetContent(
+    chatId: String = "",
     recipientName: String = "",
     onDismiss: () -> Unit,
     onSend: (List<AttachmentDraft>) -> Unit,
@@ -231,9 +234,9 @@ fun AttachSheetContent(
             anim?.cancel()
             if (totalSelectedCount > 0) {
                 // Защита: шторка не может опуститься ниже 50% при наличии выбранных элементов
-                if (velocityY < -350f && offsetPx > 0f) {
+                if (velocityY < -850f && offsetPx > 0f) {
                     animateTo(0f, ms = 260, isFling = true)
-                } else if (velocityY > 350f) {
+                } else if (velocityY > 850f) {
                     if (offsetPx < halfOffset - 20f) {
                         animateTo(halfOffset, ms = 260, isFling = true)
                     } else {
@@ -241,45 +244,39 @@ fun AttachSheetContent(
                         animateTo(halfOffset, ms = 260, isFling = true)
                     }
                 } else {
-                    if (offsetPx < halfOffset * 0.5f) {
-                        animateTo(0f, ms = 240, isFling = false)
-                    } else {
-                        if (offsetPx > halfOffset + 15f) {
-                            showDiscardDialog = true
-                        }
+                    // Свободная фиксация в ЛЮБОМ месте от 50% до 100%!
+                    if (offsetPx > halfOffset + 15f) {
+                        showDiscardDialog = true
                         animateTo(halfOffset, ms = 200, isFling = false)
+                    } else {
+                        // Оставляем шторку ровно на той высоте, где отпустил пользователь
+                        offsetPx = offsetPx.coerceIn(0f, halfOffset)
                     }
                 }
                 return
             }
             // velocityY < 0 = свайп вверх, velocityY > 0 = свайп вниз
-            if (velocityY < -350f && offsetPx > 0f) {
-                // Резкий свайп вверх: аккуратно и плавно до конца 100 едет без фризов
+            if (velocityY < -850f && offsetPx > 0f) {
+                // Резкий свайп вверх: доводим до 100%
                 animateTo(0f, ms = 260, isFling = true)
-            } else if (velocityY > 350f) {
+            } else if (velocityY > 850f) {
                 // Резкий свайп вниз:
                 if (offsetPx < halfOffset - 20f) {
-                    // Из полноэкранного режима вниз ВСЕГДА возвращается на 50%!
                     animateTo(halfOffset, ms = 260, isFling = true)
                 } else {
-                    // С 50% закрывает с мягкой анимацией
                     close()
                 }
             } else {
-                // Плавный свайп пальцем (свободное перемещение и мягкая доводка):
-                when {
-                    offsetPx < halfOffset * 0.5f -> {
-                        // Провели вверх дальше половины пути — плавно доводим до 100%
-                        animateTo(0f, ms = 240, isFling = false)
-                    }
-                    offsetPx <= halfOffset + H * 0.06f -> {
-                        // Около 50% — ровно фиксируем на 50%
-                        animateTo(halfOffset, ms = 200, isFling = false)
-                    }
-                    else -> {
-                        // Оттянули вниз ниже половины — закрываем
-                        close()
-                    }
+                // Плавное отпускание пальца: свободная фиксация в ЛЮБОМ месте от 50% до 100%!
+                if (offsetPx <= halfOffset) {
+                    // Фиксируется в любом месте от 50% до 100%
+                    offsetPx = offsetPx.coerceIn(0f, halfOffset)
+                } else if (offsetPx <= halfOffset + H * 0.12f) {
+                    // Чуть ниже 50% — ровно возвращаем на 50%
+                    animateTo(halfOffset, ms = 200, isFling = false)
+                } else {
+                    // Оттянули вниз ниже половины — закрываем
+                    close()
                 }
             }
         }
@@ -310,6 +307,12 @@ fun AttachSheetContent(
     var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
     var selectedAlbum by remember { mutableStateOf("Все медиа") }
     var isAlbumsSheetOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(offsetPx) {
+        if (offsetPx > 10f && isAlbumsSheetOpen) {
+            isAlbumsSheetOpen = false
+        }
+    }
     var quickCardContact by remember { mutableStateOf<DeviceContact?>(null) }
     val isQuickContactOpen by remember { derivedStateOf { quickCardContact != null } }
 
@@ -555,6 +558,7 @@ fun AttachSheetContent(
     val connection = remember(H) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (isAlbumsSheetOpen) isAlbumsSheetOpen = false
                 val dy = available.y
                 if (dy < 0f && offsetPx > 0f) {        // палец вверх: растёт шторка
                     anim?.cancel()
@@ -568,6 +572,7 @@ fun AttachSheetContent(
             override fun onPostScroll(
                 consumed: Offset, available: Offset, source: NestedScrollSource
             ): Offset {
+                if (isAlbumsSheetOpen) isAlbumsSheetOpen = false
                 val dy = available.y
                 if (dy > 0f) {                         // палец вниз, список уже в начале
                     anim?.cancel()
@@ -648,19 +653,19 @@ fun AttachSheetContent(
                                     isPreviewOrderOpen = true
                                 }
                             },
-                            onOptionsClick = { isGalleryOptionsMenuOpen = true }
-                        )
-
-                        GallerySelectionOptionsMenu(
-                            expanded = isGalleryOptionsMenuOpen,
-                            onDismissRequest = { isGalleryOptionsMenuOpen = false },
-                            canUngroup = selectedMedia.size >= 2,
-                            allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
-                            onSendUncompressed = { sendAsUncompressed() },
-                            onSendUngrouped = { sendAsUngrouped() },
-                            onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
-                            onSendHd = { sendAsHd() },
-                            modifier = Modifier.align(Alignment.TopEnd).padding(top = 40.dp, end = 8.dp)
+                            onOptionsClick = { isGalleryOptionsMenuOpen = true },
+                            menuContent = {
+                                GallerySelectionOptionsMenu(
+                                    expanded = isGalleryOptionsMenuOpen,
+                                    onDismissRequest = { isGalleryOptionsMenuOpen = false },
+                                    canUngroup = selectedMedia.size >= 2,
+                                    allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
+                                    onSendUncompressed = { sendAsUncompressed() },
+                                    onSendUngrouped = { sendAsUngrouped() },
+                                    onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
+                                    onSendHd = { sendAsHd() }
+                                )
+                            }
                         )
                     }
                 } else {
@@ -709,6 +714,7 @@ fun AttachSheetContent(
                             onOpenAlbumsSheet = { isAlbumsSheetOpen = true },
                             selectedMedia = selectedMedia,
                             onToggleSelectMedia = { media ->
+                                isAlbumsSheetOpen = false
                                 if (selectedMedia.any { it.uri == media.uri }) {
                                     selectedMedia.removeAll { it.uri == media.uri }
                                 } else {
@@ -723,6 +729,7 @@ fun AttachSheetContent(
                             capturedMediaItems = capturedMediaList,
                             isFullscreen = isFull,
                             onOpenViewer = { list, idx ->
+                                isAlbumsSheetOpen = false
                                 viewingMediaList = list
                                 viewingMediaIndex = idx
                             },
@@ -1033,8 +1040,8 @@ fun AttachSheetContent(
     }
 }
 
-        // Выпадающее меню альбомов (floating dropdown popup прямо под шапкой с высоким zIndex)
-        if (isAlbumsSheetOpen && availableAlbums.isNotEmpty()) {
+        // Выпадающее меню альбомов (адаптивное по высоте меню прямо под шапкой с высоким zIndex)
+        if (isAlbumsSheetOpen && availableAlbums.isNotEmpty() && offsetPx <= H * 0.08f) {
             val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Box(
                 modifier = Modifier
@@ -1054,7 +1061,8 @@ fun AttachSheetContent(
                             bottom = 24.dp
                         )
                         .widthIn(min = 230.dp, max = 290.dp)
-                        .fillMaxHeight(0.70f)
+                        .wrapContentHeight()
+                        .heightIn(max = 380.dp)
                         .clip(RoundedCornerShape(20.dp))
                         .background(Color(0xFF212121))
                         .border(0.5.dp, Color(0x22FFFFFF), RoundedCornerShape(20.dp))
@@ -1064,7 +1072,11 @@ fun AttachSheetContent(
                         ) { /* consume clicks inside menu */ }
                         .padding(vertical = 8.dp)
                 ) {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight()
+                    ) {
                         items(availableAlbums, key = { it.name }) { album ->
                             AlbumDropdownRowItem(
                                 album = album,
@@ -1112,6 +1124,7 @@ fun AttachSheetContent(
                 caption = captionText,
                 onCaptionChange = { captionText = it },
                 onClose = { isPreviewOrderOpen = false },
+                chatId = chatId,
                 onSend = { orderedMedia, isUncompressed, isUngrouped, isHd ->
                     val drafts = mutableListOf<AttachmentDraft>()
                     orderedMedia.forEachIndexed { index, media ->
@@ -1389,7 +1402,8 @@ private fun GallerySelectionBar(
     hasMoreItems: Boolean,
     onOpenPreviewOrder: () -> Unit,
     onOptionsClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    menuContent: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -1424,16 +1438,19 @@ private fun GallerySelectionBar(
             }
         }
 
-        IconButton(
-            onClick = onOptionsClick,
-            modifier = Modifier.size(36.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.MoreVert,
-                contentDescription = "Опции",
-                tint = Color.White,
-                modifier = Modifier.size(22.dp)
-            )
+        Box {
+            IconButton(
+                onClick = onOptionsClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = "Опции",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            menuContent?.invoke()
         }
     }
 }
