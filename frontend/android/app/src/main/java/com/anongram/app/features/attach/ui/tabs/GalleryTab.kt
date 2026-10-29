@@ -389,7 +389,12 @@ private fun LiveCameraTile(
             .clickable { onLaunchCamera() },
         contentAlignment = Alignment.Center
     ) {
-        if (hasCameraPermission) {
+        val isEmulatorOrWaydroid = remember {
+            android.os.Build.FINGERPRINT.contains("waydroid", ignoreCase = true) ||
+            android.os.Build.HARDWARE.contains("waydroid", ignoreCase = true) ||
+            android.os.Build.PRODUCT.contains("waydroid", ignoreCase = true)
+        }
+        if (hasCameraPermission && !isEmulatorOrWaydroid) {
             AndroidView(
                 factory = { ctx ->
                     TextureView(ctx).apply {
