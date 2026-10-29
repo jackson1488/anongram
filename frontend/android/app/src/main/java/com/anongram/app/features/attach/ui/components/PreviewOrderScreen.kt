@@ -163,64 +163,19 @@ fun PreviewOrderScreen(
             )
         }
 
-        // 2. Контейнер экрана предпросмотра: открывается на том же уровне и свободно тащится вверх и вниз
+        // 2. Контейнер экрана предпросмотра на фоне обоев чата (макет media_1793295326790.png)
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { translationY = previewOffsetPx }
-                .background(
-                    color = Color(0xFF0F0F12),
-                    shape = RoundedCornerShape(topStart = if (previewOffsetPx > 15f) 20.dp else 0.dp, topEnd = if (previewOffsetPx > 15f) 20.dp else 0.dp)
-                )
-                .border(
-                    width = 0.5.dp,
-                    color = Color(0x33FFFFFF),
-                    shape = RoundedCornerShape(topStart = if (previewOffsetPx > 15f) 20.dp else 0.dp, topEnd = if (previewOffsetPx > 15f) 20.dp else 0.dp)
-                )
+                .safeStatusBarPadding()
         ) {
-            // Шапка и ручка экрана предпросмотра: свободно тащится вверх и вниз
-            Column(
+            // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .draggable(
-                        orientation = Orientation.Vertical,
-                        state = rememberDraggableState { d ->
-                            previewOffsetPx = (previewOffsetPx + d).coerceAtLeast(0f)
-                            onOffsetChange(previewOffsetPx)
-                        },
-                        onDragStopped = { v ->
-                            if (v > 850f || previewOffsetPx > halfOffset + 80f) {
-                                handleClose()
-                            } else {
-                                previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
-                                onOffsetChange(previewOffsetPx)
-                            }
-                        }
-                    )
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Тонкая ручка для перемещения шторки вверх/вниз
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 36.dp, height = 4.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(Color(0x66FFFFFF))
-                    )
-                }
-
-                // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(if (previewOffsetPx < 20f) Modifier.safeStatusBarPadding() else Modifier)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
                 // Кнопка "< Предпросмотр"
                 Row(
                     modifier = Modifier
@@ -233,27 +188,27 @@ fun PreviewOrderScreen(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Предпросмотр",
                         color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Кнопка "⋮" с закреплённым выпадающим меню (только 3 точки)
+                // Кнопка "⋮" с выпадающим меню (строго одна иконка справа)
                 Box {
                     IconButton(onClick = { isMenuOpen = true }) {
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
                             contentDescription = "Опции",
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
 
@@ -332,16 +287,17 @@ fun PreviewOrderScreen(
                     }
                 }
             }
-            }
 
-            // 3. Основная область: карточки медиа в рамке с фиолетовой обводкой (как на макете пользователя)
+            Spacer(modifier = Modifier.weight(0.08f))
+
+            // 3. Основная область: карточки медиа в рамке с фиолетовой обводкой (1 в 1 как на макете media_1793295326790.png)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(horizontal = 14.dp, vertical = 6.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .border(1.5.dp, AttachPurple, RoundedCornerShape(16.dp))
+                    .padding(horizontal = 20.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(20.dp))
                     .background(Color(0xFF131317))
             ) {
                 if (orderedList.size == 2) {
@@ -359,7 +315,7 @@ fun PreviewOrderScreen(
                             modifier = Modifier
                                 .width(1.5.dp)
                                 .fillMaxHeight()
-                                .background(AttachPurple)
+                                .background(Color(0xFFC084FC))
                         )
                         PreviewCollageItem(
                             media = orderedList[1],
@@ -404,13 +360,13 @@ fun PreviewOrderScreen(
                 }
             }
 
-            // 4. Плашка "Перетащите для изменения порядка"
+            // 4. Плашка "Перетащите для изменения порядка" (макет media_1793295326790.png)
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterHorizontally)
-                    .padding(vertical = 8.dp)
+                    .padding(vertical = 10.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFF26262E))
+                    .background(Color(0x993E2E28))
                     .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
                     .padding(horizontal = 16.dp, vertical = 6.dp)
             ) {
@@ -422,7 +378,9 @@ fun PreviewOrderScreen(
                 )
             }
 
-            // 5. Нижняя панель ввода подписи и круглая кнопка отправки
+            Spacer(modifier = Modifier.weight(0.08f))
+
+            // 5. Нижняя панель ввода подписи и круглая кнопка отправки с бейджем количества
             AttachInputBar(
                 caption = caption,
                 onCaptionChange = onCaptionChange,

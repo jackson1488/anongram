@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.features.attach.ui.theme.AttachPurple
@@ -179,20 +181,40 @@ fun AttachInputBar(
 
                     Spacer(modifier = Modifier.width(8.dp))
 
-                    // Круглая фиолетовая кнопка отправки
-                    IconButton(
-                        onClick = onSend,
-                        modifier = Modifier
-                            .size(42.dp)
-                            .clip(CircleShape)
-                            .background(AttachPurple)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Отправить",
-                            tint = Color.White,
-                            modifier = Modifier.size(19.dp)
-                        )
+                    // Круглая фиолетовая кнопка отправки с бейджем количества (макет media_1793295326790.png)
+                    Box(contentAlignment = Alignment.TopStart) {
+                        IconButton(
+                            onClick = onSend,
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(AttachPurple)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Отправить",
+                                tint = Color.White,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                        if (selectedCount > 1) {
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = (-3).dp, y = (-3).dp)
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFC084FC))
+                                    .border(1.5.dp, Color(0xFF1E1E1E), CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = selectedCount.toString(),
+                                    color = Color.White,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                     }
                 }
             }
