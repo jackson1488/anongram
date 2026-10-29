@@ -641,8 +641,8 @@ fun AttachSheetContent(
                 // В полураскрытом состоянии Галереи: тонкая полоска ручки (18.dp)
                 // При выборе медиа: сверху появляется компактная полоса выбора (36.dp)
                 val isGallery = (selectedTab == AttachTab.GALLERY)
-                val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty() && !isFull)
-                val handleHeight = if (isGalleryWithSelection) 36.dp else 18.dp
+                val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty())
+                val handleHeight = if (isGalleryWithSelection) 40.dp else 18.dp
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -659,7 +659,7 @@ fun AttachSheetContent(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isGallery && selectedMedia.isNotEmpty() && !isFull) {
+                    if (isGalleryWithSelection) {
                         GallerySelectionBar(
                             title = getGallerySelectionTitle(selectedMedia),
                             hasMoreItems = selectedMedia.size >= 2,
@@ -851,6 +851,32 @@ fun AttachSheetContent(
                                 .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
                         ) {
 
+                            if (selectedMedia.size >= 2) {
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text("Просмотреть сообщение", color = Color.White, fontSize = 14.5.sp)
+                                            Spacer(modifier = Modifier.weight(1f))
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                                contentDescription = null,
+                                                tint = Color(0xFF8E8E93),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        isTopBarMenuOpen = false
+                                        isPreviewOrderOpen = true
+                                    },
+                                    leadingIcon = {
+                                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    }
+                                )
+                            }
                             DropdownMenuItem(
                                 text = { Text("Открыть в...", color = Color.White, fontSize = 14.5.sp) },
                                 onClick = {
@@ -904,28 +930,66 @@ fun AttachSheetContent(
                 } else null,
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
-                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = displayAlbumTitle,
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Альбомы",
-                                tint = AttachPurple,
-                                modifier = Modifier.size(24.dp)
-                            )
+                        if (selectedMedia.isNotEmpty()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable(enabled = selectedMedia.size >= 2) {
+                                        if (selectedMedia.size >= 2) isPreviewOrderOpen = true
+                                    }
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = getGallerySelectionTitle(selectedMedia),
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (selectedMedia.size >= 2) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(Color(0xFFC084FC)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                            contentDescription = "Предпросмотр",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
+                                    .padding(horizontal = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = displayAlbumTitle,
+                                    color = Color.White,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Альбомы",
+                                    tint = AttachPurple,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
                         }
                     }
                 } else null,
@@ -1377,34 +1441,40 @@ private fun GallerySelectionBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(36.dp)
-            .padding(horizontal = 16.dp),
+            .height(40.dp)
+            .padding(horizontal = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier
+                .weight(1f)
+                .clip(RoundedCornerShape(18.dp))
+                .clickable(enabled = hasMoreItems, onClick = onOpenPreviewOrder)
+                .padding(vertical = 4.dp, horizontal = 2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = title,
                 color = Color.White,
                 fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             if (hasMoreItems) {
-                Spacer(modifier = Modifier.width(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
                 Box(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .clickable(onClick = onOpenPreviewOrder),
+                        .background(Color(0xFFC084FC)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Предпросмотр",
-                        tint = Color(0xFFC084FC),
-                        modifier = Modifier.size(15.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
