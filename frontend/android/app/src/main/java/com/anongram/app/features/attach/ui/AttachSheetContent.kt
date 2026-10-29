@@ -54,6 +54,7 @@ import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.HighQuality
@@ -81,7 +82,6 @@ import androidx.compose.ui.window.Dialog
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.attach.ui.components.PreviewOrderScreen
 import android.app.Activity
-import android.content.Intent
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
