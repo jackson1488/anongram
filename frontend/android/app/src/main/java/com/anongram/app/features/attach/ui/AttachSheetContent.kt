@@ -8,6 +8,7 @@ import androidx.compose.animation.core.animate
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.exponentialDecay
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -155,40 +156,56 @@ fun AttachSheetContent(
         var anim by remember { mutableStateOf<Job?>(null) }
         var isClosing by remember { mutableStateOf(false) }
 
-        fun animateTo(target: Float, ms: Int, end: () -> Unit = {}) {
+        val DecelerateEasing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
+        val SmoothInOutEasing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
+
+        fun animateTo(target: Float, ms: Int = 260, isFling: Boolean = false, end: () -> Unit = {}) {
             anim?.cancel()
+            val easing = if (isFling) DecelerateEasing else SmoothInOutEasing
             anim = scope.launch {
                 animate(
                     initialValue = offsetPx,
                     targetValue = target,
-                    animationSpec = tween(ms, easing = FastOutSlowInEasing)
+                    animationSpec = tween(ms, easing = easing)
                 ) { v, _ -> offsetPx = v }
                 end()
             }
         }
-        fun close() = animateTo(H, 240) { currentOnDismiss() }
+        fun close() = animateTo(H, 240, isFling = true) { currentOnDismiss() }
         fun release(velocityY: Float) {
             anim?.cancel()
-            if (velocityY < -800f && offsetPx > 0f) {
-                // Резкий свайп вверх: мгновенно и плавно летит на весь экран
-                animateTo(0f, 220)
-            } else if (velocityY > 800f) {
+            // velocityY < 0 = свайп вверх, velocityY > 0 = свайп вниз
+            if (velocityY < -350f && offsetPx > 0f) {
+                // Резкий свайп вверх: аккуратно и плавно до конца 100 едет без фризов
+                animateTo(0f, ms = 260, isFling = true)
+            } else if (velocityY > 350f) {
                 // Резкий свайп вниз:
-                if (offsetPx < H * 0.40f) {
-                    // С полноэкранного режима вниз фиксирует удобные 50%
-                    animateTo(halfOffset, 240)
+                if (offsetPx < halfOffset - 20f) {
+                    // Из полноэкранного режима вниз ВСЕГДА возвращается на 50%!
+                    animateTo(halfOffset, ms = 260, isFling = true)
                 } else {
                     // С 50% закрывает с мягкой анимацией
                     close()
                 }
             } else {
-                // Свободное положение от 50% до 100%:
-                if (offsetPx <= H * 0.05f) {
-                    animateTo(0f, 180)
-                } else if (offsetPx > halfOffset) {
-                    close()
+                // Плавный свайп пальцем (свободное перемещение):
+                when {
+                    offsetPx <= H * 0.12f -> {
+                        // Дотянули почти до верха — плавно доводим до 100%
+                        animateTo(0f, ms = 220, isFling = false)
+                    }
+                    offsetPx > halfOffset + H * 0.08f -> {
+                        // Стянули существенно ниже половины — закрываем
+                        close()
+                    }
+                    offsetPx > halfOffset -> {
+                        // Чуть ниже 50% — возвращаем ровно на 50%
+                        animateTo(halfOffset, ms = 180, isFling = false)
+                    }
+                    else -> {
+                        // В диапазоне от 12% до 50% шторка свободно остаётся на месте, где отпустил палец!
+                    }
                 }
-                // В диапазоне от 5% до 50% шторка свободно остаётся на месте без залипания!
             }
         }
 
@@ -203,7 +220,7 @@ fun AttachSheetContent(
             animateTo(openOffset, 300)
         }
 
-        val isFull by remember { derivedStateOf { offsetPx <= H * 0.05f } }
+        val isFull by remember { derivedStateOf { offsetPx <= 20f } }
 
         fun dismissAnimated() {
             if (isClosing) return
@@ -434,7 +451,7 @@ fun AttachSheetContent(
             isCameraOpen -> isCameraOpen = false
             isEditorOpen -> isEditorOpen = false
             isFullPlayerOpen -> isFullPlayerOpen = false
-            isFull -> animateTo(openOffset, 250)
+            offsetPx < halfOffset - 20f -> animateTo(halfOffset, 240)
             else -> requestDismiss()
         }
     }
@@ -590,7 +607,7 @@ fun AttachSheetContent(
                             },
                             isFullscreen = isFull,
                             onBack = {
-                                if (isFull) {
+                                if (offsetPx < halfOffset - 20f) {
                                     animateTo(halfOffset, 240)
                                 } else {
                                     requestDismiss()
@@ -629,7 +646,7 @@ fun AttachSheetContent(
                             },
                             isFullscreen = isFull,
                             onBack = {
-                                if (isFull) {
+                                if (offsetPx < halfOffset - 20f) {
                                     animateTo(halfOffset, 240)
                                 } else {
                                     requestDismiss()
@@ -660,7 +677,7 @@ fun AttachSheetContent(
                             },
                             isFullscreen = isFull,
                             onBack = {
-                                if (isFull) {
+                                if (offsetPx < halfOffset - 20f) {
                                     animateTo(halfOffset, 240)
                                 } else {
                                     requestDismiss()
@@ -704,7 +721,7 @@ fun AttachSheetContent(
             AttachTopBar(
                 title = selectedTab.title,
                 onBack = {
-                    if (isFull) {
+                    if (offsetPx < halfOffset - 20f) {
                         animateTo(halfOffset, 240)
                     } else {
                         requestDismiss()

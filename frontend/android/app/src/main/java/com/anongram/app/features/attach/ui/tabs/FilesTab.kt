@@ -16,6 +16,10 @@ import androidx.compose.animation.core.tween
 import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -201,18 +205,40 @@ fun FilesTab(
         }
     }
 
-    Column(
+    val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
+    Box(
         modifier = modifier.fillMaxSize()
     ) {
         // Плавающие таблетки сверху в полном экране (высота 50dp как у ChatTopBar)
         if (isFullscreen) {
-            Row(
+            Box(
                 modifier = Modifier
+                    .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .zIndex(10f)
             ) {
+                // Фоновый градиент (scrim) СЗАДИ плавающей шапки
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(statusBarTopDp + 64.dp)
+                        .background(
+                            Brush.verticalGradient(
+                                0.0f to AttachSheetBackground,
+                                0.75f to AttachSheetBackground.copy(alpha = 0.95f),
+                                1.0f to Color.Transparent
+                            )
+                        )
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .safeStatusBarPadding()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                 // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
                 Box(
                     modifier = Modifier
@@ -351,16 +377,14 @@ fun FilesTab(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
-        } else {
-            Spacer(modifier = Modifier.height(8.dp))
         }
 
         LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f),
-            contentPadding = PaddingValues(bottom = 84.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = if (isFullscreen) statusBarTopDp + 60.dp else 10.dp,
+                bottom = 84.dp
+            )
         ) {
             // Общая вертикальная карточка со скруглёнными углами (ТЗ, скрин media_1793211129173.png)
             item(key = "storage_cards") {
