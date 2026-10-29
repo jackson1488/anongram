@@ -100,6 +100,7 @@ fun PreviewOrderScreen(
     onSend: (List<GalleryMedia>, Boolean, Boolean, Boolean) -> Unit,
     onUpdateOrderAndSpoilers: (List<GalleryMedia>) -> Unit = {},
     onDiscardSelection: () -> Unit = {},
+    onDismissAll: () -> Unit = {},
     chatId: String = "",
     initialOffsetPx: Float = 0f,
     onOffsetChange: (Float) -> Unit = {},
@@ -112,6 +113,7 @@ fun PreviewOrderScreen(
     var isUngrouped by remember { mutableStateOf(false) }
     var isHd by remember { mutableStateOf(false) }
     var viewingPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var showDiscardConfirmDialog by remember { mutableStateOf(false) }
 
     fun handleClose() {
         onUpdateOrderAndSpoilers(orderedList.toList())
@@ -141,9 +143,13 @@ fun PreviewOrderScreen(
 
     var isEmojiPanelOpen by remember { mutableStateOf(false) }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier.fillMaxSize()
     ) {
+        val H = constraints.maxHeight.toFloat()
+        val halfOffset = H * 0.44f
+        var previewOffsetPx by remember(H) { mutableFloatStateOf(initialOffsetPx.coerceIn(0f, halfOffset)) }
+
         // 1. Обои текущего чата на фоне с затемнением
         if (chatId.isNotBlank()) {
             WallpaperBackground(
@@ -163,17 +169,36 @@ fun PreviewOrderScreen(
             )
         }
 
-        // 2. Экран предпросмотра на чистых обоях чата (макет media_1793303524768.png)
+        // 2. Экран предпросмотра (плавает как шторка от 0 до halfOffset)
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer { translationY = previewOffsetPx }
                 .safeStatusBarPadding()
         ) {
-            // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа
+            // Верхняя шапка: "< Предпросмотр" и только кнопка "⋮" справа (можно тянуть вверх/вниз)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta ->
+                            previewOffsetPx = (previewOffsetPx + delta).coerceAtLeast(0f)
+                            onOffsetChange(previewOffsetPx)
+                        },
+                        onDragStopped = { velocity ->
+                            if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
+                                showDiscardConfirmDialog = true
+                            } else if (velocity < -600f) {
+                                previewOffsetPx = 0f
+                                onOffsetChange(0f)
+                            } else {
+                                previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                                onOffsetChange(previewOffsetPx)
+                            }
+                        }
+                    ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Кнопка "< Предпросмотр"
@@ -316,7 +341,7 @@ fun PreviewOrderScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(290.dp)
+                    .height(350.dp)
                     .padding(horizontal = 24.dp)
                     .clip(RoundedCornerShape(20.dp))
                     .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(20.dp))
@@ -402,21 +427,22 @@ fun PreviewOrderScreen(
                         }
                     }
                     else -> {
-                        // Для 4-20 фото: адаптивная сетка коллажа
-                        val cols = if (orderedList.size <= 4) 2 else 3
+                        // Для 4-20 фото: адаптивная сетка коллажа (альбом как в Telegram)
+                        val displayCount = minOf(orderedList.size, 20)
+                        val cols = if (displayCount <= 4) 2 else 3
                         LazyVerticalGrid(
                             columns = GridCells.Fixed(cols),
                             modifier = Modifier.fillMaxSize(),
-                            horizontalArrangement = Arrangement.spacedBy(2.dp),
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                            horizontalArrangement = Arrangement.spacedBy(1.5.dp),
+                            verticalArrangement = Arrangement.spacedBy(1.5.dp)
                         ) {
-                            itemsIndexed(orderedList, key = { _, item -> item.uri.toString() }) { index, item ->
+                            itemsIndexed(orderedList.take(displayCount), key = { _, item -> item.uri.toString() }) { index, item ->
                                 PreviewCollageItem(
                                     media = item,
                                     orderNumber = index + 1,
                                     onPhotoClick = { viewingPhotoUri = it },
                                     onDragSwap = {
-                                        val target = if (index < orderedList.size - 1) index + 1 else index - 1
+                                        val target = if (index < displayCount - 1) index + 1 else index - 1
                                         swapItems(index, target)
                                     },
                                     modifier = Modifier
@@ -449,8 +475,15 @@ fun PreviewOrderScreen(
 
             // Свободное пространство с обоями чата
             Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.height(72.dp))
+        }
 
-            // 5. Нижняя панель ввода подписи и круглая кнопка отправки с бейджем количества
+        // 3. Парящий фиксированный островок ввода подписи внизу
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+        ) {
             AttachInputBar(
                 caption = caption,
                 onCaptionChange = onCaptionChange,
@@ -463,6 +496,56 @@ fun PreviewOrderScreen(
                 onToggleEmoji = { isEmojiPanelOpen = !isEmojiPanelOpen },
                 onCloseEmoji = { isEmojiPanelOpen = false },
                 modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        // Диалог "Сбросить выбор?" при свайпе шторки вниз
+        if (showDiscardConfirmDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    showDiscardConfirmDialog = false
+                    previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                    onOffsetChange(previewOffsetPx)
+                },
+                title = {
+                    Text(
+                        text = "Сбросить выбор?",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    )
+                },
+                text = {
+                    Text(
+                        text = "Вы действительно хотите сбросить выбор фотографий?",
+                        color = Color(0xFFCCCCCC),
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showDiscardConfirmDialog = false
+                            onDiscardSelection()
+                            onDismissAll()
+                        }
+                    ) {
+                        Text("Сбросить", color = Color(0xFFFF5252), fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            showDiscardConfirmDialog = false
+                            previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                            onOffsetChange(previewOffsetPx)
+                        }
+                    ) {
+                        Text("Отмена", color = Color.White)
+                    }
+                },
+                containerColor = Color(0xFF222226),
+                shape = RoundedCornerShape(16.dp)
             )
         }
 
@@ -533,8 +616,8 @@ private fun PreviewCollageItem(
     var isDragging by remember { mutableStateOf(false) }
     var dragAccumulated by remember { mutableStateOf(Offset.Zero) }
 
-    val scale by animateFloatAsState(targetValue = if (isDragging) 0.92f else 1.0f)
-    val zIndexVal = if (isDragging) 10f else 1f
+    val scale by animateFloatAsState(targetValue = if (isDragging) 0.78f else 1.0f)
+    val zIndexVal = if (isDragging) 30f else 1f
 
     LaunchedEffect(media.uri) {
         val bmp = withContext(Dispatchers.IO) {
@@ -549,8 +632,9 @@ private fun PreviewCollageItem(
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
-                translationX = if (isDragging) dragAccumulated.x * 0.35f else 0f
-                translationY = if (isDragging) dragAccumulated.y * 0.35f else 0f
+                translationX = if (isDragging) dragAccumulated.x else 0f
+                translationY = if (isDragging) dragAccumulated.y else 0f
+                shadowElevation = if (isDragging) 24f else 0f
             }
             .background(Color(0xFF1E1E1E))
             .pointerInput(media.uri) {
@@ -575,7 +659,7 @@ private fun PreviewCollageItem(
                     onDrag = { change, dragAmount ->
                         change.consume()
                         dragAccumulated += dragAmount
-                        if (dragAccumulated.getDistance() > 80f) {
+                        if (dragAccumulated.getDistance() > 70f) {
                             onDragSwap()
                             dragAccumulated = Offset.Zero
                         }

@@ -638,23 +638,27 @@ fun AttachSheetContent(
                     Spacer(modifier = Modifier.height(topHandlePad))
                 }
 
-                // В полураскрытом состоянии Галереи: полоса выбора при выделении (макет media_1793303548036.png)
-                val isGalleryWithSelection = (selectedTab == AttachTab.GALLERY && selectedMedia.isNotEmpty() && !isFull)
-                if (isGalleryWithSelection) {
-                    Box(
-                        Modifier.fillMaxWidth().height(44.dp)
-                            .background(AttachSheetBackground)
-                            .draggable(
-                                orientation = Orientation.Vertical,
-                                state = rememberDraggableState { d ->
-                                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
-                                    offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
-                                },
-                                onDragStarted = { anim?.cancel() },
-                                onDragStopped = { v -> release(v) }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
+                // В полураскрытом состоянии Галереи: полоса ручки / выбора при выделении
+                // Высота ВСЕГДА фиксированная 44.dp для Галереи (сетка фото ниже не дергается при выборе!)
+                val isGallery = (selectedTab == AttachTab.GALLERY)
+                val handleHeight = if (isGallery) 44.dp else 16.dp
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(handleHeight)
+                        .background(AttachSheetBackground)
+                        .draggable(
+                            orientation = Orientation.Vertical,
+                            state = rememberDraggableState { d ->
+                                val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
+                                offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
+                            },
+                            onDragStarted = { anim?.cancel() },
+                            onDragStopped = { v -> release(v) }
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isGallery && selectedMedia.isNotEmpty() && !isFull) {
                         GallerySelectionBar(
                             title = getGallerySelectionTitle(selectedMedia),
                             hasMoreItems = selectedMedia.size >= 2,
@@ -682,29 +686,15 @@ fun AttachSheetContent(
                                 )
                             }
                         )
-                    }
-                } else {
-                    // ручка: тянуть можно за неё, высота всегда фиксированная 16.dp, сетка ниже не прыгает
-                    Box(
-                        Modifier.fillMaxWidth().height(16.dp)
-                            .draggable(
-                                orientation = Orientation.Vertical,
-                                state = rememberDraggableState { d ->
-                                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
-                                    offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
-                                },
-                                onDragStarted = { anim?.cancel() },
-                                onDragStopped = { v -> release(v) }
-                            )
-                            .graphicsLayer {
-                                val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
-                                alpha = fadeProgress
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
+                    } else {
+                        // Тонкая полоска ручки: высота всегда фиксированная, сетка ниже не прыгает
                         val isThinHandle = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.MUSIC)
                         Box(
                             modifier = Modifier
+                                .graphicsLayer {
+                                    val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
+                                    alpha = fadeProgress
+                                }
                                 .width(if (isThinHandle) 24.dp else 28.dp)
                                 .height(if (isThinHandle) 1.5.dp else 2.5.dp)
                                 .clip(CircleShape)
@@ -839,8 +829,8 @@ fun AttachSheetContent(
             }
         }
 
-        // 4. Плавающая шапка для Галереи и Геопозиции
-        val showTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION)
+        // 4. Плавающая шапка для Галереи и Геопозиции (активна ТОЛЬКО когда шторка развернута наверх)
+        val showTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) && (offsetPx <= H * 0.12f)
         if (showTopBar) {
             AttachTopBar(
                 title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum) else selectedTab.title,
@@ -938,59 +928,28 @@ fun AttachSheetContent(
                 } else null,
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
-                        if (selectedMedia.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .then(
-                                        if (selectedMedia.size >= 2) Modifier.clickable { isPreviewOrderOpen = true }
-                                        else Modifier
-                                    )
-                                    .padding(horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = getGallerySelectionTitle(selectedMedia),
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                if (selectedMedia.size >= 2) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Предпросмотр",
-                                        tint = Color(0xFFC084FC),
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                    .padding(horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = displayAlbumTitle,
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Альбомы",
-                                    tint = AttachPurple,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = displayAlbumTitle,
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Альбомы",
+                                tint = AttachPurple,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 } else null,
@@ -1150,7 +1109,16 @@ fun AttachSheetContent(
                 chatId = chatId,
                 initialOffsetPx = offsetPx,
                 onOffsetChange = { offsetPx = it },
-                onDiscardSelection = { selectedMedia.clear() },
+                onDiscardSelection = {
+                    selectedMedia.clear()
+                    isPreviewOrderOpen = false
+                    dismissAnimated()
+                },
+                onDismissAll = {
+                    selectedMedia.clear()
+                    isPreviewOrderOpen = false
+                    dismissAnimated()
+                },
                 onUpdateOrderAndSpoilers = { newOrder ->
                     selectedMedia.clear()
                     selectedMedia.addAll(newOrder)
@@ -1158,6 +1126,7 @@ fun AttachSheetContent(
                 onSend = { orderedMedia, isUncompressed, isUngrouped, isHd ->
                     val drafts = mutableListOf<AttachmentDraft>()
                     orderedMedia.forEachIndexed { index, media ->
+                        val isCaptionTarget = if (isUngrouped) (index == orderedMedia.size - 1) else (index == 0)
                         if (isUncompressed) {
                             val meta = getFileMetadataHelper(context, media.uri)
                             drafts.add(
@@ -1165,7 +1134,7 @@ fun AttachSheetContent(
                                     uri = media.uri,
                                     name = meta.name,
                                     size = meta.size,
-                                    caption = if (index == 0) captionText else ""
+                                    caption = if (isCaptionTarget) captionText else ""
                                 )
                             )
                         } else {
@@ -1173,7 +1142,7 @@ fun AttachSheetContent(
                                 AttachmentDraft.Media(
                                     uri = media.uri,
                                     isVideo = media.isVideo,
-                                    caption = if (index == 0) captionText else "",
+                                    caption = if (isCaptionTarget) captionText else "",
                                     hd = isHd,
                                     hasSpoiler = media.hasSpoiler,
                                     ungrouped = isUngrouped
@@ -1448,9 +1417,12 @@ private fun GallerySelectionBar(
             )
             if (hasMoreItems) {
                 Spacer(modifier = Modifier.width(4.dp))
-                IconButton(
-                    onClick = onOpenPreviewOrder,
-                    modifier = Modifier.size(28.dp)
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onOpenPreviewOrder),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -1462,10 +1434,16 @@ private fun GallerySelectionBar(
             }
         }
 
-        Box {
-            IconButton(
-                onClick = onOptionsClick,
-                modifier = Modifier.size(36.dp)
+        Box(
+            modifier = Modifier.size(36.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onOptionsClick),
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,
