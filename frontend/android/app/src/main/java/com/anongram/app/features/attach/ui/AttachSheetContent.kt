@@ -306,6 +306,7 @@ fun AttachSheetContent(
     var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
+    var isAttachEmojiOpen by remember { mutableStateOf(false) }
 
     val systemChooserLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -431,6 +432,7 @@ fun AttachSheetContent(
         selectedTracks.clear()
         selectedContacts.clear()
         captionText = ""
+        isAttachEmojiOpen = false
     }
 
     fun requestDismiss() {
@@ -445,6 +447,7 @@ fun AttachSheetContent(
     BackHandler {
         when {
             showDiscardDialog -> showDiscardDialog = false
+            isAttachEmojiOpen -> isAttachEmojiOpen = false
             quickCardContact != null -> quickCardContact = null
             isAlbumsSheetOpen -> isAlbumsSheetOpen = false
             isMoreMenuOpen -> isMoreMenuOpen = false
@@ -530,7 +533,7 @@ fun AttachSheetContent(
             ) {
                 // ручка: тянуть можно за неё
                 Box(
-                    Modifier.fillMaxWidth().height(16.dp)
+                    Modifier.fillMaxWidth().height(14.dp)
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { d ->
@@ -545,13 +548,13 @@ fun AttachSheetContent(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    val isGallery = (selectedTab == AttachTab.GALLERY)
+                    val isThinHandle = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.MUSIC)
                     Box(
                         modifier = Modifier
-                            .width(if (isGallery) 24.dp else 28.dp)
-                            .height(if (isGallery) 1.5.dp else 2.5.dp)
+                            .width(if (isThinHandle) 24.dp else 28.dp)
+                            .height(if (isThinHandle) 1.5.dp else 2.5.dp)
                             .clip(CircleShape)
-                            .background(if (isGallery) Color(0x33FFFFFF) else Color(0x4DFFFFFF))
+                            .background(if (isThinHandle) Color(0x33FFFFFF) else Color(0x4DFFFFFF))
                     )
                 }
 
@@ -861,6 +864,14 @@ fun AttachSheetContent(
                 selectedCount = totalSelectedCount,
                 visible = totalSelectedCount > 0,
                 onSend = { sendAllSelected() },
+                isEmojiOpen = isAttachEmojiOpen,
+                onToggleEmoji = {
+                    if (!isAttachEmojiOpen && offsetPx > 0f) {
+                        animateTo(0f, 240)
+                    }
+                    isAttachEmojiOpen = !isAttachEmojiOpen
+                },
+                onCloseEmoji = { isAttachEmojiOpen = false },
                 modifier = Modifier.graphicsLayer {
                     alpha = if (totalSelectedCount > 0) 1f else 0f
                     translationY = if (totalSelectedCount > 0) 0f else 200f

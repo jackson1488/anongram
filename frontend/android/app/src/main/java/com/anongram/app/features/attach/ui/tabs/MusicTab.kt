@@ -154,8 +154,8 @@ fun MusicTab(
 
     val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val isPlayerVisible = playerState.isVisible && playerState.currentTrack != null
-    val topOffsetDp = statusBarTopDp + 6.dp
-    val headerContentHeight = if (isPlayerVisible) 100.dp else 48.dp
+    val topOffsetDp = if (isFullscreen) statusBarTopDp + 6.dp else 4.dp
+    val headerContentHeight = if (isPlayerVisible) 96.dp else 44.dp
     val totalHeaderHeight = topOffsetDp + headerContentHeight
 
     Box(
@@ -166,7 +166,7 @@ fun MusicTab(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(totalHeaderHeight + 20.dp)
+                .height(totalHeaderHeight + 14.dp)
                 .zIndex(5f)
                 .background(
                     Brush.verticalGradient(
@@ -193,18 +193,18 @@ fun MusicTab(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
+                    .height(44.dp)
+                    .clip(RoundedCornerShape(22.dp))
                     .background(AttachCardDark)
-                    .border(1.dp, if (isFocused) PurpleAccent else AttachBorder, RoundedCornerShape(24.dp))
+                    .border(1.dp, if (isFocused) PurpleAccent else AttachBorder, RoundedCornerShape(22.dp))
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = Color(0xFF94A3B8),
-                    modifier = Modifier.size(20.dp)
+                    tint = Color(0xFF8E8E93),
+                    modifier = Modifier.size(19.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Box(
@@ -214,8 +214,8 @@ fun MusicTab(
                     if (searchQuery.isEmpty()) {
                         Text(
                             text = "Поиск музыки",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 14.sp
+                            color = Color(0xFF8E8E93),
+                            fontSize = 15.sp
                         )
                     }
                     BasicTextField(
@@ -284,7 +284,7 @@ fun MusicTab(
                     .padding(horizontal = 14.dp)
                     .zIndex(1f),
                 contentPadding = PaddingValues(
-                    top = totalHeaderHeight + 8.dp,
+                    top = totalHeaderHeight + 6.dp,
                     bottom = 84.dp
                 )
             ) {

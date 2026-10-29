@@ -443,7 +443,10 @@ fun FilesTab(
                         subtitle = "Для отправки изображений без сжатия",
                         icon = Icons.Outlined.PhotoLibrary,
                         iconBackground = Color(0xFFF59E0B),
-                        onClick = { isGallerySubScreenOpen = true }
+                        onClick = {
+                            onExpandToFullscreen()
+                            isGallerySubScreenOpen = true
+                        }
                     )
                 }
             }
@@ -928,7 +931,7 @@ private fun FilesGallerySubScreen(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
-                        text = "Все медиа (без сжатия)",
+                        text = "Все медиа",
                         color = Color.White,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,

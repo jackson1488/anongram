@@ -78,7 +78,7 @@ private val STICKER_SYMBOLS = listOf("🛡️", "⚡️", "🧅", "🔑", "💻"
  * Внизу переключатель: Эмодзи, GIF, Стикеры.
  */
 @Composable
-internal fun EmojiStickerPanel(
+fun EmojiStickerPanel(
     onEmojiClick: (String) -> Unit,
     onStickerClick: (symbol: String, colorSeed: Int) -> Unit,
     modifier: Modifier = Modifier
