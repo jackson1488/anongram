@@ -568,12 +568,56 @@ fun ChatScreen(
                     viewModel.closeAttach()
                 },
                 onSend = { drafts ->
-                    drafts.forEach { draft ->
+                    val groupedMedia = drafts.filterIsInstance<AttachmentDraft.Media>().filter { !it.ungrouped }
+                    val otherDrafts = drafts.filter { !(it is AttachmentDraft.Media && !it.ungrouped) }
+
+                    if (groupedMedia.isNotEmpty()) {
+                        val anyCaption = groupedMedia.firstOrNull { it.caption.isNotBlank() }?.caption ?: ""
+                        val mediaChunks = groupedMedia.chunked(10)
+                        mediaChunks.forEachIndexed { chunkIdx, chunk ->
+                            val isLastChunk = (chunkIdx == mediaChunks.lastIndex)
+                            val chunkCaption = if (isLastChunk) anyCaption else ""
+                            if (chunk.size == 1) {
+                                val m = chunk[0]
+                                viewModel.sendAttachment(
+                                    MessageAttachment.Photo(
+                                        label = "",
+                                        colorSeed = 1,
+                                        isVideo = m.isVideo,
+                                        uri = m.uri.toString(),
+                                        hasSpoiler = m.hasSpoiler
+                                    ),
+                                    caption = chunkCaption
+                                )
+                            } else {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.MediaAlbum(
+                                        items = chunk.map { m ->
+                                            MessageAttachment.AlbumMediaItem(
+                                                uri = m.uri.toString(),
+                                                isVideo = m.isVideo,
+                                                hasSpoiler = m.hasSpoiler
+                                            )
+                                        },
+                                        hasSpoiler = chunk.any { it.hasSpoiler }
+                                    ),
+                                    caption = chunkCaption
+                                )
+                            }
+                        }
+                    }
+
+                    otherDrafts.forEach { draft ->
                         when (draft) {
                             is AttachmentDraft.Media -> {
-                                val label = if (draft.caption.isNotBlank()) draft.caption else (if (draft.isVideo) "Видео" else "Фото")
                                 viewModel.sendAttachment(
-                                    MessageAttachment.Photo(label = label, colorSeed = 1, isVideo = draft.isVideo),
+                                    MessageAttachment.Photo(
+                                        label = "",
+                                        colorSeed = 1,
+                                        isVideo = draft.isVideo,
+                                        uri = draft.uri.toString(),
+                                        hasSpoiler = draft.hasSpoiler
+                                    ),
                                     caption = draft.caption
                                 )
                             }

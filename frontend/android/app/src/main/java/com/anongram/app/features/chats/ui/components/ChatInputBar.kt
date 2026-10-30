@@ -573,5 +573,6 @@ private fun replyPreviewSnippet(message: ChatMessage): String = when {
     message.attachment is MessageAttachment.Contact -> "Контакт: ${message.attachment.name}"
     message.attachment is MessageAttachment.Geo -> "Геолокация: ${message.attachment.address}"
     message.attachment is MessageAttachment.Sticker -> "Стикер ${message.attachment.symbol}"
+    message.attachment is MessageAttachment.MediaAlbum -> "Альбом (${message.attachment.items.size} фото)"
     else -> "Сообщение"
 }

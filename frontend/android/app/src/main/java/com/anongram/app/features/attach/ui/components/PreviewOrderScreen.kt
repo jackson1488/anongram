@@ -2,6 +2,7 @@ package com.anongram.app.features.attach.ui.components
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -52,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -59,7 +62,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -69,15 +74,21 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
+import kotlin.math.roundToInt
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.attach.ui.tabs.GalleryMedia
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
@@ -148,10 +159,52 @@ fun PreviewOrderScreen(
         }
     }
 
+    fun removeItemAt(globalIdx: Int) {
+        if (globalIdx in orderedList.indices) {
+            orderedList.removeAt(globalIdx)
+            onUpdateOrderAndSpoilers(orderedList.toList())
+            if (orderedList.isEmpty()) {
+                onClose()
+            }
+        }
+    }
+
+    val itemBoundsMap = remember { mutableStateMapOf<Int, Rect>() }
+    var draggingGlobalIdx by remember { mutableIntStateOf(-1) }
+    var dragFingerRootPos by remember { mutableStateOf(Offset.Zero) }
+    var rootBoxOrigin by remember { mutableStateOf(Offset.Zero) }
+
+    fun findDropTargetIndex(fingerRootPos: Offset, fromIdx: Int): Int {
+        // Сначала ищем ячейку, чей Rect напрямую содержит палец
+        for ((idx, rect) in itemBoundsMap) {
+            if (idx in orderedList.indices && rect.contains(fingerRootPos)) {
+                return idx
+            }
+        }
+        // Если палец попал между ячейками, ищем ближайший центр в пределах 260px
+        var bestIdx = fromIdx
+        var bestDist = Float.MAX_VALUE
+        for ((idx, rect) in itemBoundsMap) {
+            if (idx in orderedList.indices) {
+                val dist = (rect.center - fingerRootPos).getDistance()
+                if (dist < bestDist && dist < 260f) {
+                    bestDist = dist
+                    bestIdx = idx
+                }
+            }
+        }
+        return bestIdx
+    }
+
     var isEmojiPanelOpen by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
 
     BoxWithConstraints(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .onGloballyPositioned { coords ->
+                rootBoxOrigin = coords.positionInRoot()
+            }
     ) {
         val H = constraints.maxHeight.toFloat()
         val halfOffset = H * 0.44f
@@ -439,7 +492,6 @@ fun PreviewOrderScreen(
                     // Скроллируемая область с альбомами сообщений (как в Telegram: до 10 медиа в одном альбоме)
                     val listState = rememberLazyListState()
                     val albumChunks = remember(orderedList.toList()) { orderedList.chunked(10) }
-                    var draggingChunkIdx by remember { mutableIntStateOf(-1) }
 
                     LazyColumn(
                         state = listState,
@@ -456,46 +508,70 @@ fun PreviewOrderScreen(
                         itemsIndexed(albumChunks, key = { chunkIdx, _ -> "chunk_$chunkIdx" }) { chunkIdx, chunk ->
                             val startOrderNumber = chunkIdx * 10 + 1
                             val startGlobalIndex = chunkIdx * 10
-                            val bubbleZ = if (draggingChunkIdx == chunkIdx) 50f else 0f
+                            val chunkCaption = if (chunkIdx == albumChunks.lastIndex) caption else ""
 
                             if (chunk.size == 1) {
                                 SinglePhotoBubble(
                                     media = chunk[0],
                                     orderNumber = startOrderNumber,
                                     globalIndex = startGlobalIndex,
+                                    caption = chunkCaption,
+                                    draggingGlobalIdx = draggingGlobalIdx,
                                     onPhotoClick = { viewingPhotoUri = it },
-                                    isAnyDragging = draggingChunkIdx == chunkIdx,
-                                    onDragStateChange = { dragging -> draggingChunkIdx = if (dragging) chunkIdx else -1 },
-                                    onSwap = { fromIdx, offset, itemsInRow ->
-                                        val delta = computeSwapDelta(offset, itemsInRow)
-                                        if (delta != 0) {
-                                            val target = (fromIdx + delta).coerceIn(0, orderedList.size - 1)
-                                            if (target != fromIdx) swapItems(fromIdx, target)
+                                    onRemoveItem = { idx -> removeItemAt(idx) },
+                                    onBoundsChanged = { idx, rect -> itemBoundsMap[idx] = rect },
+                                    onDragStart = { idx, startRootPos ->
+                                        draggingGlobalIdx = idx
+                                        dragFingerRootPos = startRootPos
+                                    },
+                                    onDragMove = { delta ->
+                                        dragFingerRootPos += delta
+                                    },
+                                    onDragEnd = { fromIdx ->
+                                        val targetIdx = findDropTargetIndex(dragFingerRootPos, fromIdx)
+                                        draggingGlobalIdx = -1
+                                        if (targetIdx != fromIdx) {
+                                            swapItems(fromIdx, targetIdx)
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth().zIndex(bubbleZ)
+                                    onDragCancel = {
+                                        draggingGlobalIdx = -1
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             } else {
                                 AlbumBubble(
                                     mediaItems = chunk,
                                     startOrderNumber = startOrderNumber,
                                     startGlobalIndex = startGlobalIndex,
+                                    caption = chunkCaption,
+                                    draggingGlobalIdx = draggingGlobalIdx,
                                     onPhotoClick = { viewingPhotoUri = it },
-                                    isAnyDragging = draggingChunkIdx == chunkIdx,
-                                    onDragStateChange = { dragging -> draggingChunkIdx = if (dragging) chunkIdx else -1 },
-                                    onSwap = { fromIdx, offset, itemsInRow ->
-                                        val delta = computeSwapDelta(offset, itemsInRow)
-                                        if (delta != 0) {
-                                            val target = (fromIdx + delta).coerceIn(0, orderedList.size - 1)
-                                            if (target != fromIdx) swapItems(fromIdx, target)
+                                    onRemoveItem = { idx -> removeItemAt(idx) },
+                                    onBoundsChanged = { idx, rect -> itemBoundsMap[idx] = rect },
+                                    onDragStart = { idx, startRootPos ->
+                                        draggingGlobalIdx = idx
+                                        dragFingerRootPos = startRootPos
+                                    },
+                                    onDragMove = { delta ->
+                                        dragFingerRootPos += delta
+                                    },
+                                    onDragEnd = { fromIdx ->
+                                        val targetIdx = findDropTargetIndex(dragFingerRootPos, fromIdx)
+                                        draggingGlobalIdx = -1
+                                        if (targetIdx != fromIdx) {
+                                            swapItems(fromIdx, targetIdx)
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth().zIndex(bubbleZ)
+                                    onDragCancel = {
+                                        draggingGlobalIdx = -1
+                                    },
+                                    modifier = Modifier.fillMaxWidth()
                                 )
                             }
                         }
 
-                        // Плашка "Перетащите для изменения порядка" (строго в самом низу списка, как на скриншоте 2)
+                        // Плашка "Перетащите для изменения порядка" (строго в самом низу списка)
                         item(key = "drag_hint_pill") {
                             Box(
                                 modifier = Modifier
@@ -525,6 +601,63 @@ fun PreviewOrderScreen(
                             Spacer(modifier = Modifier.height(84.dp))
                         }
                     }
+                }
+            }
+        }
+
+        // 2.5. Парящий поверх всех фото и альбомов оверлей перетаскиваемой миниатюры (никогда не обрезается и не уезжает)
+        if (draggingGlobalIdx in orderedList.indices) {
+            val draggedMedia = orderedList[draggingGlobalIdx]
+            val draggedOrderNum = draggingGlobalIdx + 1
+            val cardW = 110.dp
+            val cardH = 148.dp
+            val cardWPx = with(density) { cardW.toPx() }
+            val cardHPx = with(density) { cardH.toPx() }
+            val relX = (dragFingerRootPos.x - rootBoxOrigin.x - cardWPx / 2f).roundToInt()
+            val relY = (dragFingerRootPos.y - rootBoxOrigin.y - cardHPx / 2f).roundToInt()
+
+            var dragBitmap by remember(draggedMedia.uri) { mutableStateOf<ImageBitmap?>(null) }
+            LaunchedEffect(draggedMedia.uri) {
+                val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, draggedMedia.uri) }
+                if (dragBitmap == null) dragBitmap = quick?.asImageBitmap()
+            }
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(relX, relY) }
+                    .size(width = cardW, height = cardH)
+                    .zIndex(250f)
+                    .shadow(24.dp, RoundedCornerShape(14.dp))
+                    .clip(RoundedCornerShape(14.dp))
+                    .border(2.dp, Color(0xFFC084FC), RoundedCornerShape(14.dp))
+                    .background(Color(0xFF1E1E1E))
+            ) {
+                if (dragBitmap != null) {
+                    Image(
+                        bitmap = dragBitmap!!,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(if (draggedMedia.hasSpoiler) Modifier.blur(18.dp) else Modifier)
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFC084FC))
+                        .border(1.dp, Color(0xFF1E1E1E), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = draggedOrderNum.toString(),
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
@@ -649,9 +782,10 @@ fun PreviewOrderScreen(
 
 /**
  * Разбивка альбома из N элементов на строки (соответствует Telegram-коллажу):
- * Для 10 элементов -> [3, 4, 3]
- * Для 9 элементов -> [3, 3, 3]
- * Для 6 элементов -> [3, 3]
+ * - 7 элементов -> [3, 4] (сверху 3 больших, снизу 4 увеличенных вертикальных)
+ * - 8 элементов -> [3, 2, 3] (сверху 3, посередине 2, снизу 3)
+ * - 9 элементов -> [3, 3, 3]
+ * - 10 элементов -> [3, 4, 3]
  */
 fun calculateAlbumRows(count: Int): List<Int> {
     return when (count) {
@@ -662,7 +796,7 @@ fun calculateAlbumRows(count: Int): List<Int> {
         5 -> listOf(3, 2)
         6 -> listOf(3, 3)
         7 -> listOf(3, 4)
-        8 -> listOf(4, 4)
+        8 -> listOf(3, 2, 3)
         9 -> listOf(3, 3, 3)
         10 -> listOf(3, 4, 3)
         else -> {
@@ -681,71 +815,76 @@ fun calculateAlbumRows(count: Int): List<Int> {
 fun getRowHeightDp(itemCountInRow: Int): Dp {
     return when (itemCountInRow) {
         1 -> 375.dp
-        2 -> 240.dp
-        3 -> 205.dp
-        4 -> 130.dp
-        else -> 110.dp
+        2 -> 225.dp
+        3 -> 210.dp
+        4 -> 170.dp // Увеличенная вертикальная высота для ряда из 4 фото (в альбомах 7 и 10 фото)
+        else -> 130.dp
     }
-}
-
-/** Смещение индекса при перетаскивании: по горизонтали на 1 ячейку, по вертикали на ряд(ы), в т.ч. в соседний альбом. */
-fun computeSwapDelta(offset: Offset, itemsInRow: Int): Int {
-    val deltaX = if (offset.x > 35f) 1 else if (offset.x < -35f) -1 else 0
-    val rows = when {
-        offset.y > 45f -> kotlin.math.max(1, Math.round(offset.y / 380f))
-        offset.y < -45f -> -kotlin.math.max(1, Math.round(-offset.y / 380f))
-        else -> 0
-    }
-    return if (rows != 0) rows * itemsInRow + deltaX else deltaX
 }
 
 /**
  * Единый баббл альбома сообщений (до 10 фото в чанке), с фиолетовой рамкой и разделителями.
- * Для 2, 3 и 4 фото используются фирменные вертикальные раскладки Telegram.
+ * Для 2, 3 и 4 фото используются фирменные вертикальные раскладки Telegram (правые миниатюры тоже вертикальные, не квадратные).
+ * Если передан непустой caption (для самого последнего альбома), он крепится внизу внутри этого же баббла.
  */
 @Composable
 private fun AlbumBubble(
     mediaItems: List<GalleryMedia>,
     startOrderNumber: Int,
     startGlobalIndex: Int,
+    caption: String = "",
+    draggingGlobalIdx: Int = -1,
     onPhotoClick: (Uri) -> Unit,
-    onSwap: (Int, Offset, Int) -> Unit,
-    isAnyDragging: Boolean = false,
-    onDragStateChange: (Boolean) -> Unit = {},
+    onRemoveItem: (Int) -> Unit,
+    onBoundsChanged: (Int, Rect) -> Unit,
+    onDragStart: (Int, Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
+    onDragEnd: (Int) -> Unit,
+    onDragCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bubbleShape = RoundedCornerShape(16.dp)
     val count = mediaItems.size
 
-    // Для 2, 3, 4 фото уменьшаем ширину баббла по центру (~3 см на колонку, т.е. ~88% ширины), чтобы фото были вертикальными 3×6 см
-    val bubbleWidthFraction = if (count in 2..4) 0.90f else 1f
+    // Для 2, 3, 4 фото сужаем баббл (~86%), чтобы и левое большое, и правые малые фото были выраженно вертикальными
+    val bubbleWidthFraction = when (count) {
+        2 -> 0.88f
+        3, 4 -> 0.86f
+        else -> 1f
+    }
 
     Box(
         modifier = modifier,
         contentAlignment = Alignment.TopCenter
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth(bubbleWidthFraction)
-                .then(if (isAnyDragging) Modifier else Modifier.clip(bubbleShape))
+                .animateContentSize()
+                .clip(bubbleShape)
                 .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
                 .background(Color(0xFF131317))
         ) {
             when (count) {
                 2 -> {
-                    // 2 фото: рядом друг с другом с разделительной полосой, каждое ~3 см по горизонтали и ~6 см по вертикали (соотношение 1:2)
+                    // 2 фото: рядом друг с другом с разделительной полосой, каждое вертикальное (~3×6 см)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(370.dp)
+                            .height(380.dp)
                     ) {
                         PreviewCollageItem(
                             media = mediaItems[0],
                             orderNumber = startOrderNumber,
                             globalIndex = startGlobalIndex,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex,
                             onPhotoClick = onPhotoClick,
-                            onDragStateChange = onDragStateChange,
-                            onDragSwap = { offset -> onSwap(startGlobalIndex, offset, 2) },
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
@@ -760,9 +899,14 @@ private fun AlbumBubble(
                             media = mediaItems[1],
                             orderNumber = startOrderNumber + 1,
                             globalIndex = startGlobalIndex + 1,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex + 1,
                             onPhotoClick = onPhotoClick,
-                            onDragStateChange = onDragStateChange,
-                            onDragSwap = { offset -> onSwap(startGlobalIndex + 1, offset, 2) },
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
@@ -770,21 +914,27 @@ private fun AlbumBubble(
                     }
                 }
                 3 -> {
-                    // 3 фото: первое фото слева большое (3 см × 6 см), а 2-е и 3-е справа друг над другом (вместе 6 см в высоту)
+                    // 3 фото: 1 большое вертикальное слева (weight 1.12f) + 2 меньших справа (weight 0.85f),
+                    // при общей высоте 430.dp правые фото имеют пропорцию ~130×214dp (выраженно вертикальные, не квадрат!)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(370.dp)
+                            .height(430.dp)
                     ) {
                         PreviewCollageItem(
                             media = mediaItems[0],
                             orderNumber = startOrderNumber,
                             globalIndex = startGlobalIndex,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex,
                             onPhotoClick = onPhotoClick,
-                            onDragStateChange = onDragStateChange,
-                            onDragSwap = { offset -> onSwap(startGlobalIndex, offset, 2) },
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(1.12f)
                                 .fillMaxHeight()
                         )
                         Box(
@@ -795,16 +945,21 @@ private fun AlbumBubble(
                         )
                         Column(
                             modifier = Modifier
-                                .weight(1f)
+                                .weight(0.85f)
                                 .fillMaxHeight()
                         ) {
                             PreviewCollageItem(
                                 media = mediaItems[1],
                                 orderNumber = startOrderNumber + 1,
                                 globalIndex = startGlobalIndex + 1,
+                                isBeingDragged = draggingGlobalIdx == startGlobalIndex + 1,
                                 onPhotoClick = onPhotoClick,
-                                onDragStateChange = onDragStateChange,
-                                onDragSwap = { offset -> onSwap(startGlobalIndex + 1, offset, 1) },
+                                onRemoveItem = onRemoveItem,
+                                onBoundsChanged = onBoundsChanged,
+                                onDragStart = onDragStart,
+                                onDragMove = onDragMove,
+                                onDragEnd = onDragEnd,
+                                onDragCancel = onDragCancel,
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth()
@@ -819,9 +974,14 @@ private fun AlbumBubble(
                                 media = mediaItems[2],
                                 orderNumber = startOrderNumber + 2,
                                 globalIndex = startGlobalIndex + 2,
+                                isBeingDragged = draggingGlobalIdx == startGlobalIndex + 2,
                                 onPhotoClick = onPhotoClick,
-                                onDragStateChange = onDragStateChange,
-                                onDragSwap = { offset -> onSwap(startGlobalIndex + 2, offset, 1) },
+                                onRemoveItem = onRemoveItem,
+                                onBoundsChanged = onBoundsChanged,
+                                onDragStart = onDragStart,
+                                onDragMove = onDragMove,
+                                onDragEnd = onDragEnd,
+                                onDragCancel = onDragCancel,
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth()
@@ -830,21 +990,27 @@ private fun AlbumBubble(
                     }
                 }
                 4 -> {
-                    // 4 фото (группировка Telegram): 1 большое вертикальное фото слева + 3 фото столбиком справа
+                    // 4 фото: 1 большое вертикальное слева (weight 1.15f) + 3 вертикальных столбиком справа (weight 0.82f),
+                    // при высоте 470.dp правые фото имеют размер ~125×155dp (вертикальные портретные!)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(380.dp)
+                            .height(470.dp)
                     ) {
                         PreviewCollageItem(
                             media = mediaItems[0],
                             orderNumber = startOrderNumber,
                             globalIndex = startGlobalIndex,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex,
                             onPhotoClick = onPhotoClick,
-                            onDragStateChange = onDragStateChange,
-                            onDragSwap = { offset -> onSwap(startGlobalIndex, offset, 2) },
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
                             modifier = Modifier
-                                .weight(1.1f)
+                                .weight(1.15f)
                                 .fillMaxHeight()
                         )
                         Box(
@@ -855,7 +1021,7 @@ private fun AlbumBubble(
                         )
                         Column(
                             modifier = Modifier
-                                .weight(0.9f)
+                                .weight(0.82f)
                                 .fillMaxHeight()
                         ) {
                             for (idx in 1..3) {
@@ -871,9 +1037,14 @@ private fun AlbumBubble(
                                     media = mediaItems[idx],
                                     orderNumber = startOrderNumber + idx,
                                     globalIndex = startGlobalIndex + idx,
+                                    isBeingDragged = draggingGlobalIdx == startGlobalIndex + idx,
                                     onPhotoClick = onPhotoClick,
-                                    onDragStateChange = onDragStateChange,
-                                    onDragSwap = { offset -> onSwap(startGlobalIndex + idx, offset, 1) },
+                                    onRemoveItem = onRemoveItem,
+                                    onBoundsChanged = onBoundsChanged,
+                                    onDragStart = onDragStart,
+                                    onDragMove = onDragMove,
+                                    onDragEnd = onDragEnd,
+                                    onDragCancel = onDragCancel,
                                     modifier = Modifier
                                         .weight(1f)
                                         .fillMaxWidth()
@@ -921,11 +1092,14 @@ private fun AlbumBubble(
                                             media = media,
                                             orderNumber = orderNum,
                                             globalIndex = globalIdx,
+                                            isBeingDragged = draggingGlobalIdx == globalIdx,
                                             onPhotoClick = onPhotoClick,
-                                            onDragStateChange = onDragStateChange,
-                                            onDragSwap = { offset ->
-                                                onSwap(globalIdx, offset, countInRow)
-                                            },
+                                            onRemoveItem = onRemoveItem,
+                                            onBoundsChanged = onBoundsChanged,
+                                            onDragStart = onDragStart,
+                                            onDragMove = onDragMove,
+                                            onDragEnd = onDragEnd,
+                                            onDragCancel = onDragCancel,
                                             modifier = Modifier
                                                 .weight(1f)
                                                 .fillMaxHeight()
@@ -938,6 +1112,29 @@ private fun AlbumBubble(
                     }
                 }
             }
+
+            // Подпись крепится в конце самого последнего альбома
+            if (caption.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.5.dp)
+                        .background(Color(0xFFC084FC))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF191922))
+                        .padding(horizontal = 12.dp, vertical = 9.dp)
+                ) {
+                    Text(
+                        text = caption,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
         }
     }
 }
@@ -945,17 +1142,22 @@ private fun AlbumBubble(
 /**
  * Одиночный баббл фото (1 фото выбрано, либо одиночный остаток после разбивки по 10):
  * Стоит ровно по центру по горизонтали ниже шапки «Предпросмотр»,
- * вертикальный размер ~4.5 см по горизонтали и ~10 см по вертикали (соотношение ~9:20).
+ * вертикальный размер ~4.5 см по горизонтали и ~10 см по вертикали.
  */
 @Composable
 private fun SinglePhotoBubble(
     media: GalleryMedia,
     orderNumber: Int,
     globalIndex: Int,
+    caption: String = "",
+    draggingGlobalIdx: Int = -1,
     onPhotoClick: (Uri) -> Unit,
-    onSwap: (Int, Offset, Int) -> Unit,
-    isAnyDragging: Boolean = false,
-    onDragStateChange: (Boolean) -> Unit = {},
+    onRemoveItem: (Int) -> Unit,
+    onBoundsChanged: (Int, Rect) -> Unit,
+    onDragStart: (Int, Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
+    onDragEnd: (Int) -> Unit,
+    onDragCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bubbleShape = RoundedCornerShape(16.dp)
@@ -963,11 +1165,11 @@ private fun SinglePhotoBubble(
         modifier = modifier,
         contentAlignment = Alignment.TopCenter
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth(0.68f)
-                .height(540.dp)
-                .then(if (isAnyDragging) Modifier else Modifier.clip(bubbleShape))
+                .animateContentSize()
+                .clip(bubbleShape)
                 .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
                 .background(Color(0xFF131317))
         ) {
@@ -975,43 +1177,69 @@ private fun SinglePhotoBubble(
                 media = media,
                 orderNumber = orderNumber,
                 globalIndex = globalIndex,
+                isBeingDragged = draggingGlobalIdx == globalIndex,
                 onPhotoClick = onPhotoClick,
-                onDragStateChange = onDragStateChange,
-                onDragSwap = { offset -> onSwap(globalIndex, offset, 1) },
-                modifier = Modifier.fillMaxSize()
+                onRemoveItem = onRemoveItem,
+                onBoundsChanged = onBoundsChanged,
+                onDragStart = onDragStart,
+                onDragMove = onDragMove,
+                onDragEnd = onDragEnd,
+                onDragCancel = onDragCancel,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(520.dp)
             )
+            if (caption.isNotBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.5.dp)
+                        .background(Color(0xFFC084FC))
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF191922))
+                        .padding(horizontal = 12.dp, vertical = 9.dp)
+                ) {
+                    Text(
+                        text = caption,
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        lineHeight = 18.sp
+                    )
+                }
+            }
         }
     }
 }
 
 /**
  * Элемент коллажа в экране предпросмотра:
- * - Одиночный тап: полноэкранный просмотр
- * - Долгое нажатие (зажатие): карточка уменьшается (scale 0.78), elevation 24dp и плавно следует за пальцем
- * - Обмен местами (swap) строго по onDragEnd при отпускании пальца (без рывков во время движения)
- * - Спойлерный блюр и мерцающие частицы, если спойлер включён
- * - Фиолетовый круглый бейдж порядка (1), (2)...
+ * - Одиночный тап по фото: полноэкранный просмотр
+ * - Тап по круглому фиолетовому бейджу с номером: снятие выбора (фото исчезает, альбом плавно перестраивается)
+ * - Долгое нажатие (зажатие): плавное перетаскивание поверх всех фото и альбомов через корневой оверлей
  */
 @Composable
 private fun PreviewCollageItem(
     media: GalleryMedia,
     orderNumber: Int,
     globalIndex: Int,
+    isBeingDragged: Boolean,
     onPhotoClick: (Uri) -> Unit,
-    onDragSwap: (Offset) -> Unit,
-    onDragStateChange: (Boolean) -> Unit = {},
+    onRemoveItem: (Int) -> Unit,
+    onBoundsChanged: (Int, Rect) -> Unit,
+    onDragStart: (Int, Offset) -> Unit,
+    onDragMove: (Offset) -> Unit,
+    onDragEnd: (Int) -> Unit,
+    onDragCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
-    var isDragging by remember { mutableStateOf(false) }
-    var dragAccumulated by remember { mutableStateOf(Offset.Zero) }
-
-    val scale by animateFloatAsState(targetValue = if (isDragging) 0.78f else 1.0f)
-    val zIndexVal = if (isDragging) 40f else 1f
+    var itemRectInRoot by remember { mutableStateOf(Rect.Zero) }
 
     LaunchedEffect(media.uri) {
-        // Сначала мгновенно быстрое превью, затем HD-версия без «мыла»
         val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, media.uri) }
         if (bitmap == null) bitmap = quick?.asImageBitmap()
         val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, media.uri) }
@@ -1020,13 +1248,13 @@ private fun PreviewCollageItem(
 
     Box(
         modifier = modifier
-            .zIndex(zIndexVal)
+            .onGloballyPositioned { coords ->
+                val rect = coords.boundsInRoot()
+                itemRectInRoot = rect
+                onBoundsChanged(globalIndex, rect)
+            }
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                translationX = if (isDragging) dragAccumulated.x else 0f
-                translationY = if (isDragging) dragAccumulated.y else 0f
-                shadowElevation = if (isDragging) 24f else 0f
+                alpha = if (isBeingDragged) 0.25f else 1f
             }
             .background(Color(0xFF1E1E1E))
             .pointerInput(media.uri) {
@@ -1036,27 +1264,22 @@ private fun PreviewCollageItem(
             }
             .pointerInput(globalIndex) {
                 detectDragGesturesAfterLongPress(
-                    onDragStart = {
-                        isDragging = true
-                        onDragStateChange(true)
-                        dragAccumulated = Offset.Zero
+                    onDragStart = { startOffset ->
+                        val startRoot = Offset(
+                            itemRectInRoot.left + startOffset.x,
+                            itemRectInRoot.top + startOffset.y
+                        )
+                        onDragStart(globalIndex, startRoot)
                     },
                     onDragEnd = {
-                        isDragging = false
-                        onDragStateChange(false)
-                        if (dragAccumulated.getDistance() > 36f) {
-                            onDragSwap(dragAccumulated)
-                        }
-                        dragAccumulated = Offset.Zero
+                        onDragEnd(globalIndex)
                     },
                     onDragCancel = {
-                        isDragging = false
-                        onDragStateChange(false)
-                        dragAccumulated = Offset.Zero
+                        onDragCancel()
                     },
                     onDrag = { change, dragAmount ->
                         change.consume()
-                        dragAccumulated += dragAmount
+                        onDragMove(dragAmount)
                     }
                 )
             }
@@ -1072,28 +1295,34 @@ private fun PreviewCollageItem(
             )
         }
 
-        // Анимированный спойлер с мерцающими частицами, если включён
         if (media.hasSpoiler) {
             SpoilerOverlay(modifier = Modifier.fillMaxSize())
         }
 
-        // Бейдж порядка в верхнем правом углу: круглая фиолетовая плашка с цифрой
+        // Фиолетовый бейдж с номером в правом верхнем углу: тап по бейджу отменяет выбор этого фото, и альбом перестраивается
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(6.dp)
-                .size(24.dp)
+                .padding(4.dp)
+                .size(28.dp)
                 .clip(CircleShape)
                 .background(Color(0xFFC084FC))
-                .border(1.dp, Color(0xFF1E1E1E), CircleShape),
+                .border(1.5.dp, Color(0xFF1E1E1E), CircleShape)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) {
+                    onRemoveItem(globalIndex)
+                },
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = orderNumber.toString(),
                 color = Color.White,
-                fontSize = 11.sp,
+                fontSize = 11.5.sp,
                 fontWeight = FontWeight.Bold
             )
         }
     }
 }
+

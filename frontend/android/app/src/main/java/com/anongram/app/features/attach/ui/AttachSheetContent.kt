@@ -306,7 +306,7 @@ fun AttachSheetContent(
                 AttachmentDraft.Media(
                     uri = media.uri,
                     isVideo = media.isVideo,
-                    caption = if (index == 0) captionText else "",
+                    caption = if (index == selectedMedia.lastIndex) captionText else "",
                     hasSpoiler = media.hasSpoiler
                 )
             )
@@ -318,7 +318,7 @@ fun AttachSheetContent(
                     uri = file.uri,
                     name = file.name,
                     size = file.size,
-                    caption = if (index == 0) captionText else ""
+                    caption = if (selectedMedia.isEmpty() && index == selectedFiles.lastIndex) captionText else ""
                 )
             )
         }
@@ -330,7 +330,7 @@ fun AttachSheetContent(
                     title = track.title,
                     artist = track.artist,
                     durationMs = track.durationMs,
-                    caption = if (index == 0) captionText else ""
+                    caption = if (selectedMedia.isEmpty() && selectedFiles.isEmpty() && index == selectedTracks.lastIndex) captionText else ""
                 )
             )
         }
@@ -458,7 +458,7 @@ fun AttachSheetContent(
                 uri = media.uri,
                 name = meta.name,
                 size = meta.size,
-                caption = if (index == 0) captionText else ""
+                caption = if (index == selectedMedia.lastIndex) captionText else ""
             )
         }
         onSend(drafts)
@@ -471,7 +471,7 @@ fun AttachSheetContent(
             AttachmentDraft.Media(
                 uri = media.uri,
                 isVideo = media.isVideo,
-                caption = if (index == 0) captionText else "",
+                caption = if (index == selectedMedia.lastIndex) captionText else "",
                 hasSpoiler = media.hasSpoiler,
                 ungrouped = true
             )
@@ -495,7 +495,7 @@ fun AttachSheetContent(
             AttachmentDraft.Media(
                 uri = media.uri,
                 isVideo = media.isVideo,
-                caption = if (index == 0) captionText else "",
+                caption = if (index == selectedMedia.lastIndex) captionText else "",
                 hasSpoiler = media.hasSpoiler,
                 hd = true
             )
@@ -1179,7 +1179,7 @@ fun AttachSheetContent(
                 onSend = { orderedMedia, isUncompressed, isUngrouped, isHd ->
                     val drafts = mutableListOf<AttachmentDraft>()
                     orderedMedia.forEachIndexed { index, media ->
-                        val isCaptionTarget = if (isUngrouped) (index == orderedMedia.size - 1) else (index == 0)
+                        val isCaptionTarget = (index == orderedMedia.lastIndex)
                         if (isUncompressed) {
                             val meta = getFileMetadataHelper(context, media.uri)
                             drafts.add(

@@ -1,5 +1,6 @@
 package com.anongram.app.features.chats.ui.components
 
+import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -18,16 +19,21 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -52,15 +58,21 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -81,6 +93,11 @@ import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.features.attach.ui.components.SpoilerOverlay
+import com.anongram.app.features.attach.ui.components.calculateAlbumRows
+import com.anongram.app.features.attach.ui.components.getRowHeightDp
+import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
+import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.LinkPreview
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -89,6 +106,8 @@ import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.MessageStatus
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import com.anongram.app.features.chats.messages.domain.timeLabel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
 private val ReplyStripIncoming = Color(0xFF0B121E)
@@ -289,6 +308,9 @@ internal fun MessageBubble(
                             else -> null
                         }
 
+                        val isEdgeToEdgeMedia = (message.attachment is MessageAttachment.MediaAlbum) ||
+                            (message.attachment is MessageAttachment.Photo && (message.attachment as MessageAttachment.Photo).uri != null)
+
                         Surface(
                             shape = bubbleShape(item, isIncoming),
                             color = bubbleColor,
@@ -304,23 +326,31 @@ internal fun MessageBubble(
                         ) {
                             Box {
                                 Column(
-                                    modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
+                                    modifier = if (isEdgeToEdgeMedia) {
+                                        Modifier.padding(start = 2.dp, end = 2.dp, top = 2.dp, bottom = 5.dp)
+                                    } else {
+                                        Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
+                                    }
                                 ) {
                                     // Пометка пересылки (шаг 10)
                                     message.forwardedFrom?.let { author ->
-                                        ForwardedBlock(author = author)
+                                        Box(modifier = if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier) {
+                                            ForwardedBlock(author = author)
+                                        }
                                         Spacer(modifier = Modifier.height(4.dp))
                                     }
 
                                     // Цитата ответа (шаг 1)
                                     replyTo?.let { target ->
-                                        QuoteBlock(
-                                            author = if (target.direction == MessageDirection.INCOMING) peerName else "Вы",
-                                            text = target.text.ifBlank { "Вложение" },
-                                            accent = scheme.accent,
-                                            isIncoming = isIncoming,
-                                            onClick = { onQuoteClick(target.id) }
-                                        )
+                                        Box(modifier = if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier) {
+                                            QuoteBlock(
+                                                author = if (target.direction == MessageDirection.INCOMING) peerName else "Вы",
+                                                text = target.text.ifBlank { "Вложение" },
+                                                accent = scheme.accent,
+                                                isIncoming = isIncoming,
+                                                onClick = { onQuoteClick(target.id) }
+                                            )
+                                        }
                                         Spacer(modifier = Modifier.height(5.dp))
                                     }
 
@@ -362,13 +392,16 @@ internal fun MessageBubble(
                                             text = displayText,
                                             color = TextPrimary,
                                             fontSize = 14.sp,
-                                            lineHeight = 19.sp
+                                            lineHeight = 19.sp,
+                                            modifier = if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp) else Modifier
                                         )
                                     }
 
                                     // Время, статус и «изменено»
                                     Row(
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .then(if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier),
                                         horizontalArrangement = Arrangement.End,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
@@ -487,46 +520,78 @@ private fun AttachmentContent(
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(180.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(attachmentColor(attachment.colorSeed)),
-                contentAlignment = Alignment.Center
-            ) {
-                if (attachment.isVideo) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.5f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.PlayArrow,
-                            contentDescription = "Воспроизвести",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+            if (attachment.uri != null) {
+                ChatRealPhotoBox(
+                    uriString = attachment.uri,
+                    isVideo = attachment.isVideo,
+                    hasSpoiler = attachment.hasSpoiler,
+                    modifier = Modifier
+                        .width(220.dp)
+                        .height(380.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                )
+            } else {
+                var spoilerRevealed by remember { mutableStateOf(false) }
+                val showSpoiler = attachment.hasSpoiler && !spoilerRevealed
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(attachmentColor(attachment.colorSeed))
+                        .then(
+                            if (showSpoiler) {
+                                Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) { spoilerRevealed = true }
+                            } else Modifier
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (attachment.isVideo) {
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.PlayArrow,
+                                contentDescription = "Воспроизвести",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                    if (attachment.label.isNotBlank()) {
+                        Text(
+                            text = if (searchQuery.isNotBlank()) {
+                                buildHighlightedText(attachment.label, searchQuery, accent)
+                            } else {
+                                AnnotatedString(attachment.label)
+                            },
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(8.dp)
                         )
                     }
-                }
-                if (attachment.label.isNotBlank()) {
-                    Text(
-                        text = if (searchQuery.isNotBlank()) {
-                            buildHighlightedText(attachment.label, searchQuery, accent)
-                        } else {
-                            AnnotatedString(attachment.label)
-                        },
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(8.dp)
-                    )
+                    if (showSpoiler) {
+                        SpoilerOverlay(modifier = Modifier.fillMaxSize())
+                    }
                 }
             }
+        }
+
+        is MessageAttachment.MediaAlbum -> {
+            ChatMediaAlbumGrid(
+                items = attachment.items,
+                accent = accent
+            )
         }
 
         is MessageAttachment.File -> {
@@ -987,3 +1052,284 @@ private fun buildHighlightedText(
     }
     return builder.toAnnotatedString()
 }
+
+/**
+ * Отрисовка альбома медиа в чате (тонкая рамка, вертикальные пропорции для 2, 3, 4, 7, 8, 9, 10 фото и интерактивный спойлер).
+ */
+@Composable
+private fun ChatMediaAlbumGrid(
+    items: List<MessageAttachment.AlbumMediaItem>,
+    accent: Color
+) {
+    val count = items.size
+    val dividerColor = accent.copy(alpha = 0.55f)
+    var albumSpoilerRevealed by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+    ) {
+        when (count) {
+            2 -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(340.dp)
+                ) {
+                    ChatRealPhotoBox(
+                        uriString = items[0].uri,
+                        isVideo = items[0].isVideo,
+                        hasSpoiler = items[0].hasSpoiler && !albumSpoilerRevealed,
+                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(1.5.dp)
+                            .fillMaxHeight()
+                            .background(dividerColor)
+                    )
+                    ChatRealPhotoBox(
+                        uriString = items[1].uri,
+                        isVideo = items[1].isVideo,
+                        hasSpoiler = items[1].hasSpoiler && !albumSpoilerRevealed,
+                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
+                }
+            }
+            3 -> {
+                // 3 фото: 1 большое вертикальное слева + 2 вертикальных (не квадратных!) справа
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(390.dp)
+                ) {
+                    ChatRealPhotoBox(
+                        uriString = items[0].uri,
+                        isVideo = items[0].isVideo,
+                        hasSpoiler = items[0].hasSpoiler && !albumSpoilerRevealed,
+                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        modifier = Modifier
+                            .weight(1.12f)
+                            .fillMaxHeight()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(1.5.dp)
+                            .fillMaxHeight()
+                            .background(dividerColor)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(0.85f)
+                            .fillMaxHeight()
+                    ) {
+                        ChatRealPhotoBox(
+                            uriString = items[1].uri,
+                            isVideo = items[1].isVideo,
+                            hasSpoiler = items[1].hasSpoiler && !albumSpoilerRevealed,
+                            onRevealSpoiler = { albumSpoilerRevealed = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.5.dp)
+                                .background(dividerColor)
+                        )
+                        ChatRealPhotoBox(
+                            uriString = items[2].uri,
+                            isVideo = items[2].isVideo,
+                            hasSpoiler = items[2].hasSpoiler && !albumSpoilerRevealed,
+                            onRevealSpoiler = { albumSpoilerRevealed = true },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                        )
+                    }
+                }
+            }
+            4 -> {
+                // 4 фото: 1 большое вертикальное слева + 3 вертикальных столбиком справа
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(430.dp)
+                ) {
+                    ChatRealPhotoBox(
+                        uriString = items[0].uri,
+                        isVideo = items[0].isVideo,
+                        hasSpoiler = items[0].hasSpoiler && !albumSpoilerRevealed,
+                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        modifier = Modifier
+                            .weight(1.15f)
+                            .fillMaxHeight()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(1.5.dp)
+                            .fillMaxHeight()
+                            .background(dividerColor)
+                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(0.82f)
+                            .fillMaxHeight()
+                    ) {
+                        for (idx in 1..3) {
+                            if (idx > 1) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.5.dp)
+                                        .background(dividerColor)
+                                )
+                            }
+                            ChatRealPhotoBox(
+                                uriString = items[idx].uri,
+                                isVideo = items[idx].isVideo,
+                                hasSpoiler = items[idx].hasSpoiler && !albumSpoilerRevealed,
+                                onRevealSpoiler = { albumSpoilerRevealed = true },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                            )
+                        }
+                    }
+                }
+            }
+            else -> {
+                val rowCounts = remember(count) { calculateAlbumRows(count) }
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    var itemPointer = 0
+                    rowCounts.forEachIndexed { rowIndex, countInRow ->
+                        if (rowIndex > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.5.dp)
+                                    .background(dividerColor)
+                            )
+                        }
+                        val rowHeight = getRowHeightDp(countInRow)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(rowHeight)
+                        ) {
+                            for (c in 0 until countInRow) {
+                                val currentIdx = itemPointer + c
+                                if (currentIdx < items.size) {
+                                    if (c > 0) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(1.5.dp)
+                                                .fillMaxHeight()
+                                                .background(dividerColor)
+                                        )
+                                    }
+                                    val m = items[currentIdx]
+                                    ChatRealPhotoBox(
+                                        uriString = m.uri,
+                                        isVideo = m.isVideo,
+                                        hasSpoiler = m.hasSpoiler && !albumSpoilerRevealed,
+                                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .fillMaxHeight()
+                                    )
+                                }
+                            }
+                        }
+                        itemPointer += countInRow
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Ячейка настоящего фото/видео в чате со встроенным интерактивным спойлером (блюр + частицы, снимается по тапу).
+ */
+@Composable
+private fun ChatRealPhotoBox(
+    uriString: String,
+    isVideo: Boolean,
+    hasSpoiler: Boolean,
+    onRevealSpoiler: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
+    var bitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
+    var localSpoilerRevealed by remember { mutableStateOf(false) }
+    val showSpoiler = hasSpoiler && !localSpoilerRevealed
+
+    LaunchedEffect(parsedUri) {
+        if (parsedUri != null) {
+            val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
+            if (bitmap == null) bitmap = quick?.asImageBitmap()
+            val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, parsedUri) }
+            if (hd != null) bitmap = hd.asImageBitmap()
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .background(Color(0xFF1A1A20))
+            .then(
+                if (showSpoiler) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        localSpoilerRevealed = true
+                        onRevealSpoiler?.invoke()
+                    }
+                } else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap!!,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (showSpoiler) Modifier.blur(22.dp) else Modifier)
+            )
+        }
+
+        if (isVideo && !showSpoiler) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PlayArrow,
+                    contentDescription = "Воспроизвести",
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+
+        if (showSpoiler) {
+            SpoilerOverlay(modifier = Modifier.fillMaxSize())
+        }
+    }
+}
+

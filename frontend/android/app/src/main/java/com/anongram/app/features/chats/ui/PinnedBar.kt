@@ -89,6 +89,9 @@ internal fun PinnedBar(
         is MessageAttachment.Sticker -> {
             if (pinned.text.isNotBlank()) pinned.text else "Стикер ${att.symbol}"
         }
+        is MessageAttachment.MediaAlbum -> {
+            if (pinned.text.isNotBlank()) pinned.text else "Альбом (${att.items.size} медиа)"
+        }
         null -> {
             pinned.text.ifBlank { "Сообщение" }
         }
@@ -273,6 +276,22 @@ internal fun PinnedBar(
                             text = att.symbol,
                             fontSize = 20.sp
                         )
+                    }
+                    is MessageAttachment.MediaAlbum -> {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(scheme.accent.copy(alpha = 0.2f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Image,
+                                contentDescription = null,
+                                tint = Color.White.copy(alpha = 0.9f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                     null -> Unit
                 }

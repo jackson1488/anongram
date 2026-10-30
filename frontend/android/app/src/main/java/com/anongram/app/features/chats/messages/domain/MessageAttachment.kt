@@ -8,8 +8,27 @@ import androidx.compose.ui.graphics.Color
  */
 sealed interface MessageAttachment {
 
-    /** Фото/видео из галереи (fake-превью по colorSeed). */
-    data class Photo(val label: String, val colorSeed: Int, val isVideo: Boolean = false) : MessageAttachment
+    /** Одиночное фото/видео из галереи (с реальным uri, спойлером и fallback colorSeed). */
+    data class Photo(
+        val label: String,
+        val colorSeed: Int,
+        val isVideo: Boolean = false,
+        val uri: String? = null,
+        val hasSpoiler: Boolean = false
+    ) : MessageAttachment
+
+    /** Элемент медиа-альбома (до 10 фото/видео в одном баббле чата). */
+    data class AlbumMediaItem(
+        val uri: String,
+        val isVideo: Boolean = false,
+        val hasSpoiler: Boolean = false
+    )
+
+    /** Сгруппированный альбом медиа (от 2 до 10 элементов в одном сообщении чата). */
+    data class MediaAlbum(
+        val items: List<AlbumMediaItem>,
+        val hasSpoiler: Boolean = false
+    ) : MessageAttachment
 
     data class File(val name: String, val sizeLabel: String, val kind: FileKind) : MessageAttachment
 
