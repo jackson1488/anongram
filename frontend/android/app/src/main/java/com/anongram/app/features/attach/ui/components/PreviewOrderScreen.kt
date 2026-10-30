@@ -182,14 +182,14 @@ fun PreviewOrderScreen(
                 }
 
                 override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                    if (previewOffsetPx > halfOffset + 60f || available.y > 600f) {
+                    if (previewOffsetPx > halfOffset + 80f || available.y > 2500f) {
                         showDiscardConfirmDialog = true
-                    } else if (previewOffsetPx < halfOffset * 0.45f || available.y < -400f) {
+                    } else if (available.y < -2500f) {
                         previewOffsetPx = 0f
                         onOffsetChange(0f)
                     } else {
-                        previewOffsetPx = halfOffset
-                        onOffsetChange(halfOffset)
+                        previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                        onOffsetChange(previewOffsetPx)
                     }
                     return Velocity.Zero
                 }
@@ -259,14 +259,14 @@ fun PreviewOrderScreen(
                                     onOffsetChange(previewOffsetPx)
                                 },
                                 onDragStopped = { velocity ->
-                                    if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
+                                    if (velocity > 2500f || previewOffsetPx > halfOffset + 80f) {
                                         showDiscardConfirmDialog = true
-                                    } else if (velocity < -400f || previewOffsetPx < halfOffset * 0.45f) {
+                                    } else if (velocity < -2500f) {
                                         previewOffsetPx = 0f
                                         onOffsetChange(0f)
                                     } else {
-                                        previewOffsetPx = halfOffset
-                                        onOffsetChange(halfOffset)
+                                        previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                                        onOffsetChange(previewOffsetPx)
                                     }
                                 }
                             ),
@@ -293,14 +293,14 @@ fun PreviewOrderScreen(
                                     onOffsetChange(previewOffsetPx)
                                 },
                                 onDragStopped = { velocity ->
-                                    if (velocity > 600f || previewOffsetPx > halfOffset + 60f) {
+                                    if (velocity > 2500f || previewOffsetPx > halfOffset + 80f) {
                                         showDiscardConfirmDialog = true
-                                    } else if (velocity < -400f || previewOffsetPx < halfOffset * 0.45f) {
+                                    } else if (velocity < -2500f) {
                                         previewOffsetPx = 0f
                                         onOffsetChange(0f)
                                     } else {
-                                        previewOffsetPx = halfOffset
-                                        onOffsetChange(halfOffset)
+                                        previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
+                                        onOffsetChange(previewOffsetPx)
                                     }
                                 }
                             ),

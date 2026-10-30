@@ -241,23 +241,23 @@ fun AttachSheetContent(
 
         fun release(velocityY: Float) {
             anim?.cancel()
-            // Резкий свайп вверх: доводим до 100%
-            if (velocityY < -850f && offsetPx > 0f) {
-                animateTo(0f, ms = 260, isFling = true)
+            // Резкий сильный свайп вверх: доводим до 100%
+            if (velocityY < -2500f && offsetPx > 0f) {
+                animateTo(0f, ms = 240, isFling = true)
                 return
             }
-            // Резкий свайп вниз
-            if (velocityY > 850f) {
+            // Резкий сильный свайп вниз
+            if (velocityY > 2500f) {
                 if (totalSelectedCount > 0) {
                     if (offsetPx >= halfOffset - 20f) {
                         showDiscardDialog = true
-                        animateTo(halfOffset, ms = 260, isFling = true)
+                        animateTo(halfOffset, ms = 200, isFling = true)
                     } else {
-                        animateTo(halfOffset, ms = 260, isFling = true)
+                        animateTo(halfOffset, ms = 200, isFling = true)
                     }
                 } else {
                     if (offsetPx < halfOffset - 20f) {
-                        animateTo(halfOffset, ms = 260, isFling = true)
+                        animateTo(halfOffset, ms = 200, isFling = true)
                     } else {
                         close()
                     }
@@ -585,14 +585,14 @@ fun AttachSheetContent(
                 return Offset.Zero
             }
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (offsetPx > 0f) {
+                if (offsetPx > 0f && kotlin.math.abs(available.y) > 2500f) {
                     release(available.y)
                     return available
                 }
                 return Velocity.Zero
             }
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (available.y > 0f) {
+                if (available.y > 2500f) {
                     release(available.y)
                     return available
                 }
@@ -642,7 +642,7 @@ fun AttachSheetContent(
                 // При выборе медиа: сверху появляется компактная полоса выбора (36.dp)
                 val isGallery = (selectedTab == AttachTab.GALLERY)
                 val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty())
-                val handleHeight = if (isGalleryWithSelection) 40.dp else 18.dp
+                val handleHeight = if (isGalleryWithSelection) 44.dp else 18.dp
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -662,13 +662,14 @@ fun AttachSheetContent(
                     if (isGalleryWithSelection) {
                         GallerySelectionBar(
                             title = getGallerySelectionTitle(selectedMedia),
-                            hasMoreItems = selectedMedia.size >= 2,
+                            hasMoreItems = selectedMedia.isNotEmpty(),
                             onOpenPreviewOrder = {
-                                if (selectedMedia.size >= 2) {
+                                if (selectedMedia.isNotEmpty()) {
                                     isPreviewOrderOpen = true
                                 }
                             },
                             onOptionsClick = { isGalleryOptionsMenuOpen = true },
+                            onBack = if (isFull) { { selectedMedia.clear() } } else null,
                             menuContent = {
                                 GallerySelectionOptionsMenu(
                                     expanded = isGalleryOptionsMenuOpen,
@@ -676,7 +677,7 @@ fun AttachSheetContent(
                                     canUngroup = selectedMedia.size >= 2,
                                     allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
                                     onOpenPreview = {
-                                        if (selectedMedia.size >= 2) {
+                                        if (selectedMedia.isNotEmpty()) {
                                             isPreviewOrderOpen = true
                                         }
                                     },
@@ -830,8 +831,8 @@ fun AttachSheetContent(
             }
         }
 
-        // 4. Плавающая шапка для Галереи и Геопозиции (активна ТОЛЬКО когда шторка развернута наверх)
-        val showTopBar = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.LOCATION) && (offsetPx <= H * 0.12f)
+        // 4. Плавающая шапка для Галереи (только без выбора) и Геопозиции (активна ТОЛЬКО когда шторка развернута наверх)
+        val showTopBar = (selectedTab == AttachTab.LOCATION || (selectedTab == AttachTab.GALLERY && selectedMedia.isEmpty())) && (offsetPx <= H * 0.12f)
         if (showTopBar) {
             AttachTopBar(
                 title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum) else selectedTab.title,
@@ -851,7 +852,7 @@ fun AttachSheetContent(
                                 .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
                         ) {
 
-                            if (selectedMedia.size >= 2) {
+                            if (selectedMedia.isNotEmpty()) {
                                 DropdownMenuItem(
                                     text = {
                                         Row(
@@ -934,8 +935,8 @@ fun AttachSheetContent(
                             Row(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .clickable(enabled = selectedMedia.size >= 2) {
-                                        if (selectedMedia.size >= 2) isPreviewOrderOpen = true
+                                    .clickable {
+                                        isPreviewOrderOpen = true
                                     }
                                     .padding(horizontal = 4.dp),
                                 verticalAlignment = Alignment.CenterVertically
@@ -948,22 +949,20 @@ fun AttachSheetContent(
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                if (selectedMedia.size >= 2) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(Color(0xFFC084FC)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                            contentDescription = "Предпросмотр",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFC084FC)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                        contentDescription = "Предпросмотр",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
                                 }
                             }
                         } else {
@@ -1436,21 +1435,37 @@ private fun GallerySelectionBar(
     onOpenPreviewOrder: () -> Unit,
     onOptionsClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
     menuContent: (@Composable () -> Unit)? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
-            .padding(horizontal = 14.dp),
+            .height(44.dp)
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (onBack != null) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(4.dp))
+        }
+
         Row(
             modifier = Modifier
                 .weight(1f)
                 .clip(RoundedCornerShape(18.dp))
                 .clickable(enabled = hasMoreItems, onClick = onOpenPreviewOrder)
-                .padding(vertical = 4.dp, horizontal = 2.dp),
+                .padding(vertical = 4.dp, horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
@@ -1481,15 +1496,12 @@ private fun GallerySelectionBar(
         }
 
         Box(
-            modifier = Modifier.size(32.dp),
+            modifier = Modifier.size(36.dp),
             contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .clickable(onClick = onOptionsClick),
-                contentAlignment = Alignment.Center
+            IconButton(
+                onClick = onOptionsClick,
+                modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,

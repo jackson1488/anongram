@@ -134,6 +134,7 @@ fun MusicTab(
         tracks = withContext(Dispatchers.IO) {
             loadDeviceAudio(context)
         }
+        kotlinx.coroutines.delay(220)
         isLoading = false
     }
 

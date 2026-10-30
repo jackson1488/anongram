@@ -151,6 +151,7 @@ fun ContactsTab(
                 loadDeviceContacts(context)
             }
         }
+        kotlinx.coroutines.delay(220)
         isLoading = false
     }
 

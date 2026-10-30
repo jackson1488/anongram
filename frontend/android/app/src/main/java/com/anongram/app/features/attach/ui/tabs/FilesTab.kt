@@ -193,6 +193,7 @@ fun FilesTab(
         files = withContext(Dispatchers.IO) {
             loadDeviceRecentFiles(context)
         }
+        kotlinx.coroutines.delay(220)
         isLoading = false
     }
 
@@ -804,10 +805,14 @@ private fun FilesGallerySubScreen(
     }
 
     var mediaList by remember { mutableStateOf<List<GalleryMedia>>(emptyList()) }
+    var isLoadingMedia by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
+        isLoadingMedia = true
         mediaList = withContext(Dispatchers.IO) {
             loadDeviceGalleryMedia(context)
         }
+        kotlinx.coroutines.delay(220)
+        isLoadingMedia = false
     }
 
     val openInChooserLauncher = rememberLauncherForActivityResult(
@@ -825,7 +830,15 @@ private fun FilesGallerySubScreen(
     Box(modifier = modifier.fillMaxSize()) {
         val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
-        if (mediaList.isEmpty()) {
+        if (isLoadingMedia) {
+            com.anongram.app.features.attach.ui.components.GalleryGridSkeleton(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(1f)
+                    .padding(horizontal = 4.dp),
+                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 84.dp)
+            )
+        } else if (mediaList.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()

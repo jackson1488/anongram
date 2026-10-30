@@ -190,6 +190,7 @@ fun GalleryTab(
             loadDeviceGalleryMedia(context)
         }
         allMedia = loaded
+        kotlinx.coroutines.delay(220)
         isLoading = false
     }
 
@@ -248,7 +249,7 @@ fun GalleryTab(
                 }
             }
 
-            if (isLoading && filteredMedia.isEmpty()) {
+            if (isLoading) {
                 com.anongram.app.features.attach.ui.components.GalleryGridSkeleton(
                     modifier = Modifier
                         .fillMaxWidth()
