@@ -764,6 +764,10 @@ fun AttachSheetContent(
                             },
                             isFullscreen = isFull,
                             onBack = { requestDismiss() },
+                            onSelectFiles = { drafts ->
+                                onSend(drafts)
+                                dismissAnimated()
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }

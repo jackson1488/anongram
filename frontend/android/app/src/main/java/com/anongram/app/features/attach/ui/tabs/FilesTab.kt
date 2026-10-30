@@ -18,6 +18,12 @@ import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.Image
@@ -122,10 +128,14 @@ fun FilesTab(
     onToggleSelectFile: (DeviceFileItem) -> Unit = {},
     isFullscreen: Boolean = false,
     onBack: () -> Unit = {},
+    onSelectFiles: (List<AttachmentDraft.File>) -> Unit = { list -> list.forEach(onSelectFile) },
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var isGallerySubScreenOpen by remember { mutableStateOf(false) }
+    // Выбор хранится здесь: выход из подраздела его не сбрасывает
+    val galleryPicked = remember { mutableStateListOf<GalleryMedia>() }
+    var galleryCaption by remember { mutableStateOf("") }
 
     BackHandler(enabled = isGallerySubScreenOpen) {
         isGallerySubScreenOpen = false
@@ -144,6 +154,27 @@ fun FilesTab(
                         size = meta.size
                     )
                 )
+            },
+            selectedMedia = galleryPicked,
+            onToggleMedia = { media ->
+                val idx = galleryPicked.indexOfFirst { it.uri == media.uri }
+                if (idx >= 0) galleryPicked.removeAt(idx) else galleryPicked.add(media)
+            },
+            caption = galleryCaption,
+            onCaptionChange = { galleryCaption = it },
+            onSendSelected = {
+                val drafts = galleryPicked.mapIndexed { i, m ->
+                    val meta = getFileMetadata(context, m.uri)
+                    AttachmentDraft.File(
+                        uri = m.uri,
+                        name = meta.name,
+                        size = meta.size,
+                        caption = if (i == 0) galleryCaption else ""
+                    )
+                }
+                galleryPicked.clear()
+                galleryCaption = ""
+                onSelectFiles(drafts)
             },
             modifier = modifier
         )
@@ -796,6 +827,11 @@ private fun FilesGallerySubScreen(
     isFullscreen: Boolean,
     onBack: () -> Unit,
     onSelectMediaAsFile: (GalleryMedia) -> Unit,
+    selectedMedia: List<GalleryMedia>,
+    onToggleMedia: (GalleryMedia) -> Unit,
+    caption: String,
+    onCaptionChange: (String) -> Unit,
+    onSendSelected: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -865,7 +901,8 @@ private fun FilesGallerySubScreen(
                 items(mediaList, key = { it.uri.toString() }) { media ->
                     FilesGalleryGridItem(
                         media = media,
-                        onClick = { onSelectMediaAsFile(media) }
+                        selectionNumber = selectedMedia.indexOfFirst { it.uri == media.uri } + 1,
+                        onClick = { onToggleMedia(media) }
                     )
                 }
             }
@@ -875,18 +912,90 @@ private fun FilesGallerySubScreen(
                     .fillMaxSize()
                     .zIndex(1f)
                     .padding(horizontal = 14.dp),
-                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 84.dp)
+                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 140.dp)
             ) {
                 items(mediaList, key = { it.uri.toString() }) { media ->
                     FilesGalleryListItem(
                         media = media,
-                        onClick = { onSelectMediaAsFile(media) }
+                        selectionNumber = selectedMedia.indexOfFirst { it.uri == media.uri } + 1,
+                        onClick = { onToggleMedia(media) }
                     )
                     HorizontalDivider(
                         color = Color(0x15FFFFFF),
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(start = 64.dp)
                     )
+                }
+            }
+        }
+
+        // Нижняя панель подписи и отправки при выборе медиа
+        if (selectedMedia.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .zIndex(11f)
+                    .background(AttachSheetBackground)
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
+                    .navigationBarsPadding()
+                    .imePadding(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(23.dp))
+                        .background(AttachPillDark)
+                        .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (caption.isEmpty()) {
+                        Text("Добавить подпись...", color = Color(0xFF8E8E93), fontSize = 15.sp)
+                    }
+                    BasicTextField(
+                        value = caption,
+                        onValueChange = onCaptionChange,
+                        singleLine = true,
+                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF8B5CF6)),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF8B5CF6))
+                        .clickable { onSendSelected() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = "Отправить",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 4.dp, y = (-4).dp)
+                            .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = selectedMedia.size.toString(),
+                            color = Color(0xFF6D28D9),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
         }
@@ -1050,6 +1159,7 @@ private fun FilesGallerySubScreen(
 @Composable
 private fun FilesGalleryGridItem(
     media: GalleryMedia,
+    selectionNumber: Int,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1068,6 +1178,13 @@ private fun FilesGalleryGridItem(
             .background(AttachCardDark)
             .clickable(onClick = onClick)
     ) {
+        FilesSelectionCircle(
+            selectionNumber = selectionNumber,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(6.dp)
+                .zIndex(2f)
+        )
         if (thumbnail != null) {
             Image(
                 bitmap = thumbnail!!.asImageBitmap(),
@@ -1121,6 +1238,7 @@ private fun FilesGalleryGridItem(
 @Composable
 private fun FilesGalleryListItem(
     media: GalleryMedia,
+    selectionNumber: Int,
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1196,6 +1314,32 @@ private fun FilesGalleryListItem(
                 text = "${formatFileSize(meta.size)}${if (media.isVideo && media.durationMs > 0) " • ${formatDuration(media.durationMs)}" else ""}",
                 color = Color(0xFF94A3B8),
                 fontSize = 12.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+        FilesSelectionCircle(selectionNumber = selectionNumber)
+        Spacer(modifier = Modifier.width(4.dp))
+    }
+}
+
+@Composable
+private fun FilesSelectionCircle(selectionNumber: Int, modifier: Modifier = Modifier) {
+    val isSelected = selectionNumber > 0
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .background(if (isSelected) Color(0xFF8B5CF6) else Color(0x66000000))
+            .border(1.5.dp, if (isSelected) Color(0xFF8B5CF6) else Color.White, CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isSelected) {
+            Text(
+                text = selectionNumber.toString(),
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
             )
         }
     }

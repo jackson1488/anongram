@@ -881,11 +881,17 @@ private fun formatVideoTime(ms: Long): String {
 
 private val thumbnailCache = android.util.LruCache<Uri, Bitmap>(150)
 
+private val hdBitmapCache = object : android.util.LruCache<Uri, Bitmap>(
+    (Runtime.getRuntime().maxMemory() / 6).toInt()
+) {
+    override fun sizeOf(key: Uri, value: Bitmap): Int = value.byteCount
+}
+
 internal fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
     thumbnailCache.get(uri)?.let { return it }
     return try {
         val bmp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            context.contentResolver.loadThumbnail(uri, Size(260, 260), null)
+            context.contentResolver.loadThumbnail(uri, Size(360, 360), null)
         } else {
             val stream = context.contentResolver.openInputStream(uri)
             BitmapFactory.decodeStream(stream).also { stream?.close() }
@@ -896,6 +902,33 @@ internal fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
         bmp
     } catch (_: Exception) {
         null
+    }
+}
+
+/**
+ * Качественная загрузка для предпросмотра/полноэкранного просмотра:
+ * декодируем оригинал с даунсэмплом до maxSide по длинной стороне (без мыла).
+ */
+internal fun loadHdBitmap(context: Context, uri: Uri, maxSide: Int = 1600): Bitmap? {
+    hdBitmapCache.get(uri)?.let { return it }
+    return try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        var sample = 1
+        val longest = maxOf(bounds.outWidth, bounds.outHeight)
+        while (longest / sample > maxSide) sample *= 2
+        val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+        val bmp = context.contentResolver.openInputStream(uri)?.use {
+            BitmapFactory.decodeStream(it, null, opts)
+        }
+        if (bmp != null) {
+            hdBitmapCache.put(uri, bmp)
+            bmp
+        } else {
+            loadMediaThumbnail(context, uri)
+        }
+    } catch (_: Throwable) {
+        loadMediaThumbnail(context, uri)
     }
 }
 

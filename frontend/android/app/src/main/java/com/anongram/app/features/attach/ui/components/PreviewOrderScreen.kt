@@ -50,6 +50,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -80,6 +81,7 @@ import androidx.compose.ui.zIndex
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.attach.ui.tabs.GalleryMedia
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
+import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
 import com.anongram.app.features.attach.ui.theme.AttachPurple
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.Dispatchers
@@ -440,9 +442,10 @@ fun PreviewOrderScreen(
                         }
                     }
 
-                    // Скроллируемая область с альбомами сообщений
+                    // Скроллируемая область с альбомами сообщений (как в Telegram: до 10 медиа в одном альбоме)
                     val listState = rememberLazyListState()
-                    val albumChunks = remember(orderedList.toList()) { orderedList.chunked(20) }
+                    val albumChunks = remember(orderedList.toList()) { orderedList.chunked(10) }
+                    var draggingChunkIdx by remember { mutableIntStateOf(-1) }
 
                     LazyColumn(
                         state = listState,
@@ -457,8 +460,9 @@ fun PreviewOrderScreen(
                         }
 
                         itemsIndexed(albumChunks, key = { chunkIdx, _ -> "chunk_$chunkIdx" }) { chunkIdx, chunk ->
-                            val startOrderNumber = chunkIdx * 20 + 1
-                            val startGlobalIndex = chunkIdx * 20
+                            val startOrderNumber = chunkIdx * 10 + 1
+                            val startGlobalIndex = chunkIdx * 10
+                            val bubbleZ = if (draggingChunkIdx == chunkIdx) 50f else 0f
 
                             if (chunk.size == 1) {
                                 SinglePhotoBubble(
@@ -466,16 +470,15 @@ fun PreviewOrderScreen(
                                     orderNumber = startOrderNumber,
                                     globalIndex = startGlobalIndex,
                                     onPhotoClick = { viewingPhotoUri = it },
+                                    onDragStateChange = { dragging -> draggingChunkIdx = if (dragging) chunkIdx else -1 },
                                     onSwap = { fromIdx, offset, itemsInRow ->
-                                        val deltaX = if (offset.x > 35f) 1 else if (offset.x < -35f) -1 else 0
-                                        val deltaY = if (offset.y > 45f) itemsInRow else if (offset.y < -45f) -itemsInRow else 0
-                                        val delta = if (deltaY != 0) deltaY + deltaX else deltaX
+                                        val delta = computeSwapDelta(offset, itemsInRow)
                                         if (delta != 0) {
                                             val target = (fromIdx + delta).coerceIn(0, orderedList.size - 1)
                                             if (target != fromIdx) swapItems(fromIdx, target)
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth().zIndex(bubbleZ)
                                 )
                             } else {
                                 AlbumBubble(
@@ -483,16 +486,16 @@ fun PreviewOrderScreen(
                                     startOrderNumber = startOrderNumber,
                                     startGlobalIndex = startGlobalIndex,
                                     onPhotoClick = { viewingPhotoUri = it },
+                                    isAnyDragging = draggingChunkIdx == chunkIdx,
+                                    onDragStateChange = { dragging -> draggingChunkIdx = if (dragging) chunkIdx else -1 },
                                     onSwap = { fromIdx, offset, itemsInRow ->
-                                        val deltaX = if (offset.x > 35f) 1 else if (offset.x < -35f) -1 else 0
-                                        val deltaY = if (offset.y > 45f) itemsInRow else if (offset.y < -45f) -itemsInRow else 0
-                                        val delta = if (deltaY != 0) deltaY + deltaX else deltaX
+                                        val delta = computeSwapDelta(offset, itemsInRow)
                                         if (delta != 0) {
                                             val target = (fromIdx + delta).coerceIn(0, orderedList.size - 1)
                                             if (target != fromIdx) swapItems(fromIdx, target)
                                         }
                                     },
-                                    modifier = Modifier.fillMaxWidth()
+                                    modifier = Modifier.fillMaxWidth().zIndex(bubbleZ)
                                 )
                             }
                         }
@@ -617,7 +620,7 @@ fun PreviewOrderScreen(
                     var fullBitmap by remember(viewingPhotoUri) { mutableStateOf<ImageBitmap?>(null) }
                     LaunchedEffect(viewingPhotoUri) {
                         val b = withContext(Dispatchers.IO) {
-                            loadMediaThumbnail(context, viewingPhotoUri!!)
+                            loadHdBitmap(context, viewingPhotoUri!!, 2400)
                         }
                         fullBitmap = b?.asImageBitmap()
                     }
@@ -691,12 +694,23 @@ fun calculateAlbumRows(count: Int): List<Int> {
 
 fun getRowHeightDp(itemCountInRow: Int): Dp {
     return when (itemCountInRow) {
-        1 -> 200.dp
-        2 -> 155.dp
-        3 -> 130.dp
-        4 -> 105.dp
-        else -> 95.dp
+        1 -> 280.dp
+        2 -> 210.dp
+        3 -> 185.dp
+        4 -> 125.dp
+        else -> 100.dp
     }
+}
+
+/** Смещение индекса при перетаскивании: по горизонтали на 1 ячейку, по вертикали на ряд(ы), в т.ч. в соседний альбом. */
+fun computeSwapDelta(offset: Offset, itemsInRow: Int): Int {
+    val deltaX = if (offset.x > 35f) 1 else if (offset.x < -35f) -1 else 0
+    val rows = when {
+        offset.y > 45f -> kotlin.math.max(1, Math.round(offset.y / 380f))
+        offset.y < -45f -> -kotlin.math.max(1, Math.round(-offset.y / 380f))
+        else -> 0
+    }
+    return if (rows != 0) rows * itemsInRow + deltaX else deltaX
 }
 
 /**
@@ -709,14 +723,17 @@ private fun AlbumBubble(
     startGlobalIndex: Int,
     onPhotoClick: (Uri) -> Unit,
     onSwap: (Int, Offset, Int) -> Unit,
+    isAnyDragging: Boolean = false,
+    onDragStateChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val rowCounts = remember(mediaItems.size) { calculateAlbumRows(mediaItems.size) }
+    val bubbleShape = RoundedCornerShape(16.dp)
 
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(16.dp))
+            .then(if (isAnyDragging) Modifier else Modifier.clip(bubbleShape))
+            .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
             .background(Color(0xFF131317))
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -757,6 +774,7 @@ private fun AlbumBubble(
                                 orderNumber = orderNum,
                                 globalIndex = globalIdx,
                                 onPhotoClick = onPhotoClick,
+                                onDragStateChange = onDragStateChange,
                                 onDragSwap = { offset ->
                                     onSwap(globalIdx, offset, countInRow)
                                 },
@@ -783,6 +801,7 @@ private fun SinglePhotoBubble(
     globalIndex: Int,
     onPhotoClick: (Uri) -> Unit,
     onSwap: (Int, Offset, Int) -> Unit,
+    onDragStateChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -790,13 +809,14 @@ private fun SinglePhotoBubble(
             .clip(RoundedCornerShape(16.dp))
             .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(16.dp))
             .background(Color(0xFF131317))
-            .height(200.dp)
+            .height(280.dp)
     ) {
         PreviewCollageItem(
             media = media,
             orderNumber = orderNumber,
             globalIndex = globalIndex,
             onPhotoClick = onPhotoClick,
+            onDragStateChange = onDragStateChange,
             onDragSwap = { offset -> onSwap(globalIndex, offset, 1) },
             modifier = Modifier.fillMaxSize()
         )
@@ -818,6 +838,7 @@ private fun PreviewCollageItem(
     globalIndex: Int,
     onPhotoClick: (Uri) -> Unit,
     onDragSwap: (Offset) -> Unit,
+    onDragStateChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -829,10 +850,11 @@ private fun PreviewCollageItem(
     val zIndexVal = if (isDragging) 40f else 1f
 
     LaunchedEffect(media.uri) {
-        val bmp = withContext(Dispatchers.IO) {
-            loadMediaThumbnail(context, media.uri)
-        }
-        bitmap = bmp?.asImageBitmap()
+        // Сначала мгновенно быстрое превью, затем HD-версия без «мыла»
+        val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, media.uri) }
+        if (bitmap == null) bitmap = quick?.asImageBitmap()
+        val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, media.uri) }
+        if (hd != null) bitmap = hd.asImageBitmap()
     }
 
     Box(
@@ -855,10 +877,12 @@ private fun PreviewCollageItem(
                 detectDragGesturesAfterLongPress(
                     onDragStart = {
                         isDragging = true
+                        onDragStateChange(true)
                         dragAccumulated = Offset.Zero
                     },
                     onDragEnd = {
                         isDragging = false
+                        onDragStateChange(false)
                         if (dragAccumulated.getDistance() > 36f) {
                             onDragSwap(dragAccumulated)
                         }
@@ -866,6 +890,7 @@ private fun PreviewCollageItem(
                     },
                     onDragCancel = {
                         isDragging = false
+                        onDragStateChange(false)
                         dragAccumulated = Offset.Zero
                     },
                     onDrag = { change, dragAmount ->
