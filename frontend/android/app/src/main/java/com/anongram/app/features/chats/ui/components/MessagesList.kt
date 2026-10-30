@@ -26,6 +26,7 @@ import com.anongram.app.core.theme.CyberTeal
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
@@ -55,6 +56,8 @@ internal fun MessagesList(
     onSwipeReply: (ChatMessage) -> Unit = {},
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
     onSelectMessage: (String) -> Unit = {},
+    onToggleAlbumPhoto: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onEnterAlbumPhotoSelection: (String) -> Unit = {},
     onRetryMessage: (String) -> Unit = {},
     onHighlightMessage: (String) -> Unit = {},
     onOpenMediaViewer: (ChatMessage, Int) -> Unit = { _, _ -> }
@@ -90,13 +93,32 @@ internal fun MessagesList(
                     UnreadDivider()
                 }
 
+                val album = item.message.attachment as? MessageAttachment.MediaAlbum
+                val selectedPhotoIndices = if (album != null && selection.isNotEmpty()) {
+                    if (item.message.id in selection) {
+                        (0 until album.items.size).toSet()
+                    } else {
+                        (0 until album.items.size).filter { idx ->
+                            "${item.message.id}#photo_$idx" in selection
+                        }.toSet()
+                    }
+                } else {
+                    emptySet()
+                }
+                val isBubbleSelected = if (album != null) {
+                    (item.message.id in selection) || (album.items.isNotEmpty() && selectedPhotoIndices.size == album.items.size)
+                } else {
+                    item.message.id in selection
+                }
+
                 MessageBubble(
                     item = item,
                     replyTo = item.message.replyToId?.let { originalId -> messageById[originalId] },
                     peerName = peerName,
                     searchQuery = searchQuery,
                     isSelectionMode = selection.isNotEmpty(),
-                    isSelected = item.message.id in selection,
+                    isSelected = isBubbleSelected,
+                    selectedPhotoIndices = selectedPhotoIndices,
                     isHighlighted = item.message.id == highlightedMessageId,
                     onQuoteClick = { originalId ->
                         onHighlightMessage(originalId)
@@ -114,6 +136,14 @@ internal fun MessagesList(
                     onSwipeReply = { onSwipeReply(item.message) },
                     onToggleReaction = { emoji -> onToggleReaction(item.message.id, emoji) },
                     onSelect = { onSelectMessage(item.message.id) },
+                    onToggleAlbumPhoto = { photoIdx ->
+                        if (album != null) {
+                            onToggleAlbumPhoto(item.message.id, photoIdx, album.items.size)
+                        }
+                    },
+                    onEnterAlbumPhotoSelection = { photoIdx ->
+                        onEnterAlbumPhotoSelection("${item.message.id}#photo_$photoIdx")
+                    },
                     onRetry = { onRetryMessage(item.message.id) },
                     onOpenMediaViewer = { photoIdx -> onOpenMediaViewer(item.message, photoIdx) }
                 )

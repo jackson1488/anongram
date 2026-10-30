@@ -135,6 +135,7 @@ internal fun MessageBubble(
     searchQuery: String = "",
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
+    selectedPhotoIndices: Set<Int> = emptySet(),
     isHighlighted: Boolean = false,
     onQuoteClick: (String) -> Unit = {},
     onClick: (anchorYPx: Float) -> Unit = {},
@@ -142,6 +143,8 @@ internal fun MessageBubble(
     onSwipeReply: () -> Unit = {},
     onToggleReaction: (String) -> Unit = {},
     onSelect: () -> Unit = {},
+    onToggleAlbumPhoto: (Int) -> Unit = {},
+    onEnterAlbumPhotoSelection: (Int) -> Unit = {},
     onRetry: () -> Unit = {},
     onOpenMediaViewer: (initialPhotoIndex: Int) -> Unit = {}
 ) {
@@ -381,7 +384,10 @@ internal fun MessageBubble(
                                                 accent = scheme.accent,
                                                 searchQuery = searchQuery,
                                                 isSelectionMode = isSelectionMode,
+                                                selectedPhotoIndices = selectedPhotoIndices,
                                                 onSelect = onSelect,
+                                                onToggleAlbumPhoto = onToggleAlbumPhoto,
+                                                onEnterAlbumPhotoSelection = onEnterAlbumPhotoSelection,
                                                 onLongClick = onLongClick,
                                                 onOpenPhotoAt = { idx -> onOpenMediaViewer(idx) }
                                             )
@@ -577,7 +583,10 @@ private fun AttachmentContent(
     accent: Color,
     searchQuery: String = "",
     isSelectionMode: Boolean = false,
+    selectedPhotoIndices: Set<Int> = emptySet(),
     onSelect: () -> Unit = {},
+    onToggleAlbumPhoto: (Int) -> Unit = {},
+    onEnterAlbumPhotoSelection: (Int) -> Unit = {},
     onLongClick: () -> Unit = {},
     onOpenPhotoAt: (Int) -> Unit = {}
 ) {
@@ -658,10 +667,14 @@ private fun AttachmentContent(
             ChatMediaAlbumGrid(
                 items = attachment.items,
                 accent = accent,
+                isSelectionMode = isSelectionMode,
+                selectedPhotoIndices = selectedPhotoIndices,
                 onPhotoClick = { idx ->
-                    if (isSelectionMode) onSelect() else onOpenPhotoAt(idx)
+                    if (isSelectionMode) onToggleAlbumPhoto(idx) else onOpenPhotoAt(idx)
                 },
-                onPhotoLongClick = onLongClick
+                onPhotoLongClick = { idx ->
+                    if (isSelectionMode) onToggleAlbumPhoto(idx) else onEnterAlbumPhotoSelection(idx)
+                }
             )
         }
 
@@ -1126,14 +1139,16 @@ private fun buildHighlightedText(
 
 /**
  * Отрисовка альбома медиа в чате (тонкая рамка, вертикальные пропорции для 2, 3, 4, 7, 8, 9, 10 фото,
- * индивидуальный спойлер для каждого фото и раскрытие фото на весь экран по тапу).
+ * индивидуальный спойлер для каждого фото, поштучный выбор в режиме выделения и раскрытие фото на весь экран по тапу).
  */
 @Composable
 private fun ChatMediaAlbumGrid(
     items: List<MessageAttachment.AlbumMediaItem>,
     accent: Color,
+    isSelectionMode: Boolean = false,
+    selectedPhotoIndices: Set<Int> = emptySet(),
     onPhotoClick: (Int) -> Unit = {},
-    onPhotoLongClick: () -> Unit = {}
+    onPhotoLongClick: (Int) -> Unit = {}
 ) {
     val count = items.size
     val dividerColor = accent.copy(alpha = 0.55f)
@@ -1154,8 +1169,11 @@ private fun ChatMediaAlbumGrid(
                         uriString = items[0].uri,
                         isVideo = items[0].isVideo,
                         hasSpoiler = items[0].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 0 in selectedPhotoIndices,
+                        accent = accent,
                         onPhotoClick = { onPhotoClick(0) },
-                        onPhotoLongClick = onPhotoLongClick,
+                        onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
@@ -1170,8 +1188,11 @@ private fun ChatMediaAlbumGrid(
                         uriString = items[1].uri,
                         isVideo = items[1].isVideo,
                         hasSpoiler = items[1].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 1 in selectedPhotoIndices,
+                        accent = accent,
                         onPhotoClick = { onPhotoClick(1) },
-                        onPhotoLongClick = onPhotoLongClick,
+                        onPhotoLongClick = { onPhotoLongClick(1) },
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
@@ -1189,8 +1210,11 @@ private fun ChatMediaAlbumGrid(
                         uriString = items[0].uri,
                         isVideo = items[0].isVideo,
                         hasSpoiler = items[0].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 0 in selectedPhotoIndices,
+                        accent = accent,
                         onPhotoClick = { onPhotoClick(0) },
-                        onPhotoLongClick = onPhotoLongClick,
+                        onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
                             .weight(1.12f)
                             .fillMaxHeight()
@@ -1210,8 +1234,11 @@ private fun ChatMediaAlbumGrid(
                             uriString = items[1].uri,
                             isVideo = items[1].isVideo,
                             hasSpoiler = items[1].hasSpoiler,
+                            showSelectionBadge = isSelectionMode,
+                            isPhotoSelected = 1 in selectedPhotoIndices,
+                            accent = accent,
                             onPhotoClick = { onPhotoClick(1) },
-                            onPhotoLongClick = onPhotoLongClick,
+                            onPhotoLongClick = { onPhotoLongClick(1) },
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
@@ -1226,8 +1253,11 @@ private fun ChatMediaAlbumGrid(
                             uriString = items[2].uri,
                             isVideo = items[2].isVideo,
                             hasSpoiler = items[2].hasSpoiler,
+                            showSelectionBadge = isSelectionMode,
+                            isPhotoSelected = 2 in selectedPhotoIndices,
+                            accent = accent,
                             onPhotoClick = { onPhotoClick(2) },
-                            onPhotoLongClick = onPhotoLongClick,
+                            onPhotoLongClick = { onPhotoLongClick(2) },
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
@@ -1246,8 +1276,11 @@ private fun ChatMediaAlbumGrid(
                         uriString = items[0].uri,
                         isVideo = items[0].isVideo,
                         hasSpoiler = items[0].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 0 in selectedPhotoIndices,
+                        accent = accent,
                         onPhotoClick = { onPhotoClick(0) },
-                        onPhotoLongClick = onPhotoLongClick,
+                        onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
                             .weight(1.15f)
                             .fillMaxHeight()
@@ -1276,8 +1309,11 @@ private fun ChatMediaAlbumGrid(
                                 uriString = items[idx].uri,
                                 isVideo = items[idx].isVideo,
                                 hasSpoiler = items[idx].hasSpoiler,
+                                showSelectionBadge = isSelectionMode,
+                                isPhotoSelected = idx in selectedPhotoIndices,
+                                accent = accent,
                                 onPhotoClick = { onPhotoClick(idx) },
-                                onPhotoLongClick = onPhotoLongClick,
+                                onPhotoLongClick = { onPhotoLongClick(idx) },
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth()
@@ -1321,8 +1357,11 @@ private fun ChatMediaAlbumGrid(
                                         uriString = m.uri,
                                         isVideo = m.isVideo,
                                         hasSpoiler = m.hasSpoiler,
+                                        showSelectionBadge = isSelectionMode,
+                                        isPhotoSelected = currentIdx in selectedPhotoIndices,
+                                        accent = accent,
                                         onPhotoClick = { onPhotoClick(currentIdx) },
-                                        onPhotoLongClick = onPhotoLongClick,
+                                        onPhotoLongClick = { onPhotoLongClick(currentIdx) },
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxHeight()
@@ -1342,6 +1381,7 @@ private fun ChatMediaAlbumGrid(
  * Ячейка настоящего фото/видео в чате:
  * - Индивидуальный спойлер для каждого фото: первый тап снимает спойлер именно с этого фото
  * - Повторный тап (или первый тап, если спойлера нет) открывает полноэкранный просмотр именно этого фото (без быстрого меню)
+ * - В режиме выделения (showSelectionBadge == true) каждое фото в альбоме выбирается по одному со своим кружком-галочкой
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -1349,6 +1389,9 @@ private fun ChatRealPhotoBox(
     uriString: String,
     isVideo: Boolean,
     hasSpoiler: Boolean,
+    showSelectionBadge: Boolean = false,
+    isPhotoSelected: Boolean = false,
+    accent: Color = Color(0xFF00E5FF),
     onPhotoClick: () -> Unit = {},
     onPhotoLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -1375,7 +1418,9 @@ private fun ChatRealPhotoBox(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = {
-                    if (showSpoiler) {
+                    if (showSelectionBadge) {
+                        onPhotoClick()
+                    } else if (showSpoiler) {
                         localSpoilerRevealed = true
                     } else {
                         onPhotoClick()
@@ -1415,6 +1460,37 @@ private fun ChatRealPhotoBox(
 
         if (showSpoiler) {
             SpoilerOverlay(modifier = Modifier.fillMaxSize())
+        }
+
+        if (isPhotoSelected) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(accent.copy(alpha = 0.22f))
+                    .border(2.dp, accent)
+            )
+        }
+
+        if (showSelectionBadge) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(22.dp)
+                    .clip(CircleShape)
+                    .background(if (isPhotoSelected) accent else Color.Black.copy(alpha = 0.45f))
+                    .border(1.5.dp, Color.White, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isPhotoSelected) {
+                    Icon(
+                        imageVector = Icons.Outlined.Check,
+                        contentDescription = "Выбрано",
+                        tint = Color.White,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
         }
     }
 }

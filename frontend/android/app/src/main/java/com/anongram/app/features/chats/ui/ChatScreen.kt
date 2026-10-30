@@ -319,6 +319,11 @@ fun ChatScreen(
                     onSwipeReply = viewModel::startReply,
                     onToggleReaction = viewModel::toggleReaction,
                     onSelectMessage = viewModel::toggleSelection,
+                    onToggleAlbumPhoto = viewModel::toggleAlbumPhotoSelection,
+                    onEnterAlbumPhotoSelection = { key ->
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        viewModel.enterSelection(key)
+                    },
                     onRetryMessage = viewModel::retry,
                     onHighlightMessage = viewModel::highlightMessage,
                     onOpenMediaViewer = { message, photoIdx ->
@@ -485,7 +490,7 @@ fun ChatScreen(
                             viewModel.clearSelection()
                         },
                         onForward = {
-                            viewModel.forwardMessages(state.selection, "Вы")
+                            viewModel.forwardMessages(state.selection, session.title)
                         },
                         onDelete = {
                             viewModel.requestDelete(state.selection.toList())
@@ -733,8 +738,13 @@ fun ChatScreen(
 
         LaunchedEffect(state.messages, viewingMediaMessage) {
             val current = viewingMediaMessage
-            if (current != null && state.messages.none { it.id == current.id }) {
-                closeMediaViewerAndRestoreKeyboard()
+            if (current != null) {
+                val updated = state.messages.firstOrNull { it.id == current.id }
+                if (updated == null) {
+                    closeMediaViewerAndRestoreKeyboard()
+                } else if (updated != current) {
+                    viewingMediaMessage = updated
+                }
             }
         }
 
@@ -770,8 +780,12 @@ fun ChatScreen(
                         } catch (_: Exception) {}
                     }
                 },
-                onRequestDelete = { msg ->
-                    viewModel.requestDelete(listOf(msg.id))
+                onRequestDelete = { msg, photoIdx ->
+                    if (msg.attachment is MessageAttachment.MediaAlbum) {
+                        viewModel.requestDelete(listOf("${msg.id}#photo_$photoIdx"))
+                    } else {
+                        viewModel.requestDelete(listOf(msg.id))
+                    }
                 }
             )
         }

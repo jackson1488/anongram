@@ -114,7 +114,7 @@ internal fun ChatMediaFullscreenViewer(
     onClose: () -> Unit,
     onShowInChat: (ChatMessage) -> Unit,
     onReply: (ChatMessage) -> Unit,
-    onRequestDelete: (ChatMessage) -> Unit,
+    onRequestDelete: (ChatMessage, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -150,7 +150,7 @@ internal fun ChatMediaFullscreenViewer(
         }
     }
 
-    val senderTitle = if (message.direction == MessageDirection.INCOMING) peerName else "Вы"
+    val senderTitle = peerName
     val dateSubTitle = remember(message.epochMs) { formatPhotoViewerSubtitleDate(message.epochMs) }
     val currentUriString = mediaUris.getOrNull(pagerState.currentPage) ?: mediaUris.first()
 
@@ -416,7 +416,7 @@ internal fun ChatMediaFullscreenViewer(
                                 },
                                 onClick = {
                                     isMenuOpen = false
-                                    onRequestDelete(message)
+                                    onRequestDelete(message, pagerState.currentPage)
                                 }
                             )
                         }

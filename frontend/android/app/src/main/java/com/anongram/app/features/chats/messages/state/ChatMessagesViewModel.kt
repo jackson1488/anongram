@@ -314,12 +314,18 @@ class ChatMessagesViewModel(
 
     fun closePinnedMessages() = _uiState.update { it.copy(isPinnedMessagesScreenOpen = false) }
 
-    // --- Режим выделения (шаг 10) ---
+    // --- Режим выделения (шаг 10 + поштучный выбор фото внутри альбома) ---
 
     fun enterSelection(messageId: String) =
         _uiState.update { it.copy(selection = setOf(messageId), actionMenuFor = null) }
 
     fun toggleSelection(messageId: String) {
+        val msg = _uiState.value.messages.firstOrNull { it.id == messageId }
+        val album = msg?.attachment as? MessageAttachment.MediaAlbum
+        if (album != null) {
+            toggleWholeAlbumSelection(messageId, album.items.size)
+            return
+        }
         _uiState.update { state ->
             val next = state.selection.toMutableSet()
             if (!next.add(messageId)) {
@@ -332,6 +338,43 @@ class ChatMessagesViewModel(
         }
     }
 
+    /** Поштучный выбор конкретного фото внутри альбома */
+    fun toggleAlbumPhotoSelection(messageId: String, photoIndex: Int, totalPhotos: Int) {
+        _uiState.update { state ->
+            val next = state.selection.toMutableSet()
+            if (next.remove(messageId)) {
+                for (i in 0 until totalPhotos) {
+                    next.add("${messageId}#photo_$i")
+                }
+            }
+            val key = "${messageId}#photo_$photoIndex"
+            if (!next.add(key)) {
+                next.remove(key)
+            } else if (next.size > 100) {
+                return@update state
+            }
+            state.copy(selection = next, actionMenuFor = null)
+        }
+    }
+
+    /** Переключение выбора всех фото альбома целиком (по кружку слева от пузыря) */
+    fun toggleWholeAlbumSelection(messageId: String, totalPhotos: Int) {
+        _uiState.update { state ->
+            val next = state.selection.toMutableSet()
+            val photoKeys = (0 until totalPhotos).map { "${messageId}#photo_$it" }
+            val allSelected = (messageId in next) || photoKeys.all { it in next }
+            next.remove(messageId)
+            if (allSelected) {
+                next.removeAll(photoKeys.toSet())
+            } else {
+                for (k in photoKeys) {
+                    if (next.size < 100) next.add(k)
+                }
+            }
+            state.copy(selection = next, actionMenuFor = null)
+        }
+    }
+
     fun clearSelection() = _uiState.update { it.copy(selection = emptySet()) }
 
     // --- Пересылка (в этот чат, FakeRepository) ---
@@ -339,21 +382,82 @@ class ChatMessagesViewModel(
     fun forwardMessages(messageIds: Collection<String>, authorName: String) {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val copies = _uiState.value.messages
-                .filter { it.id in messageIds }
-                .map { original ->
-                    original.copy(
-                        id = "fwd_${System.nanoTime()}_${original.id}",
-                        direction = MessageDirection.OUTGOING,
-                        epochMs = now,
-                        status = MessageStatus.SENDING,
-                        forwardedFrom = original.forwardedFrom ?: authorName,
-                        reactions = emptyMap(),
-                        myReaction = null,
-                        isUnread = false,
-                        replyToId = null
-                    )
+            val fullIds = messageIds.filter { "#photo_" !in it }.toSet()
+            val photoIndicesByMsgId = messageIds
+                .filter { "#photo_" in it }
+                .mapNotNull { key ->
+                    val parts = key.split("#photo_")
+                    val mId = parts.getOrNull(0) ?: return@mapNotNull null
+                    val idx = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+                    mId to idx
                 }
+                .groupBy({ it.first }, { it.second })
+
+            val copies = mutableListOf<ChatMessage>()
+            for (original in _uiState.value.messages) {
+                if (original.id in fullIds) {
+                    copies.add(
+                        original.copy(
+                            id = "fwd_${System.nanoTime()}_${original.id}",
+                            direction = MessageDirection.OUTGOING,
+                            epochMs = now,
+                            status = MessageStatus.SENDING,
+                            forwardedFrom = original.forwardedFrom ?: authorName,
+                            reactions = emptyMap(),
+                            myReaction = null,
+                            isUnread = false,
+                            replyToId = null
+                        )
+                    )
+                } else if (original.id in photoIndicesByMsgId) {
+                    val selectedIndices = photoIndicesByMsgId[original.id].orEmpty().toSet()
+                    val album = original.attachment as? MessageAttachment.MediaAlbum
+                    if (album != null) {
+                        val chosenItems = album.items.filterIndexed { idx, _ -> idx in selectedIndices }
+                        if (chosenItems.size == 1) {
+                            val item = chosenItems[0]
+                            copies.add(
+                                original.copy(
+                                    id = "fwd_${System.nanoTime()}_${original.id}",
+                                    direction = MessageDirection.OUTGOING,
+                                    epochMs = now,
+                                    status = MessageStatus.SENDING,
+                                    forwardedFrom = original.forwardedFrom ?: authorName,
+                                    attachment = MessageAttachment.Photo(
+                                        label = "",
+                                        colorSeed = 1,
+                                        isVideo = item.isVideo,
+                                        uri = item.uri,
+                                        hasSpoiler = item.hasSpoiler
+                                    ),
+                                    reactions = emptyMap(),
+                                    myReaction = null,
+                                    isUnread = false,
+                                    replyToId = null
+                                )
+                            )
+                        } else if (chosenItems.size > 1) {
+                            copies.add(
+                                original.copy(
+                                    id = "fwd_${System.nanoTime()}_${original.id}",
+                                    direction = MessageDirection.OUTGOING,
+                                    epochMs = now,
+                                    status = MessageStatus.SENDING,
+                                    forwardedFrom = original.forwardedFrom ?: authorName,
+                                    attachment = album.copy(
+                                        items = chosenItems,
+                                        hasSpoiler = chosenItems.any { it.hasSpoiler }
+                                    ),
+                                    reactions = emptyMap(),
+                                    myReaction = null,
+                                    isUnread = false,
+                                    replyToId = null
+                                )
+                            )
+                        }
+                    }
+                }
+            }
             for (copy in copies) repository.addMessage(sessionId, copy)
             _uiState.update { s ->
                 s.copy(messages = s.messages + copies, selection = emptySet(), actionMenuFor = null)
@@ -362,7 +466,7 @@ class ChatMessagesViewModel(
         }
     }
 
-    // --- Удаление (у меня / у всех) ---
+    // --- Удаление (у меня / у всех, включая удаление отдельных фото из альбома) ---
 
     fun requestDelete(messageIds: List<String>) =
         _uiState.update { it.copy(deleteDialogFor = messageIds, actionMenuFor = null) }
@@ -370,13 +474,68 @@ class ChatMessagesViewModel(
     fun confirmDelete(forEveryone: Boolean) {
         val targets = _uiState.value.deleteDialogFor ?: return
         viewModelScope.launch {
-            for (id in targets) repository.deleteMessage(sessionId, id)
+            val fullDeleteIds = targets.filter { "#photo_" !in it }.toMutableSet()
+            val photoDeletesByMsgId = targets
+                .filter { "#photo_" in it }
+                .mapNotNull { key ->
+                    val parts = key.split("#photo_")
+                    val mId = parts.getOrNull(0) ?: return@mapNotNull null
+                    val idx = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+                    mId to idx
+                }
+                .groupBy({ it.first }, { it.second })
+
+            val updatedMessages = mutableListOf<ChatMessage>()
+            for (msg in _uiState.value.messages) {
+                if (msg.id in fullDeleteIds) {
+                    repository.deleteMessage(sessionId, msg.id)
+                    continue
+                }
+                val photoIndicesToDelete = photoDeletesByMsgId[msg.id]?.toSet()
+                val album = msg.attachment as? MessageAttachment.MediaAlbum
+                if (photoIndicesToDelete != null && album != null) {
+                    val remaining = album.items.filterIndexed { idx, _ -> idx !in photoIndicesToDelete }
+                    when {
+                        remaining.isEmpty() -> {
+                            fullDeleteIds.add(msg.id)
+                            repository.deleteMessage(sessionId, msg.id)
+                        }
+                        remaining.size == 1 -> {
+                            val single = remaining[0]
+                            val modified = msg.copy(
+                                attachment = MessageAttachment.Photo(
+                                    label = "",
+                                    colorSeed = 1,
+                                    isVideo = single.isVideo,
+                                    uri = single.uri,
+                                    hasSpoiler = single.hasSpoiler
+                                )
+                            )
+                            repository.updateMessage(sessionId, modified)
+                            updatedMessages.add(modified)
+                        }
+                        else -> {
+                            val modified = msg.copy(
+                                attachment = album.copy(
+                                    items = remaining,
+                                    hasSpoiler = remaining.any { it.hasSpoiler }
+                                )
+                            )
+                            repository.updateMessage(sessionId, modified)
+                            updatedMessages.add(modified)
+                        }
+                    }
+                } else {
+                    updatedMessages.add(msg)
+                }
+            }
+
             _uiState.update { state ->
                 state.copy(
-                    messages = state.messages.filterNot { it.id in targets },
+                    messages = updatedMessages,
                     deleteDialogFor = null,
                     selection = emptySet(),
-                    pinnedId = state.pinnedId?.takeUnless { it in targets }
+                    pinnedId = state.pinnedId?.takeUnless { it in fullDeleteIds }
                 )
             }
         }
