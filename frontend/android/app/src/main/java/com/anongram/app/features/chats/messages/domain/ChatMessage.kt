@@ -59,7 +59,9 @@ fun ChatMessage.matchesQuery(query: String): Boolean {
     }
     when (val att = attachment) {
         is MessageAttachment.File -> if (att.name.contains(trimmed, ignoreCase = true)) return true
+        is MessageAttachment.FileGroup -> if (att.items.any { it.name.contains(trimmed, ignoreCase = true) }) return true
         is MessageAttachment.Music -> if (att.title.contains(trimmed, ignoreCase = true) || att.artist.contains(trimmed, ignoreCase = true)) return true
+        is MessageAttachment.MusicGroup -> if (att.items.any { it.title.contains(trimmed, ignoreCase = true) || it.artist.contains(trimmed, ignoreCase = true) }) return true
         is MessageAttachment.Contact -> if (att.name.contains(trimmed, ignoreCase = true) || att.phone.contains(trimmed, ignoreCase = true)) return true
         is MessageAttachment.Geo -> if (att.address.contains(trimmed, ignoreCase = true)) return true
         is MessageAttachment.Photo -> if (att.label.contains(trimmed, ignoreCase = true)) return true

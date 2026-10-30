@@ -57,10 +57,16 @@ internal fun MessagesList(
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
     onSelectMessage: (String) -> Unit = {},
     onToggleAlbumPhoto: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onToggleFileGroupItem: (String, Int, Int) -> Unit = { _, _, _ -> },
+    onToggleMusicGroupItem: (String, Int, Int) -> Unit = { _, _, _ -> },
     onEnterAlbumPhotoSelection: (String) -> Unit = {},
     onRetryMessage: (String) -> Unit = {},
     onHighlightMessage: (String) -> Unit = {},
-    onOpenMediaViewer: (ChatMessage, Int) -> Unit = { _, _ -> }
+    onOpenMediaViewer: (ChatMessage, Int) -> Unit = { _, _ -> },
+    onOpenUncompressedPhoto: (ChatMessage, String) -> Unit = { _, _ -> },
+    onOpenContactChat: (String, String) -> Unit = { _, _ -> },
+    onForwardSubItem: (String) -> Unit = {},
+    onDeleteSubItem: (String) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -93,20 +99,30 @@ internal fun MessagesList(
                     UnreadDivider()
                 }
 
-                val album = item.message.attachment as? MessageAttachment.MediaAlbum
-                val selectedPhotoIndices = if (album != null && selection.isNotEmpty()) {
+                val att = item.message.attachment
+                val groupCountAndPrefix: Pair<Int, String>? = when (att) {
+                    is MessageAttachment.MediaAlbum -> att.items.size to "photo"
+                    is MessageAttachment.FileGroup -> att.items.size to "file"
+                    is MessageAttachment.MusicGroup -> att.items.size to "music"
+                    else -> null
+                }
+
+                val selectedSubIndices = if (groupCountAndPrefix != null && selection.isNotEmpty()) {
+                    val (count, prefix) = groupCountAndPrefix
                     if (item.message.id in selection) {
-                        (0 until album.items.size).toSet()
+                        (0 until count).toSet()
                     } else {
-                        (0 until album.items.size).filter { idx ->
-                            "${item.message.id}#photo_$idx" in selection
+                        (0 until count).filter { idx ->
+                            "${item.message.id}#${prefix}_$idx" in selection
                         }.toSet()
                     }
                 } else {
                     emptySet()
                 }
-                val isBubbleSelected = if (album != null) {
-                    (item.message.id in selection) || (album.items.isNotEmpty() && selectedPhotoIndices.size == album.items.size)
+
+                val isBubbleSelected = if (groupCountAndPrefix != null) {
+                    val (count, _) = groupCountAndPrefix
+                    (item.message.id in selection) || (count > 0 && selectedSubIndices.size == count)
                 } else {
                     item.message.id in selection
                 }
@@ -118,7 +134,7 @@ internal fun MessagesList(
                     searchQuery = searchQuery,
                     isSelectionMode = selection.isNotEmpty(),
                     isSelected = isBubbleSelected,
-                    selectedPhotoIndices = selectedPhotoIndices,
+                    selectedPhotoIndices = selectedSubIndices,
                     isHighlighted = item.message.id == highlightedMessageId,
                     onQuoteClick = { originalId ->
                         onHighlightMessage(originalId)
@@ -136,16 +152,27 @@ internal fun MessagesList(
                     onSwipeReply = { onSwipeReply(item.message) },
                     onToggleReaction = { emoji -> onToggleReaction(item.message.id, emoji) },
                     onSelect = { onSelectMessage(item.message.id) },
-                    onToggleAlbumPhoto = { photoIdx ->
-                        if (album != null) {
-                            onToggleAlbumPhoto(item.message.id, photoIdx, album.items.size)
+                    onToggleAlbumPhoto = { subIdx ->
+                        when (att) {
+                            is MessageAttachment.MediaAlbum ->
+                                onToggleAlbumPhoto(item.message.id, subIdx, att.items.size)
+                            is MessageAttachment.FileGroup ->
+                                onToggleFileGroupItem(item.message.id, subIdx, att.items.size)
+                            is MessageAttachment.MusicGroup ->
+                                onToggleMusicGroupItem(item.message.id, subIdx, att.items.size)
+                            else -> Unit
                         }
                     },
-                    onEnterAlbumPhotoSelection = { photoIdx ->
-                        onEnterAlbumPhotoSelection("${item.message.id}#photo_$photoIdx")
+                    onEnterAlbumPhotoSelection = { subIdx ->
+                        val prefix = groupCountAndPrefix?.second ?: "photo"
+                        onEnterAlbumPhotoSelection("${item.message.id}#${prefix}_$subIdx")
                     },
                     onRetry = { onRetryMessage(item.message.id) },
-                    onOpenMediaViewer = { photoIdx -> onOpenMediaViewer(item.message, photoIdx) }
+                    onOpenMediaViewer = { photoIdx -> onOpenMediaViewer(item.message, photoIdx) },
+                    onOpenUncompressedPhoto = { uri -> onOpenUncompressedPhoto(item.message, uri) },
+                    onOpenContactChat = onOpenContactChat,
+                    onForwardSubItem = onForwardSubItem,
+                    onDeleteSubItem = onDeleteSubItem
                 )
             }
         }

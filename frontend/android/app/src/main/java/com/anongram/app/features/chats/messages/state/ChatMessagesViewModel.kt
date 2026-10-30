@@ -314,24 +314,33 @@ class ChatMessagesViewModel(
 
     fun closePinnedMessages() = _uiState.update { it.copy(isPinnedMessagesScreenOpen = false) }
 
-    // --- Режим выделения (шаг 10 + поштучный выбор фото внутри альбома) ---
+    // --- Режим выделения (шаг 10 + поштучный выбор элементов внутри альбома, группы файлов или музыки) ---
 
     fun enterSelection(messageId: String) =
         _uiState.update { it.copy(selection = setOf(messageId), actionMenuFor = null) }
 
     fun toggleSelection(messageId: String) {
         val msg = _uiState.value.messages.firstOrNull { it.id == messageId }
-        val album = msg?.attachment as? MessageAttachment.MediaAlbum
-        if (album != null) {
-            toggleWholeAlbumSelection(messageId, album.items.size)
-            return
+        when (val att = msg?.attachment) {
+            is MessageAttachment.MediaAlbum -> {
+                toggleWholeGroupSelection(messageId, "photo", att.items.size)
+                return
+            }
+            is MessageAttachment.FileGroup -> {
+                toggleWholeGroupSelection(messageId, "file", att.items.size)
+                return
+            }
+            is MessageAttachment.MusicGroup -> {
+                toggleWholeGroupSelection(messageId, "music", att.items.size)
+                return
+            }
+            else -> Unit
         }
         _uiState.update { state ->
             val next = state.selection.toMutableSet()
             if (!next.add(messageId)) {
                 next.remove(messageId)
             } else if (next.size > 100) {
-                // Максимум 100 сообщений
                 return@update state
             }
             state.copy(selection = next)
@@ -339,15 +348,26 @@ class ChatMessagesViewModel(
     }
 
     /** Поштучный выбор конкретного фото внутри альбома */
-    fun toggleAlbumPhotoSelection(messageId: String, photoIndex: Int, totalPhotos: Int) {
+    fun toggleAlbumPhotoSelection(messageId: String, photoIndex: Int, totalPhotos: Int) =
+        toggleGroupItemSelection(messageId, "photo", photoIndex, totalPhotos)
+
+    /** Поштучный выбор конкретного файла внутри группы файлов */
+    fun toggleFileGroupItemSelection(messageId: String, fileIndex: Int, totalFiles: Int) =
+        toggleGroupItemSelection(messageId, "file", fileIndex, totalFiles)
+
+    /** Поштучный выбор конкретного трека внутри группы музыки */
+    fun toggleMusicGroupItemSelection(messageId: String, musicIndex: Int, totalTracks: Int) =
+        toggleGroupItemSelection(messageId, "music", musicIndex, totalTracks)
+
+    fun toggleGroupItemSelection(messageId: String, prefix: String, itemIndex: Int, totalItems: Int) {
         _uiState.update { state ->
             val next = state.selection.toMutableSet()
             if (next.remove(messageId)) {
-                for (i in 0 until totalPhotos) {
-                    next.add("${messageId}#photo_$i")
+                for (i in 0 until totalItems) {
+                    next.add("${messageId}#${prefix}_$i")
                 }
             }
-            val key = "${messageId}#photo_$photoIndex"
+            val key = "${messageId}#${prefix}_$itemIndex"
             if (!next.add(key)) {
                 next.remove(key)
             } else if (next.size > 100) {
@@ -358,16 +378,19 @@ class ChatMessagesViewModel(
     }
 
     /** Переключение выбора всех фото альбома целиком (по кружку слева от пузыря) */
-    fun toggleWholeAlbumSelection(messageId: String, totalPhotos: Int) {
+    fun toggleWholeAlbumSelection(messageId: String, totalPhotos: Int) =
+        toggleWholeGroupSelection(messageId, "photo", totalPhotos)
+
+    fun toggleWholeGroupSelection(messageId: String, prefix: String, totalItems: Int) {
         _uiState.update { state ->
             val next = state.selection.toMutableSet()
-            val photoKeys = (0 until totalPhotos).map { "${messageId}#photo_$it" }
-            val allSelected = (messageId in next) || photoKeys.all { it in next }
+            val itemKeys = (0 until totalItems).map { "${messageId}#${prefix}_$it" }
+            val allSelected = (messageId in next) || itemKeys.all { it in next }
             next.remove(messageId)
             if (allSelected) {
-                next.removeAll(photoKeys.toSet())
+                next.removeAll(itemKeys.toSet())
             } else {
-                for (k in photoKeys) {
+                for (k in itemKeys) {
                     if (next.size < 100) next.add(k)
                 }
             }
@@ -377,32 +400,48 @@ class ChatMessagesViewModel(
 
     fun clearSelection() = _uiState.update { it.copy(selection = emptySet()) }
 
-    // --- Пересылка (в этот чат, FakeRepository) ---
+    // --- Пересылка (в выбранный чат или «Избранное») ---
 
     fun forwardMessages(messageIds: Collection<String>, authorName: String) {
+        forwardMessagesToTargetChat(sessionId, messageIds, authorName)
+    }
+
+    fun forwardMessagesToTargetChat(
+        targetSessionId: String,
+        messageIds: Collection<String>,
+        authorName: String,
+        onDone: () -> Unit = {}
+    ) {
         viewModelScope.launch {
             val now = System.currentTimeMillis()
-            val fullIds = messageIds.filter { "#photo_" !in it }.toSet()
-            val photoIndicesByMsgId = messageIds
-                .filter { "#photo_" in it }
-                .mapNotNull { key ->
-                    val parts = key.split("#photo_")
-                    val mId = parts.getOrNull(0) ?: return@mapNotNull null
-                    val idx = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
-                    mId to idx
-                }
-                .groupBy({ it.first }, { it.second })
+            val fullIds = messageIds.filter { "#" !in it }.toSet()
+
+            fun parseSubIndices(prefix: String): Map<String, List<Int>> =
+                messageIds
+                    .filter { "#${prefix}_" in it }
+                    .mapNotNull { key ->
+                        val parts = key.split("#${prefix}_")
+                        val mId = parts.getOrNull(0) ?: return@mapNotNull null
+                        val idx = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+                        mId to idx
+                    }
+                    .groupBy({ it.first }, { it.second })
+
+            val photoIndicesByMsgId = parseSubIndices("photo")
+            val fileIndicesByMsgId = parseSubIndices("file")
+            val musicIndicesByMsgId = parseSubIndices("music")
 
             val copies = mutableListOf<ChatMessage>()
             for (original in _uiState.value.messages) {
+                val fwdAuthor = if (targetSessionId == "0") null else (original.forwardedFrom ?: authorName)
                 if (original.id in fullIds) {
                     copies.add(
                         original.copy(
                             id = "fwd_${System.nanoTime()}_${original.id}",
                             direction = MessageDirection.OUTGOING,
                             epochMs = now,
-                            status = MessageStatus.SENDING,
-                            forwardedFrom = original.forwardedFrom ?: authorName,
+                            status = MessageStatus.SENT,
+                            forwardedFrom = fwdAuthor,
                             reactions = emptyMap(),
                             myReaction = null,
                             isUnread = false,
@@ -421,8 +460,8 @@ class ChatMessagesViewModel(
                                     id = "fwd_${System.nanoTime()}_${original.id}",
                                     direction = MessageDirection.OUTGOING,
                                     epochMs = now,
-                                    status = MessageStatus.SENDING,
-                                    forwardedFrom = original.forwardedFrom ?: authorName,
+                                    status = MessageStatus.SENT,
+                                    forwardedFrom = fwdAuthor,
                                     attachment = MessageAttachment.Photo(
                                         label = "",
                                         colorSeed = 1,
@@ -442,8 +481,8 @@ class ChatMessagesViewModel(
                                     id = "fwd_${System.nanoTime()}_${original.id}",
                                     direction = MessageDirection.OUTGOING,
                                     epochMs = now,
-                                    status = MessageStatus.SENDING,
-                                    forwardedFrom = original.forwardedFrom ?: authorName,
+                                    status = MessageStatus.SENT,
+                                    forwardedFrom = fwdAuthor,
                                     attachment = album.copy(
                                         items = chosenItems,
                                         hasSpoiler = chosenItems.any { it.hasSpoiler }
@@ -456,17 +495,102 @@ class ChatMessagesViewModel(
                             )
                         }
                     }
+                } else if (original.id in fileIndicesByMsgId) {
+                    val selectedIndices = fileIndicesByMsgId[original.id].orEmpty().toSet()
+                    val fg = original.attachment as? MessageAttachment.FileGroup
+                    if (fg != null) {
+                        val chosenItems = fg.items.filterIndexed { idx, _ -> idx in selectedIndices }
+                        if (chosenItems.size == 1) {
+                            copies.add(
+                                original.copy(
+                                    id = "fwd_${System.nanoTime()}_${original.id}",
+                                    direction = MessageDirection.OUTGOING,
+                                    epochMs = now,
+                                    status = MessageStatus.SENT,
+                                    forwardedFrom = fwdAuthor,
+                                    attachment = chosenItems[0],
+                                    reactions = emptyMap(),
+                                    myReaction = null,
+                                    isUnread = false,
+                                    replyToId = null
+                                )
+                            )
+                        } else if (chosenItems.size > 1) {
+                            copies.add(
+                                original.copy(
+                                    id = "fwd_${System.nanoTime()}_${original.id}",
+                                    direction = MessageDirection.OUTGOING,
+                                    epochMs = now,
+                                    status = MessageStatus.SENT,
+                                    forwardedFrom = fwdAuthor,
+                                    attachment = MessageAttachment.FileGroup(chosenItems),
+                                    reactions = emptyMap(),
+                                    myReaction = null,
+                                    isUnread = false,
+                                    replyToId = null
+                                )
+                            )
+                        }
+                    }
+                } else if (original.id in musicIndicesByMsgId) {
+                    val selectedIndices = musicIndicesByMsgId[original.id].orEmpty().toSet()
+                    val mg = original.attachment as? MessageAttachment.MusicGroup
+                    if (mg != null) {
+                        val chosenItems = mg.items.filterIndexed { idx, _ -> idx in selectedIndices }
+                        if (chosenItems.size == 1) {
+                            copies.add(
+                                original.copy(
+                                    id = "fwd_${System.nanoTime()}_${original.id}",
+                                    direction = MessageDirection.OUTGOING,
+                                    epochMs = now,
+                                    status = MessageStatus.SENT,
+                                    forwardedFrom = fwdAuthor,
+                                    attachment = chosenItems[0],
+                                    reactions = emptyMap(),
+                                    myReaction = null,
+                                    isUnread = false,
+                                    replyToId = null
+                                )
+                            )
+                        } else if (chosenItems.size > 1) {
+                            copies.add(
+                                original.copy(
+                                    id = "fwd_${System.nanoTime()}_${original.id}",
+                                    direction = MessageDirection.OUTGOING,
+                                    epochMs = now,
+                                    status = MessageStatus.SENT,
+                                    forwardedFrom = fwdAuthor,
+                                    attachment = MessageAttachment.MusicGroup(chosenItems),
+                                    reactions = emptyMap(),
+                                    myReaction = null,
+                                    isUnread = false,
+                                    replyToId = null
+                                )
+                            )
+                        }
+                    }
                 }
             }
-            for (copy in copies) repository.addMessage(sessionId, copy)
-            _uiState.update { s ->
-                s.copy(messages = s.messages + copies, selection = emptySet(), actionMenuFor = null)
+
+            // Гарантируем, что история целевого чата инициализирована перед добавлением
+            repository.loadMessages(targetSessionId)
+            for (copy in copies) {
+                repository.addMessage(targetSessionId, copy)
             }
-            for (copy in copies) runDeliveryLifecycle(copy.id)
+            if (targetSessionId == sessionId) {
+                _uiState.update { s ->
+                    s.copy(messages = s.messages + copies, selection = emptySet(), actionMenuFor = null)
+                }
+            } else {
+                _uiState.update { s ->
+                    s.copy(selection = emptySet(), actionMenuFor = null)
+                }
+            }
+            onDone()
         }
     }
 
-    // --- Удаление (у меня / у всех, включая удаление отдельных фото из альбома) ---
+    // --- Удаление (у меня / у всех, включая удаление отдельных элементов из альбома/группы файлов/музыки) ---
 
     fun requestDelete(messageIds: List<String>) =
         _uiState.update { it.copy(deleteDialogFor = messageIds, actionMenuFor = null) }
@@ -474,16 +598,22 @@ class ChatMessagesViewModel(
     fun confirmDelete(forEveryone: Boolean) {
         val targets = _uiState.value.deleteDialogFor ?: return
         viewModelScope.launch {
-            val fullDeleteIds = targets.filter { "#photo_" !in it }.toMutableSet()
-            val photoDeletesByMsgId = targets
-                .filter { "#photo_" in it }
-                .mapNotNull { key ->
-                    val parts = key.split("#photo_")
-                    val mId = parts.getOrNull(0) ?: return@mapNotNull null
-                    val idx = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
-                    mId to idx
-                }
-                .groupBy({ it.first }, { it.second })
+            val fullDeleteIds = targets.filter { "#" !in it }.toMutableSet()
+
+            fun parseDeleteSubIndices(prefix: String): Map<String, List<Int>> =
+                targets
+                    .filter { "#${prefix}_" in it }
+                    .mapNotNull { key ->
+                        val parts = key.split("#${prefix}_")
+                        val mId = parts.getOrNull(0) ?: return@mapNotNull null
+                        val idx = parts.getOrNull(1)?.toIntOrNull() ?: return@mapNotNull null
+                        mId to idx
+                    }
+                    .groupBy({ it.first }, { it.second })
+
+            val photoDeletesByMsgId = parseDeleteSubIndices("photo")
+            val fileDeletesByMsgId = parseDeleteSubIndices("file")
+            val musicDeletesByMsgId = parseDeleteSubIndices("music")
 
             val updatedMessages = mutableListOf<ChatMessage>()
             for (msg in _uiState.value.messages) {
@@ -492,41 +622,96 @@ class ChatMessagesViewModel(
                     continue
                 }
                 val photoIndicesToDelete = photoDeletesByMsgId[msg.id]?.toSet()
-                val album = msg.attachment as? MessageAttachment.MediaAlbum
-                if (photoIndicesToDelete != null && album != null) {
-                    val remaining = album.items.filterIndexed { idx, _ -> idx !in photoIndicesToDelete }
-                    when {
-                        remaining.isEmpty() -> {
-                            fullDeleteIds.add(msg.id)
-                            repository.deleteMessage(sessionId, msg.id)
-                        }
-                        remaining.size == 1 -> {
-                            val single = remaining[0]
-                            val modified = msg.copy(
-                                attachment = MessageAttachment.Photo(
-                                    label = "",
-                                    colorSeed = 1,
-                                    isVideo = single.isVideo,
-                                    uri = single.uri,
-                                    hasSpoiler = single.hasSpoiler
-                                )
-                            )
-                            repository.updateMessage(sessionId, modified)
-                            updatedMessages.add(modified)
-                        }
-                        else -> {
-                            val modified = msg.copy(
-                                attachment = album.copy(
-                                    items = remaining,
-                                    hasSpoiler = remaining.any { it.hasSpoiler }
-                                )
-                            )
-                            repository.updateMessage(sessionId, modified)
-                            updatedMessages.add(modified)
+                val fileIndicesToDelete = fileDeletesByMsgId[msg.id]?.toSet()
+                val musicIndicesToDelete = musicDeletesByMsgId[msg.id]?.toSet()
+
+                when (val att = msg.attachment) {
+                    is MessageAttachment.MediaAlbum -> {
+                        if (photoIndicesToDelete != null) {
+                            val remaining = att.items.filterIndexed { idx, _ -> idx !in photoIndicesToDelete }
+                            when {
+                                remaining.isEmpty() -> {
+                                    fullDeleteIds.add(msg.id)
+                                    repository.deleteMessage(sessionId, msg.id)
+                                }
+                                remaining.size == 1 -> {
+                                    val single = remaining[0]
+                                    val modified = msg.copy(
+                                        attachment = MessageAttachment.Photo(
+                                            label = "",
+                                            colorSeed = 1,
+                                            isVideo = single.isVideo,
+                                            uri = single.uri,
+                                            hasSpoiler = single.hasSpoiler
+                                        )
+                                    )
+                                    repository.updateMessage(sessionId, modified)
+                                    updatedMessages.add(modified)
+                                }
+                                else -> {
+                                    val modified = msg.copy(
+                                        attachment = att.copy(
+                                            items = remaining,
+                                            hasSpoiler = remaining.any { it.hasSpoiler }
+                                        )
+                                    )
+                                    repository.updateMessage(sessionId, modified)
+                                    updatedMessages.add(modified)
+                                }
+                            }
+                        } else {
+                            updatedMessages.add(msg)
                         }
                     }
-                } else {
-                    updatedMessages.add(msg)
+                    is MessageAttachment.FileGroup -> {
+                        if (fileIndicesToDelete != null) {
+                            val remaining = att.items.filterIndexed { idx, _ -> idx !in fileIndicesToDelete }
+                            when {
+                                remaining.isEmpty() -> {
+                                    fullDeleteIds.add(msg.id)
+                                    repository.deleteMessage(sessionId, msg.id)
+                                }
+                                remaining.size == 1 -> {
+                                    val modified = msg.copy(attachment = remaining[0])
+                                    repository.updateMessage(sessionId, modified)
+                                    updatedMessages.add(modified)
+                                }
+                                else -> {
+                                    val modified = msg.copy(attachment = MessageAttachment.FileGroup(remaining))
+                                    repository.updateMessage(sessionId, modified)
+                                    updatedMessages.add(modified)
+                                }
+                            }
+                        } else {
+                            updatedMessages.add(msg)
+                        }
+                    }
+                    is MessageAttachment.MusicGroup -> {
+                        if (musicIndicesToDelete != null) {
+                            val remaining = att.items.filterIndexed { idx, _ -> idx !in musicIndicesToDelete }
+                            when {
+                                remaining.isEmpty() -> {
+                                    fullDeleteIds.add(msg.id)
+                                    repository.deleteMessage(sessionId, msg.id)
+                                }
+                                remaining.size == 1 -> {
+                                    val modified = msg.copy(attachment = remaining[0])
+                                    repository.updateMessage(sessionId, modified)
+                                    updatedMessages.add(modified)
+                                }
+                                else -> {
+                                    val modified = msg.copy(attachment = MessageAttachment.MusicGroup(remaining))
+                                    repository.updateMessage(sessionId, modified)
+                                    updatedMessages.add(modified)
+                                }
+                            }
+                        } else {
+                            updatedMessages.add(msg)
+                        }
+                    }
+                    else -> {
+                        updatedMessages.add(msg)
+                    }
                 }
             }
 

@@ -20,6 +20,10 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -57,6 +61,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,10 +69,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -81,7 +89,6 @@ import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
-import com.anongram.app.features.chats.messages.domain.MessageDirection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,19 +98,17 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
+private data class CompressedChatMediaRef(
+    val messageId: String,
+    val itemIndex: Int
+)
+
 /**
  * Полноэкранный просмотр фото или альбома из чата (Telegram-style):
  * - Полупрозрачная сплошная шапка сверху (не отдельные кружки), которая плавно скрывается/показывается по тапу на экран
- * - Слева в шапке: кнопка Назад (←), имя отправителя и снизу дата/время:
- *   «сегодня в 19:34», «вчера в ...», в пределах 7 дней — день недели («вторник в 19:34»), старше недели — дата
- * - Справа в шапке: иконка Кисточка, иконка Поделиться (пока заглушки) и кнопка «⋮» (три точки)
- * - Чёрное меню «⋮» со скруглёнными краями:
- *   1. Сохранить в галерею
- *   2. Показать в чате
- *   3. Ответить
- *   4. Поделиться (системный диалог Android)
- *   5. Удалить (с окном подтверждения и галочкой «Также удалить для ...»)
- * - Если это альбом (2+ фото): внизу экрана полоса маленьких миниатюр с плавным анимированным переключением
+ * - Сразу под шапкой по центру (чуть ниже шапки) отображается общий счётчик всех сжатых медиа в чате: «45 из 100»
+ *   (считает только сжатые фото и видео из чата; скрывается при тапе и при зуме)
+ * - Поддержка увеличения фото (Pinch-to-Zoom двумя пальцами 1x..4x + панорамирование + двойной тап 1x <-> 2.5x)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -111,6 +116,8 @@ internal fun ChatMediaFullscreenViewer(
     message: ChatMessage,
     initialPhotoIndex: Int,
     peerName: String,
+    allChatMessages: List<ChatMessage> = emptyList(),
+    overrideSingleUri: String? = null,
     onClose: () -> Unit,
     onShowInChat: (ChatMessage) -> Unit,
     onReply: (ChatMessage) -> Unit,
@@ -120,11 +127,17 @@ internal fun ChatMediaFullscreenViewer(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val mediaUris: List<String> = remember(message) {
-        when (val att = message.attachment) {
-            is MessageAttachment.MediaAlbum -> att.items.map { it.uri }
-            is MessageAttachment.Photo -> listOfNotNull(att.uri)
-            else -> emptyList()
+    val mediaUris: List<String> = remember(message, overrideSingleUri) {
+        if (!overrideSingleUri.isNullOrBlank()) {
+            listOf(overrideSingleUri)
+        } else {
+            when (val att = message.attachment) {
+                is MessageAttachment.MediaAlbum -> att.items.map { it.uri }
+                is MessageAttachment.Photo -> listOfNotNull(att.uri)
+                is MessageAttachment.File -> listOfNotNull(att.uri)
+                is MessageAttachment.FileGroup -> att.items.mapNotNull { it.uri }
+                else -> emptyList()
+            }
         }
     }
 
@@ -139,10 +152,65 @@ internal fun ChatMediaFullscreenViewer(
 
     var showControls by remember { mutableStateOf(true) }
     var isMenuOpen by remember { mutableStateOf(false) }
+    var activePageScale by remember { mutableFloatStateOf(1f) }
 
-    BackHandler { onClose() }
+    // Вычисляем глобальный список всех сжатых фото/видео в чате для счётчика «X из Y»
+    val globalCompressedMedia = remember(allChatMessages, message) {
+        val sourceList = if (allChatMessages.isNotEmpty()) allChatMessages else listOf(message)
+        buildList {
+            for (msg in sourceList) {
+                when (val att = msg.attachment) {
+                    is MessageAttachment.Photo -> {
+                        if (!att.uri.isNullOrBlank()) {
+                            add(CompressedChatMediaRef(msg.id, 0))
+                        }
+                    }
+                    is MessageAttachment.MediaAlbum -> {
+                        for (idx in att.items.indices) {
+                            add(CompressedChatMediaRef(msg.id, idx))
+                        }
+                    }
+                    else -> Unit // Файлы без сжатия сюда НЕ входят
+                }
+            }
+        }
+    }
+
+    val isCompressedMediaMessage = remember(message, overrideSingleUri) {
+        overrideSingleUri == null && (
+            message.attachment is MessageAttachment.Photo ||
+                message.attachment is MessageAttachment.MediaAlbum
+            )
+    }
+
+    val globalMediaCounterText: String? = remember(
+        globalCompressedMedia,
+        message.id,
+        pagerState.currentPage,
+        isCompressedMediaMessage
+    ) {
+        if (!isCompressedMediaMessage || globalCompressedMedia.isEmpty()) {
+            null
+        } else {
+            val foundIdx = globalCompressedMedia.indexOfFirst {
+                it.messageId == message.id && it.itemIndex == pagerState.currentPage
+            }
+            val oneBased = if (foundIdx >= 0) foundIdx + 1 else (pagerState.currentPage + 1)
+            val total = globalCompressedMedia.size.coerceAtLeast(oneBased)
+            "$oneBased из $total"
+        }
+    }
+
+    BackHandler {
+        if (activePageScale > 1.02f) {
+            activePageScale = 1f
+        } else {
+            onClose()
+        }
+    }
 
     LaunchedEffect(pagerState.currentPage) {
+        activePageScale = 1f
         if (mediaUris.size > 1) {
             runCatching {
                 thumbListState.animateScrollToItem(pagerState.currentPage)
@@ -160,26 +228,24 @@ internal fun ChatMediaFullscreenViewer(
             .background(Color.Black)
             .zIndex(300f)
     ) {
-        // 1. Горизонтальный пейджер фотографий
+        // 1. Горизонтальный пейджер фотографий с поддержкой Pinch-to-Zoom и Double-Tap Zoom
         HorizontalPager(
             state = pagerState,
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onTap = {
-                            if (isMenuOpen) {
-                                isMenuOpen = false
-                            } else {
-                                showControls = !showControls
-                            }
-                        }
-                    )
-                }
+            userScrollEnabled = activePageScale <= 1.02f,
+            modifier = Modifier.fillMaxSize()
         ) { page ->
             val uriStr = mediaUris[page]
             val parsedUri = remember(uriStr) { runCatching { Uri.parse(uriStr) }.getOrNull() }
             var bitmap by remember(uriStr) { mutableStateOf<ImageBitmap?>(null) }
+
+            var scale by remember(page, pagerState.currentPage) { mutableFloatStateOf(1f) }
+            var offset by remember(page, pagerState.currentPage) { mutableStateOf(Offset.Zero) }
+
+            LaunchedEffect(scale, page == pagerState.currentPage) {
+                if (page == pagerState.currentPage) {
+                    activePageScale = scale
+                }
+            }
 
             LaunchedEffect(parsedUri) {
                 if (parsedUri != null) {
@@ -191,7 +257,58 @@ internal fun ChatMediaFullscreenViewer(
             }
 
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(page) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                if (scale > 1.05f) {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    scale = 2.5f
+                                    offset = Offset.Zero
+                                }
+                            },
+                            onTap = {
+                                if (isMenuOpen) {
+                                    isMenuOpen = false
+                                } else {
+                                    showControls = !showControls
+                                }
+                            }
+                        )
+                    }
+                    .pointerInput(page) {
+                        awaitEachGesture {
+                            awaitFirstDown(requireUnconsumed = false)
+                            do {
+                                val event = awaitPointerEvent()
+                                val pointerCount = event.changes.count { it.pressed }
+                                if (pointerCount >= 2 || scale > 1.02f) {
+                                    val zoomChange = event.calculateZoom()
+                                    val panChange = event.calculatePan()
+                                    val newScale = (scale * zoomChange).coerceIn(1f, 4f)
+                                    scale = newScale
+                                    if (newScale > 1.02f) {
+                                        val maxX = (size.width * (newScale - 1f)) / 2f
+                                        val maxY = (size.height * (newScale - 1f)) / 2f
+                                        offset = Offset(
+                                            x = (offset.x + panChange.x).coerceIn(-maxX, maxX),
+                                            y = (offset.y + panChange.y).coerceIn(-maxY, maxY)
+                                        )
+                                        event.changes.forEach { change ->
+                                            if (change.positionChanged()) {
+                                                change.consume()
+                                            }
+                                        }
+                                    } else {
+                                        offset = Offset.Zero
+                                    }
+                                }
+                            } while (event.changes.any { it.pressed })
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 if (bitmap != null) {
@@ -199,13 +316,20 @@ internal fun ChatMediaFullscreenViewer(
                         bitmap = bitmap!!,
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                                translationX = offset.x
+                                translationY = offset.y
+                            }
                     )
                 }
             }
         }
 
-        // 2. Полупрозрачная сплошная верхняя шапка (не кружки), скрывается/появляется по тапу
+        // 2. Полупрозрачная сплошная верхняя шапка + сразу под ней по центру общий счётчик медиа «45 из 100»
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn(tween(180)),
@@ -213,18 +337,22 @@ internal fun ChatMediaFullscreenViewer(
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.62f))
-                    .safeStatusBarPadding()
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp)
-                        .padding(horizontal = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .background(Color.Black.copy(alpha = 0.62f))
+                        .safeStatusBarPadding()
                 ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp)
+                            .padding(horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                     // Кнопка Назад (слева)
                     IconButton(onClick = onClose) {
                         Icon(
@@ -423,6 +551,26 @@ internal fun ChatMediaFullscreenViewer(
                     }
                 }
             }
+
+            // Общий счётчик сжатых медиа («45 из 100») по центру чуть ниже шапки, скрывается по тапу и при зуме
+            if (globalMediaCounterText != null && activePageScale <= 1.02f) {
+                Box(
+                    modifier = Modifier
+                        .padding(top = 6.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.Black.copy(alpha = 0.62f))
+                        .padding(horizontal = 12.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = globalMediaCounterText,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
         }
 
         // 3. Нижняя панель с подписью (если есть) и лентой миниатюр для альбома (как в Telegram)
@@ -577,7 +725,7 @@ private fun formatPhotoViewerSubtitleDate(epochMs: Long): String {
 /**
  * Реальное сохранение фотографии в галерею устройства через MediaStore.
  */
-private suspend fun savePhotoToDeviceGallery(context: Context, uriString: String): Boolean =
+internal suspend fun savePhotoToDeviceGallery(context: Context, uriString: String): Boolean =
     withContext(Dispatchers.IO) {
         runCatching {
             val parsedUri = Uri.parse(uriString)
@@ -614,7 +762,7 @@ private suspend fun savePhotoToDeviceGallery(context: Context, uriString: String
 /**
  * Системное окно «Поделиться» (Intent.ACTION_SEND) для отправки фото в любой мессенджер или приложение.
  */
-private fun sharePhotoSystemChooser(context: Context, uriString: String) {
+internal fun sharePhotoSystemChooser(context: Context, uriString: String) {
     runCatching {
         val parsedUri = Uri.parse(uriString)
         val shareIntent = Intent(Intent.ACTION_SEND).apply {

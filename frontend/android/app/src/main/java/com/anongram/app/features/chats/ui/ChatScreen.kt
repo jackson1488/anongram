@@ -79,6 +79,7 @@ import com.anongram.app.features.chats.ui.components.ChatInputBar
 import com.anongram.app.features.chats.ui.components.ChatMediaFullscreenViewer
 import com.anongram.app.features.chats.ui.components.DeleteMessageDialog
 import com.anongram.app.features.chats.ui.components.EmojiStickerPanel
+import com.anongram.app.features.chats.ui.components.ForwardTargetPickerScreen
 import com.anongram.app.features.chats.ui.components.GeoPickerScreen
 import com.anongram.app.features.chats.ui.components.KeyVerificationDialog
 import com.anongram.app.features.chats.ui.components.MessageContextMenu
@@ -92,28 +93,16 @@ import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
-/**
- * Экран чата Telegram-style (все 18 шагов):
- * - Обои с узором и стилями (ChatWallpaper)
- * - Плавающие таблетки тулбара (ChatTopBar), поиск (ChatSearchPanel), выборка (SelectionPanel)
- * - Закреплённое сообщение (PinnedBar)
- * - Список сообщений с группировкой, дат-чипами, непрочитанными, реакциями, свайпом ответа (MessagesList)
- * - Кнопка прокрутки вниз со счётчиком непрочитанных (ScrollDownButton)
- * - Поле ввода со скрепкой, переключением микрофон/кружок, свайп-замком (ChatInputBar)
- * - Панель эмодзи, GIF и стикеров (EmojiStickerPanel)
- * - Модальное меню вложений (AttachBottomSheet)
- * - Экран выбора геопозиции (GeoPickerScreen)
- * - Контекстное меню сообщений по долгому тапу (MessageContextMenu)
- * - Диалог подтверждения удаления (DeleteMessageDialog)
- * - Настройки уведомлений чата (NotificationsSettingsDialog)
- * - Проверка сквозного шифрования (KeyVerificationDialog)
- */
 @Composable
 fun ChatScreen(
     session: IChatSession,
     viewModel: ChatMessagesViewModel,
     onBack: () -> Unit,
+    activeSessions: List<IChatSession> = emptyList(),
+    onOpenTargetSession: (IChatSession) -> Unit = {},
+    onOpenDirectPeer: (name: String, handleOrPhone: String, onSessionReady: (IChatSession) -> Unit) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -125,7 +114,9 @@ fun ChatScreen(
     var isSearchListMode by remember { mutableStateOf(false) }
     var viewingMediaMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var viewingMediaInitialIndex by remember { mutableIntStateOf(0) }
+    var viewingOverrideSingleUri by remember { mutableStateOf<String?>(null) }
     var wasKeyboardOpenBeforeViewer by remember { mutableStateOf(false) }
+    var forwardingMessageIds by remember { mutableStateOf<List<String>?>(null) }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -133,7 +124,6 @@ fun ChatScreen(
         }
     }
 
-    // Затемнение за шапкой: 0.58f по дефолту (при простое), усиливается до 0.88f при скролле
     val isScrolled by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 10
@@ -146,11 +136,14 @@ fun ChatScreen(
     )
     var actionMenuAnchorY by remember { mutableFloatStateOf(0f) }
 
-    // Обработка системной кнопки назад: закрывать открытые панели и модалки по очереди
     BackHandler {
         when {
             state.deleteDialogFor != null -> viewModel.dismissDeleteDialog()
-            viewingMediaMessage != null -> viewingMediaMessage = null
+            forwardingMessageIds != null -> forwardingMessageIds = null
+            viewingMediaMessage != null -> {
+                viewingMediaMessage = null
+                viewingOverrideSingleUri = null
+            }
             isWallpaperOpen -> isWallpaperOpen = false
             isReplyPreviewOpen -> isReplyPreviewOpen = false
             isSearchListMode -> isSearchListMode = false
@@ -168,7 +161,6 @@ fun ChatScreen(
         }
     }
 
-    // Автопрокрутка к результатам поиска с анимацией двойного сердцебиения
     LaunchedEffect(state.searchIndex, state.searchMatches) {
         val currentMatchId = state.searchMatches.getOrNull(state.searchIndex)
         if (currentMatchId != null) {
@@ -188,7 +180,6 @@ fun ChatScreen(
         }
     }
 
-    // Автопрокрутка вниз при отправке сообщения или в режиме реального общения
     val previousMessagesCount = remember { mutableIntStateOf(state.messages.size) }
     LaunchedEffect(state.messages.size) {
         if (state.messages.size > previousMessagesCount.intValue) {
@@ -205,7 +196,6 @@ fun ChatScreen(
         previousMessagesCount.intValue = state.messages.size
     }
 
-    // Автоочистка горящего бейджа новых сообщений при скролле до самого низа
     LaunchedEffect(listState.firstVisibleItemIndex) {
         if (listState.firstVisibleItemIndex <= 1 && state.unreadBadge > 0) {
             viewModel.clearUnreadBadge()
@@ -237,7 +227,6 @@ fun ChatScreen(
         var wasKeyboardOpenWhenAttached by remember { mutableStateOf(false) }
         var frozenKeyboardHeightPx by remember { mutableIntStateOf(0) }
 
-        // Обновляем замороженную высоту, если клавиатура поменяла размер (язык, режим)
         if (state.isAttachOpen && wasKeyboardOpenWhenAttached && currentImeBottom > 0) {
             frozenKeyboardHeightPx = currentImeBottom
         }
@@ -246,11 +235,9 @@ fun ChatScreen(
         val chatBottomImePx = if (isChatImeFrozen) frozenKeyboardHeightPx else currentImeBottom
         val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
 
-        // 1. Содержимое чата: сообщения во всю высоту, скроллятся ПОД плавающей шапкой и ПОД полем ввода
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
         val bottomListPadding = if (effectiveKeyboardVisible) 80.dp else 104.dp
 
-        // Контейнер чата (сообщения, плавающая шапка и поле ввода) — блюрится при открытии превью ответа
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -320,6 +307,8 @@ fun ChatScreen(
                     onToggleReaction = viewModel::toggleReaction,
                     onSelectMessage = viewModel::toggleSelection,
                     onToggleAlbumPhoto = viewModel::toggleAlbumPhotoSelection,
+                    onToggleFileGroupItem = viewModel::toggleFileGroupItemSelection,
+                    onToggleMusicGroupItem = viewModel::toggleMusicGroupItemSelection,
                     onEnterAlbumPhotoSelection = { key ->
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.enterSelection(key)
@@ -331,8 +320,29 @@ fun ChatScreen(
                         if (isKeyboardVisible) {
                             keyboardController?.hide()
                         }
+                        viewingOverrideSingleUri = null
                         viewingMediaMessage = message
                         viewingMediaInitialIndex = photoIdx
+                    },
+                    onOpenUncompressedPhoto = { message, uri ->
+                        wasKeyboardOpenBeforeViewer = isKeyboardVisible
+                        if (isKeyboardVisible) {
+                            keyboardController?.hide()
+                        }
+                        viewingOverrideSingleUri = uri
+                        viewingMediaMessage = message
+                        viewingMediaInitialIndex = 0
+                    },
+                    onOpenContactChat = { contactName, contactPhone ->
+                        onOpenDirectPeer(contactName, contactPhone.ifBlank { contactName }) { targetSession ->
+                            onOpenTargetSession(targetSession)
+                        }
+                    },
+                    onForwardSubItem = { subKey ->
+                        forwardingMessageIds = listOf(subKey)
+                    },
+                    onDeleteSubItem = { subKey ->
+                        viewModel.requestDelete(listOf(subKey))
                     }
                 )
             }
@@ -490,7 +500,7 @@ fun ChatScreen(
                             viewModel.clearSelection()
                         },
                         onForward = {
-                            viewModel.forwardMessages(state.selection, session.title)
+                            forwardingMessageIds = state.selection.toList()
                         },
                         onDelete = {
                             viewModel.requestDelete(state.selection.toList())
@@ -537,7 +547,6 @@ fun ChatScreen(
                 }
             }
 
-            // Закреплённое сообщение (шаг 12, Фото 4) — не показывается в режиме поиска и режиме выбора
             if (!state.isSearchOpen && !state.isSelectionMode) {
                 state.pinnedMessage?.let { pinned ->
                     PinnedBar(
@@ -588,9 +597,8 @@ fun ChatScreen(
                     viewModel.closeAttach()
                 },
                 onSend = { drafts ->
+                    // 1. Сжатые медиа с группировкой (до 10 шт. в альбом)
                     val groupedMedia = drafts.filterIsInstance<AttachmentDraft.Media>().filter { !it.ungrouped }
-                    val otherDrafts = drafts.filter { !(it is AttachmentDraft.Media && !it.ungrouped) }
-
                     if (groupedMedia.isNotEmpty()) {
                         val anyCaption = groupedMedia.firstOrNull { it.caption.isNotBlank() }?.caption ?: ""
                         val mediaChunks = groupedMedia.chunked(10)
@@ -627,33 +635,97 @@ fun ChatScreen(
                         }
                     }
 
-                    otherDrafts.forEach { draft ->
-                        when (draft) {
-                            is AttachmentDraft.Media -> {
-                                viewModel.sendAttachment(
-                                    MessageAttachment.Photo(
-                                        label = "",
-                                        colorSeed = 1,
-                                        isVideo = draft.isVideo,
-                                        uri = draft.uri.toString(),
-                                        hasSpoiler = draft.hasSpoiler
-                                    ),
-                                    caption = draft.caption
-                                )
-                            }
-                            is AttachmentDraft.File -> {
-                                val kind = when (draft.name.substringAfterLast('.', "").lowercase()) {
+                    // 2. Сжатые медиа «Отправить без группировки» — каждое отдельным пузырём
+                    val ungroupedMedia = drafts.filterIsInstance<AttachmentDraft.Media>().filter { it.ungrouped }
+                    ungroupedMedia.forEach { draft ->
+                        viewModel.sendAttachment(
+                            MessageAttachment.Photo(
+                                label = "",
+                                colorSeed = 1,
+                                isVideo = draft.isVideo,
+                                uri = draft.uri.toString(),
+                                hasSpoiler = draft.hasSpoiler
+                            ),
+                            caption = draft.caption
+                        )
+                    }
+
+                    // 3. Файлы и фото без сжатия — слитно группами по 10 штук (свыше 10 — отдельная группа)
+                    val fileDrafts = drafts.filterIsInstance<AttachmentDraft.File>()
+                    if (fileDrafts.isNotEmpty()) {
+                        val anyFileCaption = fileDrafts.firstOrNull { it.caption.isNotBlank() }?.caption ?: ""
+                        val fileChunks = fileDrafts.chunked(10)
+                        fileChunks.forEachIndexed { chunkIdx, chunk ->
+                            val isLastChunk = (chunkIdx == fileChunks.lastIndex)
+                            val chunkCaption = if (isLastChunk) anyFileCaption else ""
+                            val mappedFiles = chunk.map { draft ->
+                                val ext = draft.name.substringAfterLast('.', "").lowercase()
+                                val kind = when (ext) {
+                                    "jpg", "jpeg", "png", "webp", "heic", "gif", "bmp" -> FileKind.IMAGE
                                     "pdf" -> FileKind.PDF
-                                    "doc", "docx" -> FileKind.DOC
-                                    "zip", "rar", "7z" -> FileKind.ARCHIVE
-                                    else -> FileKind.UNKNOWN
+                                    "apk" -> FileKind.APK
+                                    "doc", "docx", "txt", "rtf" -> FileKind.DOC
+                                    "zip", "rar", "7z", "tar", "gz" -> FileKind.ZIP
+                                    else -> FileKind.OTHER
                                 }
-                                val sizeLabel = "${draft.size / 1024} КБ"
-                                viewModel.sendAttachment(
-                                    MessageAttachment.File(name = draft.name, sizeLabel = sizeLabel, kind = kind),
-                                    caption = draft.caption
+                                val kb = draft.size / 1024.0
+                                val sizeLabel = if (kb >= 1024.0) {
+                                    String.format(Locale.forLanguageTag("ru"), "%.1f MB", kb / 1024.0)
+                                } else {
+                                    String.format(Locale.forLanguageTag("ru"), "%.1f KB", kb.coerceAtLeast(0.1))
+                                }
+                                MessageAttachment.File(
+                                    name = draft.name,
+                                    sizeLabel = sizeLabel,
+                                    kind = kind,
+                                    uri = draft.uri.toString()
                                 )
                             }
+                            if (mappedFiles.size == 1) {
+                                viewModel.sendAttachment(mappedFiles[0], caption = chunkCaption)
+                            } else {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.FileGroup(items = mappedFiles),
+                                    caption = chunkCaption
+                                )
+                            }
+                        }
+                    }
+
+                    // 4. Музыка — слитно группами по 10 треков
+                    val audioDrafts = drafts.filterIsInstance<AttachmentDraft.Audio>()
+                    if (audioDrafts.isNotEmpty()) {
+                        val anyAudioCaption = audioDrafts.firstOrNull { it.caption.isNotBlank() }?.caption ?: ""
+                        val audioChunks = audioDrafts.chunked(10)
+                        audioChunks.forEachIndexed { chunkIdx, chunk ->
+                            val isLastChunk = (chunkIdx == audioChunks.lastIndex)
+                            val chunkCaption = if (isLastChunk) anyAudioCaption else ""
+                            val mappedTracks = chunk.mapIndexed { idx, draft ->
+                                val min = draft.durationMs / 60000
+                                val sec = (draft.durationMs % 60000) / 1000
+                                val durLabel = String.format("%d:%02d", min, sec)
+                                MessageAttachment.Music(
+                                    title = draft.title,
+                                    artist = draft.artist,
+                                    durationLabel = durLabel,
+                                    colorSeed = (idx % 6) + 1,
+                                    uri = draft.uri.toString()
+                                )
+                            }
+                            if (mappedTracks.size == 1) {
+                                viewModel.sendAttachment(mappedTracks[0], caption = chunkCaption)
+                            } else {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.MusicGroup(items = mappedTracks),
+                                    caption = chunkCaption
+                                )
+                            }
+                        }
+                    }
+
+                    // 5. Контакты и геопозиции — каждый контакт отправляется ОТДЕЛЬНО (не слитно!)
+                    drafts.forEach { draft ->
+                        when (draft) {
                             is AttachmentDraft.Location -> {
                                 viewModel.sendAttachment(
                                     MessageAttachment.Geo(address = draft.address ?: "${draft.lat}, ${draft.lon}")
@@ -666,18 +738,13 @@ fun ChatScreen(
                             }
                             is AttachmentDraft.Contact -> {
                                 viewModel.sendAttachment(
-                                    MessageAttachment.Contact(name = draft.name, phone = draft.phones.firstOrNull() ?: "")
+                                    MessageAttachment.Contact(
+                                        name = draft.name,
+                                        phone = draft.phones.firstOrNull() ?: ""
+                                    )
                                 )
                             }
-                            is AttachmentDraft.Audio -> {
-                                val min = draft.durationMs / 60000
-                                val sec = (draft.durationMs % 60000) / 1000
-                                val durLabel = String.format("%d:%02d", min, sec)
-                                viewModel.sendAttachment(
-                                    MessageAttachment.Music(title = draft.title, artist = draft.artist, durationLabel = durLabel, colorSeed = 2),
-                                    caption = draft.caption
-                                )
-                            }
+                            else -> Unit
                         }
                     }
                     viewModel.closeAttach()
@@ -713,7 +780,8 @@ fun ChatScreen(
                 },
                 onEdit = { viewModel.startEdit(message) },
                 onForward = {
-                    viewModel.forwardMessages(listOf(message.id), session.title)
+                    viewModel.closeActionMenu()
+                    forwardingMessageIds = listOf(message.id)
                 },
                 onPin = { viewModel.pinMessage(message.id) },
                 onDelete = { viewModel.requestDelete(listOf(message.id)) },
@@ -721,9 +789,65 @@ fun ChatScreen(
             )
         }
 
+        // Полноэкранный экран «Переслать...» (актуальные чаты + «Избранное» + глобальный поиск по серверу)
+        forwardingMessageIds?.let { idsToForward ->
+            ForwardTargetPickerScreen(
+                activeSessions = activeSessions,
+                onClose = { forwardingMessageIds = null },
+                onSelectSavedMessages = {
+                    forwardingMessageIds = null
+                    val savedExisting = activeSessions.firstOrNull {
+                        it.id == "0" || it.title.equals("Избранное", ignoreCase = true)
+                    }
+                    if (savedExisting != null) {
+                        viewModel.forwardMessagesToTargetChat(
+                            targetSessionId = savedExisting.id,
+                            messageIds = idsToForward,
+                            authorName = session.title
+                        ) {
+                            onOpenTargetSession(savedExisting)
+                        }
+                    } else {
+                        onOpenDirectPeer("Избранное", "saved_messages") { createdSaved ->
+                            viewModel.forwardMessagesToTargetChat(
+                                targetSessionId = createdSaved.id,
+                                messageIds = idsToForward,
+                                authorName = session.title
+                            ) {
+                                onOpenTargetSession(createdSaved)
+                            }
+                        }
+                    }
+                },
+                onSelectSession = { targetSession ->
+                    forwardingMessageIds = null
+                    viewModel.forwardMessagesToTargetChat(
+                        targetSessionId = targetSession.id,
+                        messageIds = idsToForward,
+                        authorName = session.title
+                    ) {
+                        onOpenTargetSession(targetSession)
+                    }
+                },
+                onSelectGlobalItem = { name, handle ->
+                    forwardingMessageIds = null
+                    onOpenDirectPeer(name, handle) { createdSession ->
+                        viewModel.forwardMessagesToTargetChat(
+                            targetSessionId = createdSession.id,
+                            messageIds = idsToForward,
+                            authorName = session.title
+                        ) {
+                            onOpenTargetSession(createdSession)
+                        }
+                    }
+                }
+            )
+        }
+
         // Полноэкранный просмотр фото и альбомов из чата + автовозврат клавиатуры
         fun closeMediaViewerAndRestoreKeyboard() {
             viewingMediaMessage = null
+            viewingOverrideSingleUri = null
             if (wasKeyboardOpenBeforeViewer) {
                 wasKeyboardOpenBeforeViewer = false
                 scope.launch {
@@ -753,6 +877,8 @@ fun ChatScreen(
                 message = mediaMessage,
                 initialPhotoIndex = viewingMediaInitialIndex,
                 peerName = session.title,
+                allChatMessages = state.messages,
+                overrideSingleUri = viewingOverrideSingleUri,
                 onClose = {
                     closeMediaViewerAndRestoreKeyboard()
                 },
@@ -770,6 +896,7 @@ fun ChatScreen(
                 },
                 onReply = { msg ->
                     viewingMediaMessage = null
+                    viewingOverrideSingleUri = null
                     wasKeyboardOpenBeforeViewer = false
                     viewModel.startReply(msg)
                     scope.launch {
@@ -781,10 +908,16 @@ fun ChatScreen(
                     }
                 },
                 onRequestDelete = { msg, photoIdx ->
-                    if (msg.attachment is MessageAttachment.MediaAlbum) {
-                        viewModel.requestDelete(listOf("${msg.id}#photo_$photoIdx"))
-                    } else {
-                        viewModel.requestDelete(listOf(msg.id))
+                    when (msg.attachment) {
+                        is MessageAttachment.MediaAlbum -> {
+                            viewModel.requestDelete(listOf("${msg.id}#photo_$photoIdx"))
+                        }
+                        is MessageAttachment.FileGroup -> {
+                            viewModel.requestDelete(listOf("${msg.id}#file_$photoIdx"))
+                        }
+                        else -> {
+                            viewModel.requestDelete(listOf(msg.id))
+                        }
                     }
                 }
             )

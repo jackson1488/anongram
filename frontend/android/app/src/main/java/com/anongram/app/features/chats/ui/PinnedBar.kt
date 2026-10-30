@@ -71,8 +71,14 @@ internal fun PinnedBar(
         is MessageAttachment.File -> {
             if (pinned.text.isNotBlank()) pinned.text else att.name
         }
+        is MessageAttachment.FileGroup -> {
+            if (pinned.text.isNotBlank()) pinned.text else "Файлы (${att.items.size} шт.)"
+        }
         is MessageAttachment.Music -> {
             if (pinned.text.isNotBlank()) pinned.text else "${att.artist} — ${att.title}"
+        }
+        is MessageAttachment.MusicGroup -> {
+            if (pinned.text.isNotBlank()) pinned.text else "Аудиозаписи (${att.items.size} шт.)"
         }
         is MessageAttachment.Voice -> {
             if (pinned.text.isNotBlank()) pinned.text else "Голосовое сообщение (${att.durationLabel})"
@@ -175,7 +181,7 @@ internal fun PinnedBar(
                             )
                         }
                     }
-                    is MessageAttachment.File -> {
+                    is MessageAttachment.File, is MessageAttachment.FileGroup -> {
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
@@ -191,12 +197,13 @@ internal fun PinnedBar(
                             )
                         }
                     }
-                    is MessageAttachment.Music -> {
+                    is MessageAttachment.Music, is MessageAttachment.MusicGroup -> {
+                        val seed = if (att is MessageAttachment.Music) att.colorSeed else 2
                         Box(
                             modifier = Modifier
                                 .size(28.dp)
                                 .clip(RoundedCornerShape(6.dp))
-                                .background(attachmentColor(att.colorSeed)),
+                                .background(attachmentColor(seed)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

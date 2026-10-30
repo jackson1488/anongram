@@ -210,6 +210,7 @@ fun MainAppShell(
             }
 
             // Two-pane на широких экранах: чат живёт в правой панели.
+            val chatsState by chatsViewModel.uiState.collectAsState()
             if (showDetailPane) {
                 Box(
                     modifier = Modifier
@@ -229,6 +230,14 @@ fun MainAppShell(
                             session = session,
                             viewModel = chatMessagesViewModel,
                             onBack = { closeSession() },
+                            activeSessions = chatsState.sessions,
+                            onOpenTargetSession = { target -> openSession(target) },
+                            onOpenDirectPeer = { name, handleOrPhone, onReady ->
+                                scope.launch {
+                                    val target = chatsViewModel.findOrCreateDirectChat(name, handleOrPhone)
+                                    onReady(target)
+                                }
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -237,6 +246,7 @@ fun MainAppShell(
         }
 
         // Полноэкранный чат на компактных экранах.
+        val chatsState by chatsViewModel.uiState.collectAsState()
         if (showDetailOverlay) {
             selectedSession?.let { session ->
                 val chatMessagesViewModel: ChatMessagesViewModel = viewModel(
@@ -253,7 +263,15 @@ fun MainAppShell(
                     ChatScreen(
                         session = session,
                         viewModel = chatMessagesViewModel,
-                        onBack = { closeSession() }
+                        onBack = { closeSession() },
+                        activeSessions = chatsState.sessions,
+                        onOpenTargetSession = { target -> openSession(target) },
+                        onOpenDirectPeer = { name, handleOrPhone, onReady ->
+                            scope.launch {
+                                val target = chatsViewModel.findOrCreateDirectChat(name, handleOrPhone)
+                                onReady(target)
+                            }
+                        }
                     )
                 }
             }

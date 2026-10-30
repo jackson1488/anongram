@@ -1,22 +1,26 @@
 package com.anongram.app.features.chats.ui.components
 
+import android.content.ContentValues
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -30,6 +34,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -44,22 +49,36 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Forward
+import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Reply
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +87,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -80,13 +100,14 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
+import com.anongram.app.core.theme.ChatTextSettingsStore
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.SurfaceDark
@@ -99,6 +120,7 @@ import com.anongram.app.features.attach.ui.components.getRowHeightDp
 import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.LinkPreview
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
@@ -107,6 +129,7 @@ import com.anongram.app.features.chats.messages.domain.MessageStatus
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import com.anongram.app.features.chats.messages.domain.timeLabel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.roundToInt
 
@@ -114,17 +137,13 @@ private val ReplyStripIncoming = Color(0xFF0B121E)
 private val ReplyStripOutgoing = Color(0xFF081A2C)
 
 /**
- * Пузырь сообщения по ТЗ (шаги 1, 2, 4–7, 9–11, 15, 16):
- * - Свои / чужие цвета, хвостик у последнего в группе
- * - Поддержка всех типов вложений (фото, файл, голос, видео-кружок, музыка, контакт, гео, стикер)
- * - Превью ссылок
- * - Цитата ответа с тап-скроллом
- * - Пометка «изменено» и «переслано от»
- * - Время и тики (часы → одна → две галочки / красный «!» при сбое)
- * - Свайп для ответа (жест влево/вправо)
- * - Долгий тап для контекстного меню
- * - Режим выделения с чекбоксом
- * - Реакции-чипы под пузырём
+ * Пузырь сообщения по ТЗ:
+ * - Адаптивная ширина пузыря (не доходит до противоположного края экрана; короткий текст сжимается по ширине со временем на одной строке, длинный — время в правом нижнем углу)
+ * - Поддержка динамического размера текста в чате (1..30 sp из ChatTextSettingsStore)
+ * - Исключение для одиночного фото: растягивается по ширине пузыря при наличии подписи или увеличенном шрифте (альбомы, файлы, музыка и контакты не растягиваются)
+ * - Слитная группировка файлов без сжатия (до 10 шт., квадратные миниатюры слева для фото без сжатия, одна кнопка «⋮» сверху справа у первого файла, поштучный выбор)
+ * - Слитная группировка музыки (до 10 шт., кнопка «⋮» с «Сохранить в музыку», поштучный выбор)
+ * - Раздельные карточки контактов с кнопкой «НАПИСАТЬ» и мгновенным переходом в чат
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -146,22 +165,24 @@ internal fun MessageBubble(
     onToggleAlbumPhoto: (Int) -> Unit = {},
     onEnterAlbumPhotoSelection: (Int) -> Unit = {},
     onRetry: () -> Unit = {},
-    onOpenMediaViewer: (initialPhotoIndex: Int) -> Unit = {}
+    onOpenMediaViewer: (initialPhotoIndex: Int) -> Unit = {},
+    onOpenUncompressedPhoto: (uri: String) -> Unit = {},
+    onOpenContactChat: (name: String, phone: String) -> Unit = { _, _ -> },
+    onForwardSubItem: (subKey: String) -> Unit = {},
+    onDeleteSubItem: (subKey: String) -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
     val message = item.message
     val isIncoming = message.direction == MessageDirection.INCOMING
     val density = LocalDensity.current
+    val messageTextSizeSp by ChatTextSettingsStore.messageTextSizeSp.collectAsState()
 
     val pulseAnim = remember { Animatable(0f) }
     LaunchedEffect(isHighlighted) {
         if (isHighlighted) {
             pulseAnim.snapTo(0f)
-            // Плавное двойное сердцебиение как в Telegram:
-            // 1. Первый мягкий толчок (280 мс) и полуспад (200 мс)
             pulseAnim.animateTo(1f, tween(durationMillis = 280, easing = FastOutSlowInEasing))
             pulseAnim.animateTo(0.35f, tween(durationMillis = 200, easing = LinearOutSlowInEasing))
-            // 2. Второй мягкий толчок (260 мс) и плавное растворение (1100 мс)
             pulseAnim.animateTo(1f, tween(durationMillis = 260, easing = FastOutSlowInEasing))
             pulseAnim.animateTo(0f, tween(durationMillis = 1100, easing = LinearOutSlowInEasing))
         } else {
@@ -196,13 +217,11 @@ internal fun MessageBubble(
                     onDragCancel = { dragOffsetPx = 0f },
                     onHorizontalDrag = { _, dragAmount ->
                         val maxDrag = with(density) { 90.dp.toPx() }
-                        // Свайп строго справа налево (константно)
                         dragOffsetPx = (dragOffsetPx + dragAmount).coerceIn(-maxDrag, 0f)
                     }
                 )
             }
     ) {
-        // Подложка с иконкой ответа при свайпе строго справа налево
         if (dragOffsetPx < -10f) {
             Box(
                 modifier = Modifier
@@ -237,7 +256,6 @@ internal fun MessageBubble(
                 .padding(vertical = 1.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Чекбокс в режиме выделения: плавно выезжает, синхронно сдвигая пузыри вправо (как в Telegram)
             AnimatedVisibility(
                 visible = isSelectionMode,
                 enter = expandHorizontally(
@@ -271,13 +289,17 @@ internal fun MessageBubble(
                 modifier = Modifier.weight(1f),
                 contentAlignment = if (isIncoming) Alignment.TopStart else Alignment.TopEnd
             ) {
-                val bubbleMaxWidth = maxWidth * 0.82f
+                val bubbleMaxWidth = when (message.attachment) {
+                    is MessageAttachment.File -> maxWidth * 0.86f
+                    is MessageAttachment.FileGroup, is MessageAttachment.MusicGroup -> maxWidth * 0.77f
+                    is MessageAttachment.Contact -> maxWidth * 0.78f
+                    else -> maxWidth * 0.82f
+                }
 
                 Column(
                     horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
                 ) {
                     if (message.isStickerOnly) {
-                        // Стикер рисуется без пузыря (шаг 6) с подсветкой при сердцебиении
                         Box(
                             modifier = if (pulseAlpha > 0f) {
                                 Modifier
@@ -298,14 +320,22 @@ internal fun MessageBubble(
                     } else {
                         val isEdgeToEdgeMedia = (message.attachment is MessageAttachment.MediaAlbum) ||
                             (message.attachment is MessageAttachment.Photo && (message.attachment as MessageAttachment.Photo).uri != null)
+                        val isFlushGroupAttachment = (message.attachment is MessageAttachment.FileGroup) ||
+                            (message.attachment is MessageAttachment.MusicGroup) ||
+                            (message.attachment is MessageAttachment.File) ||
+                            (message.attachment is MessageAttachment.Music)
                         val isOverlayTimestampOnMedia = (message.attachment is MessageAttachment.MediaAlbum || message.attachment is MessageAttachment.Photo) &&
                             message.text.isBlank()
+                        val isTimestampHandledInsideAttachment = isFlushGroupAttachment && message.text.isBlank()
+
+                        val singlePhotoStretch = (message.attachment is MessageAttachment.Photo) &&
+                            (message.text.isNotBlank() || messageTextSizeSp > 16)
 
                         val baseColor = when {
                             isSelected -> scheme.accent.copy(alpha = 0.28f)
                             isEdgeToEdgeMedia -> Color(0xFF141418)
                             isIncoming -> CardDark
-                            else -> scheme.accent.copy(alpha = 0.16f)
+                            else -> scheme.accent.copy(alpha = 0.18f)
                         }
                         val bubbleColor = if (pulseAlpha > 0f) {
                             lerp(baseColor, scheme.accent.copy(alpha = 0.72f), pulseAlpha)
@@ -342,20 +372,29 @@ internal fun MessageBubble(
                         ) {
                             Box {
                                 Column(
-                                    modifier = if (isEdgeToEdgeMedia) {
-                                        Modifier.padding(
+                                    modifier = when {
+                                        isEdgeToEdgeMedia -> Modifier.padding(
                                             start = 1.5.dp,
                                             end = 1.5.dp,
                                             top = 1.5.dp,
                                             bottom = if (message.text.isNotBlank()) 6.dp else 1.5.dp
                                         )
-                                    } else {
-                                        Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
+                                        isFlushGroupAttachment -> Modifier.padding(
+                                            start = 4.dp,
+                                            end = 6.dp,
+                                            top = 4.dp,
+                                            bottom = if (message.text.isNotBlank()) 6.dp else 4.dp
+                                        )
+                                        else -> Modifier.padding(start = 11.dp, end = 10.dp, top = 7.dp, bottom = 6.dp)
                                     }
                                 ) {
                                     // Пометка пересылки (шаг 10)
                                     message.forwardedFrom?.let { author ->
-                                        Box(modifier = if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier) {
+                                        Box(
+                                            modifier = if (isEdgeToEdgeMedia || isFlushGroupAttachment) {
+                                                Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                            } else Modifier
+                                        ) {
                                             ForwardedBlock(author = author)
                                         }
                                         Spacer(modifier = Modifier.height(4.dp))
@@ -363,7 +402,11 @@ internal fun MessageBubble(
 
                                     // Цитата ответа (шаг 1)
                                     replyTo?.let { target ->
-                                        Box(modifier = if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier) {
+                                        Box(
+                                            modifier = if (isEdgeToEdgeMedia || isFlushGroupAttachment) {
+                                                Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                            } else Modifier
+                                        ) {
                                             QuoteBlock(
                                                 author = if (target.direction == MessageDirection.INCOMING) peerName else "Вы",
                                                 text = target.text.ifBlank { "Вложение" },
@@ -375,24 +418,32 @@ internal fun MessageBubble(
                                         Spacer(modifier = Modifier.height(5.dp))
                                     }
 
-                                    // Отрисовка вложений (шаги 4–6)
+                                    // Отрисовка вложений
                                     message.attachment?.let { attachment ->
                                         Box {
                                             AttachmentContent(
+                                                message = message,
                                                 attachment = attachment,
                                                 isIncoming = isIncoming,
                                                 accent = scheme.accent,
                                                 searchQuery = searchQuery,
+                                                singlePhotoStretch = singlePhotoStretch,
                                                 isSelectionMode = isSelectionMode,
-                                                selectedPhotoIndices = selectedPhotoIndices,
+                                                selectedSubIndices = selectedPhotoIndices,
+                                                showInlineTimestamp = isTimestampHandledInsideAttachment,
                                                 onSelect = onSelect,
-                                                onToggleAlbumPhoto = onToggleAlbumPhoto,
-                                                onEnterAlbumPhotoSelection = onEnterAlbumPhotoSelection,
+                                                onToggleSubItem = onToggleAlbumPhoto,
+                                                onEnterSubItemSelection = onEnterAlbumPhotoSelection,
                                                 onLongClick = onLongClick,
-                                                onOpenPhotoAt = { idx -> onOpenMediaViewer(idx) }
+                                                onRetry = onRetry,
+                                                onSwipeReply = onSwipeReply,
+                                                onOpenPhotoAt = { idx -> onOpenMediaViewer(idx) },
+                                                onOpenUncompressedPhoto = onOpenUncompressedPhoto,
+                                                onOpenContactChat = onOpenContactChat,
+                                                onForwardSubItem = onForwardSubItem,
+                                                onDeleteSubItem = onDeleteSubItem
                                             )
 
-                                            // Если у фото или альбома нет подписи — дата/время и галочки рисуются поверх правого нижнего угла фотографии
                                             if (isOverlayTimestampOnMedia) {
                                                 Row(
                                                     modifier = Modifier
@@ -440,9 +491,9 @@ internal fun MessageBubble(
                                         Spacer(modifier = Modifier.height(6.dp))
                                     }
 
-                                    // Текст сообщения с подсветкой кусочка слова
+                                    // Текст сообщения + адаптивное время (на одной строке для коротких и в правом нижнем углу для длинных)
                                     if (message.text.isNotBlank()) {
-                                        val displayText = if (searchQuery.isNotBlank()) {
+                                        val baseAnnotated = if (searchQuery.isNotBlank()) {
                                             buildHighlightedText(
                                                 text = message.text,
                                                 query = searchQuery,
@@ -451,21 +502,65 @@ internal fun MessageBubble(
                                         } else {
                                             AnnotatedString(message.text)
                                         }
-                                        Text(
-                                            text = displayText,
-                                            color = TextPrimary,
-                                            fontSize = 14.sp,
-                                            lineHeight = 19.sp,
-                                            modifier = if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp) else Modifier
-                                        )
-                                    }
+                                        val trailingSpacesCount = when {
+                                            message.isEdited && !isIncoming -> 19
+                                            message.isEdited -> 16
+                                            !isIncoming -> 12
+                                            else -> 9
+                                        }
+                                        val spacerSuffix = "\u00A0".repeat(trailingSpacesCount)
+                                        val displayWithReserve = remember(baseAnnotated, spacerSuffix) {
+                                            AnnotatedString.Builder(baseAnnotated).apply {
+                                                pushStyle(SpanStyle(fontSize = 11.sp))
+                                                append(spacerSuffix)
+                                                pop()
+                                            }.toAnnotatedString()
+                                        }
+                                        val textLineHeight = (messageTextSizeSp * 1.28f).coerceAtLeast(messageTextSizeSp + 3f).sp
 
-                                    // Время, статус и «изменено» снизу (рисуется только если время ещё не нарисовано поверх фотографии)
-                                    if (!isOverlayTimestampOnMedia) {
+                                        Box(
+                                            modifier = if (isEdgeToEdgeMedia || isFlushGroupAttachment) {
+                                                Modifier.padding(horizontal = 10.dp)
+                                            } else {
+                                                Modifier
+                                            }
+                                        ) {
+                                            Text(
+                                                text = displayWithReserve,
+                                                color = TextPrimary,
+                                                fontSize = messageTextSizeSp.sp,
+                                                lineHeight = textLineHeight
+                                            )
+                                            Row(
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomEnd)
+                                                    .offset(y = 1.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                if (message.isEdited) {
+                                                    Text(
+                                                        text = "изменено",
+                                                        color = TextMuted,
+                                                        fontSize = 9.sp,
+                                                        fontStyle = FontStyle.Italic
+                                                    )
+                                                    Spacer(modifier = Modifier.width(4.dp))
+                                                }
+                                                Text(
+                                                    text = message.timeLabel(),
+                                                    color = TextMuted,
+                                                    fontSize = 10.5.sp,
+                                                    fontFamily = FontFamily.Monospace
+                                                )
+                                                if (!isIncoming) {
+                                                    Spacer(modifier = Modifier.width(3.dp))
+                                                    DeliveryStatus(status = message.status, onRetry = onRetry)
+                                                }
+                                            }
+                                        }
+                                    } else if (!isOverlayTimestampOnMedia && !isTimestampHandledInsideAttachment) {
                                         Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .then(if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier),
+                                            modifier = Modifier.align(Alignment.End),
                                             horizontalArrangement = Arrangement.End,
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
@@ -492,7 +587,6 @@ internal fun MessageBubble(
                                     }
                                 }
 
-                                // Наложение пульсации сердцебиения для всех типов сообщений (включая фото/вложения)
                                 if (pulseAlpha > 0f) {
                                     Box(
                                         modifier = Modifier
@@ -578,17 +672,26 @@ private fun ForwardedBlock(author: String) {
 /** Содержимое вложения в пузыре */
 @Composable
 private fun AttachmentContent(
+    message: ChatMessage,
     attachment: MessageAttachment,
     isIncoming: Boolean,
     accent: Color,
     searchQuery: String = "",
+    singlePhotoStretch: Boolean = false,
     isSelectionMode: Boolean = false,
-    selectedPhotoIndices: Set<Int> = emptySet(),
+    selectedSubIndices: Set<Int> = emptySet(),
+    showInlineTimestamp: Boolean = false,
     onSelect: () -> Unit = {},
-    onToggleAlbumPhoto: (Int) -> Unit = {},
-    onEnterAlbumPhotoSelection: (Int) -> Unit = {},
+    onToggleSubItem: (Int) -> Unit = {},
+    onEnterSubItemSelection: (Int) -> Unit = {},
     onLongClick: () -> Unit = {},
-    onOpenPhotoAt: (Int) -> Unit = {}
+    onRetry: () -> Unit = {},
+    onSwipeReply: () -> Unit = {},
+    onOpenPhotoAt: (Int) -> Unit = {},
+    onOpenUncompressedPhoto: (String) -> Unit = {},
+    onOpenContactChat: (String, String) -> Unit = { _, _ -> },
+    onForwardSubItem: (String) -> Unit = {},
+    onDeleteSubItem: (String) -> Unit = {}
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {
@@ -601,18 +704,24 @@ private fun AttachmentContent(
                         if (isSelectionMode) onSelect() else onOpenPhotoAt(0)
                     },
                     onPhotoLongClick = onLongClick,
-                    modifier = Modifier
-                        .width(220.dp)
-                        .height(380.dp)
-                        .clip(RoundedCornerShape(14.dp))
+                    modifier = if (singlePhotoStretch) {
+                        Modifier
+                            .fillMaxWidth()
+                            .height(340.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                    } else {
+                        Modifier
+                            .width(225.dp)
+                            .height(370.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                    }
                 )
             } else {
                 var spoilerRevealed by remember { mutableStateOf(false) }
                 val showSpoiler = attachment.hasSpoiler && !spoilerRevealed
                 Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(180.dp)
+                    modifier = (if (singlePhotoStretch) Modifier.fillMaxWidth() else Modifier.width(225.dp))
+                        .height(190.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(attachmentColor(attachment.colorSeed))
                         .then(
@@ -668,57 +777,77 @@ private fun AttachmentContent(
                 items = attachment.items,
                 accent = accent,
                 isSelectionMode = isSelectionMode,
-                selectedPhotoIndices = selectedPhotoIndices,
+                selectedPhotoIndices = selectedSubIndices,
                 onPhotoClick = { idx ->
-                    if (isSelectionMode) onToggleAlbumPhoto(idx) else onOpenPhotoAt(idx)
+                    if (isSelectionMode) onToggleSubItem(idx) else onOpenPhotoAt(idx)
                 },
                 onPhotoLongClick = { idx ->
-                    if (isSelectionMode) onToggleAlbumPhoto(idx) else onEnterAlbumPhotoSelection(idx)
+                    if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
                 }
             )
         }
 
         is MessageAttachment.File -> {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(SurfaceDark)
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(accent.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Description,
-                        contentDescription = null,
-                        tint = accent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (searchQuery.isNotBlank()) {
-                            buildHighlightedText(attachment.name, searchQuery, accent)
-                        } else {
-                            AnnotatedString(attachment.name)
+            ChatFileItemRow(
+                message = message,
+                file = attachment,
+                isIncoming = isIncoming,
+                accent = accent,
+                searchQuery = searchQuery,
+                showThreeDots = true,
+                showBottomTimestamp = showInlineTimestamp,
+                isSelectionMode = isSelectionMode,
+                isItemSelected = false,
+                onItemClick = {
+                    if (isSelectionMode) {
+                        onSelect()
+                    } else if (attachment.kind == FileKind.IMAGE && !attachment.uri.isNullOrBlank()) {
+                        onOpenUncompressedPhoto(attachment.uri)
+                    } else {
+                        null // handled inside ChatFileItemRow with context
+                    }
+                },
+                onItemLongClick = onLongClick,
+                onSwipeReply = onSwipeReply,
+                onForwardItem = { onForwardSubItem(message.id) },
+                onDeleteItem = { onDeleteSubItem(message.id) },
+                onRetry = onRetry,
+                onOpenUncompressedPhoto = onOpenUncompressedPhoto
+            )
+        }
+
+        is MessageAttachment.FileGroup -> {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                attachment.items.forEachIndexed { idx, fileItem ->
+                    val isItemSelected = idx in selectedSubIndices
+                    ChatFileItemRow(
+                        message = message,
+                        file = fileItem,
+                        isIncoming = isIncoming,
+                        accent = accent,
+                        searchQuery = searchQuery,
+                        // Кнопка «⋮» (три точки) только одна — в правом верхнем углу у первого элемента!
+                        showThreeDots = (idx == 0),
+                        showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
+                        isSelectionMode = isSelectionMode,
+                        isItemSelected = isItemSelected,
+                        onItemClick = {
+                            if (isSelectionMode) {
+                                onToggleSubItem(idx)
+                            } else if (fileItem.kind == FileKind.IMAGE && !fileItem.uri.isNullOrBlank()) {
+                                onOpenUncompressedPhoto(fileItem.uri)
+                            } else {
+                                null
+                            }
                         },
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = "${attachment.kind.label} • ${attachment.sizeLabel}",
-                        color = TextMuted,
-                        fontSize = 11.sp
+                        onItemLongClick = {
+                            if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
+                        },
+                        onSwipeReply = onSwipeReply,
+                        onForwardItem = { onForwardSubItem("${message.id}#file_$idx") },
+                        onDeleteItem = { onDeleteSubItem("${message.id}#file_$idx") },
+                        onRetry = onRetry,
+                        onOpenUncompressedPhoto = onOpenUncompressedPhoto
                     )
                 }
             }
@@ -746,7 +875,6 @@ private fun AttachmentContent(
                     )
                 }
                 Spacer(modifier = Modifier.width(10.dp))
-                // Волновая диаграмма голоса
                 Row(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -757,8 +885,8 @@ private fun AttachmentContent(
                             modifier = Modifier
                                 .width(3.dp)
                                 .height((height * 1.5f).dp.coerceIn(4.dp, 24.dp))
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(accent.copy(alpha = 0.7f))
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(accent.copy(alpha = 0.7f))
                         )
                     }
                 }
@@ -798,99 +926,155 @@ private fun AttachmentContent(
         }
 
         is MessageAttachment.Music -> {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(SurfaceDark)
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(accent.copy(alpha = 0.25f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.PlayArrow,
-                        contentDescription = "Играть",
-                        tint = accent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = if (searchQuery.isNotBlank()) {
-                            buildHighlightedText(attachment.title, searchQuery, accent)
-                        } else {
-                            AnnotatedString(attachment.title)
+            ChatMusicItemRow(
+                message = message,
+                music = attachment,
+                isIncoming = isIncoming,
+                accent = accent,
+                searchQuery = searchQuery,
+                showThreeDots = true,
+                showBottomTimestamp = showInlineTimestamp,
+                isSelectionMode = isSelectionMode,
+                isItemSelected = false,
+                onItemClick = { if (isSelectionMode) onSelect() },
+                onItemLongClick = onLongClick,
+                onSwipeReply = onSwipeReply,
+                onForwardItem = { onForwardSubItem(message.id) },
+                onDeleteItem = { onDeleteSubItem(message.id) },
+                onRetry = onRetry
+            )
+        }
+
+        is MessageAttachment.MusicGroup -> {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                attachment.items.forEachIndexed { idx, track ->
+                    val isItemSelected = idx in selectedSubIndices
+                    ChatMusicItemRow(
+                        message = message,
+                        music = track,
+                        isIncoming = isIncoming,
+                        accent = accent,
+                        searchQuery = searchQuery,
+                        showThreeDots = (idx == 0),
+                        showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
+                        isSelectionMode = isSelectionMode,
+                        isItemSelected = isItemSelected,
+                        onItemClick = {
+                            if (isSelectionMode) onToggleSubItem(idx)
                         },
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Text(
-                        text = if (searchQuery.isNotBlank()) {
-                            buildHighlightedText("${attachment.artist} • ${attachment.durationLabel}", searchQuery, accent)
-                        } else {
-                            AnnotatedString("${attachment.artist} • ${attachment.durationLabel}")
+                        onItemLongClick = {
+                            if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
                         },
-                        color = TextMuted,
-                        fontSize = 11.sp
+                        onSwipeReply = onSwipeReply,
+                        onForwardItem = { onForwardSubItem("${message.id}#music_$idx") },
+                        onDeleteItem = { onDeleteSubItem("${message.id}#music_$idx") },
+                        onRetry = onRetry
                     )
                 }
             }
         }
 
         is MessageAttachment.Contact -> {
-            Row(
+            // Карточка контакта (каждый контакт отдельно, внутри вертикальная полоска слева, аватар, имя, номер и кнопка «НАПИСАТЬ»)
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(SurfaceDark)
-                    .padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .clickable {
+                        if (isSelectionMode) {
+                            onSelect()
+                        } else {
+                            onOpenContactChat(attachment.name, attachment.phone)
+                        }
+                    }
             ) {
-                Box(
+                Row(
                     modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(accent.copy(alpha = 0.25f)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = attachment.name.firstOrNull()?.uppercase() ?: "?",
-                        color = accent,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
+                    Box(
+                        modifier = Modifier
+                            .width(3.5.dp)
+                            .fillMaxHeight()
+                            .background(if (isIncoming) accent else Color.White)
                     )
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column {
-                    Text(
-                        text = if (searchQuery.isNotBlank()) {
-                            buildHighlightedText(attachment.name, searchQuery, accent)
-                        } else {
-                            AnnotatedString(attachment.name)
-                        },
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = if (searchQuery.isNotBlank()) {
-                            buildHighlightedText(attachment.phone, searchQuery, accent)
-                        } else {
-                            AnnotatedString(attachment.phone)
-                        },
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 6.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(CircleShape)
+                                    .background(accent.copy(alpha = 0.30f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = attachment.name.firstOrNull()?.uppercase() ?: "?",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 17.sp
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = if (searchQuery.isNotBlank()) {
+                                        buildHighlightedText(attachment.name, searchQuery, accent)
+                                    } else {
+                                        AnnotatedString(attachment.name)
+                                    },
+                                    color = TextPrimary,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(1.dp))
+                                Text(
+                                    text = if (searchQuery.isNotBlank()) {
+                                        buildHighlightedText(attachment.phone, searchQuery, accent)
+                                    } else {
+                                        AnnotatedString(attachment.phone)
+                                    },
+                                    color = TextSecondary,
+                                    fontSize = 13.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+                        HorizontalDivider(color = Color.White.copy(alpha = 0.14f), thickness = 0.7.dp)
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = "НАПИСАТЬ",
+                            color = if (isIncoming) accent else Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    if (isSelectionMode) {
+                                        onSelect()
+                                    } else {
+                                        onOpenContactChat(attachment.name, attachment.phone)
+                                    }
+                                }
+                                .padding(vertical = 2.dp)
+                        )
+                    }
                 }
             }
         }
@@ -934,6 +1118,710 @@ private fun AttachmentContent(
         is MessageAttachment.Sticker -> {
             Text(text = attachment.symbol, fontSize = 48.sp)
         }
+    }
+}
+
+/**
+ * Строка файла или фотографии без сжатия внутри пузыря (одиночной или в группе до 10 шт.):
+ * - Для фото без сжатия (FileKind.IMAGE): квадратная миниатюра 62.dp вплотную слева без вертикальных зазоров
+ * - Для документов/APK/архивов: круглая иконка 44.dp слева
+ * - Справа сверху (только у первого элемента в группе): иконка «⋮» с меню («Сохранить в галерею» для фото или «Сохранить в загрузки» для файлов, «Ответить», «Переслать», «Поделиться», «Удалить»)
+ * - Тап по фото без сжатия открывает полноэкранный просмотр; тап по файлу открывает системное приложение просмотра/установки
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ChatFileItemRow(
+    message: ChatMessage,
+    file: MessageAttachment.File,
+    isIncoming: Boolean,
+    accent: Color,
+    searchQuery: String,
+    showThreeDots: Boolean,
+    showBottomTimestamp: Boolean,
+    isSelectionMode: Boolean,
+    isItemSelected: Boolean,
+    onItemClick: () -> Unit?,
+    onItemLongClick: () -> Unit,
+    onSwipeReply: () -> Unit,
+    onForwardItem: () -> Unit,
+    onDeleteItem: () -> Unit,
+    onRetry: () -> Unit,
+    onOpenUncompressedPhoto: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isMenuOpen by remember { mutableStateOf(false) }
+    val isImageFile = file.kind == FileKind.IMAGE ||
+        file.name.substringAfterLast('.', "").lowercase() in setOf("jpg", "jpeg", "png", "webp", "heic", "gif")
+
+    val parsedUri = remember(file.uri) { file.uri?.let { runCatching { Uri.parse(it) }.getOrNull() } }
+    var thumbBitmap by remember(file.uri) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(parsedUri, isImageFile) {
+        if (isImageFile && parsedUri != null) {
+            val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
+            thumbBitmap = quick?.asImageBitmap()
+        }
+    }
+
+    val extLabel = remember(file.name, file.kind) {
+        val ext = file.name.substringAfterLast('.', "").uppercase()
+        if (ext.isNotBlank() && ext.length <= 5) ext else file.kind.label
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isItemSelected) {
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accent.copy(alpha = 0.22f))
+                } else {
+                    Modifier
+                }
+            )
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionMode) {
+                        onItemClick()
+                    } else if (isImageFile && !file.uri.isNullOrBlank()) {
+                        onOpenUncompressedPhoto(file.uri)
+                    } else {
+                        openFileInSystemViewer(context, file)
+                    }
+                },
+                onLongClick = onItemLongClick
+            )
+            .padding(vertical = if (isImageFile) 0.dp else 3.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Левая часть: квадратная миниатюра для фото без сжатия или круглая иконка для документа
+            Box(contentAlignment = Alignment.Center) {
+                if (isImageFile) {
+                    Box(
+                        modifier = Modifier
+                            .size(62.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF1E222D)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (thumbBitmap != null) {
+                            Image(
+                                bitmap = thumbBitmap!!,
+                                contentDescription = file.name,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Outlined.InsertDriveFile,
+                                contentDescription = null,
+                                tint = accent,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(if (isIncoming) accent.copy(alpha = 0.24f) else Color.White.copy(alpha = 0.22f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val icon = when {
+                            file.kind == FileKind.APK || file.name.endsWith(".apk", ignoreCase = true) -> Icons.Outlined.Android
+                            file.kind == FileKind.PDF || file.kind == FileKind.DOC -> Icons.Outlined.Description
+                            else -> Icons.Outlined.InsertDriveFile
+                        }
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                if (isSelectionMode) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(if (isItemSelected) accent else Color.Black.copy(alpha = 0.55f))
+                            .border(1.5.dp, Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isItemSelected) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = "Выбрано",
+                                tint = Color.White,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Центральная часть: имя файла и снизу размер + расширение (например «212,0 KB JPG» или «28,2 KB PDF»)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = if (showThreeDots) 24.dp else 4.dp)
+            ) {
+                Text(
+                    text = if (searchQuery.isNotBlank()) {
+                        buildHighlightedText(file.name, searchQuery, accent)
+                    } else {
+                        AnnotatedString(file.name)
+                    },
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${file.sizeLabel} $extLabel",
+                    color = TextSecondary,
+                    fontSize = 12.5.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        // Кнопка «⋮» в правом верхнем углу (только одна у первого файла в группе или у одиночного файла)
+        if (showThreeDots) {
+            Box(
+                modifier = Modifier.align(Alignment.TopEnd)
+            ) {
+                IconButton(
+                    onClick = { isMenuOpen = true },
+                    modifier = Modifier.size(26.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Меню файла",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = isMenuOpen,
+                    onDismissRequest = { isMenuOpen = false },
+                    modifier = Modifier
+                        .width(235.dp)
+                        .background(Color(0xFF14151B), RoundedCornerShape(16.dp))
+                        .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+                ) {
+                    // Строгое разделение: «Сохранить в галерею» ТОЛЬКО для фото/видео, «Сохранить в загрузки» для файлов
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = if (isImageFile) "Сохранить в галерею" else "Сохранить в загрузки",
+                                color = Color.White,
+                                fontSize = 14.5.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Download,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            scope.launch {
+                                if (isImageFile && !file.uri.isNullOrBlank()) {
+                                    val ok = savePhotoToDeviceGallery(context, file.uri)
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) "Сохранено в галерею: ${file.name}" else "Не удалось сохранить фото",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                } else {
+                                    val ok = saveFileToDeviceDownloads(context, file)
+                                    Toast.makeText(
+                                        context,
+                                        if (ok) "Сохранено в загрузки: ${file.name}" else "Не удалось сохранить файл",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Ответить", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Reply, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onSwipeReply()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Переслать", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Forward, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onForwardItem()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Поделиться", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Share, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            if (!file.uri.isNullOrBlank()) {
+                                sharePhotoSystemChooser(context, file.uri)
+                            } else {
+                                shareTextOrFileFallback(context, file.name)
+                            }
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Удалить", color = Color(0xFFFF5252), fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Delete, null, tint = Color(0xFFFF5252), modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onDeleteItem()
+                        }
+                    )
+                }
+            }
+        }
+
+        // Время и галочки в правом нижнем углу последнего элемента
+        if (showBottomTimestamp) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 2.dp, bottom = 1.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = message.timeLabel(),
+                    color = TextMuted,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (!isIncoming) {
+                    Spacer(modifier = Modifier.width(3.dp))
+                    DeliveryStatus(status = message.status, onRetry = onRetry)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Строка музыкального трека (одиночного или в слитной группе до 10 треков):
+ * - Слева круглая кнопка Play/Pause 44.dp
+ * - Справа название трека и снизу прогресс «0:00 / X:XX»
+ * - В правом верхнем углу (только у первого трека в группе) — кнопка «⋮» со строгим пунктом «Сохранить в музыку»
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ChatMusicItemRow(
+    message: ChatMessage,
+    music: MessageAttachment.Music,
+    isIncoming: Boolean,
+    accent: Color,
+    searchQuery: String,
+    showThreeDots: Boolean,
+    showBottomTimestamp: Boolean,
+    isSelectionMode: Boolean,
+    isItemSelected: Boolean,
+    onItemClick: () -> Unit,
+    onItemLongClick: () -> Unit,
+    onSwipeReply: () -> Unit,
+    onForwardItem: () -> Unit,
+    onDeleteItem: () -> Unit,
+    onRetry: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isPlaying by remember { mutableStateOf(false) }
+    var isMenuOpen by remember { mutableStateOf(false) }
+
+    val displayTitle = remember(music.artist, music.title) {
+        if (music.artist.isNotBlank() && music.artist != "Неизвестен" && !music.title.contains(music.artist)) {
+            "${music.artist} - ${music.title}"
+        } else {
+            music.title
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isItemSelected) {
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(accent.copy(alpha = 0.22f))
+                } else {
+                    Modifier
+                }
+            )
+            .combinedClickable(
+                onClick = {
+                    if (isSelectionMode) {
+                        onItemClick()
+                    } else {
+                        isPlaying = !isPlaying
+                    }
+                },
+                onLongClick = onItemLongClick
+            )
+            .padding(vertical = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(if (isIncoming) accent else Color.White.copy(alpha = 0.24f))
+                        .clickable {
+                            if (isSelectionMode) onItemClick() else isPlaying = !isPlaying
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                        contentDescription = if (isPlaying) "Пауза" else "Играть",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                if (isSelectionMode) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(if (isItemSelected) accent else Color.Black.copy(alpha = 0.55f))
+                            .border(1.5.dp, Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isItemSelected) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
+                                contentDescription = "Выбрано",
+                                tint = Color.White,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(end = if (showThreeDots) 24.dp else 4.dp)
+            ) {
+                Text(
+                    text = if (searchQuery.isNotBlank()) {
+                        buildHighlightedText(displayTitle, searchQuery, accent)
+                    } else {
+                        AnnotatedString(displayTitle)
+                    },
+                    color = TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (isPlaying) "0:14 / ${music.durationLabel}" else "0:00 / ${music.durationLabel}",
+                    color = TextSecondary,
+                    fontSize = 12.5.sp,
+                    maxLines = 1
+                )
+            }
+        }
+
+        if (showThreeDots) {
+            Box(modifier = Modifier.align(Alignment.TopEnd)) {
+                IconButton(
+                    onClick = { isMenuOpen = true },
+                    modifier = Modifier.size(26.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Меню музыки",
+                        tint = TextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = isMenuOpen,
+                    onDismissRequest = { isMenuOpen = false },
+                    modifier = Modifier
+                        .width(235.dp)
+                        .background(Color(0xFF14151B), RoundedCornerShape(16.dp))
+                        .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+                ) {
+                    // Для музыки строго «Сохранить в музыку» (НЕ в загрузки и НЕ в галерею)
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Сохранить в музыку",
+                                color = Color.White,
+                                fontSize = 14.5.sp
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Download,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            scope.launch {
+                                val ok = saveMusicToDeviceMusic(context, music)
+                                Toast.makeText(
+                                    context,
+                                    if (ok) "Сохранено в музыку: $displayTitle" else "Не удалось сохранить трек",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Ответить", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Reply, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onSwipeReply()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Переслать", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Forward, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onForwardItem()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Поделиться", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Share, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            shareTextOrFileFallback(context, displayTitle)
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Удалить", color = Color(0xFFFF5252), fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Delete, null, tint = Color(0xFFFF5252), modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onDeleteItem()
+                        }
+                    )
+                }
+            }
+        }
+
+        if (showBottomTimestamp) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 2.dp, bottom = 1.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = message.timeLabel(),
+                    color = TextMuted,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                if (!isIncoming) {
+                    Spacer(modifier = Modifier.width(3.dp))
+                    DeliveryStatus(status = message.status, onRetry = onRetry)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Открытие файла (.pdf, .apk, .doc, .zip и т.д.) в системном приложении просмотра/установки Android.
+ */
+private fun openFileInSystemViewer(context: Context, file: MessageAttachment.File) {
+    val ext = file.name.substringAfterLast('.', "").lowercase()
+    val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext)
+        ?: when (file.kind) {
+            FileKind.PDF -> "application/pdf"
+            FileKind.APK -> "application/vnd.android.package-archive"
+            FileKind.ZIP -> "application/zip"
+            FileKind.DOC -> "application/msword"
+            FileKind.IMAGE -> "image/*"
+            FileKind.OTHER -> "*/*"
+        }
+
+    runCatching {
+        val targetUri: Uri? = if (!file.uri.isNullOrBlank()) {
+            Uri.parse(file.uri)
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // Создаём безопасный content:// URI во временных загрузках для демо-файлов
+            val values = ContentValues().apply {
+                put(MediaStore.Downloads.DISPLAY_NAME, file.name)
+                put(MediaStore.Downloads.MIME_TYPE, mimeType)
+                put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AnonGram")
+            }
+            val resolver = context.contentResolver
+            val inserted = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+            if (inserted != null) {
+                resolver.openOutputStream(inserted)?.use { out ->
+                    out.write("AnonGram Document: ${file.name} (${file.sizeLabel})".toByteArray())
+                }
+            }
+            inserted
+        } else {
+            null
+        }
+
+        if (targetUri != null) {
+            val viewIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(targetUri, mimeType)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(viewIntent, file.name).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(chooser)
+        } else {
+            Toast.makeText(context, "Открытие файла: ${file.name}", Toast.LENGTH_SHORT).show()
+        }
+    }.onFailure {
+        Toast.makeText(context, "Нет приложения для открытия ${file.name}", Toast.LENGTH_SHORT).show()
+    }
+}
+
+/**
+ * Сохранение обычного файла в системную папку «Загрузки» (MediaStore.Downloads).
+ */
+private suspend fun saveFileToDeviceDownloads(context: Context, file: MessageAttachment.File): Boolean =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val ext = file.name.substringAfterLast('.', "").lowercase()
+            val mimeType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "application/octet-stream"
+            val resolver = context.contentResolver
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, file.name)
+                    put(MediaStore.Downloads.MIME_TYPE, mimeType)
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/AnonGram")
+                }
+                val destUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: return@withContext false
+                resolver.openOutputStream(destUri)?.use { out ->
+                    val srcUri = file.uri?.let { runCatching { Uri.parse(it) }.getOrNull() }
+                    val copied = if (srcUri != null) {
+                        resolver.openInputStream(srcUri)?.use { input -> input.copyTo(out) }
+                    } else null
+                    if (copied == null) {
+                        out.write("AnonGram File: ${file.name} (${file.sizeLabel})".toByteArray())
+                    }
+                }
+            }
+            true
+        }.getOrDefault(false)
+    }
+
+/**
+ * Сохранение музыкального трека в системную папку «Музыка» (MediaStore.Audio.Media / DIRECTORY_MUSIC).
+ */
+private suspend fun saveMusicToDeviceMusic(context: Context, music: MessageAttachment.Music): Boolean =
+    withContext(Dispatchers.IO) {
+        runCatching {
+            val safeFileName = "${music.artist} - ${music.title}.mp3".replace(Regex("[\\\\/:*?\"<>|]"), "_")
+            val resolver = context.contentResolver
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Audio.Media.DISPLAY_NAME, safeFileName)
+                    put(MediaStore.Audio.Media.TITLE, music.title)
+                    put(MediaStore.Audio.Media.ARTIST, music.artist)
+                    put(MediaStore.Audio.Media.MIME_TYPE, "audio/mpeg")
+                    put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/AnonGram")
+                }
+                val destUri = resolver.insert(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, values)
+                    ?: return@withContext false
+                resolver.openOutputStream(destUri)?.use { out ->
+                    val srcUri = music.uri?.let { runCatching { Uri.parse(it) }.getOrNull() }
+                    val copied = if (srcUri != null) {
+                        resolver.openInputStream(srcUri)?.use { input -> input.copyTo(out) }
+                    } else null
+                    if (copied == null) {
+                        out.write("ID3 AnonGram Audio Track: $safeFileName".toByteArray())
+                    }
+                }
+            }
+            true
+        }.getOrDefault(false)
+    }
+
+private fun shareTextOrFileFallback(context: Context, label: String) {
+    runCatching {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, label)
+        }
+        val chooser = Intent.createChooser(shareIntent, "Поделиться").apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
     }
 }
 

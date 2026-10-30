@@ -30,9 +30,32 @@ sealed interface MessageAttachment {
         val hasSpoiler: Boolean = false
     ) : MessageAttachment
 
-    data class File(val name: String, val sizeLabel: String, val kind: FileKind) : MessageAttachment
+    /** Одиночный файл или фото без сжатия. */
+    data class File(
+        val name: String,
+        val sizeLabel: String,
+        val kind: FileKind,
+        val uri: String? = null
+    ) : MessageAttachment
 
-    data class Music(val title: String, val artist: String, val durationLabel: String, val colorSeed: Int) : MessageAttachment
+    /** Слитная группа файлов / фото без сжатия (до 10 элементов в одном пузыре чата). */
+    data class FileGroup(
+        val items: List<File>
+    ) : MessageAttachment
+
+    /** Одиночный музыкальный трек. */
+    data class Music(
+        val title: String,
+        val artist: String,
+        val durationLabel: String,
+        val colorSeed: Int,
+        val uri: String? = null
+    ) : MessageAttachment
+
+    /** Слитная группа музыкальных треков (до 10 треков в одном пузыре чата). */
+    data class MusicGroup(
+        val items: List<Music>
+    ) : MessageAttachment
 
     data class Voice(val durationLabel: String, val waveform: List<Int>) : MessageAttachment
 
@@ -48,7 +71,7 @@ sealed interface MessageAttachment {
 }
 
 enum class FileKind(val label: String) {
-    PDF("PDF"), DOC("DOC"), ARCHIVE("ZIP"), IMAGE("IMG"), VIDEO("VID"), UNKNOWN("FILE")
+    PDF("PDF"), DOC("DOC"), ARCHIVE("ZIP"), IMAGE("JPG"), VIDEO("VID"), APK("APK"), UNKNOWN("FILE")
 }
 
 /** Превью ссылки: заголовок, описание, домен — считается на стороне отправителя. */

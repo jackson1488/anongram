@@ -566,8 +566,10 @@ private fun FusedEditBar(
 private fun replyPreviewSnippet(message: ChatMessage): String = when {
     message.text.isNotBlank() -> message.text
     message.attachment is MessageAttachment.File -> message.attachment.name
+    message.attachment is MessageAttachment.FileGroup -> "Файлы (${message.attachment.items.size} шт.)"
     message.attachment is MessageAttachment.Photo -> if (message.attachment.isVideo) "Видео" else "Фото"
     message.attachment is MessageAttachment.Music -> "${message.attachment.artist} — ${message.attachment.title}"
+    message.attachment is MessageAttachment.MusicGroup -> "Аудиозаписи (${message.attachment.items.size} шт.)"
     message.attachment is MessageAttachment.Voice -> "Голосовое сообщение"
     message.attachment is MessageAttachment.VideoCircle -> "Видеосообщение"
     message.attachment is MessageAttachment.Contact -> "Контакт: ${message.attachment.name}"
