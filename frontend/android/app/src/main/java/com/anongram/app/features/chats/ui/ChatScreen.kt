@@ -66,6 +66,7 @@ import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.anongram.app.features.chats.common.IChatSession
+import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -75,6 +76,7 @@ import com.anongram.app.features.attach.api.AttachSheet
 import com.anongram.app.features.attach.api.AttachmentDraft
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
 import com.anongram.app.features.chats.ui.components.ChatInputBar
+import com.anongram.app.features.chats.ui.components.ChatMediaFullscreenViewer
 import com.anongram.app.features.chats.ui.components.DeleteMessageDialog
 import com.anongram.app.features.chats.ui.components.EmojiStickerPanel
 import com.anongram.app.features.chats.ui.components.GeoPickerScreen
@@ -88,6 +90,7 @@ import com.anongram.app.features.chats.ui.components.ReplyPreviewDialog
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
 import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -120,6 +123,9 @@ fun ChatScreen(
     var isWallpaperOpen by remember { mutableStateOf(false) }
     var isReplyPreviewOpen by remember { mutableStateOf(false) }
     var isSearchListMode by remember { mutableStateOf(false) }
+    var viewingMediaMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var viewingMediaInitialIndex by remember { mutableIntStateOf(0) }
+    var wasKeyboardOpenBeforeViewer by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -143,6 +149,8 @@ fun ChatScreen(
     // Обработка системной кнопки назад: закрывать открытые панели и модалки по очереди
     BackHandler {
         when {
+            state.deleteDialogFor != null -> viewModel.dismissDeleteDialog()
+            viewingMediaMessage != null -> viewingMediaMessage = null
             isWallpaperOpen -> isWallpaperOpen = false
             isReplyPreviewOpen -> isReplyPreviewOpen = false
             isSearchListMode -> isSearchListMode = false
@@ -152,7 +160,6 @@ fun ChatScreen(
             state.isAttachOpen -> viewModel.closeAttach()
             state.isGeoOpen -> viewModel.closeGeoPicker()
             state.actionMenuFor != null -> viewModel.closeActionMenu()
-            state.deleteDialogFor != null -> viewModel.dismissDeleteDialog()
             state.isNotificationsOpen -> viewModel.closeNotifications()
             state.isKeyCheckOpen -> viewModel.closeKeyCheck()
             state.editing != null -> viewModel.cancelEdit()
@@ -313,7 +320,15 @@ fun ChatScreen(
                     onToggleReaction = viewModel::toggleReaction,
                     onSelectMessage = viewModel::toggleSelection,
                     onRetryMessage = viewModel::retry,
-                    onHighlightMessage = viewModel::highlightMessage
+                    onHighlightMessage = viewModel::highlightMessage,
+                    onOpenMediaViewer = { message, photoIdx ->
+                        wasKeyboardOpenBeforeViewer = isKeyboardVisible
+                        if (isKeyboardVisible) {
+                            keyboardController?.hide()
+                        }
+                        viewingMediaMessage = message
+                        viewingMediaInitialIndex = photoIdx
+                    }
                 )
             }
 
@@ -698,6 +713,66 @@ fun ChatScreen(
                 onPin = { viewModel.pinMessage(message.id) },
                 onDelete = { viewModel.requestDelete(listOf(message.id)) },
                 onDismiss = viewModel::closeActionMenu
+            )
+        }
+
+        // Полноэкранный просмотр фото и альбомов из чата + автовозврат клавиатуры
+        fun closeMediaViewerAndRestoreKeyboard() {
+            viewingMediaMessage = null
+            if (wasKeyboardOpenBeforeViewer) {
+                wasKeyboardOpenBeforeViewer = false
+                scope.launch {
+                    delay(80)
+                    try {
+                        inputFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+
+        LaunchedEffect(state.messages, viewingMediaMessage) {
+            val current = viewingMediaMessage
+            if (current != null && state.messages.none { it.id == current.id }) {
+                closeMediaViewerAndRestoreKeyboard()
+            }
+        }
+
+        viewingMediaMessage?.let { mediaMessage ->
+            ChatMediaFullscreenViewer(
+                message = mediaMessage,
+                initialIndex = viewingMediaInitialIndex,
+                peerName = session.title,
+                onClose = {
+                    closeMediaViewerAndRestoreKeyboard()
+                },
+                onShowInChat = { msg ->
+                    closeMediaViewerAndRestoreKeyboard()
+                    viewModel.highlightMessage(msg.id)
+                    val index = state.messages.asReversed().indexOfFirst { it.id == msg.id }
+                    if (index >= 0) {
+                        scope.launch {
+                            runCatching {
+                                listState.animateScrollAndCenterItem(index)
+                            }
+                        }
+                    }
+                },
+                onReply = { msg ->
+                    viewingMediaMessage = null
+                    wasKeyboardOpenBeforeViewer = false
+                    viewModel.startReply(msg)
+                    scope.launch {
+                        delay(80)
+                        try {
+                            inputFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        } catch (_: Exception) {}
+                    }
+                },
+                onRequestDelete = { msg ->
+                    viewModel.requestDelete(listOf(msg.id))
+                }
             )
         }
 

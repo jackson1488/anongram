@@ -56,7 +56,8 @@ internal fun MessagesList(
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
     onSelectMessage: (String) -> Unit = {},
     onRetryMessage: (String) -> Unit = {},
-    onHighlightMessage: (String) -> Unit = {}
+    onHighlightMessage: (String) -> Unit = {},
+    onOpenMediaViewer: (ChatMessage, Int) -> Unit = { _, _ -> }
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -113,7 +114,8 @@ internal fun MessagesList(
                     onSwipeReply = { onSwipeReply(item.message) },
                     onToggleReaction = { emoji -> onToggleReaction(item.message.id, emoji) },
                     onSelect = { onSelectMessage(item.message.id) },
-                    onRetry = { onRetryMessage(item.message.id) }
+                    onRetry = { onRetryMessage(item.message.id) },
+                    onOpenMediaViewer = { photoIdx -> onOpenMediaViewer(item.message, photoIdx) }
                 )
             }
         }

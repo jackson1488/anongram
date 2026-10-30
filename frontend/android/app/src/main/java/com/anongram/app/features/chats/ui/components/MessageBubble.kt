@@ -142,7 +142,8 @@ internal fun MessageBubble(
     onSwipeReply: () -> Unit = {},
     onToggleReaction: (String) -> Unit = {},
     onSelect: () -> Unit = {},
-    onRetry: () -> Unit = {}
+    onRetry: () -> Unit = {},
+    onOpenMediaViewer: (initialPhotoIndex: Int) -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
     val message = item.message
@@ -292,8 +293,14 @@ internal fun MessageBubble(
                             )
                         }
                     } else {
+                        val isEdgeToEdgeMedia = (message.attachment is MessageAttachment.MediaAlbum) ||
+                            (message.attachment is MessageAttachment.Photo && (message.attachment as MessageAttachment.Photo).uri != null)
+                        val isOverlayTimestampOnMedia = (message.attachment is MessageAttachment.MediaAlbum || message.attachment is MessageAttachment.Photo) &&
+                            message.text.isBlank()
+
                         val baseColor = when {
                             isSelected -> scheme.accent.copy(alpha = 0.28f)
+                            isEdgeToEdgeMedia -> Color(0xFF141418)
                             isIncoming -> CardDark
                             else -> scheme.accent.copy(alpha = 0.16f)
                         }
@@ -304,12 +311,10 @@ internal fun MessageBubble(
                         }
                         val bubbleBorder = when {
                             pulseAlpha > 0.005f -> BorderStroke(2.dp, scheme.accent.copy(alpha = pulseAlpha))
+                            isEdgeToEdgeMedia -> BorderStroke(1.2.dp, scheme.accent.copy(alpha = 0.55f))
                             !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
                             else -> null
                         }
-
-                        val isEdgeToEdgeMedia = (message.attachment is MessageAttachment.MediaAlbum) ||
-                            (message.attachment is MessageAttachment.Photo && (message.attachment as MessageAttachment.Photo).uri != null)
 
                         Surface(
                             shape = bubbleShape(item, isIncoming),
@@ -320,14 +325,27 @@ internal fun MessageBubble(
                                 .widthIn(max = bubbleMaxWidth)
                                 .clip(bubbleShape(item, isIncoming))
                                 .combinedClickable(
-                                    onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            onSelect()
+                                        } else if (isEdgeToEdgeMedia) {
+                                            onOpenMediaViewer(0)
+                                        } else {
+                                            onClick(bubbleTopY)
+                                        }
+                                    },
                                     onLongClick = onLongClick
                                 )
                         ) {
                             Box {
                                 Column(
                                     modifier = if (isEdgeToEdgeMedia) {
-                                        Modifier.padding(start = 2.dp, end = 2.dp, top = 2.dp, bottom = 5.dp)
+                                        Modifier.padding(
+                                            start = 1.5.dp,
+                                            end = 1.5.dp,
+                                            top = 1.5.dp,
+                                            bottom = if (message.text.isNotBlank()) 6.dp else 1.5.dp
+                                        )
                                     } else {
                                         Modifier.padding(start = 12.dp, end = 12.dp, top = 8.dp, bottom = 6.dp)
                                     }
@@ -356,12 +374,51 @@ internal fun MessageBubble(
 
                                     // Отрисовка вложений (шаги 4–6)
                                     message.attachment?.let { attachment ->
-                                        AttachmentContent(
-                                            attachment = attachment,
-                                            isIncoming = isIncoming,
-                                            accent = scheme.accent,
-                                            searchQuery = searchQuery
-                                        )
+                                        Box {
+                                            AttachmentContent(
+                                                attachment = attachment,
+                                                isIncoming = isIncoming,
+                                                accent = scheme.accent,
+                                                searchQuery = searchQuery,
+                                                isSelectionMode = isSelectionMode,
+                                                onSelect = onSelect,
+                                                onLongClick = onLongClick,
+                                                onOpenPhotoAt = { idx -> onOpenMediaViewer(idx) }
+                                            )
+
+                                            // Если у фото или альбома нет подписи — дата/время и галочки рисуются поверх правого нижнего угла фотографии
+                                            if (isOverlayTimestampOnMedia) {
+                                                Row(
+                                                    modifier = Modifier
+                                                        .align(Alignment.BottomEnd)
+                                                        .padding(end = 7.dp, bottom = 6.dp)
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(Color.Black.copy(alpha = 0.56f))
+                                                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    if (message.isEdited) {
+                                                        Text(
+                                                            text = "изменено",
+                                                            color = Color.White.copy(alpha = 0.85f),
+                                                            fontSize = 9.sp,
+                                                            fontStyle = FontStyle.Italic
+                                                        )
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                    }
+                                                    Text(
+                                                        text = message.timeLabel(),
+                                                        color = Color.White,
+                                                        fontSize = 10.sp,
+                                                        fontFamily = FontFamily.Monospace
+                                                    )
+                                                    if (!isIncoming) {
+                                                        Spacer(modifier = Modifier.width(4.dp))
+                                                        DeliveryStatus(status = message.status, onRetry = onRetry)
+                                                    }
+                                                }
+                                            }
+                                        }
                                         if (message.text.isNotBlank()) {
                                             Spacer(modifier = Modifier.height(6.dp))
                                         }
@@ -397,32 +454,34 @@ internal fun MessageBubble(
                                         )
                                     }
 
-                                    // Время, статус и «изменено»
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .then(if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier),
-                                        horizontalArrangement = Arrangement.End,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        if (message.isEdited) {
+                                    // Время, статус и «изменено» снизу (рисуется только если время ещё не нарисовано поверх фотографии)
+                                    if (!isOverlayTimestampOnMedia) {
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .then(if (isEdgeToEdgeMedia) Modifier.padding(horizontal = 10.dp, vertical = 2.dp) else Modifier),
+                                            horizontalArrangement = Arrangement.End,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            if (message.isEdited) {
+                                                Text(
+                                                    text = "изменено",
+                                                    color = TextMuted,
+                                                    fontSize = 9.sp,
+                                                    fontStyle = FontStyle.Italic
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                            }
                                             Text(
-                                                text = "изменено",
+                                                text = message.timeLabel(),
                                                 color = TextMuted,
-                                                fontSize = 9.sp,
-                                                fontStyle = FontStyle.Italic
+                                                fontSize = 10.sp,
+                                                fontFamily = FontFamily.Monospace
                                             )
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                        }
-                                        Text(
-                                            text = message.timeLabel(),
-                                            color = TextMuted,
-                                            fontSize = 10.sp,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                        if (!isIncoming) {
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            DeliveryStatus(status = message.status, onRetry = onRetry)
+                                            if (!isIncoming) {
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                DeliveryStatus(status = message.status, onRetry = onRetry)
+                                            }
                                         }
                                     }
                                 }
@@ -516,7 +575,11 @@ private fun AttachmentContent(
     attachment: MessageAttachment,
     isIncoming: Boolean,
     accent: Color,
-    searchQuery: String = ""
+    searchQuery: String = "",
+    isSelectionMode: Boolean = false,
+    onSelect: () -> Unit = {},
+    onLongClick: () -> Unit = {},
+    onOpenPhotoAt: (Int) -> Unit = {}
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {
@@ -525,6 +588,10 @@ private fun AttachmentContent(
                     uriString = attachment.uri,
                     isVideo = attachment.isVideo,
                     hasSpoiler = attachment.hasSpoiler,
+                    onPhotoClick = {
+                        if (isSelectionMode) onSelect() else onOpenPhotoAt(0)
+                    },
+                    onPhotoLongClick = onLongClick,
                     modifier = Modifier
                         .width(220.dp)
                         .height(380.dp)
@@ -590,7 +657,11 @@ private fun AttachmentContent(
         is MessageAttachment.MediaAlbum -> {
             ChatMediaAlbumGrid(
                 items = attachment.items,
-                accent = accent
+                accent = accent,
+                onPhotoClick = { idx ->
+                    if (isSelectionMode) onSelect() else onOpenPhotoAt(idx)
+                },
+                onPhotoLongClick = onLongClick
             )
         }
 
@@ -1054,16 +1125,18 @@ private fun buildHighlightedText(
 }
 
 /**
- * Отрисовка альбома медиа в чате (тонкая рамка, вертикальные пропорции для 2, 3, 4, 7, 8, 9, 10 фото и интерактивный спойлер).
+ * Отрисовка альбома медиа в чате (тонкая рамка, вертикальные пропорции для 2, 3, 4, 7, 8, 9, 10 фото,
+ * индивидуальный спойлер для каждого фото и раскрытие фото на весь экран по тапу).
  */
 @Composable
 private fun ChatMediaAlbumGrid(
     items: List<MessageAttachment.AlbumMediaItem>,
-    accent: Color
+    accent: Color,
+    onPhotoClick: (Int) -> Unit = {},
+    onPhotoLongClick: () -> Unit = {}
 ) {
     val count = items.size
     val dividerColor = accent.copy(alpha = 0.55f)
-    var albumSpoilerRevealed by remember { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -1080,8 +1153,9 @@ private fun ChatMediaAlbumGrid(
                     ChatRealPhotoBox(
                         uriString = items[0].uri,
                         isVideo = items[0].isVideo,
-                        hasSpoiler = items[0].hasSpoiler && !albumSpoilerRevealed,
-                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        hasSpoiler = items[0].hasSpoiler,
+                        onPhotoClick = { onPhotoClick(0) },
+                        onPhotoLongClick = onPhotoLongClick,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
@@ -1095,8 +1169,9 @@ private fun ChatMediaAlbumGrid(
                     ChatRealPhotoBox(
                         uriString = items[1].uri,
                         isVideo = items[1].isVideo,
-                        hasSpoiler = items[1].hasSpoiler && !albumSpoilerRevealed,
-                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        hasSpoiler = items[1].hasSpoiler,
+                        onPhotoClick = { onPhotoClick(1) },
+                        onPhotoLongClick = onPhotoLongClick,
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
@@ -1113,8 +1188,9 @@ private fun ChatMediaAlbumGrid(
                     ChatRealPhotoBox(
                         uriString = items[0].uri,
                         isVideo = items[0].isVideo,
-                        hasSpoiler = items[0].hasSpoiler && !albumSpoilerRevealed,
-                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        hasSpoiler = items[0].hasSpoiler,
+                        onPhotoClick = { onPhotoClick(0) },
+                        onPhotoLongClick = onPhotoLongClick,
                         modifier = Modifier
                             .weight(1.12f)
                             .fillMaxHeight()
@@ -1133,8 +1209,9 @@ private fun ChatMediaAlbumGrid(
                         ChatRealPhotoBox(
                             uriString = items[1].uri,
                             isVideo = items[1].isVideo,
-                            hasSpoiler = items[1].hasSpoiler && !albumSpoilerRevealed,
-                            onRevealSpoiler = { albumSpoilerRevealed = true },
+                            hasSpoiler = items[1].hasSpoiler,
+                            onPhotoClick = { onPhotoClick(1) },
+                            onPhotoLongClick = onPhotoLongClick,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
@@ -1148,8 +1225,9 @@ private fun ChatMediaAlbumGrid(
                         ChatRealPhotoBox(
                             uriString = items[2].uri,
                             isVideo = items[2].isVideo,
-                            hasSpoiler = items[2].hasSpoiler && !albumSpoilerRevealed,
-                            onRevealSpoiler = { albumSpoilerRevealed = true },
+                            hasSpoiler = items[2].hasSpoiler,
+                            onPhotoClick = { onPhotoClick(2) },
+                            onPhotoLongClick = onPhotoLongClick,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()
@@ -1167,8 +1245,9 @@ private fun ChatMediaAlbumGrid(
                     ChatRealPhotoBox(
                         uriString = items[0].uri,
                         isVideo = items[0].isVideo,
-                        hasSpoiler = items[0].hasSpoiler && !albumSpoilerRevealed,
-                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                        hasSpoiler = items[0].hasSpoiler,
+                        onPhotoClick = { onPhotoClick(0) },
+                        onPhotoLongClick = onPhotoLongClick,
                         modifier = Modifier
                             .weight(1.15f)
                             .fillMaxHeight()
@@ -1196,8 +1275,9 @@ private fun ChatMediaAlbumGrid(
                             ChatRealPhotoBox(
                                 uriString = items[idx].uri,
                                 isVideo = items[idx].isVideo,
-                                hasSpoiler = items[idx].hasSpoiler && !albumSpoilerRevealed,
-                                onRevealSpoiler = { albumSpoilerRevealed = true },
+                                hasSpoiler = items[idx].hasSpoiler,
+                                onPhotoClick = { onPhotoClick(idx) },
+                                onPhotoLongClick = onPhotoLongClick,
                                 modifier = Modifier
                                     .weight(1f)
                                     .fillMaxWidth()
@@ -1240,8 +1320,9 @@ private fun ChatMediaAlbumGrid(
                                     ChatRealPhotoBox(
                                         uriString = m.uri,
                                         isVideo = m.isVideo,
-                                        hasSpoiler = m.hasSpoiler && !albumSpoilerRevealed,
-                                        onRevealSpoiler = { albumSpoilerRevealed = true },
+                                        hasSpoiler = m.hasSpoiler,
+                                        onPhotoClick = { onPhotoClick(currentIdx) },
+                                        onPhotoLongClick = onPhotoLongClick,
                                         modifier = Modifier
                                             .weight(1f)
                                             .fillMaxHeight()
@@ -1258,20 +1339,24 @@ private fun ChatMediaAlbumGrid(
 }
 
 /**
- * Ячейка настоящего фото/видео в чате со встроенным интерактивным спойлером (блюр + частицы, снимается по тапу).
+ * Ячейка настоящего фото/видео в чате:
+ * - Индивидуальный спойлер для каждого фото: первый тап снимает спойлер именно с этого фото
+ * - Повторный тап (или первый тап, если спойлера нет) открывает полноэкранный просмотр именно этого фото (без быстрого меню)
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ChatRealPhotoBox(
     uriString: String,
     isVideo: Boolean,
     hasSpoiler: Boolean,
-    onRevealSpoiler: (() -> Unit)? = null,
+    onPhotoClick: () -> Unit = {},
+    onPhotoLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
     var bitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
-    var localSpoilerRevealed by remember { mutableStateOf(false) }
+    var localSpoilerRevealed by remember(uriString) { mutableStateOf(false) }
     val showSpoiler = hasSpoiler && !localSpoilerRevealed
 
     LaunchedEffect(parsedUri) {
@@ -1286,16 +1371,17 @@ private fun ChatRealPhotoBox(
     Box(
         modifier = modifier
             .background(Color(0xFF1A1A20))
-            .then(
-                if (showSpoiler) {
-                    Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    if (showSpoiler) {
                         localSpoilerRevealed = true
-                        onRevealSpoiler?.invoke()
+                    } else {
+                        onPhotoClick()
                     }
-                } else Modifier
+                },
+                onLongClick = onPhotoLongClick
             ),
         contentAlignment = Alignment.Center
     ) {
@@ -1332,4 +1418,5 @@ private fun ChatRealPhotoBox(
         }
     }
 }
+
 

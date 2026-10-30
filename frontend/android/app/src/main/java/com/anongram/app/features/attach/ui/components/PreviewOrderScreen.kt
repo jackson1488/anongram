@@ -395,52 +395,55 @@ fun PreviewOrderScreen(
                                 expanded = isMenuOpen,
                                 onDismissRequest = { isMenuOpen = false },
                                 modifier = Modifier
-                                    .background(Color(0xFF222226), RoundedCornerShape(16.dp))
-                                    .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+                                    .background(Color(0xFF141418), RoundedCornerShape(18.dp))
+                                    .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
                             ) {
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            text = if (isUncompressed) "Отменить сжатие" else "Отправить без сжатия",
+                                            text = "Отправить без сжатия",
                                             color = Color.White,
                                             fontSize = 14.5.sp
                                         )
                                     },
                                     onClick = {
-                                        isUncompressed = !isUncompressed
                                         isMenuOpen = false
+                                        onSend(orderedList.toList(), true, isUngrouped, isHd)
                                     },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Outlined.InsertDriveFile,
                                             contentDescription = null,
-                                            tint = if (isUncompressed) AttachPurple else Color.White,
+                                            tint = Color.White,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 )
 
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = if (isUngrouped) "Отменить группировку" else "Отправить без группировки",
-                                            color = Color.White,
-                                            fontSize = 14.5.sp
-                                        )
-                                    },
-                                    onClick = {
-                                        isUngrouped = !isUngrouped
-                                        isMenuOpen = false
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = Icons.Outlined.GridOff,
-                                            contentDescription = null,
-                                            tint = if (isUngrouped) AttachPurple else Color.White,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                )
+                                if (orderedList.size >= 2) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                text = "Отправить без группировки",
+                                                color = Color.White,
+                                                fontSize = 14.5.sp
+                                            )
+                                        },
+                                        onClick = {
+                                            isMenuOpen = false
+                                            // Массовая отправка каждого фото отдельным сообщением по одному
+                                            onSend(orderedList.toList(), isUncompressed, true, isHd)
+                                        },
+                                        leadingIcon = {
+                                            Icon(
+                                                imageVector = Icons.Outlined.GridOff,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                    )
+                                }
 
                                 DropdownMenuItem(
                                     text = {
@@ -467,20 +470,20 @@ fun PreviewOrderScreen(
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            text = if (isHd) "Стандартное качество" else "Отправить в HD-качестве",
+                                            text = "Отправить в HD-качестве",
                                             color = Color.White,
                                             fontSize = 14.5.sp
                                         )
                                     },
                                     onClick = {
-                                        isHd = !isHd
                                         isMenuOpen = false
+                                        onSend(orderedList.toList(), isUncompressed, isUngrouped, true)
                                     },
                                     leadingIcon = {
                                         Icon(
                                             imageVector = Icons.Default.HighQuality,
                                             contentDescription = null,
-                                            tint = if (isHd) AttachPurple else Color.White,
+                                            tint = Color.White,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -491,7 +494,9 @@ fun PreviewOrderScreen(
 
                     // Скроллируемая область с альбомами сообщений (как в Telegram: до 10 медиа в одном альбоме)
                     val listState = rememberLazyListState()
-                    val albumChunks = remember(orderedList.toList()) { orderedList.chunked(10) }
+                    val albumChunks = remember(orderedList.toList(), isUngrouped) {
+                        if (isUngrouped) orderedList.chunked(1) else orderedList.chunked(10)
+                    }
 
                     LazyColumn(
                         state = listState,
