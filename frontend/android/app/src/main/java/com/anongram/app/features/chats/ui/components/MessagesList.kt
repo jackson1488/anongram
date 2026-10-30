@@ -30,6 +30,7 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
+import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
 import kotlinx.coroutines.launch
 
 /** Окно между сообщениями одной группы — 2dp, между группами — 8dp. */

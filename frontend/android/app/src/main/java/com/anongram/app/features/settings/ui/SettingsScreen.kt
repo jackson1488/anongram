@@ -192,7 +192,16 @@ private fun ChatTextSizeSettingsCard(
             }
         }
 
-        // Живое превью сообщений чата под ползунком
+        // Живое превью сообщений чата под ползунком (масштабирует текст, сам бабл и отдельный блок времени с галочками)
+        val textScale = (textSizeSp / 16f).coerceIn(0.35f, 1.5f)
+        val bubbleRadius = (16f * textScale).coerceIn(7f, 20f).dp
+        val bubbleTail = (5f * textScale).coerceIn(2.5f, 6.5f).dp
+        val padH = (11f * textScale).coerceIn(5f, 15f).dp
+        val padV = (7f * textScale).coerceIn(2.5f, 10f).dp
+        val timeFontSize = (10.5f * textScale).coerceIn(5.5f, 14.5f).sp
+        val tickSize = (13f * textScale).coerceIn(7f, 17.5f).dp
+        val gapBetweenTextAndTime = (8f * textScale).coerceIn(4f, 11f).dp
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -210,71 +219,73 @@ private fun ChatTextSizeSettingsCard(
                         .widthIn(max = 285.dp)
                         .clip(
                             RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomStart = 5.dp,
-                                bottomEnd = 16.dp
+                                topStart = bubbleRadius,
+                                topEnd = bubbleRadius,
+                                bottomStart = bubbleTail,
+                                bottomEnd = bubbleRadius
                             )
                         )
                         .background(Color(0xFF1F222A))
-                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .padding(horizontal = padH, vertical = padV)
                 ) {
                     // Блок цитаты с именем зарегистрированного пользователя
                     Row(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
+                            .clip(RoundedCornerShape((8f * textScale).coerceIn(4f, 10f).dp))
                             .background(Color(0xFF182A36))
-                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                            .padding(
+                                horizontal = (8f * textScale).coerceIn(4f, 10f).dp,
+                                vertical = (5f * textScale).coerceIn(2.5f, 7f).dp
+                            ),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(3.dp)
-                                .height(32.dp)
+                                .width((3f * textScale).coerceIn(2f, 4f).dp)
+                                .height((30f * textScale).coerceIn(14f, 38f).dp)
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(Color(0xFF39C5BB))
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width((8f * textScale).coerceIn(4f, 10f).dp))
                         Column {
                             Text(
                                 text = userName,
                                 color = Color(0xFF39C5BB),
-                                fontSize = 12.sp,
+                                fontSize = (11.5f * textScale).coerceIn(6f, 15.5f).sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "Доброе утро! 👋",
                                 color = Color.White,
-                                fontSize = (textSizeSp.coerceIn(10, 22) - 2).coerceAtLeast(10).sp
+                                fontSize = (12.5f * textScale).coerceIn(6.5f, 16.5f).sp
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height((5f * textScale).coerceIn(2f, 7f).dp))
 
                     Row(
                         verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(gapBetweenTextAndTime)
                     ) {
                         Text(
                             text = "Знаешь, который час?",
                             color = Color.White,
                             fontSize = textSizeSp.sp,
-                            lineHeight = (textSizeSp + 4).sp,
+                            lineHeight = (textSizeSp * 1.26f).coerceAtLeast(textSizeSp + 2f).sp,
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         Text(
                             text = "20:07",
                             color = TextMuted,
-                            fontSize = 10.sp,
+                            fontSize = timeFontSize,
                             fontFamily = FontFamily.Monospace
                         )
                     }
                 }
             }
 
-            // 2. Исходящее сообщение справа
+            // 2. Исходящее сообщение справа (после текста отдельным блоком идёт время и галочки)
             Box(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.CenterEnd
@@ -284,37 +295,37 @@ private fun ChatTextSizeSettingsCard(
                         .widthIn(max = 285.dp)
                         .clip(
                             RoundedCornerShape(
-                                topStart = 16.dp,
-                                topEnd = 16.dp,
-                                bottomStart = 16.dp,
-                                bottomEnd = 5.dp
+                                topStart = bubbleRadius,
+                                topEnd = bubbleRadius,
+                                bottomStart = bubbleRadius,
+                                bottomEnd = bubbleTail
                             )
                         )
                         .background(Color(0xFF5E54A4))
-                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                        .padding(horizontal = padH, vertical = padV),
                     verticalAlignment = Alignment.Bottom,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(gapBetweenTextAndTime)
                 ) {
                     Text(
                         text = "В Токио утро 😎",
                         color = Color.White,
                         fontSize = textSizeSp.sp,
-                        lineHeight = (textSizeSp + 4).sp,
+                        lineHeight = (textSizeSp * 1.26f).coerceAtLeast(textSizeSp + 2f).sp,
                         modifier = Modifier.weight(1f, fill = false)
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "20:22",
                             color = Color.White.copy(alpha = 0.78f),
-                            fontSize = 10.sp,
+                            fontSize = timeFontSize,
                             fontFamily = FontFamily.Monospace
                         )
-                        Spacer(modifier = Modifier.width(3.dp))
+                        Spacer(modifier = Modifier.width((3f * textScale).coerceIn(1.5f, 4.5f).dp))
                         Icon(
                             painter = painterResource(id = R.drawable.ic_tick_double),
                             contentDescription = null,
                             tint = Color.White,
-                            modifier = Modifier.size(13.dp)
+                            modifier = Modifier.size(tickSize)
                         )
                     }
                 }

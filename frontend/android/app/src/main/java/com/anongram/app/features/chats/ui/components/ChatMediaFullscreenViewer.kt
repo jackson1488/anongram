@@ -88,7 +88,9 @@ import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
+import com.anongram.app.features.chats.messages.domain.MessageDirection
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -98,17 +100,34 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
 
-private data class CompressedChatMediaRef(
-    val messageId: String,
-    val itemIndex: Int
+private data class ViewerMediaEntry(
+    val message: ChatMessage,
+    val uri: String,
+    val isVideo: Boolean,
+    val itemIndexInMessage: Int,
+    val albumPositionInGroup: Int,
+    val albumUrisInMessage: List<String>
 )
+
+private fun isUncompressedImageFile(file: MessageAttachment.File): Boolean {
+    if (file.uri.isNullOrBlank()) return false
+    if (file.kind == FileKind.IMAGE) return true
+    val ext = file.name.substringAfterLast('.', "").lowercase()
+    return ext in setOf("jpg", "jpeg", "png", "webp", "heic", "gif", "bmp")
+}
 
 /**
  * Полноэкранный просмотр фото или альбома из чата (Telegram-style):
- * - Полупрозрачная сплошная шапка сверху (не отдельные кружки), которая плавно скрывается/показывается по тапу на экран
- * - Сразу под шапкой по центру (чуть ниже шапки) отображается общий счётчик всех сжатых медиа в чате: «45 из 100»
- *   (считает только сжатые фото и видео из чата; скрывается при тапе и при зуме)
- * - Поддержка увеличения фото (Pinch-to-Zoom двумя пальцами 1x..4x + панорамирование + двойной тап 1x <-> 2.5x)
+ * 1) Сжатые медиа (`Photo` и `MediaAlbum`):
+ *    - Сквозное перелистывание по всем сжатым фото и видео чата (обходя текстовые сообщения, файлы и контакты между ними)
+ *    - Вперёд (переход вправо по ленте) — к следующим медиа в чате, назад — к предыдущим медиа
+ *    - Общий счётчик всех сжатых медиа («45 из 100») по центру чуть ниже шапки
+ *    - Внизу лента миниатюр активного альбома (если текущий кадр входит в альбом 2..10 шт.)
+ * 2) Файлы без сжатия (`File` и `FileGroup`):
+ *    - Перелистывание только в пределах своего альбома/группы `FileGroup` (без выхода на другие сообщения)
+ *    - Внизу лента миниатюр своей группы (2 фото -> 2 миниатюры, 10 фото -> 10 миниатюр)
+ *    - Без верхнего счётчика («X из Y»)
+ * 3) Зум двумя пальцами (Pinch-to-Zoom 1x..4x) + двойной тап (1x <-> 2.5x)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -127,77 +146,169 @@ internal fun ChatMediaFullscreenViewer(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    val mediaUris: List<String> = remember(message, overrideSingleUri) {
-        if (!overrideSingleUri.isNullOrBlank()) {
-            listOf(overrideSingleUri)
+    val isUncompressedMode = remember(message.id, message.attachment, overrideSingleUri) {
+        !overrideSingleUri.isNullOrBlank() ||
+            message.attachment is MessageAttachment.File ||
+            message.attachment is MessageAttachment.FileGroup
+    }
+
+    val viewerEntries: List<ViewerMediaEntry> = remember(
+        allChatMessages,
+        message,
+        overrideSingleUri,
+        isUncompressedMode
+    ) {
+        if (isUncompressedMode) {
+            // Режим файлов без сжатия: листаем ТОЛЬКО в пределах своей группы/альбома (FileGroup / File)
+            val currentMsg = allChatMessages.firstOrNull { it.id == message.id } ?: message
+            when (val att = currentMsg.attachment) {
+                is MessageAttachment.FileGroup -> {
+                    val imagePairs = att.items.mapIndexedNotNull { fileIdx, fileItem ->
+                        if (isUncompressedImageFile(fileItem)) {
+                            fileIdx to fileItem.uri!!
+                        } else {
+                            null
+                        }
+                    }
+                    val allGroupUris = imagePairs.map { it.second }
+                    imagePairs.mapIndexed { posInGroup, (fileIdx, uriStr) ->
+                        ViewerMediaEntry(
+                            message = currentMsg,
+                            uri = uriStr,
+                            isVideo = false,
+                            itemIndexInMessage = fileIdx,
+                            albumPositionInGroup = posInGroup,
+                            albumUrisInMessage = allGroupUris
+                        )
+                    }
+                }
+                is MessageAttachment.File -> {
+                    val u = overrideSingleUri ?: att.uri
+                    if (!u.isNullOrBlank()) {
+                        listOf(
+                            ViewerMediaEntry(
+                                message = currentMsg,
+                                uri = u,
+                                isVideo = false,
+                                itemIndexInMessage = 0,
+                                albumPositionInGroup = 0,
+                                albumUrisInMessage = listOf(u)
+                            )
+                        )
+                    } else {
+                        emptyList()
+                    }
+                }
+                else -> {
+                    if (!overrideSingleUri.isNullOrBlank()) {
+                        listOf(
+                            ViewerMediaEntry(
+                                message = currentMsg,
+                                uri = overrideSingleUri,
+                                isVideo = false,
+                                itemIndexInMessage = 0,
+                                albumPositionInGroup = 0,
+                                albumUrisInMessage = listOf(overrideSingleUri)
+                            )
+                        )
+                    } else {
+                        emptyList()
+                    }
+                }
+            }
         } else {
-            when (val att = message.attachment) {
-                is MessageAttachment.MediaAlbum -> att.items.map { it.uri }
-                is MessageAttachment.Photo -> listOfNotNull(att.uri)
-                is MessageAttachment.File -> listOfNotNull(att.uri)
-                is MessageAttachment.FileGroup -> att.items.mapNotNull { it.uri }
-                else -> emptyList()
+            // Режим сжатых фото и видео: сквозная лента по всему чату (обходит текстовые и прочие сообщения)
+            val sourceMessages = if (allChatMessages.any { it.id == message.id }) {
+                allChatMessages
+            } else {
+                allChatMessages + message
+            }
+            buildList {
+                for (msg in sourceMessages) {
+                    when (val att = msg.attachment) {
+                        is MessageAttachment.Photo -> {
+                            val u = att.uri
+                            if (!u.isNullOrBlank()) {
+                                add(
+                                    ViewerMediaEntry(
+                                        message = msg,
+                                        uri = u,
+                                        isVideo = att.isVideo,
+                                        itemIndexInMessage = 0,
+                                        albumPositionInGroup = 0,
+                                        albumUrisInMessage = listOf(u)
+                                    )
+                                )
+                            }
+                        }
+                        is MessageAttachment.MediaAlbum -> {
+                            val albumUris = att.items.map { it.uri }
+                            att.items.forEachIndexed { idx, item ->
+                                add(
+                                    ViewerMediaEntry(
+                                        message = msg,
+                                        uri = item.uri,
+                                        isVideo = item.isVideo,
+                                        itemIndexInMessage = idx,
+                                        albumPositionInGroup = idx,
+                                        albumUrisInMessage = albumUris
+                                    )
+                                )
+                            }
+                        }
+                        else -> Unit
+                    }
+                }
             }
         }
     }
 
-    if (mediaUris.isEmpty()) {
+    if (viewerEntries.isEmpty()) {
         LaunchedEffect(Unit) { onClose() }
         return
     }
 
-    val safeInitial = initialPhotoIndex.coerceIn(0, (mediaUris.size - 1).coerceAtLeast(0))
-    val pagerState = rememberPagerState(initialPage = safeInitial, pageCount = { mediaUris.size })
+    val initialPageIndex = remember(message.id, initialPhotoIndex, overrideSingleUri) {
+        val byIndex = viewerEntries.indexOfFirst { entry ->
+            entry.message.id == message.id && entry.itemIndexInMessage == initialPhotoIndex
+        }
+        if (byIndex >= 0) {
+            byIndex
+        } else if (!overrideSingleUri.isNullOrBlank()) {
+            val byUri = viewerEntries.indexOfFirst { it.uri == overrideSingleUri }
+            if (byUri >= 0) byUri else 0
+        } else {
+            val byMsg = viewerEntries.indexOfFirst { it.message.id == message.id }
+            if (byMsg >= 0) byMsg else 0
+        }
+    }
+
+    val pagerState = rememberPagerState(
+        initialPage = initialPageIndex.coerceIn(0, (viewerEntries.size - 1).coerceAtLeast(0)),
+        pageCount = { viewerEntries.size }
+    )
     val thumbListState = rememberLazyListState()
 
     var showControls by remember { mutableStateOf(true) }
     var isMenuOpen by remember { mutableStateOf(false) }
     var activePageScale by remember { mutableFloatStateOf(1f) }
 
-    // Вычисляем глобальный список всех сжатых фото/видео в чате для счётчика «X из Y»
-    val globalCompressedMedia = remember(allChatMessages, message) {
-        val sourceList = if (allChatMessages.isNotEmpty()) allChatMessages else listOf(message)
-        buildList {
-            for (msg in sourceList) {
-                when (val att = msg.attachment) {
-                    is MessageAttachment.Photo -> {
-                        if (!att.uri.isNullOrBlank()) {
-                            add(CompressedChatMediaRef(msg.id, 0))
-                        }
-                    }
-                    is MessageAttachment.MediaAlbum -> {
-                        for (idx in att.items.indices) {
-                            add(CompressedChatMediaRef(msg.id, idx))
-                        }
-                    }
-                    else -> Unit // Файлы без сжатия сюда НЕ входят
-                }
-            }
-        }
-    }
+    val safeCurrentPage = pagerState.currentPage.coerceIn(0, (viewerEntries.size - 1).coerceAtLeast(0))
+    val currentEntry = viewerEntries[safeCurrentPage]
+    val activeMessage = currentEntry.message
+    val activeAlbumUris = currentEntry.albumUrisInMessage
+    val activePosInAlbum = currentEntry.albumPositionInGroup
 
-    val isCompressedMediaMessage = remember(message, overrideSingleUri) {
-        overrideSingleUri == null && (
-            message.attachment is MessageAttachment.Photo ||
-                message.attachment is MessageAttachment.MediaAlbum
-            )
-    }
-
+    // Общий счётчик «45 из 100» показывается ТОЛЬКО для сжатых медиа (у файлов без сжатия счётчика нет)
     val globalMediaCounterText: String? = remember(
-        globalCompressedMedia,
-        message.id,
-        pagerState.currentPage,
-        isCompressedMediaMessage
+        isUncompressedMode,
+        viewerEntries.size,
+        safeCurrentPage
     ) {
-        if (!isCompressedMediaMessage || globalCompressedMedia.isEmpty()) {
+        if (isUncompressedMode || viewerEntries.isEmpty()) {
             null
         } else {
-            val foundIdx = globalCompressedMedia.indexOfFirst {
-                it.messageId == message.id && it.itemIndex == pagerState.currentPage
-            }
-            val oneBased = if (foundIdx >= 0) foundIdx + 1 else (pagerState.currentPage + 1)
-            val total = globalCompressedMedia.size.coerceAtLeast(oneBased)
-            "$oneBased из $total"
+            "${safeCurrentPage + 1} из ${viewerEntries.size}"
         }
     }
 
@@ -209,18 +320,20 @@ internal fun ChatMediaFullscreenViewer(
         }
     }
 
-    LaunchedEffect(pagerState.currentPage) {
+    LaunchedEffect(safeCurrentPage, activeMessage.id, activePosInAlbum) {
         activePageScale = 1f
-        if (mediaUris.size > 1) {
+        if (activeAlbumUris.size > 1) {
             runCatching {
-                thumbListState.animateScrollToItem(pagerState.currentPage)
+                thumbListState.animateScrollToItem(
+                    activePosInAlbum.coerceIn(0, activeAlbumUris.lastIndex)
+                )
             }
         }
     }
 
-    val senderTitle = peerName
-    val dateSubTitle = remember(message.epochMs) { formatPhotoViewerSubtitleDate(message.epochMs) }
-    val currentUriString = mediaUris.getOrNull(pagerState.currentPage) ?: mediaUris.first()
+    val senderTitle = if (activeMessage.direction == MessageDirection.INCOMING) peerName else peerName
+    val dateSubTitle = remember(activeMessage.epochMs) { formatPhotoViewerSubtitleDate(activeMessage.epochMs) }
+    val currentUriString = currentEntry.uri
 
     Box(
         modifier = modifier
@@ -234,7 +347,8 @@ internal fun ChatMediaFullscreenViewer(
             userScrollEnabled = activePageScale <= 1.02f,
             modifier = Modifier.fillMaxSize()
         ) { page ->
-            val uriStr = mediaUris[page]
+            val entry = viewerEntries.getOrNull(page) ?: return@HorizontalPager
+            val uriStr = entry.uri
             val parsedUri = remember(uriStr) { runCatching { Uri.parse(uriStr) }.getOrNull() }
             var bitmap by remember(uriStr) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -329,7 +443,7 @@ internal fun ChatMediaFullscreenViewer(
             }
         }
 
-        // 2. Полупрозрачная сплошная верхняя шапка + сразу под ней по центру общий счётчик медиа «45 из 100»
+        // 2. Полупрозрачная сплошная верхняя шапка + сразу под ней по центру общий счётчик сжатых медиа «45 из 100»
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn(tween(180)),
@@ -353,229 +467,229 @@ internal fun ChatMediaFullscreenViewer(
                             .padding(horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                    // Кнопка Назад (слева)
-                    IconButton(onClick = onClose) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    // Имя и снизу дата/время («сегодня в 19:34» / день недели / дата)
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            text = senderTitle,
-                            color = Color.White,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = dateSubTitle,
-                            color = Color.White.copy(alpha = 0.75f),
-                            fontSize = 12.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // Кнопка кисточки (пока просто оставляем иконку)
-                    IconButton(onClick = { /* будет реализовано позже */ }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Brush,
-                            contentDescription = "Редактировать",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // Кнопка поделиться в шапке (пока просто оставляем иконку)
-                    IconButton(onClick = { /* будет реализовано позже */ }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Share,
-                            contentDescription = "Поделиться",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // Кнопка «⋮» (три точки) с чёрным скруглённым меню
-                    Box {
-                        IconButton(onClick = { isMenuOpen = true }) {
+                        // Кнопка Назад (слева)
+                        IconButton(onClick = onClose) {
                             Icon(
-                                imageVector = Icons.Outlined.MoreVert,
-                                contentDescription = "Меню",
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Назад",
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
 
-                        DropdownMenu(
-                            expanded = isMenuOpen,
-                            onDismissRequest = { isMenuOpen = false },
-                            modifier = Modifier
-                                .width(235.dp)
-                                .background(Color(0xFF101014), RoundedCornerShape(18.dp))
-                                .border(0.5.dp, Color(0x28FFFFFF), RoundedCornerShape(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        // Имя и снизу дата/время («сегодня в 19:34» / день недели / дата)
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            // 1. Сохранить в галерею
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Сохранить в галерею",
-                                        color = Color.White,
-                                        fontSize = 15.sp
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Download,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    isMenuOpen = false
-                                    scope.launch {
-                                        val ok = savePhotoToDeviceGallery(context, currentUriString)
-                                        Toast.makeText(
-                                            context,
-                                            if (ok) "Сохранено в галерею" else "Не удалось сохранить фото",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
+                            Text(
+                                text = senderTitle,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = dateSubTitle,
+                                color = Color.White.copy(alpha = 0.75f),
+                                fontSize = 12.5.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        // Кнопка кисточки (оставлена иконкой)
+                        IconButton(onClick = { /* будет реализовано позже */ }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Brush,
+                                contentDescription = "Редактировать",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // Кнопка поделиться в шапке (оставлена иконкой)
+                        IconButton(onClick = { /* будет реализовано позже */ }) {
+                            Icon(
+                                imageVector = Icons.Outlined.Share,
+                                contentDescription = "Поделиться",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // Кнопка «⋮» (три точки) с чёрным скруглённым меню
+                        Box {
+                            IconButton(onClick = { isMenuOpen = true }) {
+                                Icon(
+                                    imageVector = Icons.Outlined.MoreVert,
+                                    contentDescription = "Меню",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+
+                            DropdownMenu(
+                                expanded = isMenuOpen,
+                                onDismissRequest = { isMenuOpen = false },
+                                modifier = Modifier
+                                    .width(235.dp)
+                                    .background(Color(0xFF101014), RoundedCornerShape(18.dp))
+                                    .border(0.5.dp, Color(0x28FFFFFF), RoundedCornerShape(18.dp))
+                            ) {
+                                // 1. Сохранить в галерею
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Сохранить в галерею",
+                                            color = Color.White,
+                                            fontSize = 15.sp
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Download,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        isMenuOpen = false
+                                        scope.launch {
+                                            val ok = savePhotoToDeviceGallery(context, currentUriString)
+                                            Toast.makeText(
+                                                context,
+                                                if (ok) "Сохранено в галерею" else "Не удалось сохранить фото",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
                                     }
-                                }
-                            )
+                                )
 
-                            // 2. Показать в чате
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Показать в чате",
-                                        color = Color.White,
-                                        fontSize = 15.sp
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Visibility,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    isMenuOpen = false
-                                    onShowInChat(message)
-                                }
-                            )
+                                // 2. Показать в чате
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Показать в чате",
+                                            color = Color.White,
+                                            fontSize = 15.sp
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Visibility,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        isMenuOpen = false
+                                        onShowInChat(activeMessage)
+                                    }
+                                )
 
-                            // 3. Ответить
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Ответить",
-                                        color = Color.White,
-                                        fontSize = 15.sp
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Reply,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    isMenuOpen = false
-                                    onReply(message)
-                                }
-                            )
+                                // 3. Ответить
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Ответить",
+                                            color = Color.White,
+                                            fontSize = 15.sp
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Reply,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        isMenuOpen = false
+                                        onReply(activeMessage)
+                                    }
+                                )
 
-                            // 4. Поделиться (системное меню Android)
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Поделиться",
-                                        color = Color.White,
-                                        fontSize = 15.sp
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Share,
-                                        contentDescription = null,
-                                        tint = Color.White,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    isMenuOpen = false
-                                    sharePhotoSystemChooser(context, currentUriString)
-                                }
-                            )
+                                // 4. Поделиться (системное меню Android)
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Поделиться",
+                                            color = Color.White,
+                                            fontSize = 15.sp
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Share,
+                                            contentDescription = null,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        isMenuOpen = false
+                                        sharePhotoSystemChooser(context, currentUriString)
+                                    }
+                                )
 
-                            // 5. Удалить (с подтверждением у меня или у всех)
-                            DropdownMenuItem(
-                                text = {
-                                    Text(
-                                        text = "Удалить",
-                                        color = Color(0xFFFF5252),
-                                        fontSize = 15.sp
-                                    )
-                                },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Delete,
-                                        contentDescription = null,
-                                        tint = Color(0xFFFF5252),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    isMenuOpen = false
-                                    onRequestDelete(message, pagerState.currentPage)
-                                }
-                            )
+                                // 5. Удалить (с подтверждением у меня или у всех)
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = "Удалить",
+                                            color = Color(0xFFFF5252),
+                                            fontSize = 15.sp
+                                        )
+                                    },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Delete,
+                                            contentDescription = null,
+                                            tint = Color(0xFFFF5252),
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    },
+                                    onClick = {
+                                        isMenuOpen = false
+                                        onRequestDelete(activeMessage, currentEntry.itemIndexInMessage)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
-            }
 
-            // Общий счётчик сжатых медиа («45 из 100») по центру чуть ниже шапки, скрывается по тапу и при зуме
-            if (globalMediaCounterText != null && activePageScale <= 1.02f) {
-                Box(
-                    modifier = Modifier
-                        .padding(top = 6.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.Black.copy(alpha = 0.62f))
-                        .padding(horizontal = 12.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = globalMediaCounterText,
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                // Общий счётчик сжатых медиа («45 из 100») по центру чуть ниже шапки (только для сжатых фото/видео)
+                if (globalMediaCounterText != null && activePageScale <= 1.02f) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 6.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.Black.copy(alpha = 0.62f))
+                            .padding(horizontal = 12.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = globalMediaCounterText,
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }
-        }
 
-        // 3. Нижняя панель с подписью (если есть) и лентой миниатюр для альбома (как в Telegram)
+        // 3. Нижняя панель с подписью (если есть) и лентой миниатюр для текущего альбома или группы фото без сжатия (2..10 шт.)
         AnimatedVisibility(
-            visible = showControls && (mediaUris.size > 1 || message.text.isNotBlank()),
+            visible = showControls && (activeAlbumUris.size > 1 || activeMessage.text.isNotBlank()),
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(180)),
             modifier = Modifier.align(Alignment.BottomCenter)
@@ -588,9 +702,9 @@ internal fun ChatMediaFullscreenViewer(
                     .padding(top = 8.dp, bottom = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (message.text.isNotBlank()) {
+                if (activeMessage.text.isNotBlank()) {
                     Text(
-                        text = message.text,
+                        text = activeMessage.text,
                         color = Color.White,
                         fontSize = 14.5.sp,
                         lineHeight = 19.sp,
@@ -600,7 +714,7 @@ internal fun ChatMediaFullscreenViewer(
                     )
                 }
 
-                if (mediaUris.size > 1) {
+                if (activeAlbumUris.size > 1) {
                     LazyRow(
                         state = thumbListState,
                         contentPadding = PaddingValues(horizontal = 16.dp),
@@ -610,8 +724,8 @@ internal fun ChatMediaFullscreenViewer(
                             .fillMaxWidth()
                             .height(58.dp)
                     ) {
-                        itemsIndexed(mediaUris) { index, uriStr ->
-                            val isSelected = (index == pagerState.currentPage)
+                        itemsIndexed(activeAlbumUris) { thumbIdx, uriStr ->
+                            val isSelected = (thumbIdx == activePosInAlbum)
                             val thumbWidth by animateDpAsState(
                                 targetValue = if (isSelected) 48.dp else 36.dp,
                                 animationSpec = tween(200),
@@ -627,8 +741,14 @@ internal fun ChatMediaFullscreenViewer(
                                 uriString = uriStr,
                                 isSelected = isSelected,
                                 onClick = {
-                                    scope.launch {
-                                        pagerState.animateScrollToPage(index)
+                                    val targetGlobalPage = viewerEntries.indexOfFirst { entry ->
+                                        entry.message.id == activeMessage.id &&
+                                            entry.albumPositionInGroup == thumbIdx
+                                    }
+                                    if (targetGlobalPage >= 0) {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage(targetGlobalPage)
+                                        }
                                     }
                                 },
                                 modifier = Modifier.size(width = thumbWidth, height = thumbHeight)

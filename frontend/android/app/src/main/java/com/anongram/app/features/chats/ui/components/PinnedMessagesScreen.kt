@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.ui.draw.shadow
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.FlameOrange
+import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.IslandBackground
