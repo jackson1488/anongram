@@ -741,7 +741,7 @@ fun ChatScreen(
         viewingMediaMessage?.let { mediaMessage ->
             ChatMediaFullscreenViewer(
                 message = mediaMessage,
-                initialIndex = viewingMediaInitialIndex,
+                initialPhotoIndex = viewingMediaInitialIndex,
                 peerName = session.title,
                 onClose = {
                     closeMediaViewerAndRestoreKeyboard()
