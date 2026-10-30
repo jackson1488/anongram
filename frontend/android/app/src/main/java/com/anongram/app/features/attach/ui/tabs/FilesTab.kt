@@ -129,6 +129,7 @@ fun FilesTab(
     isFullscreen: Boolean = false,
     onBack: () -> Unit = {},
     onSelectFiles: (List<AttachmentDraft.File>) -> Unit = { list -> list.forEach(onSelectFile) },
+    onOpenUncompressedGallery: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -479,8 +480,12 @@ fun FilesTab(
                         icon = Icons.Outlined.PhotoLibrary,
                         iconBackground = Color(0xFFF59E0B),
                         onClick = {
-                            onExpandToFullscreen()
-                            isGallerySubScreenOpen = true
+                            if (onOpenUncompressedGallery != null) {
+                                onOpenUncompressedGallery()
+                            } else {
+                                onExpandToFullscreen()
+                                isGallerySubScreenOpen = true
+                            }
                         }
                     )
                 }
@@ -823,7 +828,7 @@ private fun getFileMetadata(context: Context, uri: Uri): Metadata {
 }
 
 @Composable
-private fun FilesGallerySubScreen(
+fun FilesGallerySubScreen(
     isFullscreen: Boolean,
     onBack: () -> Unit,
     onSelectMediaAsFile: (GalleryMedia) -> Unit,
@@ -863,7 +868,15 @@ private fun FilesGallerySubScreen(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(AttachSheetBackground)
+            .clickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null
+            ) { /* отдельный экран, не пробрасывает жесты на шторку */ }
+    ) {
         val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
         if (isLoadingMedia) {

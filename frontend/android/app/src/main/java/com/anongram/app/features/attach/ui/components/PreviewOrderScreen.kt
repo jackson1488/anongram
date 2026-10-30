@@ -470,6 +470,7 @@ fun PreviewOrderScreen(
                                     orderNumber = startOrderNumber,
                                     globalIndex = startGlobalIndex,
                                     onPhotoClick = { viewingPhotoUri = it },
+                                    isAnyDragging = draggingChunkIdx == chunkIdx,
                                     onDragStateChange = { dragging -> draggingChunkIdx = if (dragging) chunkIdx else -1 },
                                     onSwap = { fromIdx, offset, itemsInRow ->
                                         val delta = computeSwapDelta(offset, itemsInRow)
@@ -654,8 +655,9 @@ fun PreviewOrderScreen(
 
 /**
  * Разбивка альбома из N элементов на строки (соответствует Telegram-коллажу):
- * Для 13 элементов -> [3, 4, 3, 3] (скриншот 1)
- * Для 10 элементов -> [3, 4, 3] (скриншот 2)
+ * Для 10 элементов -> [3, 4, 3]
+ * Для 9 элементов -> [3, 3, 3]
+ * Для 6 элементов -> [3, 3]
  */
 fun calculateAlbumRows(count: Int): List<Int> {
     return when (count) {
@@ -669,16 +671,6 @@ fun calculateAlbumRows(count: Int): List<Int> {
         8 -> listOf(4, 4)
         9 -> listOf(3, 3, 3)
         10 -> listOf(3, 4, 3)
-        11 -> listOf(4, 3, 4)
-        12 -> listOf(3, 3, 3, 3)
-        13 -> listOf(3, 4, 3, 3)
-        14 -> listOf(4, 3, 3, 4)
-        15 -> listOf(4, 4, 4, 3)
-        16 -> listOf(4, 4, 4, 4)
-        17 -> listOf(4, 4, 3, 3, 3)
-        18 -> listOf(4, 4, 4, 3, 3)
-        19 -> listOf(4, 4, 4, 4, 3)
-        20 -> listOf(4, 4, 4, 4, 4)
         else -> {
             val rows = mutableListOf<Int>()
             var rem = count
@@ -694,11 +686,11 @@ fun calculateAlbumRows(count: Int): List<Int> {
 
 fun getRowHeightDp(itemCountInRow: Int): Dp {
     return when (itemCountInRow) {
-        1 -> 280.dp
-        2 -> 210.dp
-        3 -> 185.dp
-        4 -> 125.dp
-        else -> 100.dp
+        1 -> 375.dp
+        2 -> 240.dp
+        3 -> 205.dp
+        4 -> 130.dp
+        else -> 110.dp
     }
 }
 
@@ -714,7 +706,8 @@ fun computeSwapDelta(offset: Offset, itemsInRow: Int): Int {
 }
 
 /**
- * Единый баббл альбома сообщений (до 20 фото), с фиолетовой рамкой и разделителями
+ * Единый баббл альбома сообщений (до 10 фото в чанке), с фиолетовой рамкой и разделителями.
+ * Для 2, 3 и 4 фото используются фирменные вертикальные раскладки Telegram.
  */
 @Composable
 private fun AlbumBubble(
@@ -727,72 +720,238 @@ private fun AlbumBubble(
     onDragStateChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val rowCounts = remember(mediaItems.size) { calculateAlbumRows(mediaItems.size) }
     val bubbleShape = RoundedCornerShape(16.dp)
+    val count = mediaItems.size
+
+    // Для 2, 3, 4 фото уменьшаем ширину баббла по центру (~3 см на колонку, т.е. ~88% ширины), чтобы фото были вертикальными 3×6 см
+    val bubbleWidthFraction = if (count in 2..4) 0.90f else 1f
 
     Box(
-        modifier = modifier
-            .then(if (isAnyDragging) Modifier else Modifier.clip(bubbleShape))
-            .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
-            .background(Color(0xFF131317))
+        modifier = modifier,
+        contentAlignment = Alignment.TopCenter
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            var itemPointer = 0
-            rowCounts.forEachIndexed { rowIndex, countInRow ->
-                if (rowIndex > 0) {
-                    Box(
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(bubbleWidthFraction)
+                .then(if (isAnyDragging) Modifier else Modifier.clip(bubbleShape))
+                .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
+                .background(Color(0xFF131317))
+        ) {
+            when (count) {
+                2 -> {
+                    // 2 фото: рядом друг с другом с разделительной полосой, каждое ~3 см по горизонтали и ~6 см по вертикали (соотношение 1:2)
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(1.5.dp)
-                            .background(Color(0xFFC084FC))
-                    )
+                            .height(370.dp)
+                    ) {
+                        PreviewCollageItem(
+                            media = mediaItems[0],
+                            orderNumber = startOrderNumber,
+                            globalIndex = startGlobalIndex,
+                            onPhotoClick = onPhotoClick,
+                            onDragStateChange = onDragStateChange,
+                            onDragSwap = { offset -> onSwap(startGlobalIndex, offset, 2) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(1.5.dp)
+                                .fillMaxHeight()
+                                .background(Color(0xFFC084FC))
+                        )
+                        PreviewCollageItem(
+                            media = mediaItems[1],
+                            orderNumber = startOrderNumber + 1,
+                            globalIndex = startGlobalIndex + 1,
+                            onPhotoClick = onPhotoClick,
+                            onDragStateChange = onDragStateChange,
+                            onDragSwap = { offset -> onSwap(startGlobalIndex + 1, offset, 2) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
                 }
-
-                val rowHeight = getRowHeightDp(countInRow)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(rowHeight)
-                ) {
-                    for (c in 0 until countInRow) {
-                        val currentItemIdx = itemPointer + c
-                        if (currentItemIdx < mediaItems.size) {
-                            if (c > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(1.5.dp)
-                                        .fillMaxHeight()
-                                        .background(Color(0xFFC084FC))
-                                )
-                            }
-                            val media = mediaItems[currentItemIdx]
-                            val globalIdx = startGlobalIndex + currentItemIdx
-                            val orderNum = startOrderNumber + currentItemIdx
-
+                3 -> {
+                    // 3 фото: первое фото слева большое (3 см × 6 см), а 2-е и 3-е справа друг над другом (вместе 6 см в высоту)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(370.dp)
+                    ) {
+                        PreviewCollageItem(
+                            media = mediaItems[0],
+                            orderNumber = startOrderNumber,
+                            globalIndex = startGlobalIndex,
+                            onPhotoClick = onPhotoClick,
+                            onDragStateChange = onDragStateChange,
+                            onDragSwap = { offset -> onSwap(startGlobalIndex, offset, 2) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(1.5.dp)
+                                .fillMaxHeight()
+                                .background(Color(0xFFC084FC))
+                        )
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        ) {
                             PreviewCollageItem(
-                                media = media,
-                                orderNumber = orderNum,
-                                globalIndex = globalIdx,
+                                media = mediaItems[1],
+                                orderNumber = startOrderNumber + 1,
+                                globalIndex = startGlobalIndex + 1,
                                 onPhotoClick = onPhotoClick,
                                 onDragStateChange = onDragStateChange,
-                                onDragSwap = { offset ->
-                                    onSwap(globalIdx, offset, countInRow)
-                                },
+                                onDragSwap = { offset -> onSwap(startGlobalIndex + 1, offset, 1) },
                                 modifier = Modifier
                                     .weight(1f)
-                                    .fillMaxHeight()
+                                    .fillMaxWidth()
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.5.dp)
+                                    .background(Color(0xFFC084FC))
+                            )
+                            PreviewCollageItem(
+                                media = mediaItems[2],
+                                orderNumber = startOrderNumber + 2,
+                                globalIndex = startGlobalIndex + 2,
+                                onPhotoClick = onPhotoClick,
+                                onDragStateChange = onDragStateChange,
+                                onDragSwap = { offset -> onSwap(startGlobalIndex + 2, offset, 1) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
                             )
                         }
                     }
                 }
-                itemPointer += countInRow
+                4 -> {
+                    // 4 фото (группировка Telegram): 1 большое вертикальное фото слева + 3 фото столбиком справа
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(380.dp)
+                    ) {
+                        PreviewCollageItem(
+                            media = mediaItems[0],
+                            orderNumber = startOrderNumber,
+                            globalIndex = startGlobalIndex,
+                            onPhotoClick = onPhotoClick,
+                            onDragStateChange = onDragStateChange,
+                            onDragSwap = { offset -> onSwap(startGlobalIndex, offset, 2) },
+                            modifier = Modifier
+                                .weight(1.1f)
+                                .fillMaxHeight()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .width(1.5.dp)
+                                .fillMaxHeight()
+                                .background(Color(0xFFC084FC))
+                        )
+                        Column(
+                            modifier = Modifier
+                                .weight(0.9f)
+                                .fillMaxHeight()
+                        ) {
+                            for (idx in 1..3) {
+                                if (idx > 1) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(1.5.dp)
+                                            .background(Color(0xFFC084FC))
+                                    )
+                                }
+                                PreviewCollageItem(
+                                    media = mediaItems[idx],
+                                    orderNumber = startOrderNumber + idx,
+                                    globalIndex = startGlobalIndex + idx,
+                                    onPhotoClick = onPhotoClick,
+                                    onDragStateChange = onDragStateChange,
+                                    onDragSwap = { offset -> onSwap(startGlobalIndex + idx, offset, 1) },
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    val rowCounts = remember(count) { calculateAlbumRows(count) }
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        var itemPointer = 0
+                        rowCounts.forEachIndexed { rowIndex, countInRow ->
+                            if (rowIndex > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.5.dp)
+                                        .background(Color(0xFFC084FC))
+                                )
+                            }
+
+                            val rowHeight = getRowHeightDp(countInRow)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(rowHeight)
+                            ) {
+                                for (c in 0 until countInRow) {
+                                    val currentItemIdx = itemPointer + c
+                                    if (currentItemIdx < mediaItems.size) {
+                                        if (c > 0) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .width(1.5.dp)
+                                                    .fillMaxHeight()
+                                                    .background(Color(0xFFC084FC))
+                                            )
+                                        }
+                                        val media = mediaItems[currentItemIdx]
+                                        val globalIdx = startGlobalIndex + currentItemIdx
+                                        val orderNum = startOrderNumber + currentItemIdx
+
+                                        PreviewCollageItem(
+                                            media = media,
+                                            orderNumber = orderNum,
+                                            globalIndex = globalIdx,
+                                            onPhotoClick = onPhotoClick,
+                                            onDragStateChange = onDragStateChange,
+                                            onDragSwap = { offset ->
+                                                onSwap(globalIdx, offset, countInRow)
+                                            },
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight()
+                                        )
+                                    }
+                                }
+                            }
+                            itemPointer += countInRow
+                        }
+                    }
+                }
             }
         }
     }
 }
 
 /**
- * Одиночный баббл фото (если осталось 1 фото после разбивки по 20)
+ * Одиночный баббл фото (1 фото выбрано, либо одиночный остаток после разбивки по 10):
+ * Стоит ровно по центру по горизонтали ниже шапки «Предпросмотр»,
+ * вертикальный размер ~4.5 см по горизонтали и ~10 см по вертикали (соотношение ~9:20).
  */
 @Composable
 private fun SinglePhotoBubble(
@@ -801,25 +960,33 @@ private fun SinglePhotoBubble(
     globalIndex: Int,
     onPhotoClick: (Uri) -> Unit,
     onSwap: (Int, Offset, Int) -> Unit,
+    isAnyDragging: Boolean = false,
     onDragStateChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val bubbleShape = RoundedCornerShape(16.dp)
     Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .border(1.5.dp, Color(0xFFC084FC), RoundedCornerShape(16.dp))
-            .background(Color(0xFF131317))
-            .height(280.dp)
+        modifier = modifier,
+        contentAlignment = Alignment.TopCenter
     ) {
-        PreviewCollageItem(
-            media = media,
-            orderNumber = orderNumber,
-            globalIndex = globalIndex,
-            onPhotoClick = onPhotoClick,
-            onDragStateChange = onDragStateChange,
-            onDragSwap = { offset -> onSwap(globalIndex, offset, 1) },
-            modifier = Modifier.fillMaxSize()
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.68f)
+                .height(540.dp)
+                .then(if (isAnyDragging) Modifier else Modifier.clip(bubbleShape))
+                .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
+                .background(Color(0xFF131317))
+        ) {
+            PreviewCollageItem(
+                media = media,
+                orderNumber = orderNumber,
+                globalIndex = globalIndex,
+                onPhotoClick = onPhotoClick,
+                onDragStateChange = onDragStateChange,
+                onDragSwap = { offset -> onSwap(globalIndex, offset, 1) },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
     }
 }
 

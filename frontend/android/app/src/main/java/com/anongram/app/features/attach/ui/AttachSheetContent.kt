@@ -131,6 +131,7 @@ import com.anongram.app.features.attach.ui.tabs.ContactQuickCardSheet
 import com.anongram.app.features.attach.ui.tabs.ContactsTab
 import com.anongram.app.features.attach.ui.tabs.DeviceContact
 import com.anongram.app.features.attach.ui.tabs.DeviceFileItem
+import com.anongram.app.features.attach.ui.tabs.FilesGallerySubScreen
 import com.anongram.app.features.attach.ui.tabs.FilesTab
 import com.anongram.app.features.attach.ui.tabs.GalleryMedia
 import com.anongram.app.features.attach.ui.tabs.GalleryTab
@@ -372,6 +373,9 @@ fun AttachSheetContent(
     var isEditorOpen by remember { mutableStateOf(false) }
     var isFullPlayerOpen by remember { mutableStateOf(false) }
     var isPreviewOrderOpen by remember { mutableStateOf(false) }
+    var isUncompressedGalleryOpen by remember { mutableStateOf(false) }
+    val uncompressedGalleryPicked = remember { mutableStateListOf<GalleryMedia>() }
+    var uncompressedGalleryCaption by remember { mutableStateOf("") }
     var isGalleryOptionsMenuOpen by remember { mutableStateOf(false) }
     var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
     var isMoreMenuOpen by remember { mutableStateOf(false) }
@@ -525,6 +529,8 @@ fun AttachSheetContent(
         selectedFiles.clear()
         selectedTracks.clear()
         selectedContacts.clear()
+        uncompressedGalleryPicked.clear()
+        uncompressedGalleryCaption = ""
         captionText = ""
         isAttachEmojiOpen = false
     }
@@ -540,6 +546,7 @@ fun AttachSheetContent(
     // Обработка кнопки "Назад" (закрывает шторку с любой высоты, либо показывает диалог сброса если есть выбранные)
     BackHandler {
         when {
+            isUncompressedGalleryOpen -> isUncompressedGalleryOpen = false
             isPreviewOrderOpen -> isPreviewOrderOpen = false
             viewingMediaList != null -> viewingMediaList = null
             showDiscardDialog -> showDiscardDialog = false
@@ -639,9 +646,10 @@ fun AttachSheetContent(
                 }
 
                 // В полураскрытом состоянии Галереи: тонкая полоска ручки (18.dp)
-                // При выборе медиа: сверху появляется компактная полоса выбора (36.dp)
+                // При выборе медиа (только когда шторка ниже 95%): сверху появляется компактная полоса выбора (44.dp)
+                val isExpanded95 = offsetPx <= H * 0.05f
                 val isGallery = (selectedTab == AttachTab.GALLERY)
-                val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty())
+                val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty() && !isExpanded95)
                 val handleHeight = if (isGalleryWithSelection) 44.dp else 18.dp
                 Box(
                     modifier = Modifier
@@ -669,7 +677,7 @@ fun AttachSheetContent(
                                 }
                             },
                             onOptionsClick = { isGalleryOptionsMenuOpen = true },
-                            onBack = if (isFull) { { selectedMedia.clear() } } else null,
+                            onBack = null,
                             menuContent = {
                                 GallerySelectionOptionsMenu(
                                     expanded = isGalleryOptionsMenuOpen,
@@ -768,6 +776,9 @@ fun AttachSheetContent(
                                 onSend(drafts)
                                 dismissAnimated()
                             },
+                            onOpenUncompressedGallery = {
+                                isUncompressedGalleryOpen = true
+                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -835,8 +846,8 @@ fun AttachSheetContent(
             }
         }
 
-        // 4. Плавающая шапка для Галереи (только без выбора) и Геопозиции (активна ТОЛЬКО когда шторка развернута наверх)
-        val showTopBar = (selectedTab == AttachTab.LOCATION || (selectedTab == AttachTab.GALLERY && selectedMedia.isEmpty())) && (offsetPx <= H * 0.12f)
+        // 4. Плавающая шапка для Галереи и Геопозиции (на 95%+ всегда показывает «Галерея ▾» и навигацию, никогда не «Выбрано»)
+        val showTopBar = (selectedTab == AttachTab.LOCATION || selectedTab == AttachTab.GALLERY) && (offsetPx <= H * 0.05f)
         if (showTopBar) {
             AttachTopBar(
                 title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum) else selectedTab.title,
@@ -935,64 +946,28 @@ fun AttachSheetContent(
                 } else null,
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
-                        if (selectedMedia.isNotEmpty()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable {
-                                        isPreviewOrderOpen = true
-                                    }
-                                    .padding(horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = getGallerySelectionTitle(selectedMedia),
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color(0xFFC084FC)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                        contentDescription = "Предпросмотр",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
-                        } else {
-                            val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                    .padding(horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = displayAlbumTitle,
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = "Альбомы",
-                                    tint = AttachPurple,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
+                        Row(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
+                                .padding(horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = displayAlbumTitle,
+                                color = Color.White,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Альбомы",
+                                tint = AttachPurple,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 } else null,
@@ -1002,7 +977,7 @@ fun AttachSheetContent(
                     .safeStatusBarPadding()
                     .zIndex(10f)
                     .graphicsLayer {
-                        val p = ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                        val p = ((H * 0.05f - offsetPx) / (H * 0.05f)).coerceIn(0f, 1f)
                         alpha = p
                         translationY = -8.dp.toPx() * (1f - p)
                     }
@@ -1126,6 +1101,65 @@ fun AttachSheetContent(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(100f)
+            )
+        }
+
+        // Отдельный полноэкранный раздел «Галерея без сжатия» (Файлы -> Галерея) — не шторка, шапка строго на уровне остальных
+        AnimatedVisibility(
+            visible = isUncompressedGalleryOpen,
+            enter = slideInHorizontally(
+                initialOffsetX = { fullWidth -> fullWidth },
+                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
+            ) + fadeIn(animationSpec = tween(260)),
+            exit = slideOutHorizontally(
+                targetOffsetX = { fullWidth -> fullWidth },
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+            ) + fadeOut(animationSpec = tween(220)),
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(115f)
+        ) {
+            FilesGallerySubScreen(
+                isFullscreen = true,
+                onBack = { isUncompressedGalleryOpen = false },
+                onSelectMediaAsFile = { media ->
+                    val meta = getFileMetadataHelper(context, media.uri)
+                    onSend(
+                        listOf(
+                            AttachmentDraft.File(
+                                uri = media.uri,
+                                name = meta.name,
+                                size = meta.size
+                            )
+                        )
+                    )
+                    isUncompressedGalleryOpen = false
+                    dismissAnimated()
+                },
+                selectedMedia = uncompressedGalleryPicked,
+                onToggleMedia = { media ->
+                    val idx = uncompressedGalleryPicked.indexOfFirst { it.uri == media.uri }
+                    if (idx >= 0) uncompressedGalleryPicked.removeAt(idx) else uncompressedGalleryPicked.add(media)
+                },
+                caption = uncompressedGalleryCaption,
+                onCaptionChange = { uncompressedGalleryCaption = it },
+                onSendSelected = {
+                    val drafts = uncompressedGalleryPicked.mapIndexed { i, m ->
+                        val meta = getFileMetadataHelper(context, m.uri)
+                        AttachmentDraft.File(
+                            uri = m.uri,
+                            name = meta.name,
+                            size = meta.size,
+                            caption = if (i == 0) uncompressedGalleryCaption else ""
+                        )
+                    }
+                    uncompressedGalleryPicked.clear()
+                    uncompressedGalleryCaption = ""
+                    isUncompressedGalleryOpen = false
+                    onSend(drafts)
+                    dismissAnimated()
+                },
+                modifier = Modifier.fillMaxSize()
             )
         }
 
