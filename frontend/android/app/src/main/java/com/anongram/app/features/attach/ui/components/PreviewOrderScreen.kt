@@ -184,11 +184,11 @@ fun PreviewOrderScreen(
                 }
 
                 override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                    if (previewOffsetPx > halfOffset + 80f || available.y > 2500f) {
+                    if (previewOffsetPx > halfOffset + 80f || (previewOffsetPx > halfOffset && available.y > 2000f)) {
                         showDiscardConfirmDialog = true
-                    } else if (available.y < -2500f) {
-                        previewOffsetPx = 0f
-                        onOffsetChange(0f)
+                    } else if (previewOffsetPx > halfOffset) {
+                        previewOffsetPx = halfOffset
+                        onOffsetChange(halfOffset)
                     } else {
                         previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
                         onOffsetChange(previewOffsetPx)
@@ -261,11 +261,8 @@ fun PreviewOrderScreen(
                                     onOffsetChange(previewOffsetPx)
                                 },
                                 onDragStopped = { velocity ->
-                                    if (velocity > 2500f || previewOffsetPx > halfOffset + 80f) {
+                                    if (previewOffsetPx > halfOffset + 80f || (previewOffsetPx > halfOffset && velocity > 2000f)) {
                                         showDiscardConfirmDialog = true
-                                    } else if (velocity < -2500f) {
-                                        previewOffsetPx = 0f
-                                        onOffsetChange(0f)
                                     } else {
                                         previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
                                         onOffsetChange(previewOffsetPx)
@@ -295,11 +292,8 @@ fun PreviewOrderScreen(
                                     onOffsetChange(previewOffsetPx)
                                 },
                                 onDragStopped = { velocity ->
-                                    if (velocity > 2500f || previewOffsetPx > halfOffset + 80f) {
+                                    if (previewOffsetPx > halfOffset + 80f || (previewOffsetPx > halfOffset && velocity > 2000f)) {
                                         showDiscardConfirmDialog = true
-                                    } else if (velocity < -2500f) {
-                                        previewOffsetPx = 0f
-                                        onOffsetChange(0f)
                                     } else {
                                         previewOffsetPx = previewOffsetPx.coerceIn(0f, halfOffset)
                                         onOffsetChange(previewOffsetPx)

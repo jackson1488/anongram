@@ -242,43 +242,23 @@ fun AttachSheetContent(
 
         fun release(velocityY: Float) {
             anim?.cancel()
-            // Резкий сильный свайп вверх: доводим до 100%
-            if (velocityY < -2500f && offsetPx > 0f) {
-                animateTo(0f, ms = 240, isFling = true)
-                return
-            }
-            // Резкий сильный свайп вниз
-            if (velocityY > 2500f) {
-                if (totalSelectedCount > 0) {
-                    if (offsetPx >= halfOffset - 20f) {
-                        showDiscardDialog = true
-                        animateTo(halfOffset, ms = 200, isFling = true)
-                    } else {
-                        animateTo(halfOffset, ms = 200, isFling = true)
-                    }
-                } else {
-                    if (offsetPx < halfOffset - 20f) {
-                        animateTo(halfOffset, ms = 200, isFling = true)
-                    } else {
-                        close()
-                    }
-                }
+            // Плавное отпускание и скролл (плавучая шторка от 50% до 100%):
+            // В диапазоне от 50% до 100% (0..halfOffset) шторка фиксируется ровно там, где остановился палец (хоть 56%, хоть 80%).
+            if (offsetPx <= halfOffset) {
+                offsetPx = offsetPx.coerceIn(0f, halfOffset)
                 return
             }
 
-            // Плавное отпускание (плавучая шторка!):
-            // Шторка свободно фиксируется ровно на той высоте, где её отпустил палец (от 0 до halfOffset)
-            if (offsetPx <= halfOffset) {
-                offsetPx = offsetPx.coerceIn(0f, halfOffset)
-            } else if (offsetPx <= halfOffset + 80f) {
-                animateTo(halfOffset, ms = 200, isFling = false)
-            } else {
+            // Ниже 50% (палец потянул шторку вниз ниже половины экрана):
+            if (velocityY > 2000f || offsetPx > halfOffset + 80f) {
                 if (totalSelectedCount > 0) {
                     showDiscardDialog = true
-                    animateTo(halfOffset, ms = 200, isFling = false)
+                    animateTo(halfOffset, ms = 200, isFling = true)
                 } else {
                     close()
                 }
+            } else {
+                animateTo(halfOffset, ms = 200, isFling = false)
             }
         }
 
@@ -567,7 +547,7 @@ fun AttachSheetContent(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (isAlbumsSheetOpen) isAlbumsSheetOpen = false
                 val dy = available.y
-                if (dy < 0f && offsetPx > 0f) {        // палец вверх: растёт шторка
+                if (dy < 0f && offsetPx > 0f) {        // палец вверх: растёт шторка плавно до любой высоты
                     anim?.cancel()
                     val new = (offsetPx + dy).coerceAtLeast(0f)
                     val used = new - offsetPx
@@ -592,16 +572,12 @@ fun AttachSheetContent(
                 return Offset.Zero
             }
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (offsetPx > 0f && kotlin.math.abs(available.y) > 2500f) {
-                    release(available.y)
-                    return available
-                }
+                // Не перехватываем флинг в диапазоне 50%..100%, чтобы шторка останавливалась в любом положении (56%, 80% и т.д.)
                 return Velocity.Zero
             }
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (available.y > 2500f) {
+                if (offsetPx > halfOffset) {
                     release(available.y)
-                    return available
                 }
                 return Velocity.Zero
             }
@@ -1573,38 +1549,36 @@ private fun GallerySelectionOptionsMenu(
             .background(Color(0xFF222226), RoundedCornerShape(16.dp))
             .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
     ) {
-        if (canUngroup) {
-            // 1. Просмотреть сообщение >
-            DropdownMenuItem(
-                text = {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text("Просмотреть сообщение", color = Color.White, fontSize = 14.5.sp)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = null,
-                            tint = Color(0xFF8E8E93),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                },
-                onClick = {
-                    onDismissRequest()
-                    onOpenPreview()
-                },
-                leadingIcon = {
+        // 1. Просмотреть сообщение > (доступно всегда при выборе >= 1 фото)
+        DropdownMenuItem(
+            text = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Просмотреть сообщение", color = Color.White, fontSize = 14.5.sp)
+                    Spacer(modifier = Modifier.weight(1f))
                     Icon(
-                        imageVector = Icons.Outlined.Visibility,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color(0xFF8E8E93),
+                        modifier = Modifier.size(16.dp)
                     )
                 }
-            )
-        }
+            },
+            onClick = {
+                onDismissRequest()
+                onOpenPreview()
+            },
+            leadingIcon = {
+                Icon(
+                    imageVector = Icons.Outlined.Visibility,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        )
 
         // 2. Отправить без сжатия
         DropdownMenuItem(
