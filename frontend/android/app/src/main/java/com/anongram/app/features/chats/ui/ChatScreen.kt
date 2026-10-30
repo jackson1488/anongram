@@ -665,8 +665,8 @@ fun ChatScreen(
                                     "pdf" -> FileKind.PDF
                                     "apk" -> FileKind.APK
                                     "doc", "docx", "txt", "rtf" -> FileKind.DOC
-                                    "zip", "rar", "7z", "tar", "gz" -> FileKind.ZIP
-                                    else -> FileKind.OTHER
+                                    "zip", "rar", "7z", "tar", "gz" -> FileKind.ARCHIVE
+                                    else -> FileKind.UNKNOWN
                                 }
                                 val kb = draft.size / 1024.0
                                 val sizeLabel = if (kb >= 1024.0) {

@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.Obsidian
+import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
@@ -170,7 +170,7 @@ internal fun ForwardTargetPickerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Obsidian)
+            .background(ObsidianBlack)
             .zIndex(310f)
     ) {
         // Верхняя шапка «Переслать...»
@@ -425,7 +425,7 @@ private fun ForwardActiveSessionRow(
                         .align(Alignment.BottomEnd)
                         .clip(CircleShape)
                         .background(Color(0xFF34C759))
-                        .border(2.dp, Obsidian, CircleShape)
+                        .border(2.dp, ObsidianBlack, CircleShape)
                 )
             }
         }

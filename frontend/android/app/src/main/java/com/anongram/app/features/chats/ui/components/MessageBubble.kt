@@ -1704,10 +1704,10 @@ private fun openFileInSystemViewer(context: Context, file: MessageAttachment.Fil
         ?: when (file.kind) {
             FileKind.PDF -> "application/pdf"
             FileKind.APK -> "application/vnd.android.package-archive"
-            FileKind.ZIP -> "application/zip"
+            FileKind.ARCHIVE -> "application/zip"
             FileKind.DOC -> "application/msword"
             FileKind.IMAGE -> "image/*"
-            FileKind.OTHER -> "*/*"
+            else -> "*/*"
         }
 
     runCatching {
