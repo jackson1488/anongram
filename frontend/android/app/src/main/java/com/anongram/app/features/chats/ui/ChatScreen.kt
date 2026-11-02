@@ -74,6 +74,7 @@ import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.messages.state.SelfDestruct
 import com.anongram.app.features.attach.api.AttachSheet
 import com.anongram.app.features.attach.api.AttachmentDraft
+import com.anongram.app.features.attach.ui.AttachTab
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
 import com.anongram.app.features.chats.ui.components.ChatInputBar
 import com.anongram.app.features.chats.ui.components.ChatMediaFullscreenViewer
@@ -87,7 +88,7 @@ import com.anongram.app.features.chats.ui.components.MessagesList
 import com.anongram.app.features.chats.ui.components.NotificationsMuteDialog
 import com.anongram.app.features.chats.ui.components.NotificationsSettingsDialog
 import com.anongram.app.features.chats.ui.components.PinnedMessagesScreen
-import com.anongram.app.features.chats.ui.components.ReplyPreviewDialog
+import com.anongram.app.features.chats.ui.components.reply.ReplyPreviewDialog
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
 import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
@@ -117,6 +118,8 @@ fun ChatScreen(
     var viewingOverrideSingleUri by remember { mutableStateOf<String?>(null) }
     var wasKeyboardOpenBeforeViewer by remember { mutableStateOf(false) }
     var forwardingMessageIds by remember { mutableStateOf<List<String>?>(null) }
+    var isReplaceAttachSheetOpen by remember { mutableStateOf(false) }
+    var replaceInitialTab by remember { mutableStateOf(AttachTab.GALLERY) }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -138,6 +141,7 @@ fun ChatScreen(
 
     BackHandler {
         when {
+            isReplaceAttachSheetOpen -> isReplaceAttachSheetOpen = false
             state.deleteDialogFor != null -> viewModel.dismissDeleteDialog()
             forwardingMessageIds != null -> forwardingMessageIds = null
             viewingMediaMessage != null -> {
@@ -285,6 +289,7 @@ fun ChatScreen(
                     selection = state.selection,
                     firstUnreadId = state.firstUnreadId,
                     highlightedMessageId = state.highlightedMessageId,
+                    pinnedIds = state.pinnedIds,
                     topPadding = topListPadding,
                     bottomPadding = bottomListPadding,
                     onClick = { message, topY ->
@@ -304,6 +309,7 @@ fun ChatScreen(
                         }
                     },
                     onSwipeReply = viewModel::startReply,
+                    onReplyMessage = { msg, subIdx -> viewModel.startReply(msg, subIdx) },
                     onToggleReaction = viewModel::toggleReaction,
                     onSelectMessage = viewModel::toggleSelection,
                     onToggleAlbumPhoto = viewModel::toggleAlbumPhotoSelection,
@@ -313,6 +319,8 @@ fun ChatScreen(
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                         viewModel.enterSelection(key)
                     },
+                    onPinMessage = viewModel::togglePinMessage,
+                    onEditMessage = { msg, subIdx -> viewModel.startEdit(msg, subIdx) },
                     onRetryMessage = viewModel::retry,
                     onHighlightMessage = viewModel::highlightMessage,
                     onOpenMediaViewer = { message, photoIdx ->
@@ -420,6 +428,15 @@ fun ChatScreen(
                         },
                         onCancelReply = viewModel::cancelReply,
                         onCancelEdit = viewModel::cancelEdit,
+                        onReplaceAttachment = {
+                            val att = state.editing?.attachment
+                            replaceInitialTab = when (att) {
+                                is MessageAttachment.File, is MessageAttachment.FileGroup -> AttachTab.FILE
+                                is MessageAttachment.Music, is MessageAttachment.MusicGroup -> AttachTab.MUSIC
+                                else -> AttachTab.GALLERY
+                            }
+                            isReplaceAttachSheetOpen = true
+                        },
                         onReplyClick = { replyMsg ->
                             viewModel.highlightMessage(replyMsg.id)
                             val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
@@ -493,6 +510,10 @@ fun ChatScreen(
                 state.isSelectionMode -> {
                     SelectionPanel(
                         selectedCount = state.selection.size,
+                        canEditSingleMedia = state.canEditSelectedSingleMedia,
+                        onEdit = {
+                            viewModel.startEditFromSelection()
+                        },
                         onClose = viewModel::clearSelection,
                         onCopy = {
                             val combined = state.selectedMessages.joinToString("\n") { it.text }
@@ -894,11 +915,11 @@ fun ChatScreen(
                         }
                     }
                 },
-                onReply = { msg ->
+                onReply = { msg, subIdx ->
                     viewingMediaMessage = null
                     viewingOverrideSingleUri = null
                     wasKeyboardOpenBeforeViewer = false
-                    viewModel.startReply(msg)
+                    viewModel.startReply(msg, subIdx)
                     scope.launch {
                         delay(80)
                         try {
@@ -999,6 +1020,7 @@ fun ChatScreen(
             ReplyPreviewDialog(
                 chatId = session.id,
                 replyMessage = state.replyTo!!,
+                replyToSubIndex = state.replyToSubIndex,
                 peerName = session.title,
                 onRemoveReply = {
                     viewModel.cancelReply()
@@ -1020,6 +1042,70 @@ fun ChatScreen(
                     isReplyPreviewOpen = false
                 },
                 onDismiss = { isReplyPreviewOpen = false }
+            )
+        }
+
+        // Модальное окно замены вложения «1 на 1» (строгий равноценный обмен без таббара)
+        if (isReplaceAttachSheetOpen) {
+            AttachSheet(
+                visible = true,
+                chatId = session.id,
+                recipientName = session.title,
+                initialTab = replaceInitialTab,
+                isSingleReplaceMode = true,
+                onSingleReplace = { draft ->
+                    isReplaceAttachSheetOpen = false
+                    val newAttachment: MessageAttachment? = when (draft) {
+                        is AttachmentDraft.Media -> MessageAttachment.Photo(
+                            label = "",
+                            colorSeed = 1,
+                            isVideo = draft.isVideo,
+                            uri = draft.uri.toString(),
+                            hasSpoiler = draft.hasSpoiler
+                        )
+                        is AttachmentDraft.File -> {
+                            val ext = draft.name.substringAfterLast('.', "").lowercase()
+                            val kind = when (ext) {
+                                "jpg", "jpeg", "png", "webp", "heic", "gif", "bmp" -> FileKind.IMAGE
+                                "pdf" -> FileKind.PDF
+                                "apk" -> FileKind.APK
+                                "doc", "docx", "txt", "rtf" -> FileKind.DOC
+                                "zip", "rar", "7z", "tar", "gz" -> FileKind.ARCHIVE
+                                else -> FileKind.UNKNOWN
+                            }
+                            val kb = draft.size / 1024.0
+                            val sizeLabel = if (kb >= 1024.0) {
+                                String.format(Locale.forLanguageTag("ru"), "%.1f MB", kb / 1024.0)
+                            } else {
+                                String.format(Locale.forLanguageTag("ru"), "%.1f KB", kb.coerceAtLeast(0.1))
+                            }
+                            MessageAttachment.File(
+                                name = draft.name,
+                                sizeLabel = sizeLabel,
+                                kind = kind,
+                                uri = draft.uri.toString()
+                            )
+                        }
+                        is AttachmentDraft.Audio -> {
+                            val min = draft.durationMs / 60000
+                            val sec = (draft.durationMs % 60000) / 1000
+                            val durLabel = String.format("%d:%02d", min, sec)
+                            MessageAttachment.Music(
+                                title = draft.title,
+                                artist = draft.artist,
+                                durationLabel = durLabel,
+                                colorSeed = 1,
+                                uri = draft.uri.toString()
+                            )
+                        }
+                        else -> null
+                    }
+                    if (newAttachment != null) {
+                        viewModel.replaceEditingAttachment(newAttachment)
+                    }
+                },
+                onDismiss = { isReplaceAttachSheetOpen = false },
+                onSend = { /* handled in onSingleReplace */ }
             )
         }
 

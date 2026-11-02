@@ -3,6 +3,7 @@ package com.anongram.app.features.attach.api
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.anongram.app.features.attach.ui.AttachSheetContent
+import com.anongram.app.features.attach.ui.AttachTab
 
 /**
  * Публичная точка входа модуля вложений (ТЗ, attach: AttachSheet).
@@ -13,6 +14,9 @@ fun AttachSheet(
     visible: Boolean,
     chatId: String = "",
     recipientName: String = "",
+    initialTab: AttachTab = AttachTab.GALLERY,
+    isSingleReplaceMode: Boolean = false,
+    onSingleReplace: ((AttachmentDraft) -> Unit)? = null,
     onDismiss: () -> Unit,
     onSend: (List<AttachmentDraft>) -> Unit,
     keyboardHeightPx: Int = 0,
@@ -24,6 +28,9 @@ fun AttachSheet(
         AttachSheetContent(
             chatId = chatId,
             recipientName = recipientName,
+            initialTab = initialTab,
+            isSingleReplaceMode = isSingleReplaceMode,
+            onSingleReplace = onSingleReplace,
             onDismiss = onDismiss,
             onSend = onSend,
             keyboardHeightPx = keyboardHeightPx,

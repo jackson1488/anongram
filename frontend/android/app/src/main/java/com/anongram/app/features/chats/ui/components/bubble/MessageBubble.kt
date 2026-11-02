@@ -86,8 +86,11 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.MessageStatus
+import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.chats.messages.domain.timeLabel
 import com.anongram.app.features.chats.ui.components.ReactionChips
+import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
+import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -112,14 +115,19 @@ internal fun MessageBubble(
     isSelected: Boolean = false,
     selectedPhotoIndices: Set<Int> = emptySet(),
     isHighlighted: Boolean = false,
+    isPinned: Boolean = false,
     onQuoteClick: (String) -> Unit = {},
     onClick: (anchorYPx: Float) -> Unit = {},
     onLongClick: () -> Unit = {},
     onSwipeReply: () -> Unit = {},
+    onReplySubItem: (Int) -> Unit = {},
     onToggleReaction: (String) -> Unit = {},
     onSelect: () -> Unit = {},
     onToggleAlbumPhoto: (Int) -> Unit = {},
     onEnterAlbumPhotoSelection: (Int) -> Unit = {},
+    onPin: () -> Unit = {},
+    onEdit: () -> Unit = {},
+    onEditSubItem: (Int) -> Unit = {},
     onRetry: () -> Unit = {},
     onOpenMediaViewer: (initialPhotoIndex: Int) -> Unit = {},
     onOpenUncompressedPhoto: (uri: String) -> Unit = {},
@@ -373,15 +381,18 @@ internal fun MessageBubble(
                                     }
 
                                     // Цитата ответа (шаг 1)
-                                    replyTo?.let { target ->
+                                    replyTo?.let { rawTarget ->
+                                        val target = remember(rawTarget, message.replyToSubIndex) {
+                                            rawTarget.resolveSubItem(message.replyToSubIndex)
+                                        }
                                         Box(
                                             modifier = if (isEdgeToEdgeMedia || isFlushGroupAttachment) {
                                                 Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                                             } else Modifier
                                         ) {
                                             QuoteBlock(
+                                                target = target,
                                                 author = if (target.direction == MessageDirection.INCOMING) peerName else "Вы",
-                                                text = target.text.ifBlank { "Вложение" },
                                                 accent = scheme.accent,
                                                 isIncoming = isIncoming,
                                                 textScale = textScale,
@@ -404,12 +415,17 @@ internal fun MessageBubble(
                                                 isSelectionMode = isSelectionMode,
                                                 selectedSubIndices = selectedPhotoIndices,
                                                 showInlineTimestamp = isTimestampHandledInsideAttachment,
+                                                isPinned = isPinned,
                                                 onSelect = onSelect,
                                                 onToggleSubItem = onToggleAlbumPhoto,
                                                 onEnterSubItemSelection = onEnterAlbumPhotoSelection,
                                                 onLongClick = onLongClick,
                                                 onRetry = onRetry,
                                                 onSwipeReply = onSwipeReply,
+                                                onReplySubItem = onReplySubItem,
+                                                onPin = onPin,
+                                                onEdit = onEdit,
+                                                onEditSubItem = onEditSubItem,
                                                 onOpenPhotoAt = { idx -> onOpenMediaViewer(idx) },
                                                 onOpenContactChat = onOpenContactChat,
                                                 onForwardSubItem = onForwardSubItem,
@@ -746,12 +762,17 @@ private fun AttachmentContent(
     isSelectionMode: Boolean = false,
     selectedSubIndices: Set<Int> = emptySet(),
     showInlineTimestamp: Boolean = false,
+    isPinned: Boolean = false,
     onSelect: () -> Unit = {},
     onToggleSubItem: (Int) -> Unit = {},
     onEnterSubItemSelection: (Int) -> Unit = {},
     onLongClick: () -> Unit = {},
     onRetry: () -> Unit = {},
     onSwipeReply: () -> Unit = {},
+    onReplySubItem: (Int) -> Unit = {},
+    onPin: () -> Unit = {},
+    onEdit: () -> Unit = {},
+    onEditSubItem: (Int) -> Unit = {},
     onOpenPhotoAt: (Int) -> Unit = {},
     onOpenContactChat: (String, String) -> Unit = { _, _ -> },
     onForwardSubItem: (String) -> Unit = {},
@@ -798,12 +819,15 @@ private fun AttachmentContent(
                 showBottomTimestamp = showInlineTimestamp,
                 isSelectionMode = isSelectionMode,
                 isItemSelected = 0 in selectedSubIndices,
+                isPinned = isPinned,
                 onItemClick = {
                     if (isSelectionMode) onSelect() else null
                 },
                 onItemLongClick = onLongClick,
-                onSwipeReply = onSwipeReply,
+                onSwipeReply = { onReplySubItem(0) },
                 onForwardItem = { onForwardSubItem(message.id) },
+                onPinItem = onPin,
+                onEditItem = { onEditSubItem(0) },
                 onDeleteItem = { onDeleteSubItem(message.id) },
                 onRetry = onRetry,
                 onOpenPhotoAt = onOpenPhotoAt
@@ -825,14 +849,17 @@ private fun AttachmentContent(
                         showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
                         isSelectionMode = isSelectionMode,
                         isItemSelected = isItemSelected,
+                        isPinned = isPinned,
                         onItemClick = {
                             if (isSelectionMode) onToggleSubItem(idx) else null
                         },
                         onItemLongClick = {
                             if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
                         },
-                        onSwipeReply = onSwipeReply,
+                        onSwipeReply = { onReplySubItem(idx) },
                         onForwardItem = { onForwardSubItem("${message.id}#file_$idx") },
+                        onPinItem = onPin,
+                        onEditItem = { onEditSubItem(idx) },
                         onDeleteItem = { onDeleteSubItem("${message.id}#file_$idx") },
                         onRetry = onRetry,
                         onOpenPhotoAt = onOpenPhotoAt
@@ -860,10 +887,13 @@ private fun AttachmentContent(
                 showBottomTimestamp = showInlineTimestamp,
                 isSelectionMode = isSelectionMode,
                 isItemSelected = 0 in selectedSubIndices,
+                isPinned = isPinned,
                 onItemClick = { if (isSelectionMode) onSelect() },
                 onItemLongClick = onLongClick,
-                onSwipeReply = onSwipeReply,
+                onSwipeReply = { onReplySubItem(0) },
                 onForwardItem = { onForwardSubItem(message.id) },
+                onPinItem = onPin,
+                onEditItem = { onEditSubItem(0) },
                 onDeleteItem = { onDeleteSubItem(message.id) },
                 onRetry = onRetry
             )
@@ -883,14 +913,17 @@ private fun AttachmentContent(
                         showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
                         isSelectionMode = isSelectionMode,
                         isItemSelected = isItemSelected,
+                        isPinned = isPinned,
                         onItemClick = {
                             if (isSelectionMode) onToggleSubItem(idx)
                         },
                         onItemLongClick = {
                             if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
                         },
-                        onSwipeReply = onSwipeReply,
+                        onSwipeReply = { onReplySubItem(idx) },
                         onForwardItem = { onForwardSubItem("${message.id}#music_$idx") },
+                        onPinItem = onPin,
+                        onEditItem = { onEditSubItem(idx) },
                         onDeleteItem = { onDeleteSubItem("${message.id}#music_$idx") },
                         onRetry = onRetry
                     )
@@ -983,13 +1016,14 @@ private fun LinkPreviewBlock(
 /** Цитата внутри пузыря */
 @Composable
 private fun QuoteBlock(
+    target: ChatMessage? = null,
     author: String,
-    text: String,
     accent: Color,
     isIncoming: Boolean,
     textScale: Float = 1f,
     onClick: () -> Unit
 ) {
+    val text = if (target != null) replyPreviewSnippet(target) else "Вложение"
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1005,11 +1039,19 @@ private fun QuoteBlock(
         Box(
             modifier = Modifier
                 .width((3f * textScale).coerceIn(2f, 4f).dp)
-                .height((30f * textScale).coerceIn(14f, 38f).dp)
+                .height((32f * textScale).coerceIn(16f, 40f).dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(accent)
         )
         Spacer(modifier = Modifier.width((8f * textScale).coerceIn(4f, 10f).dp))
+        if (target != null && target.attachment != null) {
+            ReplyAttachmentMiniThumb(
+                message = target,
+                accent = accent,
+                size = (32f * textScale).coerceIn(20f, 36f).dp
+            )
+            Spacer(modifier = Modifier.width((8f * textScale).coerceIn(4f, 10f).dp))
+        }
         Column {
             Text(
                 text = author,

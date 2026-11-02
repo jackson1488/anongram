@@ -8,6 +8,7 @@ import com.anongram.app.features.chats.messages.data.ChatMessagesRepository
 import com.anongram.app.features.chats.messages.data.InMemoryChatMessagesRepository
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.matchesQuery
+import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.chats.messages.domain.LinkPreview
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
@@ -80,12 +81,13 @@ class ChatMessagesViewModel(
     fun send() {
         val state = _uiState.value
         val text = state.input.trim()
-        if (text.isEmpty()) return
         val editing = state.editing
         if (editing != null) {
+            if (editing.attachment == null && text.isEmpty()) return
             editMessage(editing.id, text)
             return
         }
+        if (text.isEmpty()) return
         val message = ChatMessage(
             id = "out_${System.nanoTime()}",
             direction = MessageDirection.OUTGOING,
@@ -93,30 +95,34 @@ class ChatMessagesViewModel(
             epochMs = System.currentTimeMillis(),
             status = MessageStatus.SENDING,
             replyToId = state.replyTo?.id,
+            replyToSubIndex = state.replyToSubIndex ?: state.replyTo?.replyToSubIndex,
             linkPreview = buildLinkPreview(text)
         )
         viewModelScope.launch {
             chatsRepository.saveDraft(sessionId, "")
             repository.addMessage(sessionId, message)
             _uiState.update { s ->
-                s.copy(messages = s.messages + message, input = "", replyTo = null)
+                s.copy(messages = s.messages + message, input = "", replyTo = null, replyToSubIndex = null)
             }
             runDeliveryLifecycle(message.id)
         }
     }
 
     fun sendAttachment(attachment: MessageAttachment, caption: String = "") {
+        val state = _uiState.value
         val message = ChatMessage(
             id = "out_${System.nanoTime()}",
             direction = MessageDirection.OUTGOING,
             text = caption,
             epochMs = System.currentTimeMillis(),
             status = MessageStatus.SENDING,
+            replyToId = state.replyTo?.id,
+            replyToSubIndex = state.replyToSubIndex ?: state.replyTo?.replyToSubIndex,
             attachment = attachment
         )
         viewModelScope.launch {
             repository.addMessage(sessionId, message)
-            _uiState.update { s -> s.copy(messages = s.messages + message) }
+            _uiState.update { s -> s.copy(messages = s.messages + message, replyTo = null, replyToSubIndex = null) }
             runDeliveryLifecycle(message.id)
         }
     }
@@ -181,14 +187,125 @@ class ChatMessagesViewModel(
         }
     }
 
-    fun startEdit(message: ChatMessage) {
+    fun startEdit(message: ChatMessage, subIndex: Int? = null) {
+        val resolved = message.resolveSubItem(subIndex)
         _uiState.update {
-            it.copy(editing = message, input = message.text, replyTo = null, actionMenuFor = null)
+            it.copy(
+                editing = resolved,
+                editingSubIndex = subIndex,
+                input = message.text,
+                replyTo = null,
+                replyToSubIndex = null,
+                actionMenuFor = null,
+                selection = emptySet()
+            )
+        }
+    }
+
+    /**
+     * Запуск редактирования/замены 1 выбранного фото (или файла/трека) из верхней панели SelectionPanel.
+     * Работает строго для 1 выбранного элемента (равноценный обмен 1 на 1).
+     */
+    fun startEditFromSelection() {
+        val state = _uiState.value
+        if (state.selection.size != 1) return
+        val key = state.selection.first()
+        when {
+            "#photo_" in key -> {
+                val msgId = key.substringBefore("#photo_")
+                val idx = key.substringAfter("#photo_").toIntOrNull()
+                val msg = state.messages.firstOrNull { it.id == msgId } ?: return
+                startEdit(msg, idx)
+            }
+            "#file_" in key -> {
+                val msgId = key.substringBefore("#file_")
+                val idx = key.substringAfter("#file_").toIntOrNull()
+                val msg = state.messages.firstOrNull { it.id == msgId } ?: return
+                startEdit(msg, idx)
+            }
+            "#music_" in key -> {
+                val msgId = key.substringBefore("#music_")
+                val idx = key.substringAfter("#music_").toIntOrNull()
+                val msg = state.messages.firstOrNull { it.id == msgId } ?: return
+                startEdit(msg, idx)
+            }
+            else -> {
+                val msg = state.messages.firstOrNull { it.id == key } ?: return
+                val subIdx = when (val att = msg.attachment) {
+                    is MessageAttachment.MediaAlbum -> if (att.items.size == 1) 0 else null
+                    is MessageAttachment.FileGroup -> if (att.items.size == 1) 0 else null
+                    is MessageAttachment.MusicGroup -> if (att.items.size == 1) 0 else null
+                    else -> null
+                }
+                startEdit(msg, subIdx)
+            }
+        }
+    }
+
+    /**
+     * Строго равноценная замена (транзакция 1 на 1):
+     * 1 старое вложение (или 1 конкретная ячейка в альбоме/группе) заменяется ровно на 1 новое.
+     */
+    fun replaceEditingAttachment(newSingleAttachment: MessageAttachment) {
+        val state = _uiState.value
+        val editing = state.editing ?: return
+        val subIndex = state.editingSubIndex
+        val orig = state.messages.firstOrNull { it.id == editing.id } ?: return
+
+        val updatedOrigAttachment: MessageAttachment = when (val origAtt = orig.attachment) {
+            is MessageAttachment.MediaAlbum -> {
+                val targetIdx = (subIndex ?: 0).coerceIn(0, (origAtt.items.size - 1).coerceAtLeast(0))
+                val newAlbumItem = when (newSingleAttachment) {
+                    is MessageAttachment.Photo -> MessageAttachment.AlbumMediaItem(
+                        uri = newSingleAttachment.uri ?: "",
+                        isVideo = newSingleAttachment.isVideo,
+                        hasSpoiler = newSingleAttachment.hasSpoiler
+                    )
+                    is MessageAttachment.File -> MessageAttachment.AlbumMediaItem(
+                        uri = newSingleAttachment.uri ?: "",
+                        isVideo = false,
+                        hasSpoiler = false
+                    )
+                    else -> origAtt.items.getOrNull(targetIdx) ?: return
+                }
+                val newItems = origAtt.items.toMutableList().apply {
+                    if (targetIdx in indices) set(targetIdx, newAlbumItem)
+                }
+                origAtt.copy(items = newItems)
+            }
+            is MessageAttachment.FileGroup -> {
+                val targetIdx = (subIndex ?: 0).coerceIn(0, (origAtt.items.size - 1).coerceAtLeast(0))
+                val newFileItem = newSingleAttachment as? MessageAttachment.File ?: return
+                val newItems = origAtt.items.toMutableList().apply {
+                    if (targetIdx in indices) set(targetIdx, newFileItem)
+                }
+                origAtt.copy(items = newItems)
+            }
+            is MessageAttachment.MusicGroup -> {
+                val targetIdx = (subIndex ?: 0).coerceIn(0, (origAtt.items.size - 1).coerceAtLeast(0))
+                val newMusicItem = newSingleAttachment as? MessageAttachment.Music ?: return
+                val newItems = origAtt.items.toMutableList().apply {
+                    if (targetIdx in indices) set(targetIdx, newMusicItem)
+                }
+                origAtt.copy(items = newItems)
+            }
+            else -> newSingleAttachment
+        }
+
+        viewModelScope.launch {
+            val updatedMsg = orig.copy(attachment = updatedOrigAttachment, isEdited = true)
+            repository.updateMessage(sessionId, updatedMsg)
+            _uiState.update { s ->
+                s.copy(
+                    messages = s.messages.map { if (it.id == orig.id) updatedMsg else it },
+                    editing = editing.copy(attachment = newSingleAttachment, isEdited = true)
+                )
+            }
         }
     }
 
     fun cancelEdit() {
-        _uiState.update { it.copy(editing = null, input = "") }
+        _uiState.update { it.copy(editing = null, editingSubIndex = null, input = "") }
     }
 
     private fun editMessage(messageId: String, newText: String) {
@@ -200,6 +317,7 @@ class ChatMessagesViewModel(
                 s.copy(
                     messages = s.messages.map { if (it.id == messageId) edited else it },
                     editing = null,
+                    editingSubIndex = null,
                     input = ""
                 )
             }
@@ -208,10 +326,21 @@ class ChatMessagesViewModel(
 
     // --- Ответ свайпом / из меню ---
 
-    fun startReply(message: ChatMessage) =
-        _uiState.update { it.copy(replyTo = message, editing = null, actionMenuFor = null) }
+    fun startReply(message: ChatMessage, subIndex: Int? = null) {
+        val effectiveSubIndex = subIndex ?: message.replyToSubIndex
+        val resolved = message.resolveSubItem(effectiveSubIndex)
+        _uiState.update {
+            it.copy(
+                replyTo = resolved,
+                replyToSubIndex = effectiveSubIndex,
+                editing = null,
+                editingSubIndex = null,
+                actionMenuFor = null
+            )
+        }
+    }
 
-    fun cancelReply() = _uiState.update { it.copy(replyTo = null) }
+    fun cancelReply() = _uiState.update { it.copy(replyTo = null, replyToSubIndex = null) }
 
     // --- Меню действий с сообщением (долгий тап) ---
 
@@ -249,6 +378,14 @@ class ChatMessagesViewModel(
     }
 
     // --- Закреплённое сообщение (шаг 12) ---
+
+    fun togglePinMessage(messageId: String) {
+        if (_uiState.value.pinnedIds.contains(messageId)) {
+            unpinMessage(messageId)
+        } else {
+            pinMessage(messageId)
+        }
+    }
 
     fun pinMessage(messageId: String) {
         val state = _uiState.value

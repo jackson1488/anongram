@@ -158,7 +158,7 @@ fun MusicTab(
 
     val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val isPlayerVisible = playerState.isVisible && playerState.currentTrack != null
-    val topOffsetDp = if (isFullscreen) statusBarTopDp + 6.dp else 4.dp
+    val topOffsetDp = if (isFullscreen) 6.dp else 4.dp
     val headerContentHeight = if (isPlayerVisible) 96.dp else 44.dp
     val totalHeaderHeight = topOffsetDp + headerContentHeight
 

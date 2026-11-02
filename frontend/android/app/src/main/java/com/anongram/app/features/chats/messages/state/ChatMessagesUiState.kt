@@ -35,7 +35,9 @@ data class ChatMessagesUiState(
     val messages: List<ChatMessage> = emptyList(),
     val input: String = "",
     val replyTo: ChatMessage? = null,
+    val replyToSubIndex: Int? = null,
     val editing: ChatMessage? = null,
+    val editingSubIndex: Int? = null,
     val actionMenuFor: ChatMessage? = null,
     val selection: Set<String> = emptySet(),
     val pinnedId: String? = null,
@@ -67,9 +69,32 @@ data class ChatMessagesUiState(
     val isLoadingOlder: Boolean = false,
     val hasMoreOlder: Boolean = true
 ) {
-    val canSend: Boolean get() = input.isNotBlank()
+    val canSend: Boolean
+        get() = input.isNotBlank() || editing?.attachment != null
 
     val isSelectionMode: Boolean get() = selection.isNotEmpty()
+
+    /**
+     * Строго равноценный обмен 1 на 1: карандаш замены в верхней панели выбора
+     * появляется ТОЛЬКО когда выбрано ровно 1 фото (одиночное или 1 ячейка из альбома)
+     * либо ровно 1 файл / 1 трек. При выборе 2+ элементов карандаш скрывается.
+     */
+    val canEditSelectedSingleMedia: Boolean
+        get() {
+            if (selection.size != 1) return false
+            val key = selection.first()
+            if ("#photo_" in key || "#file_" in key || "#music_" in key) return true
+            val msg = messages.firstOrNull { it.id == key } ?: return false
+            return when (val att = msg.attachment) {
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo,
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.File,
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.Music -> true
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum -> att.items.size == 1
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup -> att.items.size == 1
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup -> att.items.size == 1
+                else -> false
+            }
+        }
 
     val selectedMessages: List<ChatMessage>
         get() = messages.filter { it.id in selection }

@@ -164,6 +164,9 @@ import kotlinx.coroutines.launch
 fun AttachSheetContent(
     chatId: String = "",
     recipientName: String = "",
+    initialTab: AttachTab = AttachTab.GALLERY,
+    isSingleReplaceMode: Boolean = false,
+    onSingleReplace: ((AttachmentDraft) -> Unit)? = null,
     onDismiss: () -> Unit,
     onSend: (List<AttachmentDraft>) -> Unit,
     keyboardHeightPx: Int = 0,
@@ -285,7 +288,7 @@ fun AttachSheetContent(
             forceDismiss()
         }
 
-    var selectedTab by remember { mutableStateOf(AttachTab.GALLERY) }
+    var selectedTab by remember { mutableStateOf(initialTab) }
     var selectedAlbum by remember { mutableStateOf("Все медиа") }
     var isAlbumsSheetOpen by remember { mutableStateOf(false) }
 
@@ -342,6 +345,12 @@ fun AttachSheetContent(
                     phones = contact.phones
                 )
             )
+        }
+
+        if (isSingleReplaceMode && onSingleReplace != null) {
+            drafts.firstOrNull()?.let { onSingleReplace(it) }
+            forceDismiss()
+            return
         }
 
         onSend(drafts)
@@ -706,11 +715,20 @@ fun AttachSheetContent(
                             selectedMedia = selectedMedia,
                             onToggleSelectMedia = { media ->
                                 isAlbumsSheetOpen = false
-                                if (selectedMedia.any { it.uri == media.uri }) {
-                                    selectedMedia.removeAll { it.uri == media.uri }
-                                } else {
-                                    if (selectedMedia.size < 99) {
+                                if (isSingleReplaceMode) {
+                                    if (selectedMedia.any { it.uri == media.uri }) {
+                                        selectedMedia.clear()
+                                    } else {
+                                        selectedMedia.clear()
                                         selectedMedia.add(media)
+                                    }
+                                } else {
+                                    if (selectedMedia.any { it.uri == media.uri }) {
+                                        selectedMedia.removeAll { it.uri == media.uri }
+                                    } else {
+                                        if (selectedMedia.size < 99) {
+                                            selectedMedia.add(media)
+                                        }
                                     }
                                 }
                             },
@@ -732,25 +750,44 @@ fun AttachSheetContent(
                     AttachTab.FILE -> {
                         FilesTab(
                             onSelectFile = { fileDraft ->
-                                onSend(listOf(fileDraft))
-                                dismissAnimated()
+                                if (isSingleReplaceMode && onSingleReplace != null) {
+                                    onSingleReplace(fileDraft)
+                                    forceDismiss()
+                                } else {
+                                    onSend(listOf(fileDraft))
+                                    dismissAnimated()
+                                }
                             },
                             onExpandToFullscreen = {
                                 animateTo(0f, 240)
                             },
                             selectedFiles = selectedFiles,
                             onToggleSelectFile = { file ->
-                                if (selectedFiles.any { it.uri == file.uri }) {
-                                    selectedFiles.removeAll { it.uri == file.uri }
+                                if (isSingleReplaceMode) {
+                                    if (selectedFiles.any { it.uri == file.uri }) {
+                                        selectedFiles.clear()
+                                    } else {
+                                        selectedFiles.clear()
+                                        selectedFiles.add(file)
+                                    }
                                 } else {
-                                    selectedFiles.add(file)
+                                    if (selectedFiles.any { it.uri == file.uri }) {
+                                        selectedFiles.removeAll { it.uri == file.uri }
+                                    } else {
+                                        selectedFiles.add(file)
+                                    }
                                 }
                             },
                             isFullscreen = isFull,
                             onBack = { requestDismiss() },
                             onSelectFiles = { drafts ->
-                                onSend(drafts)
-                                dismissAnimated()
+                                if (isSingleReplaceMode && onSingleReplace != null) {
+                                    drafts.firstOrNull()?.let { onSingleReplace(it) }
+                                    forceDismiss()
+                                } else {
+                                    onSend(drafts)
+                                    dismissAnimated()
+                                }
                             },
                             onOpenUncompressedGallery = {
                                 isUncompressedGalleryOpen = true
@@ -797,8 +834,13 @@ fun AttachSheetContent(
                     AttachTab.MUSIC -> {
                         MusicTab(
                             onSelectAudio = { audioDraft ->
-                                onSend(listOf(audioDraft))
-                                dismissAnimated()
+                                if (isSingleReplaceMode && onSingleReplace != null) {
+                                    onSingleReplace(audioDraft)
+                                    forceDismiss()
+                                } else {
+                                    onSend(listOf(audioDraft))
+                                    dismissAnimated()
+                                }
                             },
                             onExpandPlayer = { isFullPlayerOpen = true },
                             onExpandToFullscreen = {
@@ -806,10 +848,19 @@ fun AttachSheetContent(
                             },
                             selectedTracks = selectedTracks,
                             onToggleSelectTrack = { track ->
-                                if (selectedTracks.any { it.id == track.id }) {
-                                    selectedTracks.removeAll { it.id == track.id }
+                                if (isSingleReplaceMode) {
+                                    if (selectedTracks.any { it.id == track.id }) {
+                                        selectedTracks.clear()
+                                    } else {
+                                        selectedTracks.clear()
+                                        selectedTracks.add(track)
+                                    }
                                 } else {
-                                    selectedTracks.add(track)
+                                    if (selectedTracks.any { it.id == track.id }) {
+                                        selectedTracks.removeAll { it.id == track.id }
+                                    } else {
+                                        selectedTracks.add(track)
+                                    }
                                 }
                             },
                             isFullscreen = isFull,
@@ -971,7 +1022,7 @@ fun AttachSheetContent(
             AttachTabBar(
                 selectedTab = selectedTab,
                 onSelectTab = { selectedTab = it },
-                visible = true,
+                visible = !isSingleReplaceMode,
                 modifier = Modifier.graphicsLayer {
                     val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
                     val topNavP = ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)

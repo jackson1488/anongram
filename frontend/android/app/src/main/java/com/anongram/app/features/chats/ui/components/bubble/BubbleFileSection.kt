@@ -20,15 +20,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.outlined.Android
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Forward
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Reply
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -74,7 +76,14 @@ import kotlinx.coroutines.withContext
  * Строка файла или фотографии без сжатия внутри пузыря (одиночной или в группе до 10 шт.):
  * - Для фото без сжатия (FileKind.IMAGE): квадратная миниатюра 62.dp вплотную слева без вертикальных зазоров
  * - Для документов/APK/архивов: круглая иконка 44.dp слева
- * - Справа сверху (только у первого элемента в группе): иконка «⋮» с меню («Сохранить в галерею» для фото или «Сохранить в загрузки» для файлов, «Ответить», «Переслать», «Поделиться», «Удалить»)
+ * - Справа сверху (только у первого элемента в группе): иконка «⋮» со строгим порядком 7 пунктов меню:
+ *   1. Ответить
+ *   2. Сохранить в загрузки / в галерею
+ *   3. Поделиться
+ *   4. Переслать
+ *   5. Закрепить / Открепить
+ *   6. Изменить
+ *   7. Удалить
  * - Тап по фото без сжатия открывает полноэкранный просмотр с перелистыванием внутри своей группы (FileGroup) и лентой миниатюр снизу без счётчика
  * - В режиме выбора при выборе одного файла горит только галочка (без подсветки строки), а при выборе всей группы светится вся группа
  */
@@ -91,10 +100,13 @@ internal fun ChatFileItemRow(
     showBottomTimestamp: Boolean,
     isSelectionMode: Boolean,
     isItemSelected: Boolean,
+    isPinned: Boolean = false,
     onItemClick: () -> Unit?,
     onItemLongClick: () -> Unit,
     onSwipeReply: () -> Unit,
     onForwardItem: () -> Unit,
+    onPinItem: (() -> Unit)? = null,
+    onEditItem: (() -> Unit)? = null,
     onDeleteItem: () -> Unit,
     onRetry: () -> Unit,
     onOpenPhotoAt: (Int) -> Unit
@@ -268,6 +280,19 @@ internal fun ChatFileItemRow(
                         .background(Color(0xFF14151B), RoundedCornerShape(16.dp))
                         .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
                 ) {
+                    // 1. Ответить (первый пункт со стрелкой влево)
+                    DropdownMenuItem(
+                        text = { Text("Ответить", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onSwipeReply()
+                        }
+                    )
+
+                    // 2. Сохранить в загрузки / в галерею
                     DropdownMenuItem(
                         text = {
                             Text(
@@ -306,28 +331,7 @@ internal fun ChatFileItemRow(
                         }
                     )
 
-                    DropdownMenuItem(
-                        text = { Text("Ответить", color = Color.White, fontSize = 14.5.sp) },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Reply, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        },
-                        onClick = {
-                            isMenuOpen = false
-                            onSwipeReply()
-                        }
-                    )
-
-                    DropdownMenuItem(
-                        text = { Text("Переслать", color = Color.White, fontSize = 14.5.sp) },
-                        leadingIcon = {
-                            Icon(Icons.Outlined.Forward, null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        },
-                        onClick = {
-                            isMenuOpen = false
-                            onForwardItem()
-                        }
-                    )
-
+                    // 3. Поделиться (системное меню Android)
                     DropdownMenuItem(
                         text = { Text("Поделиться", color = Color.White, fontSize = 14.5.sp) },
                         leadingIcon = {
@@ -343,6 +347,43 @@ internal fun ChatFileItemRow(
                         }
                     )
 
+                    // 4. Переслать
+                    DropdownMenuItem(
+                        text = { Text("Переслать", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Forward, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onForwardItem()
+                        }
+                    )
+
+                    // 5. Закрепить / Открепить
+                    DropdownMenuItem(
+                        text = { Text(if (isPinned) "Открепить" else "Закрепить", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.PushPin, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onPinItem?.invoke()
+                        }
+                    )
+
+                    // 6. Изменить (замена файла и редактирование подписи)
+                    DropdownMenuItem(
+                        text = { Text("Изменить", color = Color.White, fontSize = 14.5.sp) },
+                        leadingIcon = {
+                            Icon(Icons.Outlined.Edit, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                        },
+                        onClick = {
+                            isMenuOpen = false
+                            onEditItem?.invoke()
+                        }
+                    )
+
+                    // 7. Удалить
                     DropdownMenuItem(
                         text = { Text("Удалить", color = Color(0xFFFF5252), fontSize = 14.5.sp) },
                         leadingIcon = {

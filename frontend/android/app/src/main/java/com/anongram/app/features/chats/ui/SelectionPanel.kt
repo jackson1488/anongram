@@ -17,6 +17,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Reply
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -34,16 +35,21 @@ import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.TextPrimary
 
 /**
- * Панель режима выделения сообщений в стиле плавающих островков (Фото 3):
+ * Панель режима выделения сообщений в стиле плавающих островков:
  * 1. Левый островок: кнопка-крестик (отмена выделения).
  * 2. Центральный островок: «Выбрано N».
- * 3. Правый островок: кнопки без текста (Копировать, Переслать, Удалить).
+ * 3. Правый островок: действия.
+ *    - Если выбрано ровно 1 фото/файл/трек (canEditSingleMedia == true):
+ *      кнопка «Копировать» заменяется на «Карандаш» (замена 1 на 1).
+ *    - Иначе стандартно: Копировать, Переслать, Удалить.
  */
 @Composable
 internal fun SelectionPanel(
     selectedCount: Int,
+    canEditSingleMedia: Boolean = false,
     onClose: () -> Unit,
     onCopy: () -> Unit,
+    onEdit: () -> Unit = {},
     onForward: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -96,7 +102,7 @@ internal fun SelectionPanel(
             )
         }
 
-        // Островок 3: Действия без названий (Копировать, Переслать, Удалить, 50dp)
+        // Островок 3: Действия без названий (Карандаш/Копировать, Переслать, Удалить, 50dp)
         Row(
             modifier = Modifier
                 .height(50.dp)
@@ -106,16 +112,30 @@ internal fun SelectionPanel(
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = onCopy,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ContentCopy,
-                    contentDescription = "Копировать",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
+            if (canEditSingleMedia) {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Заменить",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            } else {
+                IconButton(
+                    onClick = onCopy,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ContentCopy,
+                        contentDescription = "Копировать",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             IconButton(

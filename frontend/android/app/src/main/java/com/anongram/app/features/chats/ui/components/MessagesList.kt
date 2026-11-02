@@ -50,17 +50,21 @@ internal fun MessagesList(
     selection: Set<String> = emptySet(),
     firstUnreadId: String? = null,
     highlightedMessageId: String? = null,
+    pinnedIds: Set<String> = emptySet(),
     topPadding: androidx.compose.ui.unit.Dp = 80.dp,
     bottomPadding: androidx.compose.ui.unit.Dp = 10.dp,
     onClick: (ChatMessage, Float) -> Unit = { _, _ -> },
     onLongClick: (ChatMessage) -> Unit = {},
     onSwipeReply: (ChatMessage) -> Unit = {},
+    onReplyMessage: (ChatMessage, Int?) -> Unit = { _, _ -> },
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
     onSelectMessage: (String) -> Unit = {},
     onToggleAlbumPhoto: (String, Int, Int) -> Unit = { _, _, _ -> },
     onToggleFileGroupItem: (String, Int, Int) -> Unit = { _, _, _ -> },
     onToggleMusicGroupItem: (String, Int, Int) -> Unit = { _, _, _ -> },
     onEnterAlbumPhotoSelection: (String) -> Unit = {},
+    onPinMessage: (String) -> Unit = {},
+    onEditMessage: (ChatMessage, Int?) -> Unit = { _, _ -> },
     onRetryMessage: (String) -> Unit = {},
     onHighlightMessage: (String) -> Unit = {},
     onOpenMediaViewer: (ChatMessage, Int) -> Unit = { _, _ -> },
@@ -137,6 +141,7 @@ internal fun MessagesList(
                     isSelected = isBubbleSelected,
                     selectedPhotoIndices = selectedSubIndices,
                     isHighlighted = item.message.id == highlightedMessageId,
+                    isPinned = item.message.id in pinnedIds,
                     onQuoteClick = { originalId ->
                         onHighlightMessage(originalId)
                         val index = displayIndexById[originalId]
@@ -151,6 +156,7 @@ internal fun MessagesList(
                     onClick = { topY -> onClick(item.message, topY) },
                     onLongClick = { onLongClick(item.message) },
                     onSwipeReply = { onSwipeReply(item.message) },
+                    onReplySubItem = { subIdx -> onReplyMessage(item.message, subIdx) },
                     onToggleReaction = { emoji -> onToggleReaction(item.message.id, emoji) },
                     onSelect = { onSelectMessage(item.message.id) },
                     onToggleAlbumPhoto = { subIdx ->
@@ -168,6 +174,9 @@ internal fun MessagesList(
                         val prefix = groupCountAndPrefix?.second ?: "photo"
                         onEnterAlbumPhotoSelection("${item.message.id}#${prefix}_$subIdx")
                     },
+                    onPin = { onPinMessage(item.message.id) },
+                    onEdit = { onEditMessage(item.message, null) },
+                    onEditSubItem = { subIdx -> onEditMessage(item.message, subIdx) },
                     onRetry = { onRetryMessage(item.message.id) },
                     onOpenMediaViewer = { photoIdx -> onOpenMediaViewer(item.message, photoIdx) },
                     onOpenUncompressedPhoto = { uri -> onOpenUncompressedPhoto(item.message, uri) },

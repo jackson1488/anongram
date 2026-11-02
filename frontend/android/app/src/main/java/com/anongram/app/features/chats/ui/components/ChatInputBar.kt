@@ -30,6 +30,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
@@ -45,6 +46,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
+import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -102,6 +105,7 @@ internal fun ChatInputBar(
     onSend: () -> Unit,
     onCancelReply: () -> Unit,
     onCancelEdit: () -> Unit,
+    onReplaceAttachment: () -> Unit = {},
     onReplyClick: (ChatMessage) -> Unit = {},
     onReplyLongClick: (ChatMessage) -> Unit = {},
     onToggleEmoji: () -> Unit,
@@ -155,7 +159,8 @@ internal fun ChatInputBar(
                 } else if (editing != null) {
                     FusedEditBar(
                         editing = editing,
-                        onClose = onCancelEdit
+                        onClose = onCancelEdit,
+                        onReplaceAttachment = onReplaceAttachment
                     )
                 }
 
@@ -176,7 +181,8 @@ internal fun ChatInputBar(
                         )
                     }
 
-                    // Поле ввода текста (жирнее на 1 см, без лагов)
+                    // Поле ввода текста (при замене/редактировании вложения плейсхолдер «Подпись»)
+                    val placeholderText = if (editing?.attachment != null) "Подпись" else "Сообщение"
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -184,7 +190,7 @@ internal fun ChatInputBar(
                     ) {
                         if (textValue.isEmpty()) {
                             Text(
-                                text = "Сообщение",
+                                text = placeholderText,
                                 color = TextMuted,
                                 fontSize = 15.sp
                             )
@@ -208,14 +214,16 @@ internal fun ChatInputBar(
                         )
                     }
 
-                    // Скрепка (меню вложений)
-                    IconButton(onClick = onOpenAttach, modifier = Modifier.size(36.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.AttachFile,
-                            contentDescription = "Вложить",
-                            tint = TextMuted,
-                            modifier = Modifier.size(22.dp)
-                        )
+                    // Скрепка (меню вложений) — скрывается при редактировании/замене файла (замена идёт через плашку «Заменить»)
+                    if (editing?.attachment == null) {
+                        IconButton(onClick = onOpenAttach, modifier = Modifier.size(36.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.AttachFile,
+                                contentDescription = "Вложить",
+                                tint = TextMuted,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -464,11 +472,19 @@ private fun FusedReplyBar(
         Box(
             modifier = Modifier
                 .width(2.5.dp)
-                .height(26.dp)
+                .height(28.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(scheme.accent)
         )
         Spacer(modifier = Modifier.width(8.dp))
+        if (replyTo.attachment != null) {
+            ReplyAttachmentMiniThumb(
+                message = replyTo,
+                accent = scheme.accent,
+                size = 32.dp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "В ответ $author",
@@ -505,18 +521,22 @@ private fun FusedReplyBar(
 private fun FusedEditBar(
     editing: ChatMessage,
     onClose: () -> Unit,
+    onReplaceAttachment: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val hasAttachment = editing.attachment != null
+    val snippet = replyPreviewSnippet(editing)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .then(if (hasAttachment) Modifier.clickable(onClick = onReplaceAttachment) else Modifier)
             .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = Icons.Outlined.Edit,
+            imageVector = if (hasAttachment) Icons.Outlined.Autorenew else Icons.Outlined.Edit,
             contentDescription = null,
             tint = scheme.accent,
             modifier = Modifier.size(18.dp)
@@ -526,14 +546,22 @@ private fun FusedEditBar(
         Box(
             modifier = Modifier
                 .width(2.5.dp)
-                .height(26.dp)
+                .height(28.dp)
                 .clip(RoundedCornerShape(2.dp))
                 .background(scheme.accent)
         )
         Spacer(modifier = Modifier.width(8.dp))
+        if (hasAttachment) {
+            ReplyAttachmentMiniThumb(
+                message = editing,
+                accent = scheme.accent,
+                size = 32.dp
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Изменение сообщения",
+                text = if (hasAttachment) "Заменить" else "Изменение сообщения",
                 color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -542,7 +570,7 @@ private fun FusedEditBar(
             )
             Spacer(modifier = Modifier.height(1.dp))
             Text(
-                text = editing.text.ifBlank { "Сообщение" },
+                text = if (hasAttachment) snippet else editing.text.ifBlank { "Сообщение" },
                 color = TextPrimary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -563,18 +591,3 @@ private fun FusedEditBar(
     }
 }
 
-private fun replyPreviewSnippet(message: ChatMessage): String = when {
-    message.text.isNotBlank() -> message.text
-    message.attachment is MessageAttachment.File -> message.attachment.name
-    message.attachment is MessageAttachment.FileGroup -> "Файлы (${message.attachment.items.size} шт.)"
-    message.attachment is MessageAttachment.Photo -> if (message.attachment.isVideo) "Видео" else "Фото"
-    message.attachment is MessageAttachment.Music -> "${message.attachment.artist} — ${message.attachment.title}"
-    message.attachment is MessageAttachment.MusicGroup -> "Аудиозаписи (${message.attachment.items.size} шт.)"
-    message.attachment is MessageAttachment.Voice -> "Голосовое сообщение"
-    message.attachment is MessageAttachment.VideoCircle -> "Видеосообщение"
-    message.attachment is MessageAttachment.Contact -> "Контакт: ${message.attachment.name}"
-    message.attachment is MessageAttachment.Geo -> "Геолокация: ${message.attachment.address}"
-    message.attachment is MessageAttachment.Sticker -> "Стикер ${message.attachment.symbol}"
-    message.attachment is MessageAttachment.MediaAlbum -> "Альбом (${message.attachment.items.size} фото)"
-    else -> "Сообщение"
-}

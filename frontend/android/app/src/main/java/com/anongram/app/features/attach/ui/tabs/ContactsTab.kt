@@ -179,7 +179,7 @@ fun ContactsTab(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(statusBarTopDp + 68.dp)
+                .height(68.dp)
                 .zIndex(5f)
                 .background(
                     Brush.verticalGradient(
@@ -198,7 +198,7 @@ fun ContactsTab(
                 .padding(
                     start = 14.dp,
                     end = 14.dp,
-                    top = if (isFullscreen) statusBarTopDp + 6.dp else 4.dp
+                    top = if (isFullscreen) 6.dp else 4.dp
                 )
                 .zIndex(10f)
         ) {
@@ -270,7 +270,7 @@ fun ContactsTab(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = statusBarTopDp + 58.dp)
+                    .padding(top = 58.dp)
                     .zIndex(1f)
             ) {
                 com.anongram.app.features.attach.ui.components.ContactsListSkeleton()
@@ -295,7 +295,7 @@ fun ContactsTab(
                     .padding(horizontal = 14.dp)
                     .zIndex(1f),
                 contentPadding = PaddingValues(
-                    top = statusBarTopDp + 58.dp,
+                    top = 58.dp,
                     bottom = 84.dp
                 )
             ) {

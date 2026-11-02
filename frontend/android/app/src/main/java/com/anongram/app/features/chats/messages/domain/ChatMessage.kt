@@ -25,6 +25,7 @@ data class ChatMessage(
     val epochMs: Long,
     val status: MessageStatus = MessageStatus.READ,
     val replyToId: String? = null,
+    val replyToSubIndex: Int? = null,
     val isEdited: Boolean = false,
     val isUnread: Boolean = false,
     val forwardedFrom: String? = null,
@@ -35,6 +36,37 @@ data class ChatMessage(
 ) {
     val isStickerOnly: Boolean
         get() = attachment is MessageAttachment.Sticker && text.isBlank()
+}
+
+/**
+ * Если ответ был дан на конкретный элемент внутри альбома/группы (replyToSubIndex != null),
+ * возвращает срез сообщения только с этим одним фото, файлом или треком.
+ * Если свайпнули весь альбом (subIndex == null), возвращает сообщение целиком.
+ */
+fun ChatMessage.resolveSubItem(subIndex: Int?): ChatMessage {
+    if (subIndex == null) return this
+    val singleAttachment: MessageAttachment? = when (val att = attachment) {
+        is MessageAttachment.MediaAlbum -> {
+            val item = att.items.getOrNull(subIndex) ?: att.items.firstOrNull()
+            item?.let {
+                MessageAttachment.Photo(
+                    label = "",
+                    colorSeed = (subIndex % 6) + 1,
+                    isVideo = it.isVideo,
+                    uri = it.uri,
+                    hasSpoiler = it.hasSpoiler
+                )
+            } ?: att
+        }
+        is MessageAttachment.FileGroup -> {
+            att.items.getOrNull(subIndex) ?: att.items.firstOrNull() ?: att
+        }
+        is MessageAttachment.MusicGroup -> {
+            att.items.getOrNull(subIndex) ?: att.items.firstOrNull() ?: att
+        }
+        else -> att
+    }
+    return copy(attachment = singleAttachment, replyToSubIndex = subIndex)
 }
 
 fun ChatMessage.timeLabel(): String =

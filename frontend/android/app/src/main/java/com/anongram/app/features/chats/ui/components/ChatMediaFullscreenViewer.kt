@@ -139,7 +139,7 @@ internal fun ChatMediaFullscreenViewer(
     overrideSingleUri: String? = null,
     onClose: () -> Unit,
     onShowInChat: (ChatMessage) -> Unit,
-    onReply: (ChatMessage) -> Unit,
+    onReply: (ChatMessage, Int?) -> Unit = { _, _ -> },
     onRequestDelete: (ChatMessage, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -612,7 +612,7 @@ internal fun ChatMediaFullscreenViewer(
                                     },
                                     onClick = {
                                         isMenuOpen = false
-                                        onReply(activeMessage)
+                                        onReply(activeMessage, currentEntry.itemIndexInMessage)
                                     }
                                 )
 

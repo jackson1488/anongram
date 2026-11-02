@@ -258,7 +258,7 @@ fun FilesTab(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(statusBarTopDp + 64.dp)
+                        .height(64.dp)
                         .background(
                             Brush.verticalGradient(
                                 0.0f to AttachSheetBackground,
@@ -271,7 +271,6 @@ fun FilesTab(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .safeStatusBarPadding()
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -419,7 +418,7 @@ fun FilesTab(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = if (isFullscreen) statusBarTopDp + 60.dp else 10.dp,
+                top = if (isFullscreen) 62.dp else 10.dp,
                 bottom = 84.dp
             )
         ) {
@@ -885,7 +884,7 @@ fun FilesGallerySubScreen(
                     .fillMaxSize()
                     .zIndex(1f)
                     .padding(horizontal = 4.dp),
-                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 84.dp)
+                contentPadding = PaddingValues(top = 64.dp, bottom = 84.dp)
             )
         } else if (mediaList.isEmpty()) {
             Box(
@@ -907,7 +906,7 @@ fun FilesGallerySubScreen(
                     .fillMaxSize()
                     .zIndex(1f)
                     .padding(horizontal = 4.dp),
-                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 84.dp),
+                contentPadding = PaddingValues(top = 64.dp, bottom = 84.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -925,7 +924,7 @@ fun FilesGallerySubScreen(
                     .fillMaxSize()
                     .zIndex(1f)
                     .padding(horizontal = 14.dp),
-                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 140.dp)
+                contentPadding = PaddingValues(top = 64.dp, bottom = 140.dp)
             ) {
                 items(mediaList, key = { it.uri.toString() }) { media ->
                     FilesGalleryListItem(
@@ -1024,7 +1023,7 @@ fun FilesGallerySubScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(statusBarTopDp + 68.dp)
+                    .height(64.dp)
                     .background(
                         Brush.verticalGradient(
                             0.0f to AttachSheetBackground,
@@ -1037,7 +1036,6 @@ fun FilesGallerySubScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .safeStatusBarPadding()
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
