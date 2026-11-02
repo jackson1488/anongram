@@ -289,7 +289,7 @@ fun ChatScreen(
                     selection = state.selection,
                     firstUnreadId = state.firstUnreadId,
                     highlightedMessageId = state.highlightedMessageId,
-                    pinnedIds = state.pinnedIds,
+                    pinnedIds = state.pinnedIds.toSet(),
                     topPadding = topListPadding,
                     bottomPadding = bottomListPadding,
                     onClick = { message, topY ->

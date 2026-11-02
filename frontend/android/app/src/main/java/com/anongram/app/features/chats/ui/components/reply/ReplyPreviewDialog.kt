@@ -53,10 +53,14 @@ fun ReplyPreviewDialog(
     chatId: String,
     replyMessage: ChatMessage,
     peerName: String,
+    replyToSubIndex: Int? = null,
     onRemoveReply: () -> Unit,
     onJumpToMessage: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val resolvedMessage = remember(replyMessage, replyToSubIndex) {
+        replyMessage.resolveSubItem(replyToSubIndex)
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -138,7 +142,7 @@ fun ReplyPreviewDialog(
                         contentAlignment = Alignment.BottomStart
                     ) {
                         InteractiveReplyBubble(
-                            message = replyMessage,
+                            message = resolvedMessage,
                             peerName = peerName,
                             onJumpToMessage = {
                                 onJumpToMessage()
