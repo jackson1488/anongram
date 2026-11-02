@@ -40,6 +40,7 @@ import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 
 /**
