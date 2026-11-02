@@ -14,11 +14,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Reply
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -48,6 +50,7 @@ internal fun SelectionPanel(
     selectedCount: Int,
     canEditSingleMedia: Boolean = false,
     onClose: () -> Unit,
+    onReply: (() -> Unit)? = null,
     onCopy: () -> Unit,
     onEdit: () -> Unit = {},
     onForward: () -> Unit,
@@ -102,7 +105,7 @@ internal fun SelectionPanel(
             )
         }
 
-        // Островок 3: Действия без названий (Карандаш/Копировать, Переслать, Удалить, 50dp)
+        // Островок 3: Действия без названий (Ответить, Кисточка/Заменить, Переслать, Удалить, 50dp)
         Row(
             modifier = Modifier
                 .height(50.dp)
@@ -112,14 +115,28 @@ internal fun SelectionPanel(
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (selectedCount == 1 && onReply != null) {
+                IconButton(
+                    onClick = onReply,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Reply,
+                        contentDescription = "Ответить",
+                        tint = TextPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
             if (canEditSingleMedia) {
                 IconButton(
                     onClick = onEdit,
                     modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Edit,
-                        contentDescription = "Заменить",
+                        imageVector = Icons.Outlined.Brush,
+                        contentDescription = "Редактировать / Заменить",
                         tint = TextPrimary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -143,7 +160,7 @@ internal fun SelectionPanel(
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Outlined.Reply,
+                    imageVector = Icons.AutoMirrored.Outlined.Send,
                     contentDescription = "Переслать",
                     tint = TextPrimary,
                     modifier = Modifier.size(20.dp)

@@ -243,8 +243,43 @@ class ChatMessagesViewModel(
     }
 
     /**
+     * Запуск ответа на 1 выбранное сообщение/элемент из верхней панели SelectionPanel.
+     */
+    fun startReplyFromSelection() {
+        val state = _uiState.value
+        if (state.selection.size != 1) return
+        val key = state.selection.first()
+        when {
+            "#photo_" in key -> {
+                val msgId = key.substringBefore("#photo_")
+                val idx = key.substringAfter("#photo_").toIntOrNull()
+                val msg = state.messages.firstOrNull { it.id == msgId } ?: return
+                startReply(msg, idx)
+            }
+            "#file_" in key -> {
+                val msgId = key.substringBefore("#file_")
+                val idx = key.substringAfter("#file_").toIntOrNull()
+                val msg = state.messages.firstOrNull { it.id == msgId } ?: return
+                startReply(msg, idx)
+            }
+            "#music_" in key -> {
+                val msgId = key.substringBefore("#music_")
+                val idx = key.substringAfter("#music_").toIntOrNull()
+                val msg = state.messages.firstOrNull { it.id == msgId } ?: return
+                startReply(msg, idx)
+            }
+            else -> {
+                val msg = state.messages.firstOrNull { it.id == key } ?: return
+                startReply(msg, null)
+            }
+        }
+        clearSelection()
+    }
+
+    /**
      * Строго равноценная замена (транзакция 1 на 1):
      * 1 старое вложение (или 1 конкретная ячейка в альбоме/группе) заменяется ровно на 1 новое.
+     * Замена сразу фиксируется и режим редактирования закрывается (без двойного подтверждения).
      */
     fun replaceEditingAttachment(newSingleAttachment: MessageAttachment) {
         val state = _uiState.value
@@ -298,7 +333,9 @@ class ChatMessagesViewModel(
             _uiState.update { s ->
                 s.copy(
                     messages = s.messages.map { if (it.id == orig.id) updatedMsg else it },
-                    editing = editing.copy(attachment = newSingleAttachment, isEdited = true)
+                    editing = null,
+                    editingSubIndex = null,
+                    input = ""
                 )
             }
         }

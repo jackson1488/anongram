@@ -103,19 +103,19 @@ internal fun InteractiveReplyBubble(
 
             Column(
                 modifier = Modifier
-                    .fillMaxWidth(0.92f)
+                    .width(235.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(CardDark)
                     .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(8.dp)
+                    .padding(6.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(if (isExpandedPhotoOpen) 300.dp else 210.dp)
+                        .height(350.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(attachmentColor(attachment.colorSeed))
-                        .clickable { isExpandedPhotoOpen = !isExpandedPhotoOpen },
+                        .clickable(onClick = onJumpToMessage),
                     contentAlignment = Alignment.Center
                 ) {
                     if (photoBitmap != null) {

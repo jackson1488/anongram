@@ -308,8 +308,16 @@ fun ChatScreen(
                             viewModel.enterSelection(message.id)
                         }
                     },
-                    onSwipeReply = viewModel::startReply,
-                    onReplyMessage = { msg, subIdx -> viewModel.startReply(msg, subIdx) },
+                    onSwipeReply = { msg ->
+                        viewModel.startReply(msg)
+                        inputFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    },
+                    onReplyMessage = { msg, subIdx ->
+                        viewModel.startReply(msg, subIdx)
+                        inputFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    },
                     onToggleReaction = viewModel::toggleReaction,
                     onSelectMessage = viewModel::toggleSelection,
                     onToggleAlbumPhoto = viewModel::toggleAlbumPhotoSelection,
@@ -320,7 +328,11 @@ fun ChatScreen(
                         viewModel.enterSelection(key)
                     },
                     onPinMessage = viewModel::togglePinMessage,
-                    onEditMessage = { msg, subIdx -> viewModel.startEdit(msg, subIdx) },
+                    onEditMessage = { msg, subIdx ->
+                        viewModel.startEdit(msg, subIdx)
+                        inputFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    },
                     onRetryMessage = viewModel::retry,
                     onHighlightMessage = viewModel::highlightMessage,
                     onOpenMediaViewer = { message, photoIdx ->
@@ -511,8 +523,15 @@ fun ChatScreen(
                     SelectionPanel(
                         selectedCount = state.selection.size,
                         canEditSingleMedia = state.canEditSelectedSingleMedia,
+                        onReply = {
+                            viewModel.startReplyFromSelection()
+                            inputFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        },
                         onEdit = {
                             viewModel.startEditFromSelection()
+                            inputFocusRequester.requestFocus()
+                            keyboardController?.show()
                         },
                         onClose = viewModel::clearSelection,
                         onCopy = {
@@ -794,12 +813,20 @@ fun ChatScreen(
                     viewModel.toggleReaction(message.id, emoji)
                     viewModel.closeActionMenu()
                 },
-                onReply = { viewModel.startReply(message) },
+                onReply = {
+                    viewModel.startReply(message)
+                    inputFocusRequester.requestFocus()
+                    keyboardController?.show()
+                },
                 onCopy = {
                     clipboard.setText(AnnotatedString(message.text))
                     viewModel.closeActionMenu()
                 },
-                onEdit = { viewModel.startEdit(message) },
+                onEdit = {
+                    viewModel.startEdit(message)
+                    inputFocusRequester.requestFocus()
+                    keyboardController?.show()
+                },
                 onForward = {
                     viewModel.closeActionMenu()
                     forwardingMessageIds = listOf(message.id)

@@ -17,7 +17,10 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -174,22 +177,53 @@ internal fun MessageBubble(
                 }
             )
             .pointerInput(item.message.id) {
-                detectHorizontalDragGestures(
-                    onDragEnd = {
-                        if (dragOffsetPx <= -thresholdPx) {
-                            onSwipeReply()
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    var totalDx = 0f
+                    var totalDy = 0f
+                    var isHorizontalSwipe = false
+                    val touchSlop = viewConfiguration.touchSlop
+                    val maxDrag = with(density) { 90.dp.toPx() }
+
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) {
+                            if (isHorizontalSwipe && dragOffsetPx <= -thresholdPx) {
+                                onSwipeReply()
+                            }
+                            dragOffsetPx = 0f
+                            break
                         }
-                        dragOffsetPx = 0f
-                    },
-                    onDragCancel = { dragOffsetPx = 0f },
-                    onHorizontalDrag = { _, dragAmount ->
-                        val maxDrag = with(density) { 90.dp.toPx() }
-                        dragOffsetPx = (dragOffsetPx + dragAmount).coerceIn(-maxDrag, 0f)
+
+                        val dragChange = change.positionChange()
+                        totalDx += dragChange.x
+                        totalDy += dragChange.y
+
+                        if (!isHorizontalSwipe) {
+                            val absX = kotlin.math.abs(totalDx)
+                            val absY = kotlin.math.abs(totalDy)
+                            if (absX > touchSlop || absY > touchSlop) {
+                                if (totalDx < -touchSlop && absX > absY * 1.5f) {
+                                    // Осознанный свайп влево — захватываем жест
+                                    isHorizontalSwipe = true
+                                    change.consume()
+                                } else {
+                                    // Вертикальный скролл списка или свайп вправо — пропускаем для LazyColumn
+                                    break
+                                }
+                            }
+                        } else {
+                            change.consume()
+                            dragOffsetPx = (dragOffsetPx + dragChange.x).coerceIn(-maxDrag, 0f)
+                        }
                     }
-                )
+                    dragOffsetPx = 0f
+                }
             }
     ) {
-        if (dragOffsetPx < -10f) {
+        val replyIconThresholdPx = with(density) { 24.dp.toPx() }
+        if (dragOffsetPx <= -replyIconThresholdPx) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -204,7 +238,7 @@ internal fun MessageBubble(
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Reply,
+                        imageVector = Icons.AutoMirrored.Outlined.Reply,
                         contentDescription = "Ответить",
                         tint = scheme.accent,
                         modifier = Modifier.size(18.dp)

@@ -36,8 +36,14 @@ suspend fun LazyListState.animateScrollAndCenterItem(
             animateScrollBy(diff, tween(durationMillis = 350, easing = FastOutSlowInEasing))
         }
     } else {
-        // Если элемент за пределами экрана — плавно прокручиваем к нему с центрированием
+        // Если элемент за пределами экрана — мгновенно подпрыгиваем к окрестности (за 5 элементов),
+        // а последние 5 элементов плавно доводим без лагов анимации через сотни/тысячи элементов.
         val targetOffset = -(viewportCenter - 100)
+        val distance = kotlin.math.abs(firstVisibleItemIndex - index)
+        if (distance > 10) {
+            val preJumpIndex = if (index > firstVisibleItemIndex) index - 5 else index + 5
+            scrollToItem(preJumpIndex.coerceAtLeast(0), scrollOffset = targetOffset)
+        }
         animateScrollToItem(index, scrollOffset = targetOffset)
     }
 }
