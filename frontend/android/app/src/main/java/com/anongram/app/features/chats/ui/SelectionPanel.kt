@@ -5,22 +5,19 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -28,7 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,19 +37,20 @@ import com.anongram.app.core.theme.TextPrimary
  * Панель режима выделения сообщений в стиле плавающих островков:
  * 1. Левый островок: кнопка-крестик (отмена выделения).
  * 2. Центральный островок: «Выбрано N».
- * 3. Правый островок: действия.
- *    - Если выбрано ровно 1 фото/файл/трек (canEditSingleMedia == true):
- *      кнопка «Копировать» заменяется на «Карандаш» (замена 1 на 1).
- *    - Иначе стандартно: Копировать, Переслать, Удалить.
+ * 3. Правый островок:
+ *    - Если выбрано 1 фото: Кисточка, Переслать (стрелка вправо ТГ), Удалить.
+ *    - Если выбран 1 файл / трек: Скачать, Переслать (стрелка вправо ТГ), Удалить.
+ *    - Иначе (текст / мультивыбор): Копировать, Переслать (стрелка вправо ТГ), Удалить.
  */
 @Composable
 internal fun SelectionPanel(
     selectedCount: Int,
-    canEditSingleMedia: Boolean = false,
+    isPhoto: Boolean = false,
+    isFileOrMusic: Boolean = false,
     onClose: () -> Unit,
-    onReply: (() -> Unit)? = null,
     onCopy: () -> Unit,
-    onEdit: () -> Unit = {},
+    onBrushEdit: () -> Unit = {},
+    onDownload: () -> Unit = {},
     onForward: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -105,7 +103,7 @@ internal fun SelectionPanel(
             )
         }
 
-        // Островок 3: Действия без названий (Ответить, Кисточка/Заменить, Переслать, Удалить, 50dp)
+        // Островок 3: Действия без названий (Кисточка/Скачать/Копировать, Переслать (ТГ), Удалить, 50dp)
         Row(
             modifier = Modifier
                 .height(50.dp)
@@ -115,58 +113,67 @@ internal fun SelectionPanel(
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (selectedCount == 1 && onReply != null) {
-                IconButton(
-                    onClick = onReply,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.Reply,
-                        contentDescription = "Ответить",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+            when {
+                selectedCount == 1 && isPhoto -> {
+                    // Фото: Кисточка
+                    IconButton(
+                        onClick = onBrushEdit,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Brush,
+                            contentDescription = "Редактировать / Заменить",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                selectedCount == 1 && isFileOrMusic -> {
+                    // Файл или музыка: Скачать
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.FileDownload,
+                            contentDescription = "Сохранить",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                else -> {
+                    // Текст или мультивыбор: Копировать
+                    IconButton(
+                        onClick = onCopy,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ContentCopy,
+                            contentDescription = "Копировать",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
-            if (canEditSingleMedia) {
-                IconButton(
-                    onClick = onEdit,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Brush,
-                        contentDescription = "Редактировать / Заменить",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            } else {
-                IconButton(
-                    onClick = onCopy,
-                    modifier = Modifier.size(40.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ContentCopy,
-                        contentDescription = "Копировать",
-                        tint = TextPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-
+            // Переслать — чистая стрелка вправо как в Telegram
             IconButton(
                 onClick = onForward,
                 modifier = Modifier.size(40.dp)
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.Send,
+                    imageVector = Icons.AutoMirrored.Outlined.Reply,
                     contentDescription = "Переслать",
                     tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier
+                        .size(20.dp)
+                        .graphicsLayer { scaleX = -1f }
                 )
             }
 
+            // Удалить
             IconButton(
                 onClick = onDelete,
                 modifier = Modifier.size(40.dp)

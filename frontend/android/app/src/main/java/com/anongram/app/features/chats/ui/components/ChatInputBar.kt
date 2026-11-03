@@ -31,6 +31,7 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Edit
@@ -106,6 +107,7 @@ internal fun ChatInputBar(
     onCancelReply: () -> Unit,
     onCancelEdit: () -> Unit,
     onReplaceAttachment: () -> Unit = {},
+    onEditAttachment: () -> Unit = {},
     onReplyClick: (ChatMessage) -> Unit = {},
     onReplyLongClick: (ChatMessage) -> Unit = {},
     onToggleEmoji: () -> Unit,
@@ -160,7 +162,8 @@ internal fun ChatInputBar(
                     FusedEditBar(
                         editing = editing,
                         onClose = onCancelEdit,
-                        onReplaceAttachment = onReplaceAttachment
+                        onReplaceAttachment = onReplaceAttachment,
+                        onEditAttachment = onEditAttachment
                     )
                 }
 
@@ -522,16 +525,17 @@ private fun FusedEditBar(
     editing: ChatMessage,
     onClose: () -> Unit,
     onReplaceAttachment: () -> Unit,
+    onEditAttachment: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val hasAttachment = editing.attachment != null
+    val isPhoto = editing.attachment is MessageAttachment.Photo || editing.attachment is MessageAttachment.MediaAlbum
     val snippet = replyPreviewSnippet(editing)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .then(if (hasAttachment) Modifier.clickable(onClick = onReplaceAttachment) else Modifier)
             .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -559,7 +563,14 @@ private fun FusedEditBar(
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
-        Column(modifier = Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(
+                    enabled = hasAttachment,
+                    onClick = onReplaceAttachment
+                )
+        ) {
             Text(
                 text = if (hasAttachment) "Заменить" else "Изменение сообщения",
                 color = scheme.accent,
@@ -576,6 +587,20 @@ private fun FusedEditBar(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        if (isPhoto) {
+            IconButton(
+                onClick = onEditAttachment,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Brush,
+                    contentDescription = "Редактировать фото",
+                    tint = scheme.accent,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
         }
         IconButton(
             onClick = onClose,

@@ -96,6 +96,70 @@ data class ChatMessagesUiState(
             }
         }
 
+    val isSingleSelectedPhoto: Boolean
+        get() {
+            if (selection.size != 1) return false
+            val key = selection.first()
+            if ("#photo_" in key) return true
+            val msg = messages.firstOrNull { it.id == key } ?: return false
+            return when (val att = msg.attachment) {
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo -> true
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum -> att.items.size == 1
+                else -> false
+            }
+        }
+
+    val isSingleSelectedFileOrMusic: Boolean
+        get() {
+            if (selection.size != 1) return false
+            val key = selection.first()
+            if ("#file_" in key || "#music_" in key) return true
+            val msg = messages.firstOrNull { it.id == key } ?: return false
+            return when (val att = msg.attachment) {
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.File,
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.Music -> true
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup -> att.items.size == 1
+                is com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup -> att.items.size == 1
+                else -> false
+            }
+        }
+
+    fun getSingleSelectedFile(): com.anongram.app.features.chats.messages.domain.MessageAttachment.File? {
+        if (selection.size != 1) return null
+        val key = selection.first()
+        if ("#file_" in key) {
+            val msgId = key.substringBefore("#file_")
+            val idx = key.substringAfter("#file_").toIntOrNull() ?: 0
+            val msg = messages.firstOrNull { it.id == msgId } ?: return null
+            val fg = msg.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup
+            return fg?.items?.getOrNull(idx)
+        }
+        val msg = messages.firstOrNull { it.id == key } ?: return null
+        return when (val att = msg.attachment) {
+            is com.anongram.app.features.chats.messages.domain.MessageAttachment.File -> att
+            is com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup -> att.items.firstOrNull()
+            else -> null
+        }
+    }
+
+    fun getSingleSelectedMusic(): com.anongram.app.features.chats.messages.domain.MessageAttachment.Music? {
+        if (selection.size != 1) return null
+        val key = selection.first()
+        if ("#music_" in key) {
+            val msgId = key.substringBefore("#music_")
+            val idx = key.substringAfter("#music_").toIntOrNull() ?: 0
+            val msg = messages.firstOrNull { it.id == msgId } ?: return null
+            val mg = msg.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup
+            return mg?.items?.getOrNull(idx)
+        }
+        val msg = messages.firstOrNull { it.id == key } ?: return null
+        return when (val att = msg.attachment) {
+            is com.anongram.app.features.chats.messages.domain.MessageAttachment.Music -> att
+            is com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup -> att.items.firstOrNull()
+            else -> null
+        }
+    }
+
     val selectedMessages: List<ChatMessage>
         get() = messages.filter { it.id in selection }
 

@@ -281,7 +281,7 @@ class ChatMessagesViewModel(
      * 1 старое вложение (или 1 конкретная ячейка в альбоме/группе) заменяется ровно на 1 новое.
      * Замена сразу фиксируется и режим редактирования закрывается (без двойного подтверждения).
      */
-    fun replaceEditingAttachment(newSingleAttachment: MessageAttachment) {
+    fun replaceEditingAttachment(newSingleAttachment: MessageAttachment, newCaption: String? = null) {
         val state = _uiState.value
         val editing = state.editing ?: return
         val subIndex = state.editingSubIndex
@@ -327,8 +327,18 @@ class ChatMessagesViewModel(
             else -> newSingleAttachment
         }
 
+        val isAttachmentChanged = updatedOrigAttachment != orig.attachment
+        val newText = (newCaption ?: state.input).trim()
+        val isTextChanged = newText != orig.text
+        val isEditedNow = orig.isEdited || isAttachmentChanged || isTextChanged
+        val finalUpdatedText = if (isTextChanged) newText else orig.text
+
         viewModelScope.launch {
-            val updatedMsg = orig.copy(attachment = updatedOrigAttachment, isEdited = true)
+            val updatedMsg = orig.copy(
+                attachment = updatedOrigAttachment,
+                text = finalUpdatedText,
+                isEdited = isEditedNow
+            )
             repository.updateMessage(sessionId, updatedMsg)
             _uiState.update { s ->
                 s.copy(
@@ -347,8 +357,10 @@ class ChatMessagesViewModel(
 
     private fun editMessage(messageId: String, newText: String) {
         viewModelScope.launch {
-            val edited = _uiState.value.messages.firstOrNull { it.id == messageId }
-                ?.copy(text = newText, isEdited = true) ?: return@launch
+            val orig = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return@launch
+            val isChanged = newText != orig.text
+            val isEditedNow = orig.isEdited || isChanged
+            val edited = orig.copy(text = newText, isEdited = isEditedNow)
             repository.updateMessage(sessionId, edited)
             _uiState.update { s ->
                 s.copy(
@@ -607,7 +619,8 @@ class ChatMessagesViewModel(
 
             val copies = mutableListOf<ChatMessage>()
             for (original in _uiState.value.messages) {
-                val fwdAuthor = if (targetSessionId == "0") null else (original.forwardedFrom ?: authorName)
+                // AnonGram — полная анонимность пересылки (сообщение отправляется от себя без отметки автора)
+                val fwdAuthor: String? = null
                 if (original.id in fullIds) {
                     copies.add(
                         original.copy(

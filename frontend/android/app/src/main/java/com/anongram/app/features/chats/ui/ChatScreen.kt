@@ -92,6 +92,10 @@ import com.anongram.app.features.chats.ui.components.reply.ReplyPreviewDialog
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
 import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
+import com.anongram.app.features.chats.ui.components.bubble.saveFileToDeviceDownloads
+import com.anongram.app.features.chats.ui.components.bubble.saveMusicToDeviceMusic
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -110,6 +114,7 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
     var isWallpaperOpen by remember { mutableStateOf(false) }
     var isReplyPreviewOpen by remember { mutableStateOf(false) }
     var isSearchListMode by remember { mutableStateOf(false) }
@@ -371,7 +376,12 @@ fun ChatScreen(
                 visible = !state.isSearchOpen && listState.firstVisibleItemIndex > 2,
                 unreadBadge = state.unreadBadge,
                 onClick = {
-                    scope.launch { listState.animateScrollToItem(0) }
+                    scope.launch {
+                        if (listState.firstVisibleItemIndex > 6) {
+                            listState.scrollToItem(2)
+                        }
+                        listState.animateScrollToItem(0)
+                    }
                     viewModel.clearUnreadBadge()
                 },
                 modifier = Modifier
@@ -449,6 +459,9 @@ fun ChatScreen(
                             }
                             isReplaceAttachSheetOpen = true
                         },
+                        onEditAttachment = {
+                            Toast.makeText(context, "Редактирование фото", Toast.LENGTH_SHORT).show()
+                        },
                         onReplyClick = { replyMsg ->
                             viewModel.highlightMessage(replyMsg.id)
                             val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
@@ -522,22 +535,35 @@ fun ChatScreen(
                 state.isSelectionMode -> {
                     SelectionPanel(
                         selectedCount = state.selection.size,
-                        canEditSingleMedia = state.canEditSelectedSingleMedia,
-                        onReply = {
-                            viewModel.startReplyFromSelection()
-                            inputFocusRequester.requestFocus()
-                            keyboardController?.show()
-                        },
-                        onEdit = {
-                            viewModel.startEditFromSelection()
-                            inputFocusRequester.requestFocus()
-                            keyboardController?.show()
-                        },
+                        isPhoto = state.isSingleSelectedPhoto,
+                        isFileOrMusic = state.isSingleSelectedFileOrMusic,
                         onClose = viewModel::clearSelection,
                         onCopy = {
                             val combined = state.selectedMessages.joinToString("\n") { it.text }
                             clipboard.setText(AnnotatedString(combined))
                             viewModel.clearSelection()
+                        },
+                        onBrushEdit = {
+                            viewModel.startEditFromSelection()
+                            inputFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        },
+                        onDownload = {
+                            val file = state.getSingleSelectedFile()
+                            val music = state.getSingleSelectedMusic()
+                            viewModel.clearSelection()
+                            scope.launch {
+                                val ok = when {
+                                    file != null -> saveFileToDeviceDownloads(context, file)
+                                    music != null -> saveMusicToDeviceMusic(context, music)
+                                    else -> false
+                                }
+                                Toast.makeText(
+                                    context,
+                                    if (ok) "Сохранено на устройство" else "Не удалось сохранить",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         },
                         onForward = {
                             forwardingMessageIds = state.selection.toList()
@@ -1082,14 +1108,14 @@ fun ChatScreen(
                 isSingleReplaceMode = true,
                 onSingleReplace = { draft ->
                     isReplaceAttachSheetOpen = false
-                    val newAttachment: MessageAttachment? = when (draft) {
+                    val (newAttachment, sheetCaption) = when (draft) {
                         is AttachmentDraft.Media -> MessageAttachment.Photo(
                             label = "",
                             colorSeed = 1,
                             isVideo = draft.isVideo,
                             uri = draft.uri.toString(),
                             hasSpoiler = draft.hasSpoiler
-                        )
+                        ) to draft.caption
                         is AttachmentDraft.File -> {
                             val ext = draft.name.substringAfterLast('.', "").lowercase()
                             val kind = when (ext) {
@@ -1111,7 +1137,7 @@ fun ChatScreen(
                                 sizeLabel = sizeLabel,
                                 kind = kind,
                                 uri = draft.uri.toString()
-                            )
+                            ) to draft.caption
                         }
                         is AttachmentDraft.Audio -> {
                             val min = draft.durationMs / 60000
@@ -1123,12 +1149,12 @@ fun ChatScreen(
                                 durationLabel = durLabel,
                                 colorSeed = 1,
                                 uri = draft.uri.toString()
-                            )
+                            ) to draft.caption
                         }
-                        else -> null
+                        else -> null to null
                     }
                     if (newAttachment != null) {
-                        viewModel.replaceEditingAttachment(newAttachment)
+                        viewModel.replaceEditingAttachment(newAttachment, sheetCaption?.ifBlank { null })
                     }
                 },
                 onDismiss = { isReplaceAttachSheetOpen = false },

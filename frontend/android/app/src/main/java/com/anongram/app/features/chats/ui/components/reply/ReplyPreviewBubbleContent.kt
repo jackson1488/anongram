@@ -66,6 +66,7 @@ import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import com.anongram.app.features.chats.messages.domain.timeLabel
+import com.anongram.app.features.chats.ui.components.bubble.ChatMediaAlbumGrid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -103,7 +104,7 @@ internal fun InteractiveReplyBubble(
 
             Column(
                 modifier = Modifier
-                    .width(235.dp)
+                    .widthIn(min = 220.dp, max = 280.dp)
                     .clip(RoundedCornerShape(18.dp))
                     .background(CardDark)
                     .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
@@ -112,7 +113,7 @@ internal fun InteractiveReplyBubble(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(350.dp)
+                        .heightIn(min = 180.dp, max = 260.dp)
                         .clip(RoundedCornerShape(14.dp))
                         .background(attachmentColor(attachment.colorSeed))
                         .clickable(onClick = onJumpToMessage),
@@ -123,7 +124,9 @@ internal fun InteractiveReplyBubble(
                             bitmap = photoBitmap!!,
                             contentDescription = "Фотография",
                             contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 180.dp, max = 260.dp)
                         )
                     } else {
                         Icon(
@@ -192,31 +195,11 @@ internal fun InteractiveReplyBubble(
                     .clickable(onClick = onJumpToMessage)
                     .padding(8.dp)
             ) {
-                val items = attachment.items
-                val rows = items.chunked(2).take(3)
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    rows.forEachIndexed { rIdx, rowItems ->
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(3.dp)
-                        ) {
-                            rowItems.forEachIndexed { cIdx, albumItem ->
-                                val globalIdx = rIdx * 2 + cIdx
-                                val isLastVisible = (rIdx == rows.lastIndex && cIdx == rowItems.lastIndex)
-                                val remaining = items.size - (globalIdx + 1)
-                                ReplyAlbumCellThumb(
-                                    uriString = albumItem.uri,
-                                    isVideo = albumItem.isVideo,
-                                    extraCount = if (isLastVisible && remaining > 0) remaining else 0,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(if (rows.size == 1) 170.dp else 105.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                )
-                            }
-                        }
-                    }
-                }
+                ChatMediaAlbumGrid(
+                    items = attachment.items,
+                    accent = scheme.accent,
+                    onPhotoClick = { onJumpToMessage() }
+                )
 
                 if (message.text.isNotBlank()) {
                     Spacer(modifier = Modifier.height(8.dp))
