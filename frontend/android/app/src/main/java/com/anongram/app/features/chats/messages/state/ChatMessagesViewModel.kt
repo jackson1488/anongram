@@ -92,8 +92,10 @@ class ChatMessagesViewModel(
             voiceDurationLabel = s.voiceReviewDraft?.durationLabel,
             voiceWaveform = s.voiceReviewDraft?.waveform ?: emptyList()
         )
-        chatsRepository.saveDraft(sessionId, txt)
         ChatDraftsRepository.instance.saveDraft(draft)
+        viewModelScope.launch {
+            chatsRepository.saveDraft(sessionId, txt)
+        }
     }
 
     fun onInputChange(value: String) {
