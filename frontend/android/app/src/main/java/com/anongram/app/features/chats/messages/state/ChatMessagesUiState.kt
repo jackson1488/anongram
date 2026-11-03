@@ -67,7 +67,9 @@ data class ChatMessagesUiState(
     val isFlagSecure: Boolean = false,
     val deleteDialogFor: List<String>? = null,
     val isLoadingOlder: Boolean = false,
-    val hasMoreOlder: Boolean = true
+    val hasMoreOlder: Boolean = true,
+    val expandedVideoCircle: com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle? = null,
+    val voiceReviewDraft: com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice? = null
 ) {
     val canSend: Boolean
         get() = input.isNotBlank() || editing?.attachment != null
@@ -158,6 +160,36 @@ data class ChatMessagesUiState(
             is com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup -> att.items.firstOrNull()
             else -> null
         }
+    }
+
+    val isSingleSelectedVideoCircle: Boolean
+        get() {
+            if (selection.size != 1) return false
+            val key = selection.first()
+            val msg = messages.firstOrNull { it.id == key } ?: return false
+            return msg.attachment is com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle
+        }
+
+    val isSingleSelectedVoice: Boolean
+        get() {
+            if (selection.size != 1) return false
+            val key = selection.first()
+            val msg = messages.firstOrNull { it.id == key } ?: return false
+            return msg.attachment is com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice
+        }
+
+    fun getSingleSelectedVideoCircle(): com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle? {
+        if (selection.size != 1) return null
+        val key = selection.first()
+        val msg = messages.firstOrNull { it.id == key } ?: return null
+        return msg.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle
+    }
+
+    fun getSingleSelectedVoice(): com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice? {
+        if (selection.size != 1) return null
+        val key = selection.first()
+        val msg = messages.firstOrNull { it.id == key } ?: return null
+        return msg.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice
     }
 
     val selectedMessages: List<ChatMessage>

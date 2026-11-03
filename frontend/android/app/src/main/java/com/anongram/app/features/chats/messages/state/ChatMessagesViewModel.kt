@@ -13,6 +13,8 @@ import com.anongram.app.features.chats.messages.domain.LinkPreview
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageStatus
+import com.anongram.app.features.drafts.ChatDraft
+import com.anongram.app.features.drafts.ChatDraftsRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,12 +51,21 @@ class ChatMessagesViewModel(
     init {
         viewModelScope.launch {
             val drafts = chatsRepository.loadDrafts()
+            val richDraft = ChatDraftsRepository.instance.getDraft(sessionId)
+            val initialInput = richDraft?.text ?: (drafts[sessionId] ?: "")
+            val initialVoice = if (richDraft?.voiceDurationLabel != null) {
+                MessageAttachment.Voice(
+                    durationLabel = richDraft.voiceDurationLabel,
+                    waveform = richDraft.voiceWaveform
+                )
+            } else null
             val loaded = repository.loadMessages(sessionId)
             val initialPinned = if (sessionId == "2" && loaded.size > 2) listOf(loaded[1].id, loaded[2].id) else emptyList<String>()
             _uiState.update {
                 it.copy(
                     messages = loaded,
-                    input = drafts[sessionId] ?: "",
+                    input = initialInput,
+                    voiceReviewDraft = initialVoice,
                     firstUnreadId = loaded.firstOrNull { message -> message.isUnread }?.id,
                     pinnedIds = initialPinned,
                     pinnedId = initialPinned.lastOrNull()
@@ -71,6 +82,14 @@ class ChatMessagesViewModel(
         draftJob = viewModelScope.launch {
             delay(600)
             chatsRepository.saveDraft(sessionId, value.trim())
+            ChatDraftsRepository.instance.saveDraft(
+                ChatDraft(
+                    chatId = sessionId,
+                    text = value.trim(),
+                    voiceDurationLabel = _uiState.value.voiceReviewDraft?.durationLabel,
+                    voiceWaveform = _uiState.value.voiceReviewDraft?.waveform ?: emptyList()
+                )
+            )
         }
     }
 
@@ -100,6 +119,7 @@ class ChatMessagesViewModel(
         )
         viewModelScope.launch {
             chatsRepository.saveDraft(sessionId, "")
+            ChatDraftsRepository.instance.clearDraft(sessionId)
             repository.addMessage(sessionId, message)
             _uiState.update { s ->
                 s.copy(messages = s.messages + message, input = "", replyTo = null, replyToSubIndex = null)
@@ -1077,7 +1097,58 @@ class ChatMessagesViewModel(
         }
     }
 
-    fun stopLockedRecording() = finishRecording(send = true)
+    fun stopLockedRecording() {
+        val recording = _uiState.value.recording
+        recordingJob?.cancel()
+        recordingJob = null
+        _uiState.update { it.copy(recording = RecordingState()) }
+        if (recording.mode == RecordMode.VOICE) {
+            if (recording.elapsedTenths >= 5) {
+                val voice = MessageAttachment.Voice(
+                    durationLabel = recording.durationLabel,
+                    waveform = List(24) { Random.nextInt(3, 15) }
+                )
+                _uiState.update { it.copy(voiceReviewDraft = voice) }
+                ChatDraftsRepository.instance.saveDraft(
+                    ChatDraft(
+                        chatId = sessionId,
+                        text = _uiState.value.input,
+                        voiceUri = "voice_${System.currentTimeMillis()}",
+                        voiceDurationLabel = voice.durationLabel,
+                        voiceWaveform = voice.waveform
+                    )
+                )
+            }
+        } else if (recording.mode == RecordMode.CIRCLE) {
+            if (recording.elapsedTenths >= 5) {
+                val attachment = MessageAttachment.VideoCircle(
+                    durationLabel = recording.durationLabel,
+                    colorSeed = Random.nextInt(0, 5)
+                )
+                sendAttachment(attachment)
+            }
+        }
+    }
+
+    fun sendVoiceReview() {
+        val voice = _uiState.value.voiceReviewDraft ?: return
+        _uiState.update { it.copy(voiceReviewDraft = null) }
+        ChatDraftsRepository.instance.clearDraft(sessionId)
+        sendAttachment(voice)
+    }
+
+    fun discardVoiceReview() {
+        _uiState.update { it.copy(voiceReviewDraft = null) }
+        ChatDraftsRepository.instance.clearDraft(sessionId)
+    }
+
+    fun openExpandedVideoCircle(videoCircle: MessageAttachment.VideoCircle) {
+        _uiState.update { it.copy(expandedVideoCircle = videoCircle) }
+    }
+
+    fun closeExpandedVideoCircle() {
+        _uiState.update { it.copy(expandedVideoCircle = null) }
+    }
 
     fun toggleCameraMode() =
         _uiState.update { it.copy(isCameraMode = !it.isCameraMode) }

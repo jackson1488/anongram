@@ -371,7 +371,8 @@ internal fun InteractiveReplyBubble(
                     .clip(RoundedCornerShape(18.dp))
                     .background(CardDark)
                     .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
-                    .padding(14.dp)
+                    .clickable(onClick = onJumpToMessage)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -379,7 +380,7 @@ internal fun InteractiveReplyBubble(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(scheme.accent)
                             .clickable { isAudioPlaying = !isAudioPlaying },
@@ -393,19 +394,40 @@ internal fun InteractiveReplyBubble(
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Text(
-                        text = "Голосовое (${attachment.durationLabel})",
-                        color = TextPrimary,
-                        fontSize = 14.sp,
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable(onClick = onJumpToMessage)
-                    )
-                    Text(
-                        text = message.timeLabel(),
-                        color = TextMuted,
-                        fontSize = 11.sp
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val waveform = if (attachment.waveform.isNotEmpty()) {
+                            attachment.waveform
+                        } else {
+                            listOf(4, 9, 7, 14, 6, 12, 5, 8, 11, 4, 10, 6, 13, 8, 5, 12)
+                        }
+                        waveform.forEach { h ->
+                            Box(
+                                modifier = Modifier
+                                    .width(3.dp)
+                                    .height((h * 1.5f).dp.coerceIn(4.dp, 24.dp))
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(scheme.accent.copy(alpha = 0.75f))
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(
+                            text = attachment.durationLabel,
+                            color = TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = message.timeLabel(),
+                            color = TextMuted,
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
         }
@@ -417,27 +439,52 @@ internal fun InteractiveReplyBubble(
                     .background(CardDark)
                     .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
                     .clickable(onClick = onJumpToMessage)
-                    .padding(14.dp),
+                    .padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(150.dp)
+                        .size(160.dp)
                         .clip(CircleShape)
-                        .background(scheme.accent.copy(alpha = 0.25f))
-                        .border(2.dp, scheme.accent, CircleShape),
+                        .background(attachmentColor(attachment.colorSeed))
+                        .border(2.dp, CardBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Videocam,
-                        contentDescription = "Видеосообщение",
-                        tint = Color.White,
-                        modifier = Modifier.size(44.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.45f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PlayArrow,
+                            contentDescription = "Воспроизвести видеосообщение",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    // Бейдж звука и длительности
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 12.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.Black.copy(alpha = 0.6f))
+                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "${attachment.durationLabel} 🔊",
+                            color = Color.White,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Видеосообщение • ${attachment.durationLabel} • ${message.timeLabel()}",
+                    text = "Видеосообщение • ${message.timeLabel()}",
                     color = TextMuted,
                     fontSize = 11.sp
                 )

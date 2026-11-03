@@ -71,7 +71,8 @@ internal fun MessagesList(
     onOpenUncompressedPhoto: (ChatMessage, String) -> Unit = { _, _ -> },
     onOpenContactChat: (String, String) -> Unit = { _, _ -> },
     onForwardSubItem: (String) -> Unit = {},
-    onDeleteSubItem: (String) -> Unit = {}
+    onDeleteSubItem: (String) -> Unit = {},
+    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -182,7 +183,8 @@ internal fun MessagesList(
                     onOpenUncompressedPhoto = { uri -> onOpenUncompressedPhoto(item.message, uri) },
                     onOpenContactChat = onOpenContactChat,
                     onForwardSubItem = onForwardSubItem,
-                    onDeleteSubItem = onDeleteSubItem
+                    onDeleteSubItem = onDeleteSubItem,
+                    onOpenVideoCircle = onOpenVideoCircle
                 )
             }
         }

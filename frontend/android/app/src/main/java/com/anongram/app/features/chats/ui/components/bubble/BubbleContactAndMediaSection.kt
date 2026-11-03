@@ -262,13 +262,15 @@ internal fun ChatVoiceSection(
  */
 @Composable
 internal fun ChatVideoCircleSection(
-    attachment: MessageAttachment.VideoCircle
+    attachment: MessageAttachment.VideoCircle,
+    onClick: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
             .size(160.dp)
             .clip(CircleShape)
-            .background(attachmentColor(attachment.colorSeed)),
+            .background(attachmentColor(attachment.colorSeed))
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
         Icon(

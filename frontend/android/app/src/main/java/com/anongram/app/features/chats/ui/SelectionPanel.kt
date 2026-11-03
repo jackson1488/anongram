@@ -47,10 +47,13 @@ internal fun SelectionPanel(
     selectedCount: Int,
     isPhoto: Boolean = false,
     isFileOrMusic: Boolean = false,
+    isVideoCircle: Boolean = false,
+    isVoice: Boolean = false,
     onClose: () -> Unit,
     onCopy: () -> Unit,
     onBrushEdit: () -> Unit = {},
     onDownload: () -> Unit = {},
+    onShare: () -> Unit = {},
     onForward: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
@@ -103,7 +106,7 @@ internal fun SelectionPanel(
             )
         }
 
-        // Островок 3: Действия без названий (Кисточка/Скачать/Копировать, Переслать (ТГ), Удалить, 50dp)
+        // Островок 3: Действия
         Row(
             modifier = Modifier
                 .height(50.dp)
@@ -114,76 +117,178 @@ internal fun SelectionPanel(
             verticalAlignment = Alignment.CenterVertically
         ) {
             when {
-                selectedCount == 1 && isPhoto -> {
-                    // Фото: Кисточка
-                    IconButton(
-                        onClick = onBrushEdit,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Brush,
-                            contentDescription = "Редактировать / Заменить",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-                selectedCount == 1 && isFileOrMusic -> {
-                    // Файл или музыка: Скачать
+                selectedCount == 1 && isVideoCircle -> {
+                    // Видео-кружочек: Скачать, Переслать, Поделиться, Удалить
                     IconButton(
                         onClick = onDownload,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.FileDownload,
-                            contentDescription = "Сохранить",
+                            contentDescription = "Скачать",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onForward,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Reply,
+                            contentDescription = "Переслать",
+                            tint = TextPrimary,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .graphicsLayer { scaleX = -1f }
+                        )
+                    }
+                    IconButton(
+                        onClick = onShare,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Outlined.Share,
+                            contentDescription = "Поделиться",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Удалить",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+                selectedCount == 1 && isVoice -> {
+                    // Голосовое: Редактировать / обрезать, Переслать, Поделиться, Удалить
+                    IconButton(
+                        onClick = onBrushEdit,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Brush,
+                            contentDescription = "Редактировать",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onForward,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Outlined.Reply,
+                            contentDescription = "Переслать",
+                            tint = TextPrimary,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .graphicsLayer { scaleX = -1f }
+                        )
+                    }
+                    IconButton(
+                        onClick = onShare,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Outlined.Share,
+                            contentDescription = "Поделиться",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Удалить",
                             tint = TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
                 else -> {
-                    // Текст или мультивыбор: Копировать
+                    when {
+                        selectedCount == 1 && isPhoto -> {
+                            // Фото: Кисточка
+                            IconButton(
+                                onClick = onBrushEdit,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Brush,
+                                    contentDescription = "Редактировать / Заменить",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        selectedCount == 1 && isFileOrMusic -> {
+                            // Файл или музыка: Скачать
+                            IconButton(
+                                onClick = onDownload,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.FileDownload,
+                                    contentDescription = "Сохранить",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        else -> {
+                            // Текст или мультивыбор: Копировать
+                            IconButton(
+                                onClick = onCopy,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ContentCopy,
+                                    contentDescription = "Копировать",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Переслать — чистая стрелка вправо как в Telegram
                     IconButton(
-                        onClick = onCopy,
+                        onClick = onForward,
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.ContentCopy,
-                            contentDescription = "Копировать",
+                            imageVector = Icons.AutoMirrored.Outlined.Reply,
+                            contentDescription = "Переслать",
+                            tint = TextPrimary,
+                            modifier = Modifier
+                                .size(20.dp)
+                                .graphicsLayer { scaleX = -1f }
+                        )
+                    }
+
+                    // Удалить
+                    IconButton(
+                        onClick = onDelete,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Удалить",
                             tint = TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 }
-            }
-
-            // Переслать — чистая стрелка вправо как в Telegram
-            IconButton(
-                onClick = onForward,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Outlined.Reply,
-                    contentDescription = "Переслать",
-                    tint = TextPrimary,
-                    modifier = Modifier
-                        .size(20.dp)
-                        .graphicsLayer { scaleX = -1f }
-                )
-            }
-
-            // Удалить
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Delete,
-                    contentDescription = "Удалить",
-                    tint = TextPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }

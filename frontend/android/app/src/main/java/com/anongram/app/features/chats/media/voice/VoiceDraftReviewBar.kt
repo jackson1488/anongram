@@ -1,0 +1,195 @@
+package com.anongram.app.features.chats.media.voice
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Send
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.CardBorder
+import com.anongram.app.core.theme.IslandBackground
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.theme.TextMuted
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+
+/**
+ * Плашка предпрослушивания заблокированного голосового перед отправкой (Фото 2):
+ * - Слева: кнопка удаления [ 🗑 ]
+ * - По центру: фиолетовая полоса с аудиоволной, кнопкой воспроизведения и таймером ▶ 0:07
+ * - Справа: круглая фиолетовая кнопка отправки [ ✈ ]
+ */
+@Composable
+fun VoiceDraftReviewBar(
+    voice: com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice? = null,
+    durationSeconds: Int = 7,
+    waveform: List<Int> = remember { listOf(4, 9, 6, 14, 8, 12, 5, 10, 7, 13, 6, 11, 4, 9, 7, 12, 8, 14, 6, 10) },
+    onDiscard: () -> Unit,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = LocalAnonGramScheme.current
+    val effectiveWaveform = if (voice != null && voice.waveform.isNotEmpty()) voice.waveform else waveform
+    val effectiveSeconds = if (voice != null) {
+        val parts = voice.durationLabel.split(":")
+        if (parts.size == 2) {
+            (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 7)
+        } else 7
+    } else durationSeconds
+
+    var isPlaying by remember { mutableStateOf(false) }
+    var currentProgress by remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(isPlaying) {
+        while (isActive && isPlaying) {
+            delay(100)
+            currentProgress += (0.1f / effectiveSeconds.toFloat().coerceAtLeast(1f))
+            if (currentProgress >= 1f) {
+                currentProgress = 0f
+                isPlaying = false
+            }
+        }
+    }
+
+    val elapsedSeconds = (currentProgress * effectiveSeconds).toInt()
+    val elapsedLabel = "%02d:%02d".format(elapsedSeconds / 60, elapsedSeconds % 60)
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Кнопка «Удалить» (корзина слева)
+        IconButton(
+            onClick = onDiscard,
+            modifier = Modifier.size(42.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Delete,
+                contentDescription = "Удалить запись",
+                tint = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(24.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        // Центральная фиолетовая капсула с предпрослушиванием аудиоволны
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(44.dp)
+                .clip(RoundedCornerShape(22.dp))
+                .background(scheme.accent.copy(alpha = 0.85f))
+                .border(1.dp, scheme.accent, RoundedCornerShape(22.dp))
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Кнопка Play / Pause внутри капсулы
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.25f))
+                        .clickable { isPlaying = !isPlaying },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (isPlaying) "Пауза" else "Слушать",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(6.dp))
+
+                Text(
+                    text = elapsedLabel,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    maxLines = 1
+                )
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Волна аудиодорожки
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val count = effectiveWaveform.size.coerceAtLeast(1)
+                    effectiveWaveform.forEachIndexed { index, height ->
+                        val barFraction = index.toFloat() / count.toFloat()
+                        val isPassed = barFraction <= currentProgress
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height((height * 1.5f).dp.coerceIn(4.dp, 20.dp))
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(
+                                    if (isPassed) Color.White else Color.White.copy(alpha = 0.4f)
+                                )
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(8.dp))
+
+        // Круглая фиолетовая кнопка «Отправить» справа
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(scheme.accent)
+                .clickable(onClick = onSend),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.Send,
+                contentDescription = "Отправить голосовое",
+                tint = Color.White,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}

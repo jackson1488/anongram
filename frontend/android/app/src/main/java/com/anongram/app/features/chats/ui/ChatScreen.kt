@@ -75,6 +75,13 @@ import com.anongram.app.features.chats.messages.state.SelfDestruct
 import com.anongram.app.features.attach.api.AttachSheet
 import com.anongram.app.features.attach.api.AttachmentDraft
 import com.anongram.app.features.attach.ui.AttachTab
+import com.anongram.app.features.chats.media.circle.VideoCircleExpandedPlayer
+import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
+import com.anongram.app.features.chats.media.player.ChatAudioController
+import com.anongram.app.features.chats.media.player.ChatMiniPlayer
+import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
+import com.anongram.app.features.chats.media.voice.VoiceDraftReviewBar
+import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
 import com.anongram.app.features.chats.ui.components.ChatInputBar
 import com.anongram.app.features.chats.ui.components.ChatMediaFullscreenViewer
@@ -125,6 +132,8 @@ fun ChatScreen(
     var forwardingMessageIds by remember { mutableStateOf<List<String>?>(null) }
     var isReplaceAttachSheetOpen by remember { mutableStateOf(false) }
     var replaceInitialTab by remember { mutableStateOf(AttachTab.GALLERY) }
+    val audioController = remember { ChatAudioController.getInstance(context) }
+    var isMusicSheetOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -146,6 +155,8 @@ fun ChatScreen(
 
     BackHandler {
         when {
+            state.expandedVideoCircle != null -> viewModel.closeExpandedVideoCircle()
+            isMusicSheetOpen -> isMusicSheetOpen = false
             isReplaceAttachSheetOpen -> isReplaceAttachSheetOpen = false
             state.deleteDialogFor != null -> viewModel.dismissDeleteDialog()
             forwardingMessageIds != null -> forwardingMessageIds = null
@@ -368,7 +379,8 @@ fun ChatScreen(
                     },
                     onDeleteSubItem = { subKey ->
                         viewModel.requestDelete(listOf(subKey))
-                    }
+                    },
+                    onOpenVideoCircle = viewModel::openExpandedVideoCircle
                 )
             }
 
@@ -432,6 +444,15 @@ fun ChatScreen(
                                 isSearchListMode = !isSearchListMode
                             }
                         }
+                    )
+                } else if (state.voiceReviewDraft != null) {
+                    VoiceDraftReviewBar(
+                        voice = state.voiceReviewDraft!!,
+                        onDiscard = viewModel::discardVoiceReview,
+                        onSend = viewModel::sendVoiceReview,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
                     )
                 } else {
                     ChatInputBar(
@@ -537,6 +558,8 @@ fun ChatScreen(
                         selectedCount = state.selection.size,
                         isPhoto = state.isSingleSelectedPhoto,
                         isFileOrMusic = state.isSingleSelectedFileOrMusic,
+                        isVideoCircle = state.isSingleSelectedVideoCircle,
+                        isVoice = state.isSingleSelectedVoice,
                         onClose = viewModel::clearSelection,
                         onCopy = {
                             val combined = state.selectedMessages.joinToString("\n") { it.text }
@@ -551,11 +574,13 @@ fun ChatScreen(
                         onDownload = {
                             val file = state.getSingleSelectedFile()
                             val music = state.getSingleSelectedMusic()
+                            val videoCircle = state.getSingleSelectedVideoCircle()
                             viewModel.clearSelection()
                             scope.launch {
                                 val ok = when {
                                     file != null -> saveFileToDeviceDownloads(context, file)
                                     music != null -> saveMusicToDeviceMusic(context, music)
+                                    videoCircle != null -> true
                                     else -> false
                                 }
                                 Toast.makeText(
@@ -564,6 +589,16 @@ fun ChatScreen(
                                     Toast.LENGTH_SHORT
                                 ).show()
                             }
+                        },
+                        onShare = {
+                            val selectedId = state.selection.firstOrNull()
+                            val msg = state.messages.firstOrNull { it.id == selectedId }
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "text/plain"
+                                putExtra(android.content.Intent.EXTRA_TEXT, msg?.text?.ifBlank { "AnonGram Media" } ?: "AnonGram Media")
+                            }
+                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться"))
+                            viewModel.clearSelection()
                         },
                         onForward = {
                             forwardingMessageIds = state.selection.toList()
@@ -640,6 +675,16 @@ fun ChatScreen(
                         onOpenAllPinned = viewModel::openPinnedMessages
                     )
                 }
+            }
+
+            if (!state.isSearchOpen && !state.isSelectionMode) {
+                ChatMiniPlayer(
+                    controller = audioController,
+                    onOpenSheet = { isMusicSheetOpen = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                )
             }
         }
     }
@@ -1201,6 +1246,54 @@ fun ChatScreen(
                     }
                 }
             }
+        }
+
+        // 4. Полноэкранный плеер видео-кружочка с круговым SeekBar
+        state.expandedVideoCircle?.let { videoCircle ->
+            VideoCircleExpandedPlayer(
+                attachment = videoCircle,
+                onClose = viewModel::closeExpandedVideoCircle
+            )
+        }
+
+        // 5. Оверлей записи видео-кружочка
+        if (state.recording.mode == RecordMode.CIRCLE) {
+            VideoCircleRecordOverlay(
+                recordingState = state.recording,
+                onCancel = viewModel::cancelRecording,
+                onSend = viewModel::stopLockedRecording,
+                onToggleLock = viewModel::lockRecording
+            )
+        }
+
+        // 6. Шторка музыкального плеера чата
+        if (isMusicSheetOpen) {
+            ChatMusicPlayerSheet(
+                controller = audioController,
+                onDismiss = { isMusicSheetOpen = false },
+                onForwardTrack = { track ->
+                    isMusicSheetOpen = false
+                    forwardingMessageIds = listOf(track.id.substringBefore("_"))
+                },
+                onShareTrack = { track ->
+                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, "${track.performer} - ${track.title}")
+                    }
+                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться треком"))
+                },
+                onShowInChat = { track ->
+                    isMusicSheetOpen = false
+                    val msgId = track.id.substringBefore("_")
+                    viewModel.highlightMessage(msgId)
+                    val index = state.messages.asReversed().indexOfFirst { it.id == msgId }
+                    if (index >= 0) {
+                        scope.launch {
+                            runCatching { listState.animateScrollAndCenterItem(index) }
+                        }
+                    }
+                }
+            )
         }
     }
 }

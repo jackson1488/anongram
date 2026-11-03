@@ -33,6 +33,10 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.timeLabel
 import com.anongram.app.features.chats.mainmenu.components.ArchivePill
@@ -43,7 +47,11 @@ import com.anongram.app.features.chats.mainmenu.components.ChatsTopBar
 import com.anongram.app.features.chats.mainmenu.components.EmptyChatsState
 import com.anongram.app.features.chats.mainmenu.components.OnionOfflineBanner
 import com.anongram.app.features.chats.mainmenu.components.SelectionTopBar
+import com.anongram.app.features.chats.media.player.ChatAudioController
+import com.anongram.app.features.chats.media.player.ChatMiniPlayer
+import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.state.ChatListViewModel
+import com.anongram.app.features.drafts.ChatDraftsRepository
 import kotlinx.coroutines.launch
 
 /**
@@ -67,6 +75,10 @@ fun ChatsMainMenuScreen(
     val listState = rememberLazyListState()
     val density = LocalDensity.current
     val haptic = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val audioController = remember { ChatAudioController.getInstance(context) }
+    var isMusicSheetOpen by remember { mutableStateOf(false) }
+    val richDrafts by ChatDraftsRepository.instance.drafts.collectAsState()
 
     // Пилюля архива уезжает вверх на свою высоту + отступ между элементами.
     val pillTravelPx = with(density) { (64 + 10).dp.toPx() }
@@ -159,6 +171,16 @@ fun ChatsMainMenuScreen(
             )
         }
 
+        if (!state.isSelection) {
+            ChatMiniPlayer(
+                controller = audioController,
+                onOpenSheet = { isMusicSheetOpen = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
+            )
+        }
+
         if (!state.onionCircuitOnline) OnionOfflineBanner()
 
         Box(
@@ -207,6 +229,11 @@ fun ChatsMainMenuScreen(
                         item(key = "empty") { EmptyChatsState() }
                     } else {
                         items(state.activeSessions, key = { it.id }) { session ->
+                            val richDraft = richDrafts[session.id]
+                            val draftDisplay = when {
+                                richDraft != null && !richDraft.isEmpty -> richDraft.previewText
+                                else -> state.drafts[session.id]
+                            }
                             ChatListItemCard(
                                 session = session,
                                 timeLabel = remember(session.id, session.lastMessageEpochMs) {
@@ -214,7 +241,7 @@ fun ChatsMainMenuScreen(
                                 },
                                 selectionMode = state.isSelection,
                                 isSelected = session.id in state.selectedIds,
-                                draftText = state.drafts[session.id],
+                                draftText = draftDisplay,
                                 onClick = {
                                     if (state.isSelection) {
                                         viewModel.toggleSelection(session.id)
@@ -247,4 +274,20 @@ fun ChatsMainMenuScreen(
     }
 
     ChatListDialogs(state = state, viewModel = viewModel)
+
+    if (isMusicSheetOpen) {
+        ChatMusicPlayerSheet(
+            controller = audioController,
+            onDismiss = { isMusicSheetOpen = false },
+            onForwardTrack = { track -> },
+            onShareTrack = { track ->
+                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(android.content.Intent.EXTRA_TEXT, "${track.performer} - ${track.title}")
+                }
+                context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться треком"))
+            },
+            onShowInChat = { isMusicSheetOpen = false }
+        )
+    }
 }

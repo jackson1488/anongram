@@ -136,7 +136,8 @@ internal fun MessageBubble(
     onOpenUncompressedPhoto: (uri: String) -> Unit = {},
     onOpenContactChat: (name: String, phone: String) -> Unit = { _, _ -> },
     onForwardSubItem: (subKey: String) -> Unit = {},
-    onDeleteSubItem: (subKey: String) -> Unit = {}
+    onDeleteSubItem: (subKey: String) -> Unit = {},
+    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
     val message = item.message
@@ -907,7 +908,10 @@ private fun AttachmentContent(
         }
 
         is MessageAttachment.VideoCircle -> {
-            ChatVideoCircleSection(attachment = attachment)
+            ChatVideoCircleSection(
+                attachment = attachment,
+                onClick = { if (isSelectionMode) onSelect() else onOpenVideoCircle(attachment) }
+            )
         }
 
         is MessageAttachment.Music -> {

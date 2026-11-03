@@ -35,12 +35,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import com.anongram.app.features.chats.media.player.ChatAudioController
+import com.anongram.app.features.chats.media.player.ChatTrack
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -97,7 +100,10 @@ internal fun ChatMusicItemRow(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    var isPlaying by remember { mutableStateOf(false) }
+    val audioController = remember { ChatAudioController.getInstance(context) }
+    val playerState by audioController.state.collectAsState()
+    val isCurrentlyActive = playerState.currentTrack?.title == music.title
+    val isPlaying = isCurrentlyActive && playerState.isPlaying
     var isMenuOpen by remember { mutableStateOf(false) }
 
     val displayTitle = remember(music.artist, music.title) {
@@ -105,6 +111,21 @@ internal fun ChatMusicItemRow(
             "${music.artist} - ${music.title}"
         } else {
             music.title
+        }
+    }
+
+    val togglePlay = {
+        if (isCurrentlyActive) {
+            audioController.togglePlayPause()
+        } else {
+            val track = ChatTrack(
+                id = "${message.id}_${music.title}",
+                title = music.title,
+                performer = if (music.artist.isNotBlank() && music.artist != "Неизвестен") music.artist else "AnonGram",
+                durationLabel = music.durationLabel,
+                uri = music.uri?.let { android.net.Uri.parse(it) } ?: android.net.Uri.EMPTY
+            )
+            audioController.play(listOf(track), track)
         }
     }
 
@@ -116,7 +137,7 @@ internal fun ChatMusicItemRow(
                     if (isSelectionMode) {
                         onItemClick()
                     } else {
-                        isPlaying = !isPlaying
+                        togglePlay()
                     }
                 },
                 onLongClick = onItemLongClick
@@ -134,7 +155,7 @@ internal fun ChatMusicItemRow(
                         .clip(CircleShape)
                         .background(if (isIncoming) accent else Color.White.copy(alpha = 0.24f))
                         .clickable {
-                            if (isSelectionMode) onItemClick() else isPlaying = !isPlaying
+                            if (isSelectionMode) onItemClick() else togglePlay()
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -188,9 +209,16 @@ internal fun ChatMusicItemRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                val progressText = if (isCurrentlyActive && (isPlaying || playerState.progressMs > 0)) {
+                    val sec = (playerState.progressMs / 1000).toInt()
+                    val m = sec / 60
+                    val s = sec % 60
+                    "${m}:${s.toString().padStart(2, '0')} / ${music.durationLabel}"
+                } else {
+                    "0:00 / ${music.durationLabel}"
+                }
                 Text(
-                    text = if (isPlaying) "0:14 / ${music.durationLabel}" else "0:00 / ${music.durationLabel}",
+                    text = progressText,
                     color = TextSecondary,
                     fontSize = 12.5.sp,
                     maxLines = 1

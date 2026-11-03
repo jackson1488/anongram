@@ -9,35 +9,40 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.support.v4.media.session.MediaSessionCompat
 import androidx.core.app.NotificationCompat
+import androidx.media.app.NotificationCompat.MediaStyle
 import com.anongram.app.MainActivity
 import com.anongram.app.R
-import com.anongram.app.features.player.logic.AudioPlayerController
+import com.anongram.app.features.chats.media.player.ChatAudioController
 
 /**
  * Foreground Service для воспроизведения аудио (ТЗ, шаг 8):
- * MediaSessionService / Foreground-уведомление с управлением.
- * Пауза при отключении наушников, аудиофокус.
+ * MediaSessionCompat / Foreground-уведомление с управлением (Фото 1).
  */
 class AudioPlayerService : Service() {
 
-    private lateinit var controller: AudioPlayerController
+    private var mediaSession: MediaSessionCompat? = null
 
     override fun onCreate() {
         super.onCreate()
-        controller = AudioPlayerController.getInstance(this)
         createNotificationChannel()
+        mediaSession = MediaSessionCompat(this, "AnonGramMediaSession").apply {
+            isActive = true
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val chatController = ChatAudioController.getInstance(this)
         when (intent?.action) {
-            ACTION_TOGGLE -> controller.toggle()
-            ACTION_NEXT -> controller.next()
-            ACTION_PREV -> controller.prev()
+            ACTION_TOGGLE -> chatController.toggle()
+            ACTION_NEXT -> chatController.next()
+            ACTION_PREV -> chatController.prev()
             ACTION_STOP -> {
-                controller.stop()
+                chatController.stop()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
+                return START_NOT_STICKY
             }
         }
         val notification = buildNotification()
@@ -46,9 +51,11 @@ class AudioPlayerService : Service() {
     }
 
     private fun buildNotification(): Notification {
-        val currentTrack = controller.state.value.currentTrack
-        val title = currentTrack?.title ?: "AnonGram Audio"
-        val artist = currentTrack?.artist ?: "AnonGram Player"
+        val chatController = ChatAudioController.getInstance(this)
+        val state = chatController.state.value
+        val track = state.currentTrack
+        val title = track?.title ?: "AnonGram Audio"
+        val artist = track?.artist?.ifBlank { "AnonGram Player" } ?: "AnonGram Player"
 
         val openAppIntent = PendingIntent.getActivity(
             this,
@@ -57,14 +64,40 @@ class AudioPlayerService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        return NotificationCompat.Builder(this, CHANNEL_ID)
+        fun actionIntent(action: String, requestCode: Int): PendingIntent {
+            val intent = Intent(this, AudioPlayerService::class.java).apply { this.action = action }
+            return PendingIntent.getService(this, requestCode, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+        }
+
+        val prevPending = actionIntent(ACTION_PREV, 1)
+        val togglePending = actionIntent(ACTION_TOGGLE, 2)
+        val nextPending = actionIntent(ACTION_NEXT, 3)
+
+        val playPauseIcon = if (state.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
             .setContentText(artist)
             .setSmallIcon(R.drawable.ic_stat_anongram)
             .setContentIntent(openAppIntent)
-            .setOngoing(true)
+            .setOngoing(state.isPlaying)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .build()
+            .addAction(android.R.drawable.ic_media_previous, "Предыдущий", prevPending)
+            .addAction(playPauseIcon, if (state.isPlaying) "Пауза" else "Слушать", togglePending)
+            .addAction(android.R.drawable.ic_media_next, "Следующий", nextPending)
+            .setStyle(
+                MediaStyle()
+                    .setMediaSession(mediaSession?.sessionToken)
+                    .setShowActionsInCompactView(0, 1, 2)
+            )
+
+        return builder.build()
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        mediaSession?.release()
+        mediaSession = null
     }
 
     private fun createNotificationChannel() {
