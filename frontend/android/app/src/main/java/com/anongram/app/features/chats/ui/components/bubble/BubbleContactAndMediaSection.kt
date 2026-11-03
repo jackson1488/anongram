@@ -18,11 +18,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.anongram.app.features.chats.media.player.ChatAudioController
+import com.anongram.app.features.chats.messages.domain.ChatMessage
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -204,13 +210,21 @@ internal fun ChatGeoSection(
 }
 
 /**
- * Голосовое сообщение в пузыре.
+ * Голосовое сообщение в пузыре (поддержка реальной подсветки волны и цепочки воспроизведения).
  */
 @Composable
 internal fun ChatVoiceSection(
+    message: ChatMessage,
     attachment: MessageAttachment.Voice,
-    accent: Color
+    accent: Color,
+    onPlay: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val audioController = remember { ChatAudioController.getInstance(context) }
+    val playerState = audioController.state.collectAsState().value
+    val isCurrentVoice = playerState.currentTrack?.id == "voice_${message.id}"
+    val isPlaying = isCurrentVoice && playerState.isPlaying
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -221,12 +235,19 @@ internal fun ChatVoiceSection(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(accent),
+                .background(accent)
+                .clickable {
+                    if (isCurrentVoice) {
+                        audioController.togglePlayPause()
+                    } else {
+                        onPlay()
+                    }
+                },
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Outlined.PlayArrow,
-                contentDescription = "Слушать",
+                imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                contentDescription = if (isPlaying) "Пауза" else "Слушать",
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
@@ -237,19 +258,24 @@ internal fun ChatVoiceSection(
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            attachment.waveform.forEach { height ->
+            val totalBars = attachment.waveform.size.coerceAtLeast(1)
+            val currentProgress = if (isCurrentVoice) playerState.progress else 0f
+            val activeBars = (currentProgress * totalBars).toInt()
+
+            attachment.waveform.forEachIndexed { index, height ->
+                val isActive = isCurrentVoice && index <= activeBars
                 Box(
                     modifier = Modifier
                         .width(3.dp)
                         .height((height * 1.5f).dp.coerceIn(4.dp, 24.dp))
                         .clip(RoundedCornerShape(2.dp))
-                        .background(accent.copy(alpha = 0.7f))
+                        .background(if (isActive) Color.White else accent.copy(alpha = 0.55f))
                 )
             }
         }
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = attachment.durationLabel,
+            text = if (isCurrentVoice && (isPlaying || playerState.progressMs > 0)) playerState.positionLabel else attachment.durationLabel,
             color = TextMuted,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace

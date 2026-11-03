@@ -1,5 +1,6 @@
 package com.anongram.app.features.chats.media.player
 
+import android.graphics.Bitmap
 import android.net.Uri
 import androidx.compose.runtime.Immutable
 
@@ -19,7 +20,12 @@ data class ChatTrack(
     val artist: String = "",
     val durationLabel: String = "0:00",
     val durationMs: Long = 0L,
-    val performer: String = artist
+    val performer: String = artist,
+    val isVoice: Boolean = false,
+    val chatTitle: String = "",
+    val chatAvatarSeed: Int = 0,
+    val sizeLabel: String = "3.7 MB",
+    val albumArtBitmap: Bitmap? = null
 )
 
 @Immutable
@@ -31,7 +37,8 @@ data class ChatPlayerState(
     val durationMs: Long = 0L,
     val repeatMode: ChatRepeatMode = ChatRepeatMode.OFF,
     val isVisible: Boolean = false,
-    val isSheetOpen: Boolean = false
+    val isSheetOpen: Boolean = false,
+    val isFullScreenOpen: Boolean = false
 ) {
     val progressMs: Long get() = positionMs
 
@@ -44,5 +51,14 @@ data class ChatPlayerState(
             val min = totalSec / 60
             val sec = totalSec % 60
             return "%d:%02d".format(min, sec)
+        }
+
+    val remainingLabel: String
+        get() {
+            val remMs = (durationMs - positionMs).coerceAtLeast(0L)
+            val totalSec = remMs / 1000
+            val min = totalSec / 60
+            val sec = totalSec % 60
+            return "-%d:%02d".format(min, sec)
         }
 }

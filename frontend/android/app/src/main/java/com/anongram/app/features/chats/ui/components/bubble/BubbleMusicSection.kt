@@ -62,19 +62,25 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.timeLabel
 import kotlinx.coroutines.launch
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import com.anongram.app.features.chats.media.player.AudioMetadataHelper
+import kotlin.math.roundToInt
+
 /**
  * Строка музыкального трека (одиночного или в слитной группе до 10 треков):
- * - Слева круглая кнопка Play/Pause 44.dp
- * - Справа название трека и снизу прогресс «0:00 / X:XX»
- * - В правом верхнем углу (только у первого трека в группе) — кнопка «⋮» со строгим порядком 7 пунктов меню:
- *   1. Ответить
- *   2. Сохранить в музыку
- *   3. Поделиться
- *   4. Переслать
- *   5. Закрепить / Открепить
- *   6. Изменить
- *   7. Удалить
- * - В режиме выбора при выборе одного трека горит только галочка (без подсветки строки), а при выборе всей группы светится вся группа
+ * - Слева круглая кнопка Play/Pause 44.dp с реальной обложкой альбома
+ * - Справа название трека и снизу интерактивный ползунок или «X:XX • X.X MB»
+ * - В правом верхнем углу (только у первого трека в группе) — кнопка «⋮»
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -106,9 +112,20 @@ internal fun ChatMusicItemRow(
     val isPlaying = isCurrentlyActive && playerState.isPlaying
     var isMenuOpen by remember { mutableStateOf(false) }
 
+    var albumArt by remember(music.uri, music.title, music.artist) {
+        mutableStateOf(AudioMetadataHelper.getCachedArt(music.uri ?: "${music.artist}_${music.title}"))
+    }
+    LaunchedEffect(music.uri, music.title, music.artist) {
+        if (albumArt == null) {
+            val parsedUri = music.uri?.let { android.net.Uri.parse(it) }
+            val meta = AudioMetadataHelper.extractMetadata(context, parsedUri, music.title, music.artist)
+            albumArt = meta.albumArt
+        }
+    }
+
     val displayTitle = remember(music.artist, music.title) {
         if (music.artist.isNotBlank() && music.artist != "Неизвестен" && !music.title.contains(music.artist)) {
-            "${music.artist} - ${music.title}"
+            "${music.artist} — ${music.title}"
         } else {
             music.title
         }
@@ -120,9 +137,13 @@ internal fun ChatMusicItemRow(
         } else {
             val track = ChatTrack(
                 id = "${message.id}_${music.title}",
+                messageId = message.id,
                 title = music.title,
+                artist = music.artist,
                 performer = if (music.artist.isNotBlank() && music.artist != "Неизвестен") music.artist else "AnonGram",
                 durationLabel = music.durationLabel,
+                sizeLabel = music.sizeLabel,
+                albumArtBitmap = albumArt,
                 uri = music.uri?.let { android.net.Uri.parse(it) } ?: android.net.Uri.EMPTY
             )
             audioController.play(listOf(track), track)
@@ -149,25 +170,54 @@ internal fun ChatMusicItemRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(contentAlignment = Alignment.Center) {
+                // Круглая обложка 44.dp с иконкой Play/Pause поверх
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(if (isIncoming) accent else Color.White.copy(alpha = 0.24f))
                         .clickable {
                             if (isSelectionMode) onItemClick() else togglePlay()
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                        contentDescription = if (isPlaying) "Пауза" else "Играть",
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    if (albumArt != null) {
+                        Image(
+                            bitmap = albumArt!!.asImageBitmap(),
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.35f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                                contentDescription = if (isPlaying) "Пауза" else "Играть",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(if (isIncoming) accent else Color.White.copy(alpha = 0.24f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                                contentDescription = if (isPlaying) "Пауза" else "Играть",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
                 }
 
-                // В режиме выбора на отдельном треке загорается только круглая галочка
+                // В режиме выбора на отдельном треке загорается круглая галочка
                 if (isSelectionMode) {
                     Box(
                         modifier = Modifier
@@ -209,20 +259,92 @@ internal fun ChatMusicItemRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                val progressText = if (isCurrentlyActive && (isPlaying || playerState.progressMs > 0)) {
-                    val sec = (playerState.progressMs / 1000).toInt()
-                    val m = sec / 60
-                    val s = sec % 60
-                    "${m}:${s.toString().padStart(2, '0')} / ${music.durationLabel}"
+
+                if (isCurrentlyActive && (isPlaying || playerState.progressMs > 0)) {
+                    // Активное воспроизведение: тайминг + интерактивный слайдер с круглым манипулятором
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(20.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = playerState.positionLabel,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        var isDragging by remember { mutableStateOf(false) }
+                        var dragProgress by remember { mutableFloatStateOf(0f) }
+                        val currentProgress = if (isDragging) dragProgress else playerState.progress
+
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(20.dp)
+                                .pointerInput(playerState.durationMs) {
+                                    detectHorizontalDragGestures(
+                                        onDragStart = { offset ->
+                                            isDragging = true
+                                            dragProgress = (offset.x / size.width).coerceIn(0f, 1f)
+                                        },
+                                        onDragEnd = {
+                                            isDragging = false
+                                            val targetMs = (dragProgress * playerState.durationMs.coerceAtLeast(1L)).toLong()
+                                            audioController.seek(targetMs)
+                                        },
+                                        onDragCancel = {
+                                            isDragging = false
+                                        },
+                                        onHorizontalDrag = { change, _ ->
+                                            change.consume()
+                                            dragProgress = (change.position.x / size.width).coerceIn(0f, 1f)
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            val widthPx = constraints.maxWidth.toFloat()
+                            val thumbXPx = (currentProgress * widthPx).coerceIn(0f, widthPx)
+
+                            // Неактивная полоса
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(2.5.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(Color.White.copy(alpha = 0.28f))
+                            )
+                            // Активная полоса
+                            Box(
+                                modifier = Modifier
+                                    .width(with(LocalDensity.current) { thumbXPx.toDp() })
+                                    .height(2.5.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(Color.White)
+                            )
+                            // Белый круглый бегунок
+                            Box(
+                                modifier = Modifier
+                                    .offset { IntOffset((thumbXPx - 5.dp.toPx()).roundToInt(), 0) }
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                            )
+                        }
+                    }
                 } else {
-                    "0:00 / ${music.durationLabel}"
+                    // В неактивном состоянии: "3:56 • 3.7 MB"
+                    Text(
+                        text = "${music.durationLabel} • ${music.sizeLabel}",
+                        color = Color.White.copy(alpha = 0.72f),
+                        fontSize = 12.5.sp,
+                        maxLines = 1
+                    )
                 }
-                Text(
-                    text = progressText,
-                    color = TextSecondary,
-                    fontSize = 12.5.sp,
-                    maxLines = 1
-                )
             }
         }
 

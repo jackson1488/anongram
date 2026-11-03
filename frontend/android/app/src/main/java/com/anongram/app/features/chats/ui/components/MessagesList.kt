@@ -72,7 +72,8 @@ internal fun MessagesList(
     onOpenContactChat: (String, String) -> Unit = { _, _ -> },
     onForwardSubItem: (String) -> Unit = {},
     onDeleteSubItem: (String) -> Unit = {},
-    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {}
+    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
+    onPlayVoice: (ChatMessage) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -184,7 +185,8 @@ internal fun MessagesList(
                     onOpenContactChat = onOpenContactChat,
                     onForwardSubItem = onForwardSubItem,
                     onDeleteSubItem = onDeleteSubItem,
-                    onOpenVideoCircle = onOpenVideoCircle
+                    onOpenVideoCircle = onOpenVideoCircle,
+                    onPlayVoice = onPlayVoice
                 )
             }
         }

@@ -11,7 +11,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -114,6 +117,7 @@ internal fun ChatInputBar(
     onOpenAttach: () -> Unit,
     onToggleCameraMode: () -> Unit,
     onStartRecording: (RecordMode) -> Unit,
+    onFinishRecording: (Boolean) -> Unit = {},
     onLockRecording: () -> Unit,
     onCancelRecording: () -> Unit,
     onStopLockedRecording: () -> Unit,
@@ -244,6 +248,7 @@ internal fun ChatInputBar(
                 onSend = onSend,
                 onToggleCameraMode = onToggleCameraMode,
                 onStartRecording = onStartRecording,
+                onFinishRecording = onFinishRecording,
                 onStopLockedRecording = onStopLockedRecording,
                 onLockRecording = onLockRecording,
                 onCancelRecording = onCancelRecording
@@ -344,14 +349,12 @@ private fun ActionButton(
     onSend: () -> Unit,
     onToggleCameraMode: () -> Unit,
     onStartRecording: (RecordMode) -> Unit,
+    onFinishRecording: (Boolean) -> Unit,
     onStopLockedRecording: () -> Unit,
     onLockRecording: () -> Unit,
     onCancelRecording: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
-
-    var totalDragX by remember { mutableFloatStateOf(0f) }
-    var totalDragY by remember { mutableFloatStateOf(0f) }
 
     Box(
         modifier = Modifier
@@ -367,43 +370,75 @@ private fun ActionButton(
                 if (canSend) scheme.accent else CardBorder,
                 CircleShape
             )
-            .pointerInput(canSend, isRecording, isCameraMode) {
+            .pointerInput(canSend, isRecording, isLockedRecording, isCameraMode) {
                 if (canSend) {
+                    awaitPointerEventScope {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val up = waitForUpOrCancellation()
+                        if (up != null) {
+                            onSend()
+                        }
+                    }
                     return@pointerInput
                 }
-                detectDragGestures(
-                    onDragStart = {
-                        totalDragX = 0f
-                        totalDragY = 0f
-                        onStartRecording(if (isCameraMode) RecordMode.CIRCLE else RecordMode.VOICE)
-                    },
-                    onDrag = { change, dragAmount ->
-                        change.consume()
-                        totalDragX += dragAmount.x
-                        totalDragY += dragAmount.y
-                        if (totalDragX < -150f) {
-                            onCancelRecording()
-                        } else if (totalDragY < -120f) {
-                            onLockRecording()
-                        }
-                    },
-                    onDragEnd = {
-                        if (!isLockedRecording) {
+
+                if (isLockedRecording) {
+                    awaitPointerEventScope {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val up = waitForUpOrCancellation()
+                        if (up != null) {
                             onStopLockedRecording()
                         }
-                    },
-                    onDragCancel = {
-                        onCancelRecording()
                     }
-                )
-            }
-            .clickable {
-                if (canSend) {
-                    onSend()
-                } else if (isLockedRecording) {
-                    onStopLockedRecording()
-                } else {
-                    onToggleCameraMode()
+                    return@pointerInput
+                }
+
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(requireUnconsumed = false)
+                        val downTime = System.currentTimeMillis()
+                        var isRecordingActive = false
+                        var totalDragX = 0f
+                        var totalDragY = 0f
+                        var isCancelled = false
+                        var isLocked = false
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                            if (!isRecordingActive && System.currentTimeMillis() - downTime >= 180) {
+                                isRecordingActive = true
+                                onStartRecording(if (isCameraMode) RecordMode.CIRCLE else RecordMode.VOICE)
+                            }
+
+                            if (change.pressed) {
+                                val dragDelta = change.position - change.previousPosition
+                                totalDragX += dragDelta.x
+                                totalDragY += dragDelta.y
+
+                                if (isRecordingActive) {
+                                    if (!isCancelled && totalDragX < -110f) {
+                                        isCancelled = true
+                                        onCancelRecording()
+                                    } else if (!isLocked && totalDragY < -90f) {
+                                        isLocked = true
+                                        onLockRecording()
+                                    }
+                                }
+                            } else {
+                                val duration = System.currentTimeMillis() - downTime
+                                if (!isRecordingActive && duration < 250) {
+                                    onToggleCameraMode()
+                                } else if (isRecordingActive) {
+                                    if (!isCancelled && !isLocked) {
+                                        onFinishRecording(true)
+                                    }
+                                }
+                                break
+                            }
+                        }
+                    }
                 }
             },
         contentAlignment = Alignment.Center

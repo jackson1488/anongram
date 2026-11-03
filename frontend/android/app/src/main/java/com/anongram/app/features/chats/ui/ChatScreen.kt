@@ -80,6 +80,7 @@ import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMiniPlayer
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
+import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
 import com.anongram.app.features.chats.media.voice.VoiceDraftReviewBar
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
@@ -133,6 +134,7 @@ fun ChatScreen(
     var isReplaceAttachSheetOpen by remember { mutableStateOf(false) }
     var replaceInitialTab by remember { mutableStateOf(AttachTab.GALLERY) }
     val audioController = remember { ChatAudioController.getInstance(context) }
+    val audioPlayerState by audioController.state.collectAsState()
     var isMusicSheetOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isSearchOpen) {
@@ -380,7 +382,34 @@ fun ChatScreen(
                     onDeleteSubItem = { subKey ->
                         viewModel.requestDelete(listOf(subKey))
                     },
-                    onOpenVideoCircle = viewModel::openExpandedVideoCircle
+                    onOpenVideoCircle = viewModel::openExpandedVideoCircle,
+                    onPlayVoice = { targetMsg ->
+                        val voiceTracks = state.messages
+                            .filter { it.epochMs >= targetMsg.epochMs && it.attachment is MessageAttachment.Voice }
+                            .map { msg ->
+                                val v = msg.attachment as MessageAttachment.Voice
+                                val sec = runCatching {
+                                    val parts = v.durationLabel.split(":")
+                                    parts[0].toLong() * 60_000L + parts[1].toLong() * 1000L
+                                }.getOrDefault(15_000L)
+                                ChatTrack(
+                                    id = "voice_${msg.id}",
+                                    messageId = msg.id,
+                                    chatId = session.id,
+                                    title = "Голосовое сообщение",
+                                    artist = if (msg.direction == MessageDirection.OUTGOING) "Вы" else session.title,
+                                    durationLabel = v.durationLabel,
+                                    durationMs = sec,
+                                    isVoice = true,
+                                    chatTitle = session.title,
+                                    chatAvatarSeed = session.avatarColorSeed
+                                )
+                            }
+                        val current = voiceTracks.firstOrNull { it.id == "voice_${targetMsg.id}" } ?: voiceTracks.firstOrNull()
+                        if (current != null) {
+                            audioController.playVoiceSequence(voiceTracks, current)
+                        }
+                    }
                 )
             }
 
@@ -510,6 +539,7 @@ fun ChatScreen(
                         },
                         onToggleCameraMode = viewModel::toggleCameraMode,
                         onStartRecording = viewModel::startRecording,
+                        onFinishRecording = { viewModel.endPress() },
                         onLockRecording = viewModel::lockRecording,
                         onCancelRecording = viewModel::cancelRecording,
                         onStopLockedRecording = viewModel::stopLockedRecording,
@@ -1267,12 +1297,16 @@ fun ChatScreen(
         }
 
         // 6. Шторка музыкального плеера чата
-        if (isMusicSheetOpen) {
+        if (isMusicSheetOpen || audioPlayerState.isSheetOpen) {
             ChatMusicPlayerSheet(
                 controller = audioController,
-                onDismiss = { isMusicSheetOpen = false },
+                onDismiss = {
+                    isMusicSheetOpen = false
+                    audioController.closeSheet()
+                },
                 onForwardTrack = { track ->
                     isMusicSheetOpen = false
+                    audioController.closeSheet()
                     forwardingMessageIds = listOf(track.id.substringBefore("_"))
                 },
                 onShareTrack = { track ->
@@ -1284,7 +1318,30 @@ fun ChatScreen(
                 },
                 onShowInChat = { track ->
                     isMusicSheetOpen = false
+                    audioController.closeSheet()
                     val msgId = track.id.substringBefore("_")
+                    viewModel.highlightMessage(msgId)
+                    val index = state.messages.asReversed().indexOfFirst { it.id == msgId }
+                    if (index >= 0) {
+                        scope.launch {
+                            runCatching { listState.animateScrollAndCenterItem(index) }
+                        }
+                    }
+                }
+            )
+        }
+
+        // 7. Полноэкранный плеер для музыки в стиле iOS
+        if (audioPlayerState.isFullScreenOpen) {
+            MusicFullScreenPlayer(
+                controller = audioController,
+                onDismiss = { audioController.closeFullScreen() },
+                onForwardTrack = { track ->
+                    audioController.closeFullScreen()
+                    forwardingMessageIds = listOf(track.id.substringBefore("_"))
+                },
+                onJumpToMessage = { msgId ->
+                    audioController.closeFullScreen()
                     viewModel.highlightMessage(msgId)
                     val index = state.messages.asReversed().indexOfFirst { it.id == msgId }
                     if (index >= 0) {

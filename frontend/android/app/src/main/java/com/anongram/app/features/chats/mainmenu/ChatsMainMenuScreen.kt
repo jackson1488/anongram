@@ -50,6 +50,7 @@ import com.anongram.app.features.chats.mainmenu.components.SelectionTopBar
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMiniPlayer
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
+import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
 import com.anongram.app.features.chats.state.ChatListViewModel
 import com.anongram.app.features.drafts.ChatDraftsRepository
 import kotlinx.coroutines.launch
@@ -77,6 +78,7 @@ fun ChatsMainMenuScreen(
     val haptic = LocalHapticFeedback.current
     val context = LocalContext.current
     val audioController = remember { ChatAudioController.getInstance(context) }
+    val audioPlayerState by audioController.state.collectAsState()
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     val richDrafts by ChatDraftsRepository.instance.drafts.collectAsState()
 
@@ -275,10 +277,13 @@ fun ChatsMainMenuScreen(
 
     ChatListDialogs(state = state, viewModel = viewModel)
 
-    if (isMusicSheetOpen) {
+    if (isMusicSheetOpen || audioPlayerState.isSheetOpen) {
         ChatMusicPlayerSheet(
             controller = audioController,
-            onDismiss = { isMusicSheetOpen = false },
+            onDismiss = {
+                isMusicSheetOpen = false
+                audioController.closeSheet()
+            },
             onForwardTrack = { track -> },
             onShareTrack = { track ->
                 val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -287,7 +292,21 @@ fun ChatsMainMenuScreen(
                 }
                 context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться треком"))
             },
-            onShowInChat = { isMusicSheetOpen = false }
+            onShowInChat = {
+                isMusicSheetOpen = false
+                audioController.closeSheet()
+            }
+        )
+    }
+
+    if (audioPlayerState.isFullScreenOpen) {
+        MusicFullScreenPlayer(
+            controller = audioController,
+            onDismiss = { audioController.closeFullScreen() },
+            onForwardTrack = { track -> },
+            onJumpToMessage = { msgId ->
+                audioController.closeFullScreen()
+            }
         )
     }
 }

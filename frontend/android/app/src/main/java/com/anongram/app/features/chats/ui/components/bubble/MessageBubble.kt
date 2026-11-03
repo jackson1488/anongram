@@ -137,7 +137,8 @@ internal fun MessageBubble(
     onOpenContactChat: (name: String, phone: String) -> Unit = { _, _ -> },
     onForwardSubItem: (subKey: String) -> Unit = {},
     onDeleteSubItem: (subKey: String) -> Unit = {},
-    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {}
+    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
+    onPlayVoice: (ChatMessage) -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
     val message = item.message
@@ -465,7 +466,8 @@ internal fun MessageBubble(
                                                 onOpenContactChat = onOpenContactChat,
                                                 onForwardSubItem = onForwardSubItem,
                                                 onDeleteSubItem = onDeleteSubItem,
-                                                onOpenVideoCircle = onOpenVideoCircle
+                                                onOpenVideoCircle = onOpenVideoCircle,
+                                                onPlayVoice = onPlayVoice
                                             )
 
                                             if (isOverlayTimestampOnMedia) {
@@ -813,7 +815,8 @@ private fun AttachmentContent(
     onOpenContactChat: (String, String) -> Unit = { _, _ -> },
     onForwardSubItem: (String) -> Unit = {},
     onDeleteSubItem: (String) -> Unit = {},
-    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {}
+    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
+    onPlayVoice: (ChatMessage) -> Unit = {}
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {
@@ -906,7 +909,12 @@ private fun AttachmentContent(
         }
 
         is MessageAttachment.Voice -> {
-            ChatVoiceSection(attachment = attachment, accent = accent)
+            ChatVoiceSection(
+                message = message,
+                attachment = attachment,
+                accent = accent,
+                onPlay = { onPlayVoice(message) }
+            )
         }
 
         is MessageAttachment.VideoCircle -> {

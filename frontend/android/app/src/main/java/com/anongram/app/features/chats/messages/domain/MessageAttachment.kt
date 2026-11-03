@@ -49,7 +49,8 @@ sealed interface MessageAttachment {
         val artist: String,
         val durationLabel: String,
         val colorSeed: Int,
-        val uri: String? = null
+        val uri: String? = null,
+        val sizeLabel: String = "3.7 MB"
     ) : MessageAttachment
 
     /** Слитная группа музыкальных треков (до 10 треков в одном пузыре чата). */

@@ -1103,7 +1103,7 @@ class ChatMessagesViewModel(
         recordingJob = null
         _uiState.update { it.copy(recording = RecordingState()) }
         if (recording.mode == RecordMode.VOICE) {
-            if (recording.elapsedTenths >= 5) {
+            if (recording.elapsedTenths >= 2) {
                 val voice = MessageAttachment.Voice(
                     durationLabel = recording.durationLabel,
                     waveform = List(24) { Random.nextInt(3, 15) }
@@ -1120,7 +1120,7 @@ class ChatMessagesViewModel(
                 )
             }
         } else if (recording.mode == RecordMode.CIRCLE) {
-            if (recording.elapsedTenths >= 5) {
+            if (recording.elapsedTenths >= 2) {
                 val attachment = MessageAttachment.VideoCircle(
                     durationLabel = recording.durationLabel,
                     colorSeed = Random.nextInt(0, 5)
@@ -1159,7 +1159,7 @@ class ChatMessagesViewModel(
         val recording = _uiState.value.recording
         _uiState.update { it.copy(recording = RecordingState()) }
         if (!send || recording.mode == RecordMode.NONE) return
-        if (recording.elapsedTenths < 5) return // короче полсекунды — не отправляем
+        if (recording.elapsedTenths < 2) return
 
         val attachment = if (recording.mode == RecordMode.VOICE) {
             MessageAttachment.Voice(

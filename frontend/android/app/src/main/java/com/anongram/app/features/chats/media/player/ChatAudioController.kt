@@ -16,7 +16,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Изолированный контроллер воспроизведения музыки чата AnonGram.
+ * Изолированный контроллер воспроизведения музыки и цепочки голосовых сообщений чата AnonGram.
  */
 class ChatAudioController private constructor(
     private val appContext: Context
@@ -38,11 +38,32 @@ class ChatAudioController private constructor(
                 durationMs = track.durationMs,
                 positionMs = 0L,
                 isPlaying = true,
-                isVisible = true
+                isVisible = !track.isVoice
             )
         }
 
         startPlayback(track)
+        AudioPlayerService.start(appContext)
+    }
+
+    /**
+     * Воспроизведение цепочки голосовых сообщений (ТЗ: непрерывный автопереход к следующему ГС вниз по чату).
+     */
+    fun playVoiceSequence(queue: List<ChatTrack>, startTrack: ChatTrack) {
+        if (queue.isEmpty()) return
+
+        _state.update {
+            it.copy(
+                queue = queue,
+                currentTrack = startTrack,
+                durationMs = startTrack.durationMs,
+                positionMs = 0L,
+                isPlaying = true,
+                isVisible = false // Плашка мини-плеера не перекрывает чат при прослушивании ГС
+            )
+        }
+
+        startPlayback(startTrack)
         AudioPlayerService.start(appContext)
     }
 
@@ -52,21 +73,22 @@ class ChatAudioController private constructor(
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setContentType(if (track.isVoice) AudioAttributes.CONTENT_TYPE_SPEECH else AudioAttributes.CONTENT_TYPE_MUSIC)
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .build()
                 )
                 if (track.uri.scheme == "content" || track.uri.scheme == "file") {
                     setDataSource(appContext, track.uri)
-                } else {
+                } else if (track.uri.toString().isNotBlank()) {
                     setDataSource(track.uri.toString())
                 }
                 setOnPreparedListener { mp ->
                     mp.start()
+                    val actualDur = if (track.durationMs > 0) track.durationMs else mp.duration.toLong().coerceAtLeast(1000L)
                     _state.update {
                         it.copy(
                             isPlaying = true,
-                            durationMs = if (track.durationMs > 0) track.durationMs else mp.duration.toLong()
+                            durationMs = actualDur
                         )
                     }
                     startProgressTracker()
@@ -75,19 +97,20 @@ class ChatAudioController private constructor(
                     handleTrackCompletion()
                 }
                 setOnErrorListener { _, _, _ ->
-                    simulatePlayback()
+                    simulatePlayback(track)
                     true
                 }
                 prepareAsync()
             }
         } catch (_: Exception) {
-            simulatePlayback()
+            simulatePlayback(track)
         }
     }
 
-    private fun simulatePlayback() {
+    private fun simulatePlayback(track: ChatTrack) {
+        val simulatedDur = if (track.durationMs > 0) track.durationMs else 15_000L
+        _state.update { it.copy(isPlaying = true, durationMs = simulatedDur) }
         startProgressTracker()
-        _state.update { it.copy(isPlaying = true) }
     }
 
     fun toggle() {
@@ -112,7 +135,9 @@ class ChatAudioController private constructor(
 
     fun seek(ms: Long) {
         val targetMs = ms.coerceIn(0L, _state.value.durationMs.coerceAtLeast(1L))
-        mediaPlayer?.seekTo(targetMs.toInt())
+        try {
+            mediaPlayer?.seekTo(targetMs.toInt())
+        } catch (_: Throwable) {}
         _state.update { it.copy(positionMs = targetMs) }
     }
 
@@ -158,7 +183,28 @@ class ChatAudioController private constructor(
         _state.update { it.copy(isSheetOpen = false) }
     }
 
+    fun openFullScreen() {
+        _state.update { it.copy(isFullScreenOpen = true, isSheetOpen = false) }
+    }
+
+    fun closeFullScreen() {
+        _state.update { it.copy(isFullScreenOpen = false) }
+    }
+
     private fun handleTrackCompletion() {
+        val currentTrack = _state.value.currentTrack
+        if (currentTrack?.isVoice == true) {
+            // Для цепочки ГС: непрерывный автопереход к следующему ГС в очереди
+            val queue = _state.value.queue
+            val currentIndex = queue.indexOfFirst { it.id == currentTrack.id }
+            if (currentIndex in 0 until queue.lastIndex) {
+                playVoiceSequence(queue, queue[currentIndex + 1])
+            } else {
+                stop()
+            }
+            return
+        }
+
         when (_state.value.repeatMode) {
             ChatRepeatMode.ONE -> {
                 seek(0L)
@@ -182,8 +228,11 @@ class ChatAudioController private constructor(
         progressJob?.cancel()
         progressJob = scope.launch {
             while (isActive && _state.value.isPlaying) {
-                delay(300)
-                val currentPos = mediaPlayer?.currentPosition?.toLong() ?: (_state.value.positionMs + 300)
+                delay(200)
+                val currentPos = try {
+                    mediaPlayer?.currentPosition?.toLong()
+                } catch (_: Throwable) { null } ?: (_state.value.positionMs + 200)
+
                 val dur = _state.value.durationMs
                 if (dur > 0 && currentPos >= dur) {
                     handleTrackCompletion()

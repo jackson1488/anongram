@@ -73,17 +73,17 @@ fun ChatMiniPlayer(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 3.dp)
-                .clip(RoundedCornerShape(20.dp))
+                .padding(horizontal = 4.dp, vertical = 2.dp)
+                .clip(RoundedCornerShape(12.dp))
                 .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+                .border(0.5.dp, CardBorder, RoundedCornerShape(12.dp))
                 .clickable { onOpenSheet?.invoke() ?: ctrl.openSheet() }
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Кнопка Play / Pause
