@@ -80,6 +80,7 @@ import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMiniPlayer
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
+import com.anongram.app.features.chats.media.player.ChatTrack
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
 import com.anongram.app.features.chats.media.voice.VoiceDraftReviewBar
 import com.anongram.app.features.chats.messages.state.RecordMode
@@ -384,7 +385,7 @@ fun ChatScreen(
                     },
                     onOpenVideoCircle = viewModel::openExpandedVideoCircle,
                     onPlayVoice = { targetMsg ->
-                        val voiceTracks = state.messages
+                        val voiceTracks: List<ChatTrack> = state.messages
                             .filter { it.epochMs >= targetMsg.epochMs && it.attachment is MessageAttachment.Voice }
                             .map { msg ->
                                 val v = msg.attachment as MessageAttachment.Voice
@@ -402,7 +403,7 @@ fun ChatScreen(
                                     durationMs = sec,
                                     isVoice = true,
                                     chatTitle = session.title,
-                                    chatAvatarSeed = session.avatarColorSeed
+                                    chatAvatarSeed = session.title.hashCode()
                                 )
                             }
                         val current = voiceTracks.firstOrNull { it.id == "voice_${targetMsg.id}" } ?: voiceTracks.firstOrNull()
