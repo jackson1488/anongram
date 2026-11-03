@@ -15,6 +15,10 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import com.anongram.app.features.chats.media.player.AudioMetadataHelper
 import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -112,6 +116,14 @@ fun MusicTab(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) {
         hasPermission = PermissionUtils.hasMusicPermission(context)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                controller.stop()
+            } catch (_: Throwable) {}
+        }
     }
 
     if (!hasPermission) {
@@ -335,6 +347,17 @@ private fun MusicTrackRow(
     onPlayClick: () -> Unit,
     onToggleSelect: () -> Unit
 ) {
+    val context = LocalContext.current
+    var albumArt by remember(track.id) {
+        mutableStateOf(AudioMetadataHelper.getCachedArt(track.uri.toString()))
+    }
+    LaunchedEffect(track.id) {
+        if (albumArt == null) {
+            val meta = AudioMetadataHelper.extractMetadata(context, track.uri, track.title, track.artist)
+            albumArt = meta.albumArt
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -343,7 +366,7 @@ private fun MusicTrackRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Кнопка воспроизведения с оверлеем выбора (не сдвигает название трека)
+        // Кнопка воспроизведения с обложкой и белой круглой кнопкой Play/Pause
         Box(
             modifier = Modifier.size(44.dp),
             contentAlignment = Alignment.Center
@@ -352,16 +375,45 @@ private fun MusicTrackRow(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(if (isPlaying) PurpleAccent else AttachSurfaceDark)
+                    .background(AttachSurfaceDark)
                     .clickable { onPlayClick() },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                    contentDescription = "Play/Pause",
-                    tint = if (isPlaying) Color.White else PurpleAccent,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (albumArt != null) {
+                    Image(
+                        bitmap = albumArt!!.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(if (isPlaying) PurpleAccent.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.40f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(if (isPlaying) PurpleAccent else AttachSurfaceDark),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
 
             // Маленькая зеленая галочка в углу проигрывателя

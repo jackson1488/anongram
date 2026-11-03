@@ -29,6 +29,7 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
+import com.anongram.app.features.chats.media.player.ChatTrack
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
 import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
 import kotlinx.coroutines.launch
@@ -73,7 +74,8 @@ internal fun MessagesList(
     onForwardSubItem: (String) -> Unit = {},
     onDeleteSubItem: (String) -> Unit = {},
     onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
-    onPlayVoice: (ChatMessage) -> Unit = {}
+    onPlayVoice: (ChatMessage) -> Unit = {},
+    onPlayMusic: (ChatTrack) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -186,7 +188,8 @@ internal fun MessagesList(
                     onForwardSubItem = onForwardSubItem,
                     onDeleteSubItem = onDeleteSubItem,
                     onOpenVideoCircle = onOpenVideoCircle,
-                    onPlayVoice = onPlayVoice
+                    onPlayVoice = onPlayVoice,
+                    onPlayMusic = onPlayMusic
                 )
             }
         }

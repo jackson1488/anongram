@@ -3,19 +3,25 @@ package com.anongram.app.features.drafts
 data class ChatDraft(
     val chatId: String,
     val text: String = "",
+    val replyToMessageId: String? = null,
+    val replyToSubIndex: Int? = null,
     val voiceUri: String? = null,
     val voiceDurationLabel: String? = null,
     val voiceWaveform: List<Int> = emptyList(),
     val videoUri: String? = null
 ) {
     val isEmpty: Boolean
-        get() = text.isBlank() && voiceUri == null && videoUri == null
+        get() = text.isBlank() && replyToMessageId == null && voiceUri == null && videoUri == null
 
     val previewText: String
-        get() = when {
-            text.isNotBlank() -> text
-            voiceUri != null -> "Голосовое сообщение"
-            videoUri != null -> "Видеосообщение"
-            else -> ""
+        get() {
+            val base = when {
+                text.isNotBlank() -> text
+                voiceUri != null -> "Голосовое сообщение"
+                videoUri != null -> "Видеосообщение"
+                replyToMessageId != null -> "Ответ на сообщение"
+                else -> ""
+            }
+            return if (replyToMessageId != null && text.isNotBlank()) "Ответ: $base" else base
         }
 }

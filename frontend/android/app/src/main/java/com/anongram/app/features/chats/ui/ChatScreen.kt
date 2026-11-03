@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.ui
 
 import androidx.activity.compose.BackHandler
+import com.anongram.app.features.chats.media.player.AudioMetadataHelper
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -393,15 +394,18 @@ fun ChatScreen(
                                     val parts = v.durationLabel.split(":")
                                     parts[0].toLong() * 60_000L + parts[1].toLong() * 1000L
                                 }.getOrDefault(15_000L)
+                                val isOut = msg.direction == MessageDirection.OUTGOING
+                                val name = if (isOut) "Вы" else session.title
                                 ChatTrack(
                                     id = "voice_${msg.id}",
                                     messageId = msg.id,
                                     chatId = session.id,
-                                    title = "Голосовое сообщение",
-                                    artist = if (msg.direction == MessageDirection.OUTGOING) "Вы" else session.title,
+                                    title = name,
+                                    artist = name,
                                     durationLabel = v.durationLabel,
                                     durationMs = sec,
                                     isVoice = true,
+                                    isOutgoing = isOut,
                                     chatTitle = session.title,
                                     chatAvatarSeed = session.title.hashCode()
                                 )
@@ -410,6 +414,47 @@ fun ChatScreen(
                         if (current != null) {
                             audioController.playVoiceSequence(voiceTracks, current)
                         }
+                    },
+                    onPlayMusic = { targetTrack ->
+                        val chatMusicQueue: List<ChatTrack> = state.messages.flatMap { msg ->
+                            when (val att = msg.attachment) {
+                                is MessageAttachment.Music -> listOf(
+                                    ChatTrack(
+                                        id = "${msg.id}_${att.title}",
+                                        messageId = msg.id,
+                                        chatId = session.id,
+                                        title = att.title,
+                                        artist = att.artist,
+                                        performer = if (att.artist.isNotBlank() && att.artist != "Неизвестен") att.artist else "AnonGram",
+                                        durationLabel = att.durationLabel,
+                                        durationMs = AudioMetadataHelper.parseDurationLabelToMs(att.durationLabel),
+                                        sizeLabel = att.sizeLabel,
+                                        chatTitle = session.title,
+                                        chatAvatarSeed = session.title.hashCode(),
+                                        uri = att.uri?.let { android.net.Uri.parse(it) } ?: android.net.Uri.EMPTY
+                                    )
+                                )
+                                is MessageAttachment.MusicGroup -> att.items.mapIndexed { idx, item ->
+                                    ChatTrack(
+                                        id = "${msg.id}_${item.title}_$idx",
+                                        messageId = msg.id,
+                                        chatId = session.id,
+                                        title = item.title,
+                                        artist = item.artist,
+                                        performer = if (item.artist.isNotBlank() && item.artist != "Неизвестен") item.artist else "AnonGram",
+                                        durationLabel = item.durationLabel,
+                                        durationMs = AudioMetadataHelper.parseDurationLabelToMs(item.durationLabel),
+                                        sizeLabel = item.sizeLabel,
+                                        chatTitle = session.title,
+                                        chatAvatarSeed = session.title.hashCode(),
+                                        uri = item.uri?.let { android.net.Uri.parse(it) } ?: android.net.Uri.EMPTY
+                                    )
+                                }
+                                else -> emptyList()
+                            }
+                        }
+                        val toPlay = chatMusicQueue.firstOrNull { it.id == targetTrack.id || (it.messageId == targetTrack.messageId && it.title == targetTrack.title) } ?: targetTrack
+                        audioController.play(if (chatMusicQueue.isNotEmpty()) chatMusicQueue else listOf(toPlay), toPlay)
                     }
                 )
             }

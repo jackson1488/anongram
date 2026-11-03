@@ -19,14 +19,25 @@ import com.anongram.app.MainActivity
 import com.anongram.app.R
 import com.anongram.app.features.chats.media.player.AudioMetadataHelper
 import com.anongram.app.features.chats.media.player.ChatAudioController
+import com.anongram.app.features.chats.media.player.ChatPlayerState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Foreground Service для воспроизведения аудио и голосовых сообщений:
- * Нативное уведомление NotificationCompat.MediaStyle и синхронизация MediaSessionCompat.
+ * Нативное уведомление NotificationCompat.MediaStyle и синхронизация MediaSessionCompat в реальном времени.
  */
 class AudioPlayerService : Service() {
 
     private var mediaSession: MediaSessionCompat? = null
+    private val serviceScope = CoroutineScope(Dispatchers.Main + Job())
+    private var syncJob: Job? = null
+
+    private var lastTrackId: String? = null
+    private var lastIsPlaying: Boolean? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -36,27 +47,22 @@ class AudioPlayerService : Service() {
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
                     ChatAudioController.getInstance(this@AudioPlayerService).togglePlayPause()
-                    updateNotification()
                 }
 
                 override fun onPause() {
                     ChatAudioController.getInstance(this@AudioPlayerService).togglePlayPause()
-                    updateNotification()
                 }
 
                 override fun onSkipToNext() {
                     ChatAudioController.getInstance(this@AudioPlayerService).next()
-                    updateNotification()
                 }
 
                 override fun onSkipToPrevious() {
                     ChatAudioController.getInstance(this@AudioPlayerService).prev()
-                    updateNotification()
                 }
 
                 override fun onSeekTo(pos: Long) {
                     ChatAudioController.getInstance(this@AudioPlayerService).seek(pos)
-                    updateNotification()
                 }
 
                 override fun onStop() {
@@ -65,6 +71,19 @@ class AudioPlayerService : Service() {
                     stopSelf()
                 }
             })
+        }
+
+        // Синхронизация состояния плеера с системной шторкой и скраббером
+        val chatController = ChatAudioController.getInstance(this)
+        syncJob = serviceScope.launch {
+            chatController.state.collect { state ->
+                if (state.currentTrack == null) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                    stopSelf()
+                    return@collect
+                }
+                syncState(state)
+            }
         }
     }
 
@@ -81,43 +100,46 @@ class AudioPlayerService : Service() {
                 return START_NOT_STICKY
             }
         }
-        val notification = buildNotification()
-        startForeground(NOTIFICATION_ID, notification)
+        val state = chatController.state.value
+        if (state.currentTrack != null) {
+            syncState(state, forceNotify = true)
+        } else {
+            val notification = buildNotification(state, "AnonGram", "Плеер", null)
+            startForeground(NOTIFICATION_ID, notification)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        }
         return START_NOT_STICKY
     }
 
-    private fun updateNotification() {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        manager?.notify(NOTIFICATION_ID, buildNotification())
-    }
+    private fun syncState(state: ChatPlayerState, forceNotify: Boolean = false) {
+        val track = state.currentTrack ?: return
+        val isVoice = track.isVoice
 
-    private fun buildNotification(): Notification {
-        val chatController = ChatAudioController.getInstance(this)
-        val state = chatController.state.value
-        val track = state.currentTrack
-        val isVoice = track?.isVoice == true
-
+        val isOut = track.isOutgoing || track.title == "Вы"
         val title = if (isVoice) {
-            track?.chatTitle?.ifBlank { "Голосовое сообщение" } ?: "Голосовое сообщение"
+            if (isOut) "Вы" else track.chatTitle.ifBlank { track.title.ifBlank { "Голосовое сообщение" } }
         } else {
-            track?.title ?: "AnonGram Music"
+            track.title.ifBlank { "AnonGram Music" }
         }
 
         val artist = if (isVoice) {
-            "Голосовое сообщение • ${track?.durationLabel ?: "0:00"}"
+            "Голосовое сообщение • ${track.durationLabel}"
         } else {
-            track?.artist?.ifBlank { "AnonGram Player" } ?: "AnonGram Player"
+            track.artist.ifBlank { "AnonGram Player" }
         }
 
         val largeIcon: Bitmap? = if (isVoice) {
-            AudioMetadataHelper.generateFallbackArt(title, "AnonGram Voice")
+            AudioMetadataHelper.generateAvatarBitmap(title, isOutgoing = isOut)
         } else {
-            track?.albumArtBitmap
-                ?: track?.let { AudioMetadataHelper.getCachedArt(it.uri.toString()) }
+            track.albumArtBitmap
+                ?: AudioMetadataHelper.getCachedArt(track.uri.toString())
                 ?: AudioMetadataHelper.generateFallbackArt(title, artist)
         }
 
-        // Обновление состояния MediaSession для системного скраббера Android 13/14+
+        val actualDuration = if (state.durationMs > 0) state.durationMs else 180_000L
+
+        // Обновление состояния MediaSession для системного скраббера Android
         val playState = if (state.isPlaying) PlaybackStateCompat.STATE_PLAYING else PlaybackStateCompat.STATE_PAUSED
         val actions = if (isVoice) {
             PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or PlaybackStateCompat.ACTION_SEEK_TO or PlaybackStateCompat.ACTION_STOP
@@ -135,11 +157,28 @@ class AudioPlayerService : Service() {
         val metadataBuilder = MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
             .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
-            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, state.durationMs.coerceAtLeast(1L))
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, actualDuration)
         if (largeIcon != null) {
             metadataBuilder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, largeIcon)
         }
         mediaSession?.setMetadata(metadataBuilder.build())
+
+        val needsNotify = forceNotify || track.id != lastTrackId || state.isPlaying != lastIsPlaying
+        if (needsNotify) {
+            lastTrackId = track.id
+            lastIsPlaying = state.isPlaying
+            val notification = buildNotification(state, title, artist, largeIcon)
+            startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun buildNotification(
+        state: ChatPlayerState,
+        title: String,
+        artist: String,
+        largeIcon: Bitmap?
+    ): Notification {
+        val isVoice = state.currentTrack?.isVoice == true
 
         val openAppIntent = PendingIntent.getActivity(
             this,
@@ -169,7 +208,7 @@ class AudioPlayerService : Service() {
         }
 
         if (isVoice) {
-            // Для голосовых: только кнопка Play/Pause, без стрелок переключения
+            // Для голосовых сообщений: только кнопка воспроизведения/паузы, без стрелок переключения треков
             builder.addAction(playPauseIcon, if (state.isPlaying) "Пауза" else "Слушать", togglePending)
             builder.setStyle(
                 MediaStyle()
@@ -195,6 +234,8 @@ class AudioPlayerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        syncJob?.cancel()
+        serviceScope.cancel()
         mediaSession?.release()
         mediaSession = null
     }

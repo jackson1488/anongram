@@ -85,6 +85,9 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.messages.state.RecordingState
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Поле ввода по ТЗ (шаги 2, 3, 16):
@@ -393,49 +396,55 @@ private fun ActionButton(
                     return@pointerInput
                 }
 
-                awaitPointerEventScope {
-                    while (true) {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        val downTime = System.currentTimeMillis()
-                        var isRecordingActive = false
-                        var totalDragX = 0f
-                        var totalDragY = 0f
-                        var isCancelled = false
-                        var isLocked = false
-
+                coroutineScope {
+                    awaitPointerEventScope {
                         while (true) {
-                            val event = awaitPointerEvent()
-                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val downTime = System.currentTimeMillis()
+                            var isRecordingActive = false
+                            var totalDragX = 0f
+                            var totalDragY = 0f
+                            var isCancelled = false
+                            var isLocked = false
 
-                            if (!isRecordingActive && System.currentTimeMillis() - downTime >= 180) {
-                                isRecordingActive = true
-                                onStartRecording(if (isCameraMode) RecordMode.CIRCLE else RecordMode.VOICE)
+                            val holdJob = this@coroutineScope.launch {
+                                delay(160)
+                                if (!isRecordingActive && !isCancelled && !isLocked) {
+                                    isRecordingActive = true
+                                    onStartRecording(if (isCameraMode) RecordMode.CIRCLE else RecordMode.VOICE)
+                                }
                             }
 
-                            if (change.pressed) {
-                                val dragDelta = change.position - change.previousPosition
-                                totalDragX += dragDelta.x
-                                totalDragY += dragDelta.y
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
 
-                                if (isRecordingActive) {
-                                    if (!isCancelled && totalDragX < -110f) {
-                                        isCancelled = true
-                                        onCancelRecording()
-                                    } else if (!isLocked && totalDragY < -90f) {
-                                        isLocked = true
-                                        onLockRecording()
+                                if (change.pressed) {
+                                    val dragDelta = change.position - change.previousPosition
+                                    totalDragX += dragDelta.x
+                                    totalDragY += dragDelta.y
+
+                                    if (isRecordingActive) {
+                                        if (!isCancelled && totalDragX < -100f) {
+                                            isCancelled = true
+                                            onCancelRecording()
+                                        } else if (!isLocked && totalDragY < -80f) {
+                                            isLocked = true
+                                            onLockRecording()
+                                        }
                                     }
-                                }
-                            } else {
-                                val duration = System.currentTimeMillis() - downTime
-                                if (!isRecordingActive && duration < 250) {
-                                    onToggleCameraMode()
-                                } else if (isRecordingActive) {
-                                    if (!isCancelled && !isLocked) {
-                                        onFinishRecording(true)
+                                } else {
+                                    holdJob.cancel()
+                                    val duration = System.currentTimeMillis() - downTime
+                                    if (!isRecordingActive && duration < 200) {
+                                        onToggleCameraMode()
+                                    } else if (isRecordingActive) {
+                                        if (!isCancelled && !isLocked) {
+                                            onFinishRecording(true)
+                                        }
                                     }
+                                    break
                                 }
-                                break
                             }
                         }
                     }

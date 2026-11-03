@@ -22,6 +22,7 @@ data class ChatTrack(
     val durationMs: Long = 0L,
     val performer: String = artist,
     val isVoice: Boolean = false,
+    val isOutgoing: Boolean = false,
     val chatTitle: String = "",
     val chatAvatarSeed: Int = 0,
     val sizeLabel: String = "3.7 MB",
@@ -43,7 +44,7 @@ data class ChatPlayerState(
     val progressMs: Long get() = positionMs
 
     val progress: Float
-        get() = if (durationMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
+        get() = if (durationMs > 0 && positionMs > 0) (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f) else 0f
 
     val positionLabel: String
         get() {

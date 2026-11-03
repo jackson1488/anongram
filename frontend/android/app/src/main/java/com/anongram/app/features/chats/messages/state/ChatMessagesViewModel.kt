@@ -60,11 +60,16 @@ class ChatMessagesViewModel(
                 )
             } else null
             val loaded = repository.loadMessages(sessionId)
+            val initialReply = if (richDraft?.replyToMessageId != null) {
+                loaded.firstOrNull { it.id == richDraft.replyToMessageId }?.resolveSubItem(richDraft.replyToSubIndex)
+            } else null
             val initialPinned = if (sessionId == "2" && loaded.size > 2) listOf(loaded[1].id, loaded[2].id) else emptyList<String>()
             _uiState.update {
                 it.copy(
                     messages = loaded,
                     input = initialInput,
+                    replyTo = initialReply,
+                    replyToSubIndex = richDraft?.replyToSubIndex,
                     voiceReviewDraft = initialVoice,
                     firstUnreadId = loaded.firstOrNull { message -> message.isUnread }?.id,
                     pinnedIds = initialPinned,
@@ -76,20 +81,27 @@ class ChatMessagesViewModel(
 
     // --- Поле ввода и черновики ---
 
+    private fun persistDraft() {
+        val s = _uiState.value
+        val txt = s.input.trim()
+        val draft = ChatDraft(
+            chatId = sessionId,
+            text = txt,
+            replyToMessageId = s.replyTo?.id,
+            replyToSubIndex = s.replyToSubIndex,
+            voiceDurationLabel = s.voiceReviewDraft?.durationLabel,
+            voiceWaveform = s.voiceReviewDraft?.waveform ?: emptyList()
+        )
+        chatsRepository.saveDraft(sessionId, txt)
+        ChatDraftsRepository.instance.saveDraft(draft)
+    }
+
     fun onInputChange(value: String) {
         _uiState.update { it.copy(input = value) }
         draftJob?.cancel()
         draftJob = viewModelScope.launch {
-            delay(600)
-            chatsRepository.saveDraft(sessionId, value.trim())
-            ChatDraftsRepository.instance.saveDraft(
-                ChatDraft(
-                    chatId = sessionId,
-                    text = value.trim(),
-                    voiceDurationLabel = _uiState.value.voiceReviewDraft?.durationLabel,
-                    voiceWaveform = _uiState.value.voiceReviewDraft?.waveform ?: emptyList()
-                )
-            )
+            delay(400)
+            persistDraft()
         }
     }
 
@@ -407,9 +419,13 @@ class ChatMessagesViewModel(
                 actionMenuFor = null
             )
         }
+        persistDraft()
     }
 
-    fun cancelReply() = _uiState.update { it.copy(replyTo = null, replyToSubIndex = null) }
+    fun cancelReply() {
+        _uiState.update { it.copy(replyTo = null, replyToSubIndex = null) }
+        persistDraft()
+    }
 
     // --- Меню действий с сообщением (долгий тап) ---
 

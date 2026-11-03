@@ -96,6 +96,7 @@ internal fun ChatMusicItemRow(
     isSelectionMode: Boolean,
     isItemSelected: Boolean,
     isPinned: Boolean = false,
+    onPlayTrack: ((ChatTrack) -> Unit)? = null,
     onItemClick: () -> Unit,
     onItemLongClick: () -> Unit,
     onSwipeReply: () -> Unit,
@@ -136,6 +137,7 @@ internal fun ChatMusicItemRow(
         if (isCurrentlyActive) {
             audioController.togglePlayPause()
         } else {
+            val durMs = AudioMetadataHelper.parseDurationLabelToMs(music.durationLabel)
             val track = ChatTrack(
                 id = "${message.id}_${music.title}",
                 messageId = message.id,
@@ -143,11 +145,12 @@ internal fun ChatMusicItemRow(
                 artist = music.artist,
                 performer = if (music.artist.isNotBlank() && music.artist != "Неизвестен") music.artist else "AnonGram",
                 durationLabel = music.durationLabel,
+                durationMs = durMs,
                 sizeLabel = music.sizeLabel,
                 albumArtBitmap = albumArt,
                 uri = music.uri?.let { android.net.Uri.parse(it) } ?: android.net.Uri.EMPTY
             )
-            audioController.play(listOf(track), track)
+            onPlayTrack?.invoke(track) ?: audioController.play(listOf(track), track)
         }
     }
 
@@ -345,6 +348,10 @@ internal fun ChatMusicItemRow(
                         fontSize = 12.5.sp,
                         maxLines = 1
                     )
+                }
+
+                if (showBottomTimestamp) {
+                    Spacer(modifier = Modifier.height(14.dp))
                 }
             }
         }

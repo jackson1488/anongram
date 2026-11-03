@@ -141,4 +141,56 @@ object AudioMetadataHelper {
 
         return bmp
     }
+
+    /**
+     * Генерация круглой аватарки с градиентом и первой буквой имени для системных уведомлений (ГС).
+     * Для исходящего ("Вы") — изумрудно-зеленый градиент и буква 'В'.
+     * Для входящего (например "Алиса") — уникальный стильный градиент по хешу имени и первая буква контакта.
+     */
+    fun generateAvatarBitmap(name: String, isOutgoing: Boolean = false): Bitmap {
+        val size = 200
+        val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+
+        val (c1, c2) = if (isOutgoing) {
+            0xFF00C853.toInt() to 0xFF1B5E20.toInt()
+        } else {
+            val hash = name.hashCode()
+            (0xFF000000.toInt() or (hash and 0x00FFFFFF)) to 0xFF14151B.toInt()
+        }
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            shader = LinearGradient(0f, 0f, size.toFloat(), size.toFloat(), c1, c2, Shader.TileMode.CLAMP)
+        }
+        canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFFFFF.toInt()
+            textSize = 76f
+            textAlign = Paint.Align.CENTER
+            isFakeBoldText = true
+        }
+        val letter = if (isOutgoing) "В" else (name.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "?")
+        val yPos = (size / 2 - (textPaint.descent() + textPaint.ascent()) / 2)
+        canvas.drawText(letter, size / 2f, yPos, textPaint)
+
+        return bmp
+    }
+
+    fun parseDurationLabelToMs(label: String): Long {
+        val parts = label.trim().split(":")
+        if (parts.size == 2) {
+            val min = parts[0].toLongOrNull() ?: 0L
+            val sec = parts[1].toLongOrNull() ?: 0L
+            val total = (min * 60 + sec) * 1000L
+            if (total > 0) return total
+        } else if (parts.size == 3) {
+            val hr = parts[0].toLongOrNull() ?: 0L
+            val min = parts[1].toLongOrNull() ?: 0L
+            val sec = parts[2].toLongOrNull() ?: 0L
+            val total = (hr * 3600 + min * 60 + sec) * 1000L
+            if (total > 0) return total
+        }
+        return 180_000L
+    }
 }

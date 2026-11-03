@@ -1,5 +1,7 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
+import com.anongram.app.features.chats.media.player.ChatTrack
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -138,7 +140,8 @@ internal fun MessageBubble(
     onForwardSubItem: (subKey: String) -> Unit = {},
     onDeleteSubItem: (subKey: String) -> Unit = {},
     onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
-    onPlayVoice: (ChatMessage) -> Unit = {}
+    onPlayVoice: (ChatMessage) -> Unit = {},
+    onPlayMusic: (ChatTrack) -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
     val message = item.message
@@ -467,7 +470,8 @@ internal fun MessageBubble(
                                                 onForwardSubItem = onForwardSubItem,
                                                 onDeleteSubItem = onDeleteSubItem,
                                                 onOpenVideoCircle = onOpenVideoCircle,
-                                                onPlayVoice = onPlayVoice
+                                                onPlayVoice = onPlayVoice,
+                                                onPlayMusic = onPlayMusic
                                             )
 
                                             if (isOverlayTimestampOnMedia) {
@@ -816,7 +820,8 @@ private fun AttachmentContent(
     onForwardSubItem: (String) -> Unit = {},
     onDeleteSubItem: (String) -> Unit = {},
     onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
-    onPlayVoice: (ChatMessage) -> Unit = {}
+    onPlayVoice: (ChatMessage) -> Unit = {},
+    onPlayMusic: (ChatTrack) -> Unit = {}
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {
@@ -936,6 +941,7 @@ private fun AttachmentContent(
                 isSelectionMode = isSelectionMode,
                 isItemSelected = 0 in selectedSubIndices,
                 isPinned = isPinned,
+                onPlayTrack = onPlayMusic,
                 onItemClick = { if (isSelectionMode) onSelect() },
                 onItemLongClick = onLongClick,
                 onSwipeReply = { onReplySubItem(0) },
@@ -962,6 +968,7 @@ private fun AttachmentContent(
                         isSelectionMode = isSelectionMode,
                         isItemSelected = isItemSelected,
                         isPinned = isPinned,
+                        onPlayTrack = onPlayMusic,
                         onItemClick = {
                             if (isSelectionMode) onToggleSubItem(idx)
                         },

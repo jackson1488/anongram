@@ -150,6 +150,7 @@ fun ChatMusicPlayerSheet(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = screenHeightDp * 0.88f)
                 .align(Alignment.BottomCenter)
                 .offset { IntOffset(0, sheetOffsetAnim.value.roundToInt()) }
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
@@ -439,9 +440,10 @@ fun ChatMusicPlayerSheet(
                 // 2. СПИСОК ТРЕКОВ ЧАТА С АДАПТИВНОЙ ВЫСОТОЙ ПОД ФИКСИРОВАННОЙ ШАПКОЙ
                 val trackCount = state.queue.size
                 val maxListHeight = when {
-                    trackCount <= 2 -> 130.dp
-                    trackCount <= 4 -> 220.dp
-                    else -> 320.dp
+                    trackCount <= 1 -> 72.dp
+                    trackCount <= 2 -> 140.dp
+                    trackCount <= 3 -> 210.dp
+                    else -> (screenHeightDp * 0.45f).coerceIn(240.dp, 420.dp)
                 }
 
                 LazyColumn(

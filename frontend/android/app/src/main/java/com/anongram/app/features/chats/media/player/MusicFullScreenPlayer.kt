@@ -39,6 +39,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Reply
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.MoreVert
@@ -537,7 +538,7 @@ fun MusicFullScreenPlayer(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxSize(0.6f)
+                    .fillMaxHeight(0.72f)
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .background(Color(0xFF141724))
                     .border(1.dp, CardBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
@@ -552,14 +553,33 @@ fun MusicFullScreenPlayer(
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
                             .background(Color.White.copy(alpha = 0.25f))
+                            .clickable { isQueueOpen = false }
                     )
-                    Text(
-                        text = "Очередь воспроизведения",
-                        color = Color.White,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Очередь треков (${state.queue.size})",
+                            color = Color.White,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(
+                            onClick = { isQueueOpen = false },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Close,
+                                contentDescription = "Закрыть",
+                                tint = Color.White.copy(alpha = 0.7f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                     LazyColumn(modifier = Modifier.weight(1f)) {
                         items(state.queue, key = { it.id }) { track ->
                             val isCurrent = track.id == state.currentTrack?.id
