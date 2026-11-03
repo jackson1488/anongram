@@ -33,7 +33,7 @@ fun MarqueeText(
         overflow = TextOverflow.Clip,
         modifier = modifier.basicMarquee(
             iterations = Int.MAX_VALUE,
-            delayMillis = 1500,
+            initialDelayMillis = 1500,
             velocity = 35.dp
         )
     )

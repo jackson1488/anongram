@@ -464,7 +464,8 @@ internal fun MessageBubble(
                                                 onOpenPhotoAt = { idx -> onOpenMediaViewer(idx) },
                                                 onOpenContactChat = onOpenContactChat,
                                                 onForwardSubItem = onForwardSubItem,
-                                                onDeleteSubItem = onDeleteSubItem
+                                                onDeleteSubItem = onDeleteSubItem,
+                                                onOpenVideoCircle = onOpenVideoCircle
                                             )
 
                                             if (isOverlayTimestampOnMedia) {
@@ -811,7 +812,8 @@ private fun AttachmentContent(
     onOpenPhotoAt: (Int) -> Unit = {},
     onOpenContactChat: (String, String) -> Unit = { _, _ -> },
     onForwardSubItem: (String) -> Unit = {},
-    onDeleteSubItem: (String) -> Unit = {}
+    onDeleteSubItem: (String) -> Unit = {},
+    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {}
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {

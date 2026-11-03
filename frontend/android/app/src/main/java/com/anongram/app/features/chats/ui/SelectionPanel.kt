@@ -18,6 +18,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FileDownload
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -148,7 +149,7 @@ internal fun SelectionPanel(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Outlined.Share,
+                            imageVector = Icons.Outlined.Share,
                             contentDescription = "Поделиться",
                             tint = TextPrimary,
                             modifier = Modifier.size(20.dp)
@@ -197,7 +198,7 @@ internal fun SelectionPanel(
                         modifier = Modifier.size(40.dp)
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Outlined.Share,
+                            imageVector = Icons.Outlined.Share,
                             contentDescription = "Поделиться",
                             tint = TextPrimary,
                             modifier = Modifier.size(20.dp)

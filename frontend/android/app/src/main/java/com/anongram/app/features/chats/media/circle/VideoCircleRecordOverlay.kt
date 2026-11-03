@@ -210,7 +210,7 @@ fun VideoCircleRecordOverlay(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, bottom = 24.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
         ) {
             Row(
                 modifier = Modifier
