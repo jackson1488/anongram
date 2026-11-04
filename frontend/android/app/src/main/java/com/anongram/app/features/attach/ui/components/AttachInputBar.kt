@@ -204,7 +204,7 @@ fun AttachInputBar(
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier
                                 .align(Alignment.Bottom)
-                                .padding(horizontal = 4.dp, bottom = 12.dp)
+                                .padding(start = 4.dp, end = 4.dp, bottom = 12.dp)
                         )
                     }
 
