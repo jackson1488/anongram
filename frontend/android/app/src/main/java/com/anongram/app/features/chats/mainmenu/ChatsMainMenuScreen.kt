@@ -277,4 +277,5 @@ fun ChatsMainMenuScreen(
     }
 
     ChatListDialogs(state = state, viewModel = viewModel)
+    }
 }
