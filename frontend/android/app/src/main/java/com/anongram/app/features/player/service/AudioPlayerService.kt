@@ -5,9 +5,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.Bitmap
+import android.media.AudioManager
 import android.os.Build
 import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
@@ -39,18 +42,30 @@ class AudioPlayerService : Service() {
     private var lastTrackId: String? = null
     private var lastIsPlaying: Boolean? = null
 
+    private val noisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                ChatAudioController.getInstance(this@AudioPlayerService).pause()
+            }
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        try {
+            registerReceiver(noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY))
+        } catch (_: Exception) {}
+
         mediaSession = MediaSessionCompat(this, "AnonGramMediaSession").apply {
             isActive = true
             setCallback(object : MediaSessionCompat.Callback() {
                 override fun onPlay() {
-                    ChatAudioController.getInstance(this@AudioPlayerService).togglePlayPause()
+                    ChatAudioController.getInstance(this@AudioPlayerService).resume()
                 }
 
                 override fun onPause() {
-                    ChatAudioController.getInstance(this@AudioPlayerService).togglePlayPause()
+                    ChatAudioController.getInstance(this@AudioPlayerService).pause()
                 }
 
                 override fun onSkipToNext() {
@@ -90,6 +105,8 @@ class AudioPlayerService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val chatController = ChatAudioController.getInstance(this)
         when (intent?.action) {
+            ACTION_PLAY -> chatController.resume()
+            ACTION_PAUSE -> chatController.pause()
             ACTION_TOGGLE -> chatController.toggle()
             ACTION_NEXT -> chatController.next()
             ACTION_PREV -> chatController.prev()
@@ -148,9 +165,10 @@ class AudioPlayerService : Service() {
                     PlaybackStateCompat.ACTION_SKIP_TO_NEXT or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or PlaybackStateCompat.ACTION_STOP
         }
 
+        val speed = if (state.isPlaying) 1.0f else 0.0f
         val playbackState = PlaybackStateCompat.Builder()
             .setActions(actions)
-            .setState(playState, state.positionMs, 1.0f)
+            .setState(playState, state.positionMs, speed)
             .build()
         mediaSession?.setPlaybackState(playbackState)
 
@@ -193,7 +211,8 @@ class AudioPlayerService : Service() {
         }
 
         val playPauseIcon = if (state.isPlaying) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play
-        val togglePending = actionIntent(ACTION_TOGGLE, 2)
+        val playPauseAction = if (state.isPlaying) ACTION_PAUSE else ACTION_PLAY
+        val togglePending = actionIntent(playPauseAction, 2)
 
         val builder = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(title)
@@ -234,6 +253,9 @@ class AudioPlayerService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
+        try {
+            unregisterReceiver(noisyReceiver)
+        } catch (_: Exception) {}
         syncJob?.cancel()
         serviceScope.cancel()
         mediaSession?.release()
@@ -261,6 +283,8 @@ class AudioPlayerService : Service() {
         private const val NOTIFICATION_ID = 2001
         private const val CHANNEL_ID = "anongram_audio_player"
 
+        const val ACTION_PLAY = "com.anongram.app.player.ACTION_PLAY"
+        const val ACTION_PAUSE = "com.anongram.app.player.ACTION_PAUSE"
         const val ACTION_TOGGLE = "com.anongram.app.player.ACTION_TOGGLE"
         const val ACTION_NEXT = "com.anongram.app.player.ACTION_NEXT"
         const val ACTION_PREV = "com.anongram.app.player.ACTION_PREV"

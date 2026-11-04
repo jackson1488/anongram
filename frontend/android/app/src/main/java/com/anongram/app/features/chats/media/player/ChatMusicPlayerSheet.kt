@@ -13,6 +13,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -167,18 +168,48 @@ fun ChatMusicPlayerSheet(
                     .fillMaxWidth()
                     .padding(bottom = 20.dp)
             ) {
-                // Полоска-держатель
+                // Полоска-держатель с широкой областью захвата вертикального свайпа
                 Box(
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = 10.dp, bottom = 12.dp)
-                        .width(38.dp)
-                        .height(4.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(Color.White.copy(alpha = 0.25f))
-                )
+                        .fillMaxWidth()
+                        .height(34.dp)
+                        .pointerInput(Unit) {
+                            detectVerticalDragGestures(
+                                onDragEnd = {
+                                    if (sheetOffsetAnim.value > 140f) {
+                                        dismissAnimated()
+                                    } else {
+                                        scope.launch {
+                                            sheetOffsetAnim.animateTo(0f, tween(220, easing = FastOutSlowInEasing))
+                                        }
+                                    }
+                                },
+                                onDragCancel = {
+                                    scope.launch {
+                                        sheetOffsetAnim.animateTo(0f, tween(220, easing = FastOutSlowInEasing))
+                                    }
+                                },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    scope.launch {
+                                        val newOffset = (sheetOffsetAnim.value + dragAmount).coerceAtLeast(0f)
+                                        sheetOffsetAnim.snapTo(newOffset)
+                                    }
+                                }
+                            )
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(38.dp)
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(Color.White.copy(alpha = 0.25f))
+                    )
+                }
 
-                // 1. СПИСОК ТРЕКОВ ЧАТА СВЕРХУ (до 50 треков с адаптивной высотой)
+                // 1. СПИСОК ТРЕКОВ ЧАТА СВЕРХУ (до 50 треков снизу вверх, 1-я песня внизу над карточкой)
                 val trackCount = state.queue.size
                 val maxListHeight = when {
                     trackCount <= 1 -> 68.dp
@@ -189,6 +220,7 @@ fun ChatMusicPlayerSheet(
 
                 if (state.queue.isNotEmpty()) {
                     LazyColumn(
+                        reverseLayout = true,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(max = maxListHeight)

@@ -28,8 +28,10 @@ class ChatAudioController private constructor(
     private var mediaPlayer: MediaPlayer? = null
     private var progressJob: Job? = null
     private var originalChronologicalQueue: List<ChatTrack> = emptyList()
+    private var userPaused: Boolean = false
+    val isUserPaused: Boolean get() = userPaused
 
-    fun play(queue: List<ChatTrack>, track: ChatTrack) {
+    fun play(queue: List<ChatTrack>, track: ChatTrack, autoStart: Boolean = true) {
         if (queue.isEmpty()) return
 
         val effectiveQueue = if (_state.value.isShuffleEnabled) {
@@ -46,18 +48,19 @@ class ChatAudioController private constructor(
             queue
         }
 
+        userPaused = !autoStart
         _state.update {
             it.copy(
                 queue = effectiveQueue,
                 currentTrack = track,
                 durationMs = track.durationMs,
                 positionMs = 0L,
-                isPlaying = true,
+                isPlaying = autoStart,
                 isVisible = !track.isVoice
             )
         }
 
-        startPlayback(track)
+        startPlayback(track, autoStart = autoStart)
         AudioPlayerService.start(appContext)
     }
 
@@ -67,6 +70,7 @@ class ChatAudioController private constructor(
     fun playVoiceSequence(queue: List<ChatTrack>, startTrack: ChatTrack) {
         if (queue.isEmpty()) return
 
+        userPaused = false
         _state.update {
             it.copy(
                 queue = queue,
@@ -78,11 +82,11 @@ class ChatAudioController private constructor(
             )
         }
 
-        startPlayback(startTrack)
+        startPlayback(startTrack, autoStart = true)
         AudioPlayerService.start(appContext)
     }
 
-    private fun startPlayback(track: ChatTrack) {
+    private fun startPlayback(track: ChatTrack, autoStart: Boolean = true) {
         releasePlayer()
         try {
             mediaPlayer = MediaPlayer().apply {
@@ -98,51 +102,72 @@ class ChatAudioController private constructor(
                     setDataSource(track.uri.toString())
                 }
                 setOnPreparedListener { mp ->
-                    mp.start()
                     val actualDur = if (track.durationMs > 0) track.durationMs else mp.duration.toLong().coerceAtLeast(1000L)
-                    _state.update {
-                        it.copy(
-                            isPlaying = true,
-                            durationMs = actualDur
-                        )
+                    if (autoStart) {
+                        mp.start()
+                        _state.update {
+                            it.copy(
+                                isPlaying = true,
+                                durationMs = actualDur
+                            )
+                        }
+                        startProgressTracker()
+                    } else {
+                        _state.update {
+                            it.copy(
+                                isPlaying = false,
+                                positionMs = 0L,
+                                durationMs = actualDur
+                            )
+                        }
                     }
-                    startProgressTracker()
                 }
                 setOnCompletionListener {
                     handleTrackCompletion()
                 }
                 setOnErrorListener { _, _, _ ->
-                    simulatePlayback(track)
+                    simulatePlayback(track, autoStart = autoStart)
                     true
                 }
                 prepareAsync()
             }
         } catch (_: Exception) {
-            simulatePlayback(track)
+            simulatePlayback(track, autoStart = autoStart)
         }
     }
 
-    private fun simulatePlayback(track: ChatTrack) {
+    private fun simulatePlayback(track: ChatTrack, autoStart: Boolean = true) {
         val simulatedDur = if (track.durationMs > 0) track.durationMs else 15_000L
-        _state.update { it.copy(isPlaying = true, durationMs = simulatedDur) }
+        _state.update { it.copy(isPlaying = autoStart, durationMs = simulatedDur, positionMs = 0L) }
+        if (autoStart) {
+            startProgressTracker()
+        }
+    }
+
+    fun pause() {
+        userPaused = true
+        mediaPlayer?.pause()
+        _state.update { it.copy(isPlaying = false) }
+        stopProgressTracker()
+    }
+
+    fun resume() {
+        userPaused = false
+        val current = _state.value
+        if (current.currentTrack == null && current.queue.isNotEmpty()) {
+            play(current.queue, current.queue.first(), autoStart = true)
+            return
+        }
+        mediaPlayer?.start()
+        _state.update { it.copy(isPlaying = true) }
         startProgressTracker()
     }
 
     fun toggle() {
-        val current = _state.value
-        if (current.currentTrack == null && current.queue.isNotEmpty()) {
-            play(current.queue, current.queue.first())
-            return
-        }
-
-        if (current.isPlaying) {
-            mediaPlayer?.pause()
-            _state.update { it.copy(isPlaying = false) }
-            stopProgressTracker()
+        if (_state.value.isPlaying) {
+            pause()
         } else {
-            mediaPlayer?.start()
-            _state.update { it.copy(isPlaying = true) }
-            startProgressTracker()
+            resume()
         }
     }
 
@@ -156,36 +181,38 @@ class ChatAudioController private constructor(
         _state.update { it.copy(positionMs = targetMs) }
     }
 
-    fun next() {
+    fun next(autoStart: Boolean = _state.value.isPlaying) {
         val queue = _state.value.queue
         if (queue.isEmpty()) return
         val currentIndex = queue.indexOfFirst { it.id == _state.value.currentTrack?.id }
         if (currentIndex < 0) {
-            play(queue, queue.first())
+            play(queue, queue.first(), autoStart = autoStart)
             return
         }
         val nextIndex = currentIndex + 1
         if (nextIndex < queue.size) {
-            play(queue, queue[nextIndex])
+            play(queue, queue[nextIndex], autoStart = autoStart)
         } else if (_state.value.repeatMode == ChatRepeatMode.ALL) {
-            play(queue, queue[0])
+            play(queue, queue[0], autoStart = autoStart)
         } else if (_state.value.repeatMode == ChatRepeatMode.ONE) {
             seek(0L)
+            if (autoStart) mediaPlayer?.start()
         }
     }
 
-    fun prev() {
+    fun prev(autoStart: Boolean = _state.value.isPlaying) {
         val queue = _state.value.queue
         if (queue.isEmpty()) return
         val currentIndex = queue.indexOfFirst { it.id == _state.value.currentTrack?.id }
         if (currentIndex <= 0) {
             if (_state.value.repeatMode == ChatRepeatMode.ALL) {
-                play(queue, queue.last())
+                play(queue, queue.last(), autoStart = autoStart)
             } else {
                 seek(0L)
+                if (autoStart) mediaPlayer?.start()
             }
         } else {
-            play(queue, queue[currentIndex - 1])
+            play(queue, queue[currentIndex - 1], autoStart = autoStart)
         }
     }
 
@@ -229,6 +256,7 @@ class ChatAudioController private constructor(
     }
 
     fun stop() {
+        userPaused = true
         releasePlayer()
         _state.update { it.copy(isPlaying = false, isVisible = false, positionMs = 0L) }
     }
@@ -263,22 +291,16 @@ class ChatAudioController private constructor(
             return
         }
 
-        when (_state.value.repeatMode) {
-            ChatRepeatMode.ONE -> {
-                seek(0L)
-                mediaPlayer?.start()
-                _state.update { it.copy(isPlaying = true) }
-            }
-            ChatRepeatMode.ALL -> next()
-            ChatRepeatMode.OFF -> {
-                val queue = _state.value.queue
-                val currentIndex = queue.indexOfFirst { it.id == _state.value.currentTrack?.id }
-                if (currentIndex < queue.lastIndex) {
-                    next()
-                } else {
-                    stop()
-                }
-            }
+        // Для музыки: автозапуск ПОЛНОСТЬЮ отключен (только ручной старт по требованию пользователя)
+        if (_state.value.repeatMode == ChatRepeatMode.ONE) {
+            seek(0L)
+            mediaPlayer?.start()
+            _state.update { it.copy(isPlaying = true) }
+        } else {
+            userPaused = true
+            mediaPlayer?.pause()
+            stopProgressTracker()
+            _state.update { it.copy(isPlaying = false, positionMs = 0L) }
         }
     }
 

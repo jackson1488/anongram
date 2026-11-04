@@ -147,11 +147,12 @@ fun ChatsMainMenuScreen(
         viewModel.clearSelection()
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(bottom = 4.dp)
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = 4.dp)
+        ) {
         if (state.isSelection) {
             SelectionTopBar(
                 selectedCount = state.selectedIds.size,
@@ -176,10 +177,7 @@ fun ChatsMainMenuScreen(
         if (!state.isSelection) {
             ChatMiniPlayer(
                 controller = audioController,
-                onOpenSheet = {
-                    isMusicSheetOpen = true
-                    audioController.openSheet()
-                },
+                onOpenSheet = { audioController.openSheet() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp, vertical = 4.dp)
@@ -279,37 +277,4 @@ fun ChatsMainMenuScreen(
     }
 
     ChatListDialogs(state = state, viewModel = viewModel)
-
-    if (isMusicSheetOpen || audioPlayerState.isSheetOpen) {
-        ChatMusicPlayerSheet(
-            controller = audioController,
-            onDismiss = {
-                isMusicSheetOpen = false
-                audioController.closeSheet()
-            },
-            onForwardTrack = { track -> },
-            onShareTrack = { track ->
-                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(android.content.Intent.EXTRA_TEXT, "${track.performer} - ${track.title}")
-                }
-                context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться треком"))
-            },
-            onShowInChat = {
-                isMusicSheetOpen = false
-                audioController.closeSheet()
-            }
-        )
-    }
-
-    if (audioPlayerState.isFullScreenOpen) {
-        MusicFullScreenPlayer(
-            controller = audioController,
-            onDismiss = { audioController.closeFullScreen() },
-            onForwardTrack = { track -> },
-            onJumpToMessage = { msgId ->
-                audioController.closeFullScreen()
-            }
-        )
-    }
 }

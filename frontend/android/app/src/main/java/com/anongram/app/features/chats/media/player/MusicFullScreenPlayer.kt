@@ -18,6 +18,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -156,6 +157,33 @@ fun MusicFullScreenPlayer(
         modifier = modifier
             .fillMaxSize()
             .offset { IntOffset(0, slideAnim.value.roundToInt()) }
+            .pointerInput(isQueueOpen) {
+                detectVerticalDragGestures(
+                    onDragEnd = {
+                        if (slideAnim.value > 180f) {
+                            closeAnimated()
+                        } else {
+                            scope.launch {
+                                slideAnim.animateTo(0f, tween(220, easing = FastOutSlowInEasing))
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            slideAnim.animateTo(0f, tween(220, easing = FastOutSlowInEasing))
+                        }
+                    },
+                    onVerticalDrag = { change, dragAmount ->
+                        if (!isQueueOpen) {
+                            change.consume()
+                            scope.launch {
+                                val newOffset = (slideAnim.value + dragAmount).coerceAtLeast(0f)
+                                slideAnim.snapTo(newOffset)
+                            }
+                        }
+                    }
+                )
+            }
             .background(
                 Brush.verticalGradient(
                     colors = listOf(

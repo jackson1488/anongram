@@ -21,9 +21,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -117,14 +120,37 @@ internal fun ChatListItemCard(
                     tint = accent.copy(alpha = 0.8f),
                     modifier = Modifier.size(13.dp)
                 )
+                val draftRed = Color(0xFFE53935)
+                val subtitleContent = remember(draftText, session.lastMessagePreview) {
+                    if (draftText != null && draftText.isNotBlank()) {
+                        buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    color = draftRed,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            ) {
+                                append("Черновик: ")
+                            }
+                            withStyle(SpanStyle(color = TextSecondary)) {
+                                append(draftText)
+                            }
+                        }
+                    } else {
+                        buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    color = if (session.lastMessagePreview.isEmpty()) TextMuted else TextSecondary
+                                )
+                            ) {
+                                append(session.lastMessagePreview.ifEmpty { "История очищена" })
+                            }
+                        }
+                    }
+                }
+
                 Text(
-                    text = draftText?.let { "Черновик: $it" }
-                        ?: session.lastMessagePreview.ifEmpty { "История очищена" },
-                    color = when {
-                        draftText != null -> LocalAnonGramScheme.current.accent
-                        session.lastMessagePreview.isEmpty() -> TextMuted
-                        else -> TextSecondary
-                    },
+                    text = subtitleContent,
                     fontStyle = if (draftText != null) androidx.compose.ui.text.font.FontStyle.Italic else null,
                     fontSize = 12.sp,
                     maxLines = 2,

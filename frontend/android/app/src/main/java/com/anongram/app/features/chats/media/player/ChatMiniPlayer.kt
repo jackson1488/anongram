@@ -113,12 +113,7 @@ fun ChatMiniPlayer(
 
                     // Название трека и исполнитель с циклической бегущей строкой
                     Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable {
-                                onOpenSheet?.invoke()
-                                ctrl.openSheet()
-                            }
+                        modifier = Modifier.weight(1f)
                     ) {
                         MarqueeText(
                             text = label,

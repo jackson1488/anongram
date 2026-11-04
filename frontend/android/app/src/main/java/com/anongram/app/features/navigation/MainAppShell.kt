@@ -58,6 +58,10 @@ import com.anongram.app.features.profile.ui.ProfileScreen
 import com.anongram.app.features.qr.ui.QrHubOverlay
 import com.anongram.app.features.services.ui.ServicesScreen
 import com.anongram.app.features.settings.ui.SettingsScreen
+import androidx.compose.ui.platform.LocalContext
+import com.anongram.app.features.chats.media.player.ChatAudioController
+import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
+import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -79,6 +83,9 @@ fun MainAppShell(
     var isArchiveOpen by remember { mutableStateOf(false) }
     var selectedSession by remember { mutableStateOf<IChatSession?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val audioController = remember { ChatAudioController.getInstance(context) }
+    val audioPlayerState by audioController.state.collectAsState()
 
     val scheme by themeController.scheme.collectAsState()
 
@@ -360,6 +367,21 @@ fun MainAppShell(
                 onTabSelected = { currentTab = it },
                 onQrClick = { isQrOpen = true },
                 modifier = Modifier.safeNavigationBarPadding()
+            )
+        }
+
+        // Глобальные оверлеи карточки плеера: открываются из любого таба поверх всего интерфейса
+        if (!showDetailOverlay && audioPlayerState.isSheetOpen) {
+            ChatMusicPlayerSheet(
+                controller = audioController,
+                onDismiss = { audioController.closeSheet() }
+            )
+        }
+
+        if (!showDetailOverlay && audioPlayerState.isFullScreenOpen) {
+            MusicFullScreenPlayer(
+                controller = audioController,
+                onDismiss = { audioController.closeFullScreen() }
             )
         }
     }
