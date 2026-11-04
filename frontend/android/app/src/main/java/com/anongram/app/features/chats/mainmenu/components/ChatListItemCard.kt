@@ -127,7 +127,7 @@ internal fun ChatListItemCard(
                     },
                     fontStyle = if (draftText != null) androidx.compose.ui.text.font.FontStyle.Italic else null,
                     fontSize = 12.sp,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f)
                 )

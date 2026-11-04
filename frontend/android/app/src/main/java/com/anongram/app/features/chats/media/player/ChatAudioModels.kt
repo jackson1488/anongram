@@ -37,6 +37,7 @@ data class ChatPlayerState(
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val repeatMode: ChatRepeatMode = ChatRepeatMode.OFF,
+    val isShuffleEnabled: Boolean = false,
     val isVisible: Boolean = false,
     val isSheetOpen: Boolean = false,
     val isFullScreenOpen: Boolean = false

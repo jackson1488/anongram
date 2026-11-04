@@ -180,7 +180,6 @@ fun ChatScreen(
             state.isNotificationsOpen -> viewModel.closeNotifications()
             state.isKeyCheckOpen -> viewModel.closeKeyCheck()
             state.editing != null -> viewModel.cancelEdit()
-            state.replyTo != null -> viewModel.cancelReply()
             else -> onBack()
         }
     }
@@ -416,7 +415,7 @@ fun ChatScreen(
                         }
                     },
                     onPlayMusic = { targetTrack ->
-                        val chatMusicQueue: List<ChatTrack> = state.messages.flatMap { msg ->
+                        val chatMusicQueue: List<ChatTrack> = state.messages.asReversed().flatMap { msg ->
                             when (val att = msg.attachment) {
                                 is MessageAttachment.Music -> listOf(
                                     ChatTrack(
@@ -452,7 +451,7 @@ fun ChatScreen(
                                 }
                                 else -> emptyList()
                             }
-                        }
+                        }.take(50)
                         val toPlay = chatMusicQueue.firstOrNull { it.id == targetTrack.id || (it.messageId == targetTrack.messageId && it.title == targetTrack.title) } ?: targetTrack
                         audioController.play(if (chatMusicQueue.isNotEmpty()) chatMusicQueue else listOf(toPlay), toPlay)
                     }

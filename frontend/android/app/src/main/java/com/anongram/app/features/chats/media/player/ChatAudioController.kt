@@ -27,13 +27,28 @@ class ChatAudioController private constructor(
 
     private var mediaPlayer: MediaPlayer? = null
     private var progressJob: Job? = null
+    private var originalChronologicalQueue: List<ChatTrack> = emptyList()
 
     fun play(queue: List<ChatTrack>, track: ChatTrack) {
         if (queue.isEmpty()) return
 
+        val effectiveQueue = if (_state.value.isShuffleEnabled) {
+            if (originalChronologicalQueue.isEmpty() || originalChronologicalQueue != queue) {
+                originalChronologicalQueue = queue
+            }
+            if (queue != _state.value.queue) {
+                listOf(track) + (queue.filter { it.id != track.id }.shuffled())
+            } else {
+                queue
+            }
+        } else {
+            originalChronologicalQueue = queue
+            queue
+        }
+
         _state.update {
             it.copy(
-                queue = queue,
+                queue = effectiveQueue,
                 currentTrack = track,
                 durationMs = track.durationMs,
                 positionMs = 0L,
@@ -145,16 +160,59 @@ class ChatAudioController private constructor(
         val queue = _state.value.queue
         if (queue.isEmpty()) return
         val currentIndex = queue.indexOfFirst { it.id == _state.value.currentTrack?.id }
-        val nextIndex = (currentIndex + 1) % queue.size
-        play(queue, queue[nextIndex])
+        if (currentIndex < 0) {
+            play(queue, queue.first())
+            return
+        }
+        val nextIndex = currentIndex + 1
+        if (nextIndex < queue.size) {
+            play(queue, queue[nextIndex])
+        } else if (_state.value.repeatMode == ChatRepeatMode.ALL) {
+            play(queue, queue[0])
+        } else if (_state.value.repeatMode == ChatRepeatMode.ONE) {
+            seek(0L)
+        }
     }
 
     fun prev() {
         val queue = _state.value.queue
         if (queue.isEmpty()) return
         val currentIndex = queue.indexOfFirst { it.id == _state.value.currentTrack?.id }
-        val prevIndex = if (currentIndex <= 0) queue.lastIndex else currentIndex - 1
-        play(queue, queue[prevIndex])
+        if (currentIndex <= 0) {
+            if (_state.value.repeatMode == ChatRepeatMode.ALL) {
+                play(queue, queue.last())
+            } else {
+                seek(0L)
+            }
+        } else {
+            play(queue, queue[currentIndex - 1])
+        }
+    }
+
+    fun toggleShuffle() {
+        val current = _state.value
+        val curTrack = current.currentTrack
+        if (current.isShuffleEnabled) {
+            val restored = if (originalChronologicalQueue.isNotEmpty()) originalChronologicalQueue else current.queue
+            _state.update {
+                it.copy(
+                    isShuffleEnabled = false,
+                    queue = restored
+                )
+            }
+        } else {
+            if (originalChronologicalQueue.isEmpty()) {
+                originalChronologicalQueue = current.queue
+            }
+            val others = current.queue.filter { it.id != curTrack?.id }.shuffled()
+            val shuffled = if (curTrack != null) listOf(curTrack) + others else current.queue.shuffled()
+            _state.update {
+                it.copy(
+                    isShuffleEnabled = true,
+                    queue = shuffled
+                )
+            }
+        }
     }
 
     fun setRepeat(mode: ChatRepeatMode) {

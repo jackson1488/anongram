@@ -176,10 +176,13 @@ fun ChatsMainMenuScreen(
         if (!state.isSelection) {
             ChatMiniPlayer(
                 controller = audioController,
-                onOpenSheet = { isMusicSheetOpen = true },
+                onOpenSheet = {
+                    isMusicSheetOpen = true
+                    audioController.openSheet()
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 2.dp)
+                    .padding(horizontal = 12.dp, vertical = 4.dp)
             )
         }
 

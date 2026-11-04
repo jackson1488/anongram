@@ -73,63 +73,74 @@ fun ChatMiniPlayer(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 2.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .background(IslandBackground)
-                .border(0.5.dp, CardBorder, RoundedCornerShape(12.dp))
-                .clickable { onOpenSheet?.invoke() ?: ctrl.openSheet() }
+                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                .clickable {
+                    onOpenSheet?.invoke()
+                    ctrl.openSheet()
+                }
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Кнопка Play / Pause
                     IconButton(
                         onClick = { ctrl.toggle() },
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(36.dp)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(30.dp)
                                 .clip(CircleShape)
-                                .background(scheme.accent.copy(alpha = 0.2f)),
+                                .background(scheme.accent.copy(alpha = 0.22f)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 contentDescription = if (state.isPlaying) "Пауза" else "Слушать",
                                 tint = scheme.accent,
-                                modifier = Modifier.size(17.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Название трека и исполнитель с циклической бегущей строкой
-                    MarqueeText(
-                        text = label,
-                        color = TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable {
+                                onOpenSheet?.invoke()
+                                ctrl.openSheet()
+                            }
+                    ) {
+                        MarqueeText(
+                            text = label,
+                            color = TextPrimary,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     // Кнопка закрытия [ X ]
                     IconButton(
                         onClick = { ctrl.stop() },
-                        modifier = Modifier.size(30.dp)
+                        modifier = Modifier.size(32.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Закрыть плеер",
                             tint = TextSecondary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(17.dp)
                         )
                     }
                 }

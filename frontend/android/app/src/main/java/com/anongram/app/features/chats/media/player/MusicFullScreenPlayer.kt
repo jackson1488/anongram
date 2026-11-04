@@ -47,8 +47,8 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.QueueMusic
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.FastRewind
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -425,17 +425,15 @@ fun MusicFullScreenPlayer(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Перемешать (Shuffle)
+                // Перемешать (РЕАЛЬНЫЙ SHUFFLE)
                 IconButton(
-                    onClick = {
-                        Toast.makeText(context, "Случайный порядок", Toast.LENGTH_SHORT).show()
-                    },
+                    onClick = { ctrl.toggleShuffle() },
                     modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = Color.White.copy(alpha = 0.65f),
+                        tint = if (state.isShuffleEnabled) scheme.accent else Color.White.copy(alpha = 0.65f),
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -446,7 +444,7 @@ fun MusicFullScreenPlayer(
                     modifier = Modifier.size(52.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.FastRewind,
+                        imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Предыдущий",
                         tint = Color.White,
                         modifier = Modifier.size(34.dp)
@@ -476,7 +474,7 @@ fun MusicFullScreenPlayer(
                     modifier = Modifier.size(52.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.FastForward,
+                        imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Следующий",
                         tint = Color.White,
                         modifier = Modifier.size(34.dp)

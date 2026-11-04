@@ -39,8 +39,8 @@ import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.FastRewind
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material.icons.rounded.MusicNote
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -178,7 +178,70 @@ fun ChatMusicPlayerSheet(
                         .background(Color.White.copy(alpha = 0.25f))
                 )
 
-                // 1. ФИКСИРОВАННАЯ КАРТОЧКА ПЛЕЕРА СВЕРХУ (iOS Apple Music style)
+                // 1. СПИСОК ТРЕКОВ ЧАТА СВЕРХУ (до 50 треков с адаптивной высотой)
+                val trackCount = state.queue.size
+                val maxListHeight = when {
+                    trackCount <= 1 -> 68.dp
+                    trackCount <= 2 -> 132.dp
+                    trackCount <= 3 -> 196.dp
+                    else -> (screenHeightDp * 0.52f).coerceIn(240.dp, 440.dp)
+                }
+
+                if (state.queue.isNotEmpty()) {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = maxListHeight)
+                            .padding(horizontal = 14.dp, vertical = 4.dp)
+                    ) {
+                        items(state.queue, key = { it.id }) { track ->
+                            val isCurrent = track.id == state.currentTrack?.id
+                            ChatQueueTrackRow(
+                                track = track,
+                                isCurrent = isCurrent,
+                                isPlaying = isCurrent && state.isPlaying,
+                                accent = scheme.accent,
+                                onPlay = { ctrl.play(state.queue, track) },
+                                onSave = {
+                                    Toast.makeText(context, "Сохранено: ${track.title}", Toast.LENGTH_SHORT).show()
+                                },
+                                onForward = {
+                                    dismissAnimated()
+                                    onForwardTrack(track)
+                                },
+                                onShare = {
+                                    try {
+                                        val sendIntent = Intent().apply {
+                                            action = Intent.ACTION_SEND
+                                            putExtra(Intent.EXTRA_TEXT, "${track.artist} — ${track.title}")
+                                            type = "text/plain"
+                                        }
+                                        context.startActivity(Intent.createChooser(sendIntent, "Поделиться треком"))
+                                    } catch (_: Throwable) {}
+                                },
+                                onShowInChat = {
+                                    dismissAnimated()
+                                    if (onShowInChat != null) {
+                                        onShowInChat(track)
+                                    } else {
+                                        onJumpToMessage?.invoke(track.messageId)
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                    }
+
+                    // Тонкий разделитель над карточкой плеера
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    )
+                }
+
+                // 2. ФИКСИРОВАННАЯ КАРТОЧКА ПЛЕЕРА В САМОМ НИЗУ (всегда под рукой)
                 val currentTrack = state.currentTrack
                 if (currentTrack != null) {
                     val artBitmap = currentTrack.albumArtBitmap
@@ -188,7 +251,7 @@ fun ChatMusicPlayerSheet(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 6.dp)
+                            .padding(horizontal = 20.dp, vertical = 8.dp)
                     ) {
                         // Обложка + Название + Кнопка FullScreen
                         Row(
@@ -344,35 +407,38 @@ fun ChatMusicPlayerSheet(
 
                         Spacer(modifier = Modifier.height(10.dp))
 
-                        // Центрированные кнопки управления как на iPhone
+                        // Центрированные кнопки управления: стиль шторки Android + реальный Shuffle и Repeat
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Перемешать
+                            // Перемешать (РЕАЛЬНЫЙ SHUFFLE БЕЗ TODO!)
                             IconButton(
-                                onClick = { Toast.makeText(context, "Случайный порядок", Toast.LENGTH_SHORT).show() },
-                                modifier = Modifier.size(38.dp)
+                                onClick = { ctrl.toggleShuffle() },
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Shuffle,
                                     contentDescription = "Shuffle",
-                                    tint = Color.White.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(20.dp)
+                                    tint = if (state.isShuffleEnabled) scheme.accent else Color.White.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(22.dp)
                                 )
                             }
 
-                            // Предыдущий
+                            // Предыдущий (стиль шторки Android со скругленной подложкой)
                             IconButton(
                                 onClick = { ctrl.prev() },
-                                modifier = Modifier.size(46.dp)
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.FastRewind,
+                                    imageVector = Icons.Rounded.SkipPrevious,
                                     contentDescription = "Предыдущий",
                                     tint = Color.White,
-                                    modifier = Modifier.size(30.dp)
+                                    modifier = Modifier.size(28.dp)
                                 )
                             }
 
@@ -393,23 +459,26 @@ fun ChatMusicPlayerSheet(
                                 )
                             }
 
-                            // Следующий
+                            // Следующий (стиль шторки Android со скругленной подложкой)
                             IconButton(
                                 onClick = { ctrl.next() },
-                                modifier = Modifier.size(46.dp)
+                                modifier = Modifier
+                                    .size(46.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = 0.08f))
                             ) {
                                 Icon(
-                                    imageVector = Icons.Rounded.FastForward,
+                                    imageVector = Icons.Rounded.SkipNext,
                                     contentDescription = "Следующий",
                                     tint = Color.White,
-                                    modifier = Modifier.size(30.dp)
+                                    modifier = Modifier.size(28.dp)
                                 )
                             }
 
-                            // Зацикливание
+                            // Зацикливание (РЕАЛЬНЫЙ REPEAT БЕЗ TODO!)
                             IconButton(
                                 onClick = { ctrl.cycleRepeat() },
-                                modifier = Modifier.size(38.dp)
+                                modifier = Modifier.size(40.dp)
                             ) {
                                 val repeatIcon = when (state.repeatMode) {
                                     ChatRepeatMode.ONE -> Icons.Rounded.RepeatOne
@@ -424,69 +493,6 @@ fun ChatMusicPlayerSheet(
                                 )
                             }
                         }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Разделитель
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .background(Color.White.copy(alpha = 0.08f))
-                )
-
-                // 2. СПИСОК ТРЕКОВ ЧАТА С АДАПТИВНОЙ ВЫСОТОЙ ПОД ФИКСИРОВАННОЙ ШАПКОЙ
-                val trackCount = state.queue.size
-                val maxListHeight = when {
-                    trackCount <= 1 -> 72.dp
-                    trackCount <= 2 -> 140.dp
-                    trackCount <= 3 -> 210.dp
-                    else -> (screenHeightDp * 0.45f).coerceIn(240.dp, 420.dp)
-                }
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = maxListHeight)
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                ) {
-                    items(state.queue, key = { it.id }) { track ->
-                        val isCurrent = track.id == state.currentTrack?.id
-                        ChatQueueTrackRow(
-                            track = track,
-                            isCurrent = isCurrent,
-                            isPlaying = isCurrent && state.isPlaying,
-                            accent = scheme.accent,
-                            onPlay = { ctrl.play(state.queue, track) },
-                            onSave = {
-                                Toast.makeText(context, "Сохранено: ${track.title}", Toast.LENGTH_SHORT).show()
-                            },
-                            onForward = {
-                                dismissAnimated()
-                                onForwardTrack(track)
-                            },
-                            onShare = {
-                                try {
-                                    val sendIntent = Intent().apply {
-                                        action = Intent.ACTION_SEND
-                                        putExtra(Intent.EXTRA_TEXT, "${track.artist} — ${track.title}")
-                                        type = "text/plain"
-                                    }
-                                    context.startActivity(Intent.createChooser(sendIntent, "Поделиться треком"))
-                                } catch (_: Throwable) {}
-                            },
-                            onShowInChat = {
-                                dismissAnimated()
-                                if (onShowInChat != null) {
-                                    onShowInChat(track)
-                                } else {
-                                    onJumpToMessage?.invoke(track.messageId)
-                                }
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
                     }
                 }
             }
