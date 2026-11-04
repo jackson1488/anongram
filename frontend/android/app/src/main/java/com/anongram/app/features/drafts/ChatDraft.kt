@@ -5,6 +5,7 @@ data class ChatDraft(
     val text: String = "",
     val replyToMessageId: String? = null,
     val replyToSubIndex: Int? = null,
+    val replySnippet: String? = null,
     val voiceUri: String? = null,
     val voiceDurationLabel: String? = null,
     val voiceWaveform: List<Int> = emptyList(),
@@ -18,6 +19,8 @@ data class ChatDraft(
         get() {
             return when {
                 text.isNotBlank() -> text
+                !replySnippet.isNullOrBlank() -> replySnippet
+                replyToMessageId != null -> "В ответ на сообщение"
                 voiceUri != null -> "Голосовое сообщение"
                 videoUri != null -> "Видеосообщение"
                 else -> ""

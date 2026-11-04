@@ -3,6 +3,8 @@ package com.anongram.app.features.chats.data
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 
+import kotlinx.coroutines.flow.StateFlow
+
 /**
  * Контракт локального хранилища чат-сессий.
  *
@@ -12,6 +14,8 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
  * версии управляют удалением у собеседника; локально обе семантики эквивалентны.
  */
 interface ChatListRepository {
+    val sessionsFlow: StateFlow<List<IChatSession>>
+
     suspend fun loadSessions(): List<IChatSession>
 
     suspend fun setPinned(sessionIds: Collection<String>, pinned: Boolean): List<IChatSession>

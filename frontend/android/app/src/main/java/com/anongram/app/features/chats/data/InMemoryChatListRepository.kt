@@ -4,8 +4,12 @@ import com.anongram.app.features.chats.common.ChatSecurityTier
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.direct.DirectChatSession
 import com.anongram.app.features.chats.group.GroupChatSession
+import com.anongram.app.features.chats.messages.data.ChatMessagesRepository
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.otp.OtpBurnChatSession
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -18,7 +22,9 @@ const val DEV_TEST_DATA_ENABLED = true
  * Direct / Group / OTP-Burn. Архив при первом заходе пуст — пилюля архива не
  * существует, пока пользователь сам не заархивирует чат.
  */
-class InMemoryChatListRepository : ChatListRepository {
+class InMemoryChatListRepository(
+    private val messagesRepository: ChatMessagesRepository? = null
+) : ChatListRepository {
 
     private val nextId = AtomicLong(100)
 
@@ -34,18 +40,9 @@ class InMemoryChatListRepository : ChatListRepository {
                 title = "Избранное",
                 fingerprint = "0x0000…SAVED",
                 lastMessagePreview = "",
-                lastMessageEpochMs = now - 2 * m,
+                lastMessageEpochMs = now,
                 isPinned = true,
-                lastMessageAttachment = MessageAttachment.MediaAlbum(
-                    items = listOf(
-                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
-                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
-                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
-                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
-                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
-                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false)
-                    )
-                )
+                lastMessageAttachment = null
             ),
             GroupChatSession(
                 id = "1",
@@ -60,17 +57,12 @@ class InMemoryChatListRepository : ChatListRepository {
                 id = "2",
                 title = "Алиса",
                 fingerprint = "0x4D9F…88E1",
-                lastMessagePreview = "Crypto Lullaby",
-                lastMessageEpochMs = now - 10 * m,
+                lastMessagePreview = "Напиши, как проверишь подпись.",
+                lastMessageEpochMs = now - 3 * m,
                 isPinned = true,
                 isOnline = true,
                 unreadCount = 2,
-                lastMessageAttachment = MessageAttachment.Music(
-                    title = "Crypto Lullaby",
-                    artist = "Onion Ensemble",
-                    durationLabel = "3:45",
-                    colorSeed = 2
-                )
+                lastMessageAttachment = null
             ),
             DirectChatSession(
                 id = "3",
@@ -243,7 +235,45 @@ class InMemoryChatListRepository : ChatListRepository {
         )
     }
 
-    override suspend fun loadSessions(): List<IChatSession> = sessions.toList()
+    private val _sessionsFlow = MutableStateFlow<List<IChatSession>>(sessions.toList())
+    override val sessionsFlow: StateFlow<List<IChatSession>> = _sessionsFlow.asStateFlow()
+
+    private fun notifyChanged() {
+        _sessionsFlow.value = sessions.toList()
+    }
+
+    override suspend fun loadSessions(): List<IChatSession> {
+        if (messagesRepository != null) {
+            syncWithMessages(messagesRepository)
+        }
+        return sessions.toList()
+    }
+
+    suspend fun syncWithMessages(repo: ChatMessagesRepository) {
+        var changed = false
+        for (i in sessions.indices) {
+            val session = sessions[i]
+            val msgs = repo.loadMessages(session.id)
+            if (msgs.isNotEmpty()) {
+                val lastMsg = msgs.last()
+                val updated = session.withLastMessage(
+                    preview = lastMsg.text,
+                    epochMs = lastMsg.epochMs,
+                    attachment = lastMsg.attachment
+                )
+                if (updated.lastMessagePreview != session.lastMessagePreview ||
+                    updated.lastMessageEpochMs != session.lastMessageEpochMs ||
+                    updated.lastMessageAttachment != session.lastMessageAttachment
+                ) {
+                    sessions[i] = updated
+                    changed = true
+                }
+            }
+        }
+        if (changed) {
+            notifyChanged()
+        }
+    }
 
     override suspend fun setPinned(
         sessionIds: Collection<String>,
@@ -257,6 +287,7 @@ class InMemoryChatListRepository : ChatListRepository {
         } else {
             mutateAll(sessionIds) { it.withPinned(false) }
         }
+        notifyChanged()
         return sessions.toList()
     }
 
@@ -265,6 +296,7 @@ class InMemoryChatListRepository : ChatListRepository {
         untilEpochMs: Long?
     ): List<IChatSession> {
         mutateAll(sessionIds) { it.withMutedUntil(untilEpochMs) }
+        notifyChanged()
         return sessions.toList()
     }
 
@@ -273,6 +305,7 @@ class InMemoryChatListRepository : ChatListRepository {
         archived: Boolean
     ): List<IChatSession> {
         mutateAll(sessionIds) { it.withArchived(archived) }
+        notifyChanged()
         return sessions.toList()
     }
 
@@ -285,6 +318,7 @@ class InMemoryChatListRepository : ChatListRepository {
                 else -> it
             }
         }
+        notifyChanged()
         return sessions.toList()
     }
 
@@ -293,6 +327,7 @@ class InMemoryChatListRepository : ChatListRepository {
         forEveryone: Boolean
     ): List<IChatSession> {
         mutateAll(sessionIds) { it.withHistoryCleared() }
+        notifyChanged()
         return sessions.toList()
     }
 
@@ -301,6 +336,7 @@ class InMemoryChatListRepository : ChatListRepository {
         alsoForPeer: Boolean
     ): List<IChatSession> {
         sessions.removeAll { it.id in sessionIds }
+        notifyChanged()
         return sessions.toList()
     }
 
@@ -315,7 +351,9 @@ class InMemoryChatListRepository : ChatListRepository {
             lastMessagePreview = "",
             lastMessageEpochMs = System.currentTimeMillis()
         )
-        sessions.add(created)
+        val pinnedCount = sessions.count { it.isPinned }
+        sessions.add(pinnedCount, created)
+        notifyChanged()
         return created
     }
 
@@ -347,7 +385,18 @@ class InMemoryChatListRepository : ChatListRepository {
     ): List<IChatSession> {
         val index = sessions.indexOfFirst { it.id == sessionId }
         if (index >= 0) {
-            sessions[index] = sessions[index].withLastMessage(preview, epochMs, attachment)
+            val current = sessions[index]
+            val updated = current.withLastMessage(preview, epochMs, attachment)
+            sessions.removeAt(index)
+            if (updated.isPinned) {
+                // Закрепленный чат поднимается в начало закрепленных
+                sessions.add(0, updated)
+            } else {
+                // Незакрепленный чат поднимается в начало незакрепленных (сразу под 10 закрепами)
+                val pinnedCount = sessions.count { it.isPinned }
+                sessions.add(pinnedCount, updated)
+            }
+            notifyChanged()
         }
         return sessions.toList()
     }

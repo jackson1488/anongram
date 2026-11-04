@@ -84,11 +84,13 @@ class ChatMessagesViewModel(
     private fun persistDraft() {
         val s = _uiState.value
         val txt = s.input.trim()
+        val snippet = s.replyTo?.let { com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet(it) }
         val draft = ChatDraft(
             chatId = sessionId,
             text = txt,
             replyToMessageId = s.replyTo?.id,
             replyToSubIndex = s.replyToSubIndex,
+            replySnippet = snippet,
             voiceDurationLabel = s.voiceReviewDraft?.durationLabel,
             voiceWaveform = s.voiceReviewDraft?.waveform ?: emptyList()
         )
@@ -206,6 +208,15 @@ class ChatMessagesViewModel(
         }
         delay(if (voiceReply) 2_200 else 1_800)
         val reply = repository.generateAutoReply(sessionId)
+        if (reply != null) {
+            repository.addMessage(sessionId, reply)
+            chatsRepository.updateLastMessage(
+                sessionId = sessionId,
+                preview = reply.text,
+                epochMs = reply.epochMs,
+                attachment = reply.attachment
+            )
+        }
         _uiState.update { s ->
             s.copy(
                 isPeerTyping = false,

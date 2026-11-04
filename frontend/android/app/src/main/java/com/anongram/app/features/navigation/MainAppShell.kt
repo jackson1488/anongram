@@ -90,9 +90,9 @@ fun MainAppShell(
     val scheme by themeController.scheme.collectAsState()
 
     val navConfig = remember { NavigationTransitionConfig() }
-    val chatsRepository = remember { InMemoryChatListRepository() }
-    val contactsRepository = remember { InMemoryContactRepository() }
     val messagesRepository = remember { InMemoryChatMessagesRepository() }
+    val chatsRepository = remember { InMemoryChatListRepository(messagesRepository) }
+    val contactsRepository = remember { InMemoryContactRepository() }
 
     val chatsViewModel: ChatListViewModel = viewModel(
         factory = viewModelFactory { initializer { ChatListViewModel(chatsRepository) } }
@@ -119,6 +119,7 @@ fun MainAppShell(
     }
 
     fun closeSession() {
+        chatsViewModel.refresh()
         scope.closeOverlay(detailProgress) { selectedSession = null }
     }
 

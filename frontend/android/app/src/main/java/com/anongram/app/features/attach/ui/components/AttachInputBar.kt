@@ -16,15 +16,18 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Keyboard
@@ -121,6 +124,8 @@ fun AttachInputBar(
                     .padding(bottom = if (effectiveEmojiOpen) 8.dp else 0.dp),
                 contentAlignment = Alignment.Center
             ) {
+                val captionScrollState = rememberScrollState()
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -128,8 +133,8 @@ fun AttachInputBar(
                         .clip(RoundedCornerShape(28.dp))
                         .background(Color(0xF51E1E1E))
                         .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
-                        .padding(start = 6.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.Bottom
                 ) {
                     // Кнопка эмодзи / стикеров (как в чате, вместо счетчика)
                     IconButton(
@@ -139,7 +144,9 @@ fun AttachInputBar(
                             }
                             toggleEmoji()
                         },
-                        modifier = Modifier.size(38.dp)
+                        modifier = Modifier
+                            .padding(bottom = 2.dp)
+                            .size(38.dp)
                     ) {
                         Icon(
                             imageVector = if (effectiveEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
@@ -151,24 +158,34 @@ fun AttachInputBar(
 
                     Spacer(modifier = Modifier.width(6.dp))
 
-                    // Поле ввода "Добавить подпись..."
+                    // Поле ввода "Добавить подпись...", раздувается до ~5 см (110 dp), далее скролл
                     BasicTextField(
                         value = caption,
-                        onValueChange = { if (it.length <= 1000) onCaptionChange(it) },
+                        onValueChange = { onCaptionChange(it.take(1000)) },
                         textStyle = TextStyle(
                             color = Color.White,
-                            fontSize = 15.sp
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp
                         ),
                         cursorBrush = SolidColor(AttachPurple),
                         decorationBox = { innerTextField ->
-                            if (caption.isEmpty()) {
-                                Text(
-                                    text = "Добавить подпись...",
-                                    color = Color(0xFF64748B),
-                                    fontSize = 15.sp
-                                )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 36.dp, max = 110.dp)
+                                    .verticalScroll(captionScrollState)
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (caption.isEmpty()) {
+                                    Text(
+                                        text = "Добавить подпись...",
+                                        color = Color(0xFF64748B),
+                                        fontSize = 15.sp
+                                    )
+                                }
+                                innerTextField()
                             }
-                            innerTextField()
                         },
                         modifier = Modifier
                             .weight(1f)
@@ -182,10 +199,12 @@ fun AttachInputBar(
                     if (caption.length >= 800) {
                         Text(
                             text = "${caption.length}/1000",
-                            color = if (caption.length >= 950) Color(0xFFFF5252) else Color(0xFFC084FC),
+                            color = if (caption.length >= 1000) Color(0xFFFF3B30) else Color.White.copy(alpha = 0.85f),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(horizontal = 4.dp)
+                            modifier = Modifier
+                                .align(Alignment.Bottom)
+                                .padding(horizontal = 4.dp, bottom = 12.dp)
                         )
                     }
 

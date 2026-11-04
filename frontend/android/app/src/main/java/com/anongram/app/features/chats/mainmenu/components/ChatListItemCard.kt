@@ -120,9 +120,9 @@ internal fun ChatListItemCard(
                         color = draftRed,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
+                        lineHeight = 14.sp,
                         maxLines = 1
                     )
-                    Spacer(modifier = Modifier.height(2.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -132,6 +132,7 @@ internal fun ChatListItemCard(
                             text = draftText!!,
                             color = TextSecondary,
                             fontSize = 12.sp,
+                            lineHeight = 15.sp,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f)
