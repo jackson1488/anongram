@@ -110,55 +110,63 @@ internal fun ChatListItemCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Lock,
-                    contentDescription = null,
-                    tint = accent.copy(alpha = 0.8f),
-                    modifier = Modifier.size(13.dp)
-                )
-                val draftRed = Color(0xFFE53935)
-                val subtitleContent = remember(draftText, session.lastMessagePreview) {
-                    if (draftText != null && draftText.isNotBlank()) {
-                        buildAnnotatedString {
-                            withStyle(
-                                SpanStyle(
-                                    color = draftRed,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            ) {
-                                append("Черновик: ")
-                            }
-                            withStyle(SpanStyle(color = TextSecondary)) {
-                                append(draftText)
-                            }
-                        }
-                    } else {
-                        buildAnnotatedString {
-                            withStyle(
-                                SpanStyle(
-                                    color = if (session.lastMessagePreview.isEmpty()) TextMuted else TextSecondary
-                                )
-                            ) {
-                                append(session.lastMessagePreview.ifEmpty { "История очищена" })
-                            }
-                        }
+            val draftRed = Color(0xFFE53935)
+            val hasDraft = !draftText.isNullOrBlank()
+
+            if (hasDraft) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "Черновик",
+                        color = draftRed,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = draftText!!,
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        ChatTrailingBadges(session = session)
                     }
                 }
-
-                Text(
-                    text = subtitleContent,
-                    fontStyle = if (draftText != null) androidx.compose.ui.text.font.FontStyle.Italic else null,
-                    fontSize = 12.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
-                )
-                ChatTrailingBadges(session = session)
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (session.lastMessageAttachment != null) {
+                            com.anongram.app.features.drafts.ChatMediaAttachmentPreview(
+                                attachment = session.lastMessageAttachment,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                        }
+                        if (session.lastMessagePreview.isNotBlank() || session.lastMessageAttachment == null) {
+                            Text(
+                                text = session.lastMessagePreview.ifEmpty { "История очищена" },
+                                color = if (session.lastMessagePreview.isEmpty()) TextMuted else TextSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                    ChatTrailingBadges(session = session)
+                }
             }
         }
     }

@@ -3,6 +3,7 @@ package com.anongram.app.features.chats.group
 import com.anongram.app.features.chats.common.ChatSecurityTier
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.SessionGlyph
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 
 /** Стратегия группового чата: pairwise E2EE ко всем участникам поверх onion-маршрута. */
 data class GroupChatSession(
@@ -16,6 +17,7 @@ data class GroupChatSession(
     override val isArchived: Boolean = false,
     override val tier: ChatSecurityTier = ChatSecurityTier.POST_QUANTUM,
     override val mutedUntil: Long? = null,
+    override val lastMessageAttachment: MessageAttachment? = null,
     val memberCount: Int = 2
 ) : IChatSession {
 
@@ -32,5 +34,15 @@ data class GroupChatSession(
         copy(mutedUntil = untilEpochMs)
 
     override fun withHistoryCleared(): IChatSession =
-        copy(lastMessagePreview = "", unreadCount = 0)
+        copy(lastMessagePreview = "", unreadCount = 0, lastMessageAttachment = null)
+
+    override fun withLastMessage(
+        preview: String,
+        epochMs: Long,
+        attachment: MessageAttachment?
+    ): IChatSession = copy(
+        lastMessagePreview = preview,
+        lastMessageEpochMs = epochMs,
+        lastMessageAttachment = attachment
+    )
 }

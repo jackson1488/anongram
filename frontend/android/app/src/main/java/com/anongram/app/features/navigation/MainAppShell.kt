@@ -230,7 +230,7 @@ fun MainAppShell(
                         val chatMessagesViewModel: ChatMessagesViewModel = viewModel(
                             key = "chat_msgs_${session.id}",
                             factory = viewModelFactory {
-                                initializer { ChatMessagesViewModel(session.id, messagesRepository) }
+                                initializer { ChatMessagesViewModel(session.id, messagesRepository, chatsRepository) }
                             }
                         )
                         ChatScreen(
@@ -259,7 +259,7 @@ fun MainAppShell(
                 val chatMessagesViewModel: ChatMessagesViewModel = viewModel(
                     key = "chat_msgs_${session.id}",
                     factory = viewModelFactory {
-                        initializer { ChatMessagesViewModel(session.id, messagesRepository) }
+                        initializer { ChatMessagesViewModel(session.id, messagesRepository, chatsRepository) }
                     }
                 )
                 AnonGramTransitionScreen(

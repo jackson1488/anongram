@@ -154,7 +154,7 @@ fun AttachInputBar(
                     // Поле ввода "Добавить подпись..."
                     BasicTextField(
                         value = caption,
-                        onValueChange = onCaptionChange,
+                        onValueChange = { if (it.length <= 1000) onCaptionChange(it) },
                         textStyle = TextStyle(
                             color = Color.White,
                             fontSize = 15.sp
@@ -179,7 +179,17 @@ fun AttachInputBar(
                             }
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    if (caption.length >= 800) {
+                        Text(
+                            text = "${caption.length}/1000",
+                            color = if (caption.length >= 950) Color(0xFFFF5252) else Color(0xFFC084FC),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
 
                     // Круглая фиолетовая кнопка отправки с бейджем количества (макет media_1793295326790.png)
                     Box(contentAlignment = Alignment.TopStart) {
@@ -221,8 +231,12 @@ fun AttachInputBar(
 
             if (effectiveEmojiOpen) {
                 EmojiStickerPanel(
-                    onEmojiClick = { emoji -> onCaptionChange(caption + emoji) },
-                    onStickerClick = { symbol, _ -> onCaptionChange(caption + symbol) },
+                    onEmojiClick = { emoji ->
+                        if ((caption + emoji).length <= 1000) onCaptionChange(caption + emoji)
+                    },
+                    onStickerClick = { symbol, _ ->
+                        if ((caption + symbol).length <= 1000) onCaptionChange(caption + symbol)
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(260.dp)

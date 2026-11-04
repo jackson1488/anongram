@@ -134,6 +134,7 @@ class ChatMessagesViewModel(
         viewModelScope.launch {
             chatsRepository.saveDraft(sessionId, "")
             ChatDraftsRepository.instance.clearDraft(sessionId)
+            chatsRepository.updateLastMessage(sessionId, text, message.epochMs, null)
             repository.addMessage(sessionId, message)
             _uiState.update { s ->
                 s.copy(messages = s.messages + message, input = "", replyTo = null, replyToSubIndex = null)
@@ -155,6 +156,9 @@ class ChatMessagesViewModel(
             attachment = attachment
         )
         viewModelScope.launch {
+            chatsRepository.saveDraft(sessionId, "")
+            ChatDraftsRepository.instance.clearDraft(sessionId)
+            chatsRepository.updateLastMessage(sessionId, caption, message.epochMs, attachment)
             repository.addMessage(sessionId, message)
             _uiState.update { s -> s.copy(messages = s.messages + message, replyTo = null, replyToSubIndex = null) }
             runDeliveryLifecycle(message.id)

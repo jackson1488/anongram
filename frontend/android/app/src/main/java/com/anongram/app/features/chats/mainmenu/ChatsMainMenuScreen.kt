@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
  * потянуть вниз от верха — показать), список карточек-стратегий, режим
  * выбора с панелью управления и FAB «Новое сообщение» → контакты.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ChatsMainMenuScreen(
     viewModel: ChatListViewModel,
@@ -228,16 +229,21 @@ fun ChatsMainMenuScreen(
                         }
                     }
 
-                    if (state.activeSessions.isEmpty() && !state.hasArchived) {
+                    val displaySessions = remember(state.activeSessions, richDrafts) {
+                        com.anongram.app.features.drafts.sortSessionsWithDrafts(state.activeSessions, richDrafts)
+                    }
+
+                    if (displaySessions.isEmpty() && !state.hasArchived) {
                         item(key = "empty") { EmptyChatsState() }
                     } else {
-                        items(state.activeSessions, key = { it.id }) { session ->
+                        items(displaySessions, key = { it.id }) { session ->
                             val richDraft = richDrafts[session.id]
                             val draftDisplay = when {
                                 richDraft != null && !richDraft.isEmpty -> richDraft.previewText
                                 else -> state.drafts[session.id]
                             }
                             ChatListItemCard(
+                                modifier = Modifier.animateItemPlacement(),
                                 session = session,
                                 timeLabel = remember(session.id, session.lastMessageEpochMs) {
                                     session.timeLabel()

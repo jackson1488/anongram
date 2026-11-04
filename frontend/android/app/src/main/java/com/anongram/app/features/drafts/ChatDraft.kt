@@ -8,20 +8,19 @@ data class ChatDraft(
     val voiceUri: String? = null,
     val voiceDurationLabel: String? = null,
     val voiceWaveform: List<Int> = emptyList(),
-    val videoUri: String? = null
+    val videoUri: String? = null,
+    val updatedAtEpochMs: Long = System.currentTimeMillis()
 ) {
     val isEmpty: Boolean
         get() = text.isBlank() && replyToMessageId == null && voiceUri == null && videoUri == null
 
     val previewText: String
         get() {
-            val base = when {
+            return when {
                 text.isNotBlank() -> text
                 voiceUri != null -> "Голосовое сообщение"
                 videoUri != null -> "Видеосообщение"
-                replyToMessageId != null -> "Ответ на сообщение"
                 else -> ""
             }
-            return if (replyToMessageId != null && text.isNotBlank()) "Ответ: $base" else base
         }
 }

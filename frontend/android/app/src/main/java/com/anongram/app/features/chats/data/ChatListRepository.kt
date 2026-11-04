@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.data
 
 import com.anongram.app.features.chats.common.IChatSession
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 
 /**
  * Контракт локального хранилища чат-сессий.
@@ -38,4 +39,12 @@ interface ChatListRepository {
     /** Черновики ввода по чатам: сохраняются из экрана чата, видны в списке. */
     suspend fun saveDraft(sessionId: String, text: String)
     suspend fun loadDrafts(): Map<String, String>
+
+    /** Обновление последнего сообщения сессии (текст, дата, вложение). */
+    suspend fun updateLastMessage(
+        sessionId: String,
+        preview: String,
+        epochMs: Long,
+        attachment: MessageAttachment? = null
+    ): List<IChatSession>
 }

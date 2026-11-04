@@ -20,6 +20,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculatePan
@@ -35,6 +37,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -448,7 +451,9 @@ internal fun ChatMediaFullscreenViewer(
             visible = showControls,
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(180)),
-            modifier = Modifier.align(Alignment.TopCenter)
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(10f)
         ) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -687,31 +692,100 @@ internal fun ChatMediaFullscreenViewer(
             }
         }
 
+        var isCaptionExpanded by remember(activeMessage.id) { mutableStateOf(false) }
+        val captionScroll = rememberScrollState()
+
         // 3. Нижняя панель с подписью (если есть) и лентой миниатюр для текущего альбома или группы фото без сжатия (2..10 шт.)
         AnimatedVisibility(
             visible = showControls && (activeAlbumUris.size > 1 || activeMessage.text.isNotBlank()),
             enter = fadeIn(tween(180)),
             exit = fadeOut(tween(180)),
-            modifier = Modifier.align(Alignment.BottomCenter)
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(5f)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.62f))
+                    .background(
+                        Color.Black.copy(alpha = if (isCaptionExpanded) 0.85f else 0.62f),
+                        if (isCaptionExpanded) RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp) else RoundedCornerShape(0.dp)
+                    )
                     .safeNavigationBarPadding()
                     .padding(top = 8.dp, bottom = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (activeMessage.text.isNotBlank()) {
-                    Text(
-                        text = activeMessage.text,
-                        color = Color.White,
-                        fontSize = 14.5.sp,
-                        lineHeight = 19.sp,
+                    val isLongCaption = activeMessage.text.length > 80
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    ) {
+                        if (isLongCaption) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 6.dp)
+                                    .clickable { isCaptionExpanded = !isCaptionExpanded },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(width = 36.dp, height = 4.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(Color.White.copy(alpha = 0.45f))
+                                )
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (isCaptionExpanded) {
+                                        Modifier
+                                            .heightIn(max = 260.dp)
+                                            .verticalScroll(captionScroll)
+                                    } else {
+                                        Modifier.clickable {
+                                            if (isLongCaption) isCaptionExpanded = true
+                                        }
+                                    }
+                                )
+                        ) {
+                            Text(
+                                text = activeMessage.text,
+                                color = Color.White,
+                                fontSize = 14.5.sp,
+                                lineHeight = 19.sp,
+                                maxLines = if (isCaptionExpanded) Int.MAX_VALUE else 3,
+                                overflow = if (isCaptionExpanded) TextOverflow.Clip else TextOverflow.Ellipsis
+                            )
+                        }
+
+                        if (!isCaptionExpanded && isLongCaption) {
+                            Text(
+                                text = "показать полностью...",
+                                color = Color(0xFFC084FC),
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier
+                                    .padding(top = 2.dp)
+                                    .clickable { isCaptionExpanded = true }
+                            )
+                        } else if (isCaptionExpanded && isLongCaption) {
+                            Text(
+                                text = "свернуть",
+                                color = Color(0xFFC084FC),
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier
+                                    .padding(top = 4.dp)
+                                    .clickable { isCaptionExpanded = false }
+                            )
+                        }
+                    }
                 }
 
                 if (activeAlbumUris.size > 1) {

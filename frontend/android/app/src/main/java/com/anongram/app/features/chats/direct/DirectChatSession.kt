@@ -3,6 +3,7 @@ package com.anongram.app.features.chats.direct
 import com.anongram.app.features.chats.common.ChatSecurityTier
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.SessionGlyph
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 
 /** Стратегия личного P2P-чата 1:1 (Double Ratchet между двумя устройствами). */
 data class DirectChatSession(
@@ -16,7 +17,8 @@ data class DirectChatSession(
     override val isOnline: Boolean = false,
     override val isArchived: Boolean = false,
     override val tier: ChatSecurityTier = ChatSecurityTier.STANDARD,
-    override val mutedUntil: Long? = null
+    override val mutedUntil: Long? = null,
+    override val lastMessageAttachment: MessageAttachment? = null
 ) : IChatSession {
 
     override val avatarGlyph: SessionGlyph = SessionGlyph.MONOGRAM
@@ -35,5 +37,15 @@ data class DirectChatSession(
         copy(mutedUntil = untilEpochMs)
 
     override fun withHistoryCleared(): IChatSession =
-        copy(lastMessagePreview = "", unreadCount = 0)
+        copy(lastMessagePreview = "", unreadCount = 0, lastMessageAttachment = null)
+
+    override fun withLastMessage(
+        preview: String,
+        epochMs: Long,
+        attachment: MessageAttachment?
+    ): IChatSession = copy(
+        lastMessagePreview = preview,
+        lastMessageEpochMs = epochMs,
+        lastMessageAttachment = attachment
+    )
 }

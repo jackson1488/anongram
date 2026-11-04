@@ -16,7 +16,8 @@ class ChatDraftsRepository private constructor() {
             if (draft.isEmpty) {
                 current - draft.chatId
             } else {
-                current + (draft.chatId to draft)
+                val fresh = draft.copy(updatedAtEpochMs = System.currentTimeMillis())
+                current + (draft.chatId to fresh)
             }
         }
     }

@@ -4,6 +4,7 @@ import com.anongram.app.features.chats.common.ChatSecurityTier
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.direct.DirectChatSession
 import com.anongram.app.features.chats.group.GroupChatSession
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.otp.OtpBurnChatSession
 import java.util.concurrent.atomic.AtomicLong
 
@@ -28,6 +29,24 @@ class InMemoryChatListRepository : ChatListRepository {
         val d = 86_400_000L
 
         mutableListOf<IChatSession>(
+            DirectChatSession(
+                id = "0",
+                title = "Избранное",
+                fingerprint = "0x0000…SAVED",
+                lastMessagePreview = "",
+                lastMessageEpochMs = now - 2 * m,
+                isPinned = true,
+                lastMessageAttachment = MessageAttachment.MediaAlbum(
+                    items = listOf(
+                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
+                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
+                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
+                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
+                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false),
+                        MessageAttachment.AlbumMediaItem(uri = "", isVideo = false)
+                    )
+                )
+            ),
             GroupChatSession(
                 id = "1",
                 title = "Cypherpunk Alpha",
@@ -41,11 +60,17 @@ class InMemoryChatListRepository : ChatListRepository {
                 id = "2",
                 title = "Алиса",
                 fingerprint = "0x4D9F…88E1",
-                lastMessagePreview = "Файл отчёта зашифрован ChaCha20-Poly1305.",
+                lastMessagePreview = "Crypto Lullaby",
                 lastMessageEpochMs = now - 10 * m,
                 isPinned = true,
                 isOnline = true,
-                unreadCount = 2
+                unreadCount = 2,
+                lastMessageAttachment = MessageAttachment.Music(
+                    title = "Crypto Lullaby",
+                    artist = "Onion Ensemble",
+                    durationLabel = "3:45",
+                    colorSeed = 2
+                )
             ),
             DirectChatSession(
                 id = "3",
@@ -224,7 +249,14 @@ class InMemoryChatListRepository : ChatListRepository {
         sessionIds: Collection<String>,
         pinned: Boolean
     ): List<IChatSession> {
-        mutateAll(sessionIds) { it.withPinned(pinned) }
+        if (pinned) {
+            val currentlyPinnedCount = sessions.count { it.isPinned && it.id !in sessionIds }
+            val allowedCount = (10 - currentlyPinnedCount).coerceAtLeast(0)
+            val allowedToPin = sessionIds.take(allowedCount).toSet()
+            mutateAll(allowedToPin) { it.withPinned(true) }
+        } else {
+            mutateAll(sessionIds) { it.withPinned(false) }
+        }
         return sessions.toList()
     }
 
@@ -306,4 +338,17 @@ class InMemoryChatListRepository : ChatListRepository {
     }
 
     override suspend fun loadDrafts(): Map<String, String> = drafts.toMap()
+
+    override suspend fun updateLastMessage(
+        sessionId: String,
+        preview: String,
+        epochMs: Long,
+        attachment: MessageAttachment?
+    ): List<IChatSession> {
+        val index = sessions.indexOfFirst { it.id == sessionId }
+        if (index >= 0) {
+            sessions[index] = sessions[index].withLastMessage(preview, epochMs, attachment)
+        }
+        return sessions.toList()
+    }
 }

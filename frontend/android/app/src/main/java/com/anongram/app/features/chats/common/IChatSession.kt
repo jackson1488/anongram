@@ -1,5 +1,7 @@
 package com.anongram.app.features.chats.common
 
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
+
 /**
  * Стратегия чат-сессии (Паттерн «Стратегия»).
  *
@@ -18,6 +20,9 @@ interface IChatSession {
     val isPinned: Boolean
     val isOnline: Boolean
     val isArchived: Boolean
+
+    /** Вложение последнего сообщения (если было) для рендеринга миниатюр в списке чатов. */
+    val lastMessageAttachment: MessageAttachment? get() = null
 
     /** Уровень криптозащиты сессии. */
     val tier: ChatSecurityTier
@@ -54,4 +59,11 @@ interface IChatSession {
 
     /** Локальная очистка истории: превью и счётчик непрочитанных сбрасываются. */
     fun withHistoryCleared(): IChatSession
+
+    /** Обновление последнего сообщения (текст, дата, вложение). */
+    fun withLastMessage(
+        preview: String,
+        epochMs: Long,
+        attachment: MessageAttachment? = null
+    ): IChatSession
 }
