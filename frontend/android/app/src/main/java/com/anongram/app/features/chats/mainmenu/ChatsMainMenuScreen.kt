@@ -192,6 +192,10 @@ fun ChatsMainMenuScreen(
                 .weight(1f)
                 .nestedScroll(archiveScrollConnection)
         ) {
+            val displaySessions = remember(state.activeSessions, richDrafts) {
+                com.anongram.app.features.drafts.sortSessionsWithDrafts(state.activeSessions, richDrafts)
+            }
+
             when {
                 state.isLoading -> Box(
                     modifier = Modifier.fillMaxSize(),
@@ -227,10 +231,6 @@ fun ChatsMainMenuScreen(
                                 )
                             }
                         }
-                    }
-
-                    val displaySessions = remember(state.activeSessions, richDrafts) {
-                        com.anongram.app.features.drafts.sortSessionsWithDrafts(state.activeSessions, richDrafts)
                     }
 
                     if (displaySessions.isEmpty() && !state.hasArchived) {
