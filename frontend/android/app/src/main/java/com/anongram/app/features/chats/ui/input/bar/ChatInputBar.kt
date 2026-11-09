@@ -118,113 +118,97 @@ fun ChatInputBar(
             // показывается при многострочном тексте (3+ строк или длина от 60 символов)
             val isMultiline = textValue.lines().size >= 3 || textValue.length >= 60
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(IslandBackground)
-                    .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
-            ) {
-                // Слитно встроенная плашка ответа или правки на всю ширину
-                if (replyTo != null && editing == null) {
-                    FusedReplyBar(
-                        replyTo = replyTo,
-                        peerName = peerName,
-                        onClick = { onReplyClick(replyTo) },
-                        onLongClick = { onReplyLongClick(replyTo) },
-                        onClose = onCancelReply
-                    )
-                } else if (editing != null) {
-                    FusedEditBar(
-                        editing = editing,
-                        onClose = onCancelEdit,
-                        onReplaceAttachment = onReplaceAttachment,
-                        onEditAttachment = onEditAttachment
-                    )
-                }
-
-                // Единая нижняя строка: эмодзи + раздувающееся поле с кнопкой ⤢ + скрепка + ActionButton
-                Row(
-                    verticalAlignment = Alignment.Bottom,
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .defaultMinSize(minHeight = 48.dp)
-                        .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(IslandBackground)
+                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
                 ) {
-                    // Кнопка эмодзи / клавиатура
-                    IconButton(
-                        onClick = onToggleEmoji,
-                        modifier = Modifier
-                            .padding(bottom = 2.dp)
-                            .size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                            contentDescription = "Эмодзи",
-                            tint = if (isEmojiOpen) scheme.accent else TextMuted,
-                            modifier = Modifier.size(23.dp)
+                    // Слитно встроенная плашка ответа или правки на всю ширину
+                    if (replyTo != null && editing == null) {
+                        FusedReplyBar(
+                            replyTo = replyTo,
+                            peerName = peerName,
+                            onClick = { onReplyClick(replyTo) },
+                            onLongClick = { onReplyLongClick(replyTo) },
+                            onClose = onCancelReply
+                        )
+                    } else if (editing != null) {
+                        FusedEditBar(
+                            editing = editing,
+                            onClose = onCancelEdit,
+                            onReplaceAttachment = onReplaceAttachment,
+                            onEditAttachment = onEditAttachment
                         )
                     }
 
-                    // Центральная область ввода: раздувается до 160 dp (~на 2 см выше)
-                    val placeholderText = if (editing?.attachment != null) "Подпись" else "Сообщение"
-                    Box(
+                    // Единая нижняя строка: эмодзи + раздувающееся поле с кнопкой ⤢ + скрепка + ActionButton
+                    Row(
+                        verticalAlignment = Alignment.Bottom,
                         modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 4.dp, vertical = 6.dp)
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 48.dp)
+                            .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)
                     ) {
-                        Box(
+                        // Кнопка эмодзи / клавиатура
+                        IconButton(
+                            onClick = onToggleEmoji,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 34.dp, max = 160.dp)
-                                .verticalScroll(scrollState)
-                                .padding(end = if (isMultiline) 24.dp else 0.dp),
-                            contentAlignment = Alignment.CenterStart
+                                .padding(bottom = 2.dp)
+                                .size(38.dp)
                         ) {
-                            if (textValue.isEmpty()) {
-                                Text(
-                                    text = placeholderText,
-                                    color = TextMuted,
-                                    fontSize = 15.sp
-                                )
-                            }
-                            BasicTextField(
-                                value = textValue,
-                                onValueChange = { newText ->
-                                    textValue = newText
-                                    onInputChange(newText)
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-                                textStyle = TextStyle(
-                                    color = TextPrimary,
-                                    fontSize = 15.sp,
-                                    lineHeight = 20.sp
-                                ),
-                                cursorBrush = SolidColor(scheme.accent)
+                            Icon(
+                                imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
+                                contentDescription = "Эмодзи",
+                                tint = if (isEmojiOpen) scheme.accent else TextMuted,
+                                modifier = Modifier.size(23.dp)
                             )
                         }
 
-                        // Иконка ⤢ в правом верхнем углу при раздувании текста
-                        if (isMultiline) {
-                            IconButton(
-                                onClick = onOpenFullEditor,
+                        // Центральная область ввода: раздувается до 160 dp (~на 2 см выше)
+                        val placeholderText = if (editing?.attachment != null) "Подпись" else "Сообщение"
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 4.dp, vertical = 6.dp)
+                        ) {
+                            Box(
                                 modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(24.dp)
+                                    .fillMaxWidth()
+                                    .heightIn(min = 34.dp, max = 160.dp)
+                                    .verticalScroll(scrollState)
+                                    .padding(end = if (isMultiline) 28.dp else 0.dp),
+                                contentAlignment = Alignment.CenterStart
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.OpenInFull,
-                                    contentDescription = "Раскрыть полноценно",
-                                    tint = scheme.accent.copy(alpha = 0.85f),
-                                    modifier = Modifier.size(15.dp)
+                                if (textValue.isEmpty()) {
+                                    Text(
+                                        text = placeholderText,
+                                        color = TextMuted,
+                                        fontSize = 15.sp
+                                    )
+                                }
+                                BasicTextField(
+                                    value = textValue,
+                                    onValueChange = { newText ->
+                                        textValue = newText
+                                        onInputChange(newText)
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+                                    textStyle = TextStyle(
+                                        color = TextPrimary,
+                                        fontSize = 15.sp,
+                                        lineHeight = 20.sp
+                                    ),
+                                    cursorBrush = SolidColor(scheme.accent)
                                 )
                             }
                         }
-                    }
 
-                    // Скрепка (вложения)
+                        // Скрепка (вложения)
                     if (editing?.attachment == null && !canSend) {
                         IconButton(
                             onClick = onOpenAttach,
@@ -258,6 +242,28 @@ fun ChatInputBar(
                         onLockRecording = onLockRecording,
                         onCancelRecording = onCancelRecording,
                         modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+            }
+
+            // Иконка ⤢ строго в правом верхнем углу всей капсулы
+            if (isMultiline) {
+                val hasTopBar = (replyTo != null || editing != null)
+                IconButton(
+                    onClick = onOpenFullEditor,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(
+                            top = if (hasTopBar) 44.dp else 6.dp,
+                            end = 8.dp
+                        )
+                        .size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.OpenInFull,
+                        contentDescription = "Раскрыть полноценно",
+                        tint = scheme.accent.copy(alpha = 0.85f),
+                        modifier = Modifier.size(15.dp)
                     )
                 }
             }

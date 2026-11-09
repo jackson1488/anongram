@@ -64,6 +64,7 @@ import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import com.anongram.app.features.chats.common.IChatSession
@@ -143,6 +144,13 @@ fun ChatScreen(
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
+    var inputBarHeightPx by remember { mutableStateOf(0) }
+
+    LaunchedEffect(isKeyboardVisible) {
+        if (isKeyboardVisible && state.isEmojiOpen) {
+            viewModel.closeEmojiPanel()
+        }
+    }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -266,7 +274,18 @@ fun ChatScreen(
         val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
 
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
-        val bottomListPadding = if (effectiveKeyboardVisible) 80.dp else 104.dp
+        val inputBarHeightDp = with(density) { inputBarHeightPx.toDp() }
+        val bottomListPadding = if (inputBarHeightDp > 0.dp) {
+            inputBarHeightDp + 12.dp
+        } else {
+            if (effectiveKeyboardVisible) 80.dp else 104.dp
+        }
+
+        LaunchedEffect(inputBarHeightPx, state.replyTo?.id, state.editing?.id) {
+            if (listState.firstVisibleItemIndex <= 1) {
+                listState.animateScrollToItem(0)
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -501,6 +520,9 @@ fun ChatScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .onGloballyPositioned { coordinates ->
+                    inputBarHeightPx = coordinates.size.height
+                }
                 .padding(bottom = with(density) { chatBottomImePx.toDp() })
                 .safeNavigationBarPadding()
                 .padding(bottom = if (effectiveKeyboardVisible) 4.dp else 24.dp)
@@ -579,7 +601,16 @@ fun ChatScreen(
                         onReplyLongClick = {
                             isReplyPreviewOpen = true
                         },
-                        onToggleEmoji = viewModel::toggleEmojiPanel,
+                        onToggleEmoji = {
+                            if (state.isEmojiOpen) {
+                                viewModel.closeEmojiPanel()
+                                inputFocusRequester.requestFocus()
+                                keyboardController?.show()
+                            } else {
+                                keyboardController?.hide()
+                                viewModel.toggleEmojiPanel()
+                            }
+                        },
                         onOpenAttach = {
                             if (isKeyboardVisible) {
                                 wasKeyboardOpenWhenAttached = true
@@ -1418,7 +1449,7 @@ fun ChatScreen(
                     viewModel.onInputChange(textAfterEdit)
                     isFullEditorOpen = false
                 },
-                onSend = { textToSend, format, language ->
+                onSend = { textToSend, format, language, attachment ->
                     val formattedToSend = when (format) {
                         TextStyleFormat.CODE -> {
                             if (textToSend.startsWith("```")) textToSend
@@ -1432,14 +1463,14 @@ fun ChatScreen(
                         TextStyleFormat.QUOTE -> "> $textToSend"
                         else -> textToSend
                     }
-                    viewModel.onInputChange(formattedToSend)
-                    viewModel.send()
+                    if (attachment != null) {
+                        viewModel.sendAttachment(attachment, caption = formattedToSend)
+                    } else {
+                        viewModel.onInputChange(formattedToSend)
+                        viewModel.send()
+                    }
                     isFullEditorOpen = false
                     scope.launch { listState.animateScrollToItem(0) }
-                },
-                onOpenAttach = {
-                    isFullEditorOpen = false
-                    viewModel.openAttach()
                 }
             )
         }
