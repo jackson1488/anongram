@@ -207,15 +207,12 @@ fun ChatInputBar(
                         }
 
                         // Иконка ⤢ в правом верхнем углу при раздувании текста
-                        AnimatedVisibility(
-                            visible = isMultiline,
-                            enter = fadeIn(),
-                            exit = fadeOut(),
-                            modifier = Modifier.align(Alignment.TopEnd)
-                        ) {
+                        if (isMultiline) {
                             IconButton(
                                 onClick = onOpenFullEditor,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(24.dp)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.OpenInFull,

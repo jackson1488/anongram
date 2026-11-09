@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.timeLabel
 
 /**
  * Модальное окно для чтения длинных сообщений (>4000 символов) и объемных листингов кода.
