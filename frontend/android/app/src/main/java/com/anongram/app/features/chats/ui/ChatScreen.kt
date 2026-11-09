@@ -87,6 +87,9 @@ import com.anongram.app.features.chats.media.voice.VoiceDraftReviewBar
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
 import com.anongram.app.features.chats.ui.components.ChatInputBar
+import com.anongram.app.features.chats.ui.components.bubble.MessageFullTextViewerModal
+import com.anongram.app.features.chats.ui.input.editor.ChatFullTextEditorScreen
+import com.anongram.app.features.chats.ui.input.editor.TextStyleFormat
 import com.anongram.app.features.chats.ui.components.ChatMediaFullscreenViewer
 import com.anongram.app.features.chats.ui.components.DeleteMessageDialog
 import com.anongram.app.features.chats.ui.components.EmojiStickerPanel
@@ -138,6 +141,8 @@ fun ChatScreen(
     val audioController = remember { ChatAudioController.getInstance(context) }
     val audioPlayerState by audioController.state.collectAsState()
     var isMusicSheetOpen by remember { mutableStateOf(false) }
+    var isFullEditorOpen by remember { mutableStateOf(false) }
+    var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -159,6 +164,8 @@ fun ChatScreen(
 
     BackHandler {
         when {
+            fullTextMessageModal != null -> fullTextMessageModal = null
+            isFullEditorOpen -> isFullEditorOpen = false
             state.expandedVideoCircle != null -> viewModel.closeExpandedVideoCircle()
             isMusicSheetOpen -> isMusicSheetOpen = false
             isReplaceAttachSheetOpen -> isReplaceAttachSheetOpen = false
@@ -454,7 +461,8 @@ fun ChatScreen(
                         }.take(50)
                         val toPlay = chatMusicQueue.firstOrNull { it.id == targetTrack.id || (it.messageId == targetTrack.messageId && it.title == targetTrack.title) } ?: targetTrack
                         audioController.play(if (chatMusicQueue.isNotEmpty()) chatMusicQueue else listOf(toPlay), toPlay)
-                    }
+                    },
+                    onOpenFullTextMessage = { fullTextMessageModal = it }
                 )
             }
 
@@ -588,6 +596,7 @@ fun ChatScreen(
                         onLockRecording = viewModel::lockRecording,
                         onCancelRecording = viewModel::cancelRecording,
                         onStopLockedRecording = viewModel::stopLockedRecording,
+                        onOpenFullEditor = { isFullEditorOpen = true },
                         focusRequester = inputFocusRequester
                     )
 
@@ -1398,6 +1407,48 @@ fun ChatScreen(
                         }
                     }
                 }
+            )
+        }
+
+        // 8. Полноэкранный редактор текста (расширенный ввод)
+        if (isFullEditorOpen) {
+            ChatFullTextEditorScreen(
+                initialText = state.input,
+                onClose = { textAfterEdit ->
+                    viewModel.onInputChange(textAfterEdit)
+                    isFullEditorOpen = false
+                },
+                onSend = { textToSend, format, language ->
+                    val formattedToSend = when (format) {
+                        TextStyleFormat.CODE -> {
+                            if (textToSend.startsWith("```")) textToSend
+                            else "```$language\n$textToSend\n```"
+                        }
+                        TextStyleFormat.SPOILER -> {
+                            if (textToSend.contains("||")) textToSend
+                            else "||$textToSend||"
+                        }
+                        TextStyleFormat.HEADING -> "# $textToSend"
+                        TextStyleFormat.QUOTE -> "> $textToSend"
+                        else -> textToSend
+                    }
+                    viewModel.onInputChange(formattedToSend)
+                    viewModel.send()
+                    isFullEditorOpen = false
+                    scope.launch { listState.animateScrollToItem(0) }
+                },
+                onOpenAttach = {
+                    isFullEditorOpen = false
+                    viewModel.openAttach()
+                }
+            )
+        }
+
+        // 9. Модальное окно просмотра длинного текста сообщения (>4000 симв) / блока кода
+        fullTextMessageModal?.let { msg ->
+            MessageFullTextViewerModal(
+                message = msg,
+                onClose = { fullTextMessageModal = null }
             )
         }
     }

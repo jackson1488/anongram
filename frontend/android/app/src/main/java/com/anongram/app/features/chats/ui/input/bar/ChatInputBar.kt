@@ -1,0 +1,269 @@
+package com.anongram.app.features.chats.ui.input.bar
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AttachFile
+import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.OpenInFull
+import androidx.compose.material.icons.outlined.SentimentSatisfiedAlt
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.CardBorder
+import com.anongram.app.core.theme.IslandBackground
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.theme.TextMuted
+import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.state.RecordMode
+import com.anongram.app.features.chats.messages.state.RecordingState
+import com.anongram.app.features.chats.ui.input.recording.ActionButton
+import com.anongram.app.features.chats.ui.input.recording.RecordingBar
+import com.anongram.app.features.chats.ui.input.reply.FusedEditBar
+import com.anongram.app.features.chats.ui.input.reply.FusedReplyBar
+
+/**
+ * Единый монолитный островок ввода (макет media_1794245430730.png):
+ * - Клавиатура, поле ввода, скрепка и кнопка действия объединены в одном скруглённом контейнере.
+ * - Поле ввода раздувается ещё на ~2 см (до 160 dp), далее включается вертикальный скролл.
+ * - Кнопки эмодзи и отправки зафиксированы внизу (Alignment.Bottom).
+ * - При раздувании текста в правом верхнем углу появляется кнопка раскрытия полноценного редактора ⤢.
+ * - Плашка ответа слитно встроена сверху на всю ширину поля ввода.
+ */
+@Composable
+fun ChatInputBar(
+    input: String,
+    canSend: Boolean,
+    replyTo: ChatMessage?,
+    peerName: String = "",
+    editing: ChatMessage?,
+    recording: RecordingState,
+    isCameraMode: Boolean,
+    isEmojiOpen: Boolean,
+    onInputChange: (String) -> Unit,
+    onSend: () -> Unit,
+    onCancelReply: () -> Unit,
+    onCancelEdit: () -> Unit,
+    onReplaceAttachment: () -> Unit = {},
+    onEditAttachment: () -> Unit = {},
+    onReplyClick: (ChatMessage) -> Unit = {},
+    onReplyLongClick: (ChatMessage) -> Unit = {},
+    onToggleEmoji: () -> Unit,
+    onOpenAttach: () -> Unit,
+    onToggleCameraMode: () -> Unit,
+    onStartRecording: (RecordMode) -> Unit,
+    onFinishRecording: (Boolean) -> Unit = {},
+    onLockRecording: () -> Unit,
+    onCancelRecording: () -> Unit,
+    onStopLockedRecording: () -> Unit,
+    onOpenFullEditor: () -> Unit = {},
+    focusRequester: FocusRequester? = null,
+    modifier: Modifier = Modifier
+) {
+    val scheme = LocalAnonGramScheme.current
+    val isRecording = recording.mode != RecordMode.NONE
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        if (isRecording) {
+            RecordingBar(
+                recording = recording,
+                onCancel = onCancelRecording,
+                onStop = onStopLockedRecording,
+                onLock = onLockRecording,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else {
+            var textValue: String by remember(input) { mutableStateOf(input) }
+            val scrollState = rememberScrollState()
+
+            // Проверяем, нужно ли показывать кнопку раскрытия в углу:
+            // показывается при многострочном тексте (3+ строк или длина от 60 символов)
+            val isMultiline = textValue.lines().size >= 3 || textValue.length >= 60
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(IslandBackground)
+                    .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+            ) {
+                // Слитно встроенная плашка ответа или правки на всю ширину
+                if (replyTo != null && editing == null) {
+                    FusedReplyBar(
+                        replyTo = replyTo,
+                        peerName = peerName,
+                        onClick = { onReplyClick(replyTo) },
+                        onLongClick = { onReplyLongClick(replyTo) },
+                        onClose = onCancelReply
+                    )
+                } else if (editing != null) {
+                    FusedEditBar(
+                        editing = editing,
+                        onClose = onCancelEdit,
+                        onReplaceAttachment = onReplaceAttachment,
+                        onEditAttachment = onEditAttachment
+                    )
+                }
+
+                // Единая нижняя строка: эмодзи + раздувающееся поле с кнопкой ⤢ + скрепка + ActionButton
+                Row(
+                    verticalAlignment = Alignment.Bottom,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)
+                ) {
+                    // Кнопка эмодзи / клавиатура
+                    IconButton(
+                        onClick = onToggleEmoji,
+                        modifier = Modifier
+                            .padding(bottom = 2.dp)
+                            .size(38.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
+                            contentDescription = "Эмодзи",
+                            tint = if (isEmojiOpen) scheme.accent else TextMuted,
+                            modifier = Modifier.size(23.dp)
+                        )
+                    }
+
+                    // Центральная область ввода: раздувается до 160 dp (~на 2 см выше)
+                    val placeholderText = if (editing?.attachment != null) "Подпись" else "Сообщение"
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 4.dp, vertical = 6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 34.dp, max = 160.dp)
+                                .verticalScroll(scrollState)
+                                .padding(end = if (isMultiline) 24.dp else 0.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (textValue.isEmpty()) {
+                                Text(
+                                    text = placeholderText,
+                                    color = TextMuted,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            BasicTextField(
+                                value = textValue,
+                                onValueChange = { newText ->
+                                    textValue = newText
+                                    onInputChange(newText)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+                                textStyle = TextStyle(
+                                    color = TextPrimary,
+                                    fontSize = 15.sp,
+                                    lineHeight = 20.sp
+                                ),
+                                cursorBrush = SolidColor(scheme.accent)
+                            )
+                        }
+
+                        // Иконка ⤢ в правом верхнем углу при раздувании текста
+                        AnimatedVisibility(
+                            visible = isMultiline,
+                            enter = fadeIn(),
+                            exit = fadeOut(),
+                            modifier = Modifier.align(Alignment.TopEnd)
+                        ) {
+                            IconButton(
+                                onClick = onOpenFullEditor,
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.OpenInFull,
+                                    contentDescription = "Раскрыть полноценно",
+                                    tint = scheme.accent.copy(alpha = 0.85f),
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // Скрепка (вложения)
+                    if (editing?.attachment == null && !canSend) {
+                        IconButton(
+                            onClick = onOpenAttach,
+                            modifier = Modifier
+                                .padding(bottom = 2.dp)
+                                .size(36.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.AttachFile,
+                                contentDescription = "Вложить",
+                                tint = TextMuted,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(2.dp))
+
+                    // Круглая кнопка действия (отправить / микрофон / видео) прямо внутри островка!
+                    ActionButton(
+                        canSend = canSend,
+                        isEditing = editing != null,
+                        isRecording = isRecording,
+                        isLockedRecording = recording.isLocked,
+                        isCameraMode = isCameraMode,
+                        onSend = onSend,
+                        onToggleCameraMode = onToggleCameraMode,
+                        onStartRecording = onStartRecording,
+                        onFinishRecording = onFinishRecording,
+                        onStopLockedRecording = onStopLockedRecording,
+                        onLockRecording = onLockRecording,
+                        onCancelRecording = onCancelRecording,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+            }
+        }
+    }
+}

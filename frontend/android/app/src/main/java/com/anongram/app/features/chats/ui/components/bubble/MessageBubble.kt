@@ -141,7 +141,8 @@ internal fun MessageBubble(
     onDeleteSubItem: (subKey: String) -> Unit = {},
     onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
-    onPlayMusic: (ChatTrack) -> Unit = {}
+    onPlayMusic: (ChatTrack) -> Unit = {},
+    onOpenFullTextMessage: (ChatMessage) -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
     val message = item.message
@@ -521,18 +522,8 @@ internal fun MessageBubble(
                                         Spacer(modifier = Modifier.height(6.dp))
                                     }
 
-                                    // Текст сообщения + отдельный блок времени (не сливается с текстом и уменьшается/увеличивается вместе с баблом)
+                                    // Текст сообщения + отдельный блок времени (модульный BubbleTextMessage)
                                     if (message.text.isNotBlank()) {
-                                        val annotatedText = if (searchQuery.isNotBlank()) {
-                                            buildHighlightedText(
-                                                text = message.text,
-                                                query = searchQuery,
-                                                highlightColor = scheme.accent
-                                            )
-                                        } else {
-                                            AnnotatedString(message.text)
-                                        }
-
                                         Box(
                                             modifier = if (isEdgeToEdgeMedia || isFlushGroupAttachment) {
                                                 Modifier.padding(horizontal = (10f * textScale).coerceIn(5f, 12f).dp)
@@ -540,50 +531,25 @@ internal fun MessageBubble(
                                                 Modifier
                                             }
                                         ) {
-                                            AdaptiveMessageTextWithTimeLayout(
-                                                text = annotatedText,
+                                            BubbleTextMessage(
+                                                message = message,
                                                 textSizeSp = messageTextSizeSp,
                                                 textScale = textScale,
-                                                timeLabel = message.timeLabel(),
-                                                isEdited = message.isEdited,
-                                                isIncoming = isIncoming,
-                                                status = message.status,
+                                                searchQuery = searchQuery,
+                                                onOpenFullText = { onOpenFullTextMessage(message) },
                                                 onRetry = onRetry
                                             )
                                         }
                                     } else if (!isOverlayTimestampOnMedia && !isTimestampHandledInsideAttachment) {
-                                        val timeFontSize = (10f * textScale).coerceIn(5.5f, 14f).sp
-                                        val editedFontSize = (9f * textScale).coerceIn(5f, 12.5f).sp
-                                        val tickSize = (13f * textScale).coerceIn(7f, 17f).dp
-                                        Row(
-                                            modifier = Modifier.align(Alignment.End),
-                                            horizontalArrangement = Arrangement.End,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            if (message.isEdited) {
-                                                Text(
-                                                    text = "изменено",
-                                                    color = TextMuted,
-                                                    fontSize = editedFontSize,
-                                                    fontStyle = FontStyle.Italic
-                                                )
-                                                Spacer(modifier = Modifier.width((4f * textScale).coerceIn(2f, 5f).dp))
-                                            }
-                                            Text(
-                                                text = message.timeLabel(),
-                                                color = TextMuted,
-                                                fontSize = timeFontSize,
-                                                fontFamily = FontFamily.Monospace
-                                            )
-                                            if (!isIncoming) {
-                                                Spacer(modifier = Modifier.width((3.5f * textScale).coerceIn(2f, 5f).dp))
-                                                DeliveryStatus(
-                                                    status = message.status,
-                                                    onRetry = onRetry,
-                                                    iconSize = tickSize
-                                                )
-                                            }
-                                        }
+                                        BubbleTimestampRow(
+                                            timeLabel = message.timeLabel(),
+                                            isEdited = message.isEdited,
+                                            isIncoming = isIncoming,
+                                            status = message.status,
+                                            textScale = textScale,
+                                            onRetry = onRetry,
+                                            modifier = Modifier.align(Alignment.End)
+                                        )
                                     }
                                 }
 
@@ -609,125 +575,6 @@ internal fun MessageBubble(
     }
 }
 
-/**
- * Кастомный Layout для текста сообщения и отдельного блока времени:
- * - Если сообщение короткое (например, «привет» собеседника или моё «привет»), блок времени
- *   размещается ОТДЕЛЬНЫМ блоком справа после текста (чуть удлиняя пузырь по горизонтали).
- * - Если сообщение длинное (многострочное):
- *   - когда на последней строке справа есть свободное место под блок времени, время встаёт в правый нижний угол на уровне последней строки;
- *   - когда последняя строка длинная и доходит до края, блок времени автоматически размещается в правом нижнем углу чуть ниже текста,
- *     чтобы текст НИКОГДА не перекрывал дату и время.
- * - И сам текст, и блок времени с галочками масштабируются от `textSizeSp` (1..30).
- */
-@Composable
-internal fun AdaptiveMessageTextWithTimeLayout(
-    text: AnnotatedString,
-    textSizeSp: Int,
-    textScale: Float,
-    timeLabel: String,
-    isEdited: Boolean,
-    isIncoming: Boolean,
-    status: MessageStatus,
-    onRetry: () -> Unit,
-    timeColor: Color = TextMuted,
-    modifier: Modifier = Modifier
-) {
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    val textLineHeight = (textSizeSp * 1.26f).coerceAtLeast(textSizeSp + 2f).sp
-    val timeFontSize = (10.5f * textScale).coerceIn(5.5f, 14.5f).sp
-    val editedFontSize = (9f * textScale).coerceIn(5f, 12.5f).sp
-    val tickSize = (13f * textScale).coerceIn(7f, 17.5f).dp
-    val horizontalGapDp = (8f * textScale).coerceIn(4f, 11f).dp
-    val verticalExtraDp = (2f * textScale).coerceIn(1f, 4f).dp
-
-    Layout(
-        modifier = modifier,
-        content = {
-            Text(
-                text = text,
-                color = TextPrimary,
-                fontSize = textSizeSp.sp,
-                lineHeight = textLineHeight,
-                onTextLayout = { textLayoutResult = it }
-            )
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (isEdited) {
-                    Text(
-                        text = "изменено",
-                        color = timeColor,
-                        fontSize = editedFontSize,
-                        fontStyle = FontStyle.Italic
-                    )
-                    Spacer(modifier = Modifier.width((4f * textScale).coerceIn(2f, 5f).dp))
-                }
-                Text(
-                    text = timeLabel,
-                    color = timeColor,
-                    fontSize = timeFontSize,
-                    fontFamily = FontFamily.Monospace
-                )
-                if (!isIncoming) {
-                    Spacer(modifier = Modifier.width((3f * textScale).coerceIn(1.5f, 4.5f).dp))
-                    DeliveryStatus(
-                        status = status,
-                        onRetry = onRetry,
-                        iconSize = tickSize
-                    )
-                }
-            }
-        }
-    ) { measurables, constraints ->
-        val timePlaceable = measurables[1].measure(
-            constraints.copy(minWidth = 0, minHeight = 0)
-        )
-        val textPlaceable = measurables[0].measure(
-            constraints.copy(minWidth = 0, minHeight = 0)
-        )
-
-        val gapPx = horizontalGapDp.roundToPx()
-        val vStepPx = verticalExtraDp.roundToPx()
-        val timeW = timePlaceable.width
-        val timeH = timePlaceable.height
-        val textW = textPlaceable.width
-        val textH = textPlaceable.height
-
-        val layoutRes = textLayoutResult
-        val lineCount = layoutRes?.lineCount ?: 1
-        val lastLineRightPx = if (layoutRes != null && lineCount > 0) {
-            ceil(layoutRes.getLineRight(lineCount - 1)).toInt()
-        } else {
-            textW
-        }
-
-        if (lineCount <= 1 && textW + gapPx + timeW <= constraints.maxWidth) {
-            // Короткое однострочное сообщение («привет»): время идёт отдельным блоком справа, чуть удлиняя пузырь
-            val totalW = (textW + gapPx + timeW).coerceAtLeast(constraints.minWidth)
-            val totalH = maxOf(textH, timeH)
-            layout(totalW, totalH) {
-                textPlaceable.placeRelative(0, (totalH - textH) / 2)
-                timePlaceable.placeRelative(totalW - timeW, totalH - timeH)
-            }
-        } else if (lastLineRightPx + gapPx + timeW <= constraints.maxWidth) {
-            // Многострочное сообщение, где на последней строке справа достаточно места для блока времени
-            val totalW = maxOf(textW, lastLineRightPx + gapPx + timeW).coerceAtLeast(constraints.minWidth)
-            val totalH = maxOf(textH, timeH)
-            layout(totalW, totalH) {
-                textPlaceable.placeRelative(0, 0)
-                timePlaceable.placeRelative(totalW - timeW, totalH - timeH)
-            }
-        } else {
-            // Длинный текст до правого края: время опускается в правый нижний угол под последней строкой (без перекрытия текста!)
-            val totalW = maxOf(textW, timeW).coerceAtLeast(constraints.minWidth)
-            val totalH = textH + vStepPx + timeH
-            layout(totalW, totalH) {
-                textPlaceable.placeRelative(0, 0)
-                timePlaceable.placeRelative(totalW - timeW, textH + vStepPx)
-            }
-        }
-    }
-}
 
 /** Отрисовка стикера без пузыря */
 @OptIn(ExperimentalFoundationApi::class)
@@ -1125,68 +972,3 @@ private fun QuoteBlock(
     }
 }
 
-@Composable
-internal fun DeliveryStatus(
-    status: MessageStatus,
-    onRetry: () -> Unit,
-    iconSize: Dp = 13.dp
-) {
-    val scheme = LocalAnonGramScheme.current
-    when (status) {
-        MessageStatus.SENDING -> Icon(
-            imageVector = Icons.Outlined.Schedule,
-            contentDescription = "Отправляется",
-            tint = TextMuted,
-            modifier = Modifier.size(iconSize)
-        )
-
-        MessageStatus.SENT -> Icon(
-            painter = painterResource(id = R.drawable.ic_tick_single),
-            contentDescription = "Отправлено",
-            tint = TextMuted,
-            modifier = Modifier.size(iconSize)
-        )
-
-        MessageStatus.READ -> Icon(
-            painter = painterResource(id = R.drawable.ic_tick_double),
-            contentDescription = "Прочитано",
-            tint = scheme.accent,
-            modifier = Modifier.size(iconSize)
-        )
-
-        MessageStatus.FAILED -> Icon(
-            imageVector = Icons.Outlined.WarningAmber,
-            contentDescription = "Ошибка доставки. Нажмите для повтора",
-            tint = FlameOrange,
-            modifier = Modifier
-                .size(iconSize)
-                .clickable(onClick = onRetry)
-        )
-    }
-}
-
-/** По ТЗ хвостик — только у последнего сообщения группы; скругления масштабируются вместе с баблом. */
-private fun bubbleShape(
-    item: MessageRenderItem,
-    isIncoming: Boolean,
-    scale: Float = 1f
-): RoundedCornerShape {
-    val radius = (16f * scale).coerceIn(7f, 20f).dp
-    val tail = (5f * scale).coerceIn(2.5f, 6.5f).dp
-    val bottomTail = if (item.isLastInGroup) tail else radius
-    return if (isIncoming) {
-        RoundedCornerShape(
-            topStart = radius,
-            topEnd = radius,
-            bottomStart = bottomTail,
-            bottomEnd = radius
-        )
-    } else {
-        RoundedCornerShape(
-            topStart = radius,
-            topEnd = radius,
-            bottomStart = radius,
-            bottomEnd = bottomTail
-        )
-    }
-}

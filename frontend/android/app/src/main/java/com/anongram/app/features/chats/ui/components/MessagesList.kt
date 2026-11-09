@@ -75,7 +75,8 @@ internal fun MessagesList(
     onDeleteSubItem: (String) -> Unit = {},
     onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
-    onPlayMusic: (ChatTrack) -> Unit = {}
+    onPlayMusic: (ChatTrack) -> Unit = {},
+    onOpenFullTextMessage: (ChatMessage) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -189,7 +190,8 @@ internal fun MessagesList(
                     onDeleteSubItem = onDeleteSubItem,
                     onOpenVideoCircle = onOpenVideoCircle,
                     onPlayVoice = onPlayVoice,
-                    onPlayMusic = onPlayMusic
+                    onPlayMusic = onPlayMusic,
+                    onOpenFullTextMessage = onOpenFullTextMessage
                 )
             }
         }
