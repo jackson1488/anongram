@@ -146,12 +146,6 @@ fun ChatScreen(
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
     var inputBarHeightPx by remember { mutableStateOf(0) }
 
-    LaunchedEffect(isKeyboardVisible) {
-        if (isKeyboardVisible && state.isEmojiOpen) {
-            viewModel.closeEmojiPanel()
-        }
-    }
-
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
             isSearchListMode = false
@@ -272,6 +266,12 @@ fun ChatScreen(
         val isChatImeFrozen = state.isAttachOpen && wasKeyboardOpenWhenAttached
         val chatBottomImePx = if (isChatImeFrozen) frozenKeyboardHeightPx else currentImeBottom
         val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
+
+        LaunchedEffect(isKeyboardVisible) {
+            if (isKeyboardVisible && state.isEmojiOpen) {
+                viewModel.closeEmojiPanel()
+            }
+        }
 
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
         val inputBarHeightDp = with(density) { inputBarHeightPx.toDp() }
