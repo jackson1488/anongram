@@ -32,7 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -171,7 +173,7 @@ fun ListPopupMenu(
 }
 
 /**
- * Хелперы форматирования списков и отступов в тексте.
+ * Хелперы форматирования списков, отступов и умного Enter в тексте.
  */
 object ListFormattingHelper {
 
@@ -182,7 +184,7 @@ object ListFormattingHelper {
                 ListStyle.BULLET -> "• "
                 ListStyle.NUMBERED -> "1. "
                 ListStyle.CHECKLIST -> "☐ "
-                ListStyle.COLLAPSIBLE -> "||Сворачиваемый текст||\n"
+                ListStyle.COLLAPSIBLE -> "+++ Заголовок\nСодержимое блока\n+++"
             }
         }
 
@@ -190,31 +192,31 @@ object ListFormattingHelper {
         return when (style) {
             ListStyle.NONE -> {
                 lines.joinToString("\n") { line ->
-                    line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|☐|☑)\\s*"), "$1")
+                    line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
                 }
             }
             ListStyle.BULLET -> {
                 lines.joinToString("\n") { line ->
-                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|☐|☑)\\s*"), "$1")
+                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
                     if (clean.isBlank()) "• " else "• $clean"
                 }
             }
             ListStyle.NUMBERED -> {
                 var counter = 1
                 lines.joinToString("\n") { line ->
-                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|☐|☑)\\s*"), "$1")
+                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
                     if (clean.isBlank()) "${counter++}. " else "${counter++}. $clean"
                 }
             }
             ListStyle.CHECKLIST -> {
                 lines.joinToString("\n") { line ->
-                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|☐|☑)\\s*"), "$1")
+                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
                     if (clean.isBlank()) "☐ " else "☐ $clean"
                 }
             }
             ListStyle.COLLAPSIBLE -> {
-                if (text.startsWith("||") && text.endsWith("||")) text
-                else "||$text||"
+                if (text.startsWith("+++") && text.endsWith("+++")) text
+                else "+++ Заголовок\n${if (text.isBlank()) "Содержимое блока" else text}\n+++"
             }
         }
     }
@@ -234,5 +236,68 @@ object ListFormattingHelper {
                 else -> line
             }
         }
+    }
+}
+
+/**
+ * Обработчик умного Enter: автоматически продолжает маркеры, нумерацию и чек-боксы,
+ * а на пустой строке стирает маркер и выходит из списка.
+ */
+object SmartListEnterHelper {
+    fun processEnter(oldVal: TextFieldValue, newVal: TextFieldValue): TextFieldValue {
+        val oldText = oldVal.text
+        val newText = newVal.text
+        if (newText.length != oldText.length + 1) return newVal
+
+        val cursor = oldVal.selection.start
+        if (cursor < 0 || cursor > oldText.length) return newVal
+        if (newText.getOrNull(cursor) != '\n') return newVal
+
+        // Определяем строку перед нажатием Enter
+        val lineStart = oldText.lastIndexOf('\n', cursor - 1).let { if (it == -1) 0 else it + 1 }
+        val lineBeforeCursor = oldText.substring(lineStart, cursor)
+
+        // 1. Пустой маркер: пользователь нажал Enter на пустом пункте -> стереть маркер и выйти из списка
+        val emptyBullet = lineBeforeCursor.matches(Regex("^(\\s*)•\\s*$"))
+        val emptyNumber = lineBeforeCursor.matches(Regex("^(\\s*)\\d+\\.\\s*$"))
+        val emptyCheck = lineBeforeCursor.matches(Regex("^(\\s*)[☐☑]\\s*$"))
+
+        if (emptyBullet || emptyNumber || emptyCheck) {
+            val updatedText = oldText.substring(0, lineStart) + oldText.substring(cursor)
+            return TextFieldValue(text = updatedText, selection = TextRange(lineStart))
+        }
+
+        // 2. Список с маркерами (• )
+        val bulletMatch = Regex("^(\\s*)•\\s+").find(lineBeforeCursor)
+        if (bulletMatch != null) {
+            val indent = bulletMatch.groupValues[1]
+            val continuation = "\n${indent}• "
+            val updatedText = oldText.substring(0, cursor) + continuation + oldText.substring(cursor)
+            val newCursor = cursor + continuation.length
+            return TextFieldValue(text = updatedText, selection = TextRange(newCursor))
+        }
+
+        // 3. Список с номерами (1., 2., 3.)
+        val numberMatch = Regex("^(\\s*)(\\d+)\\.\\s+").find(lineBeforeCursor)
+        if (numberMatch != null) {
+            val indent = numberMatch.groupValues[1]
+            val num = numberMatch.groupValues[2].toIntOrNull() ?: 1
+            val continuation = "\n${indent}${num + 1}. "
+            val updatedText = oldText.substring(0, cursor) + continuation + oldText.substring(cursor)
+            val newCursor = cursor + continuation.length
+            return TextFieldValue(text = updatedText, selection = TextRange(newCursor))
+        }
+
+        // 4. Чек-лист (☐ / ☑)
+        val checkMatch = Regex("^(\\s*)[☐☑]\\s+").find(lineBeforeCursor)
+        if (checkMatch != null) {
+            val indent = checkMatch.groupValues[1]
+            val continuation = "\n${indent}☐ "
+            val updatedText = oldText.substring(0, cursor) + continuation + oldText.substring(cursor)
+            val newCursor = cursor + continuation.length
+            return TextFieldValue(text = updatedText, selection = TextRange(newCursor))
+        }
+
+        return newVal
     }
 }

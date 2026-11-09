@@ -14,6 +14,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,7 +32,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -41,9 +41,6 @@ import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.outlined.ArrowDropDown
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Image
-import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -52,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -64,10 +62,12 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -83,13 +83,14 @@ import java.util.Locale
 
 /**
  * Полноэкранный редактор текста с форматированием, меню списков, вводом LaTeX,
- * центрированным островком инструментов и стеком медиа-вложений (фото, файл, музыка).
+ * центрированным островком инструментов, плавающей панелью выделения и стеком медиа.
  */
 @Composable
 fun ChatFullTextEditorScreen(
     initialText: String,
     onClose: (String) -> Unit,
     onSend: (text: String, format: TextStyleFormat, language: String, attachment: MessageAttachment?) -> Unit,
+    onOpenNativeAttach: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -98,6 +99,7 @@ fun ChatFullTextEditorScreen(
     val focusRequester = remember { FocusRequester() }
 
     var selectedFormat by remember { mutableStateOf(TextStyleFormat.NORMAL) }
+    var selectedHeadingLevel by remember { mutableIntStateOf(1) }
     var selectedLanguage by remember { mutableStateOf("ABNF") }
     var selectedListStyle by remember { mutableStateOf(ListStyle.NONE) }
 
@@ -105,13 +107,12 @@ fun ChatFullTextEditorScreen(
     var isListMenuOpen by remember { mutableStateOf(false) }
     var isFormulaOpen by remember { mutableStateOf(false) }
     var isLanguageMenuOpen by remember { mutableStateOf(false) }
-    var isAttachMenuOpen by remember { mutableStateOf(false) }
     var isEmojiOpen by remember { mutableStateOf(false) }
 
-    // Стек прикреплённых медиа (фото, файлы, музыка)
+    // Стек прикреплённых медиа
     var attachedMediaList by remember { mutableStateOf<List<MessageAttachment>>(emptyList()) }
 
-    // Лаунчеры выбора медиа
+    // Лаунчеры выбора медиа (как резервный путь)
     val photoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         if (uri != null) {
             val (name, _) = queryUriMetadata(context, uri)
@@ -125,42 +126,27 @@ fun ChatFullTextEditorScreen(
         }
     }
 
-    val fileLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) {
-            val (name, size) = queryUriMetadata(context, uri)
-            val kind = mapExtensionToFileKind(name)
-            val newAttachment = MessageAttachment.File(
-                name = name,
-                sizeLabel = formatFileSize(size),
-                kind = kind,
-                uri = uri.toString()
-            )
-            attachedMediaList = attachedMediaList + newAttachment
-        }
+    // Хелпер оборачивания выделенного текста тегами
+    fun wrapSelection(prefix: String, suffix: String = prefix) {
+        val currentVal = undoState.textFieldValue
+        val start = minOf(currentVal.selection.start, currentVal.selection.end)
+        val end = maxOf(currentVal.selection.start, currentVal.selection.end)
+        if (start == end) return
+        val text = currentVal.text
+        val selected = text.substring(start, end)
+        val wrapped = prefix + selected + suffix
+        val newText = text.substring(0, start) + wrapped + text.substring(end)
+        val newSelection = TextRange(start + prefix.length, start + prefix.length + selected.length)
+        undoState.updateValue(TextFieldValue(newText, newSelection))
     }
 
-    val audioLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-        if (uri != null) {
-            val (name, size) = queryUriMetadata(context, uri)
-            val trackTitle = name.substringBeforeLast('.')
-            val newAttachment = MessageAttachment.Music(
-                title = trackTitle,
-                artist = "Аудиозапись",
-                durationLabel = "3:30",
-                colorSeed = (attachedMediaList.size % 5) + 1,
-                uri = uri.toString(),
-                sizeLabel = formatFileSize(size)
-            )
-            attachedMediaList = attachedMediaList + newAttachment
-        }
-    }
+    val hasSelection = undoState.textFieldValue.selection.length > 0
 
     BackHandler {
         when {
             isFormulaOpen -> isFormulaOpen = false
             isListMenuOpen -> isListMenuOpen = false
             isAaMenuOpen -> isAaMenuOpen = false
-            isAttachMenuOpen -> isAttachMenuOpen = false
             isLanguageMenuOpen -> isLanguageMenuOpen = false
             isEmojiOpen -> isEmojiOpen = false
             else -> onClose(undoState.currentText)
@@ -179,6 +165,15 @@ fun ChatFullTextEditorScreen(
             .fillMaxSize()
             .background(ObsidianBlack)
             .padding(top = topPadding)
+            // Тап в пустое место экрана закрывает формулу/меню и возвращает стандартную панель инструментов
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (isFormulaOpen) isFormulaOpen = false
+                if (isAaMenuOpen) isAaMenuOpen = false
+                if (isListMenuOpen) isListMenuOpen = false
+            }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Верхняя панель: Назад, Undo, Redo
@@ -255,7 +250,6 @@ fun ChatFullTextEditorScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                // Миниатюра вложения
                                 val fakeMsg = remember(activeAttachment) {
                                     ChatMessage(
                                         id = "draft_preview",
@@ -272,7 +266,6 @@ fun ChatFullTextEditorScreen(
 
                                 Spacer(modifier = Modifier.width(10.dp))
 
-                                // Описание вложения
                                 Column(modifier = Modifier.weight(1f)) {
                                     val (title, subtitle) = when (activeAttachment) {
                                         is MessageAttachment.Photo -> {
@@ -307,7 +300,6 @@ fun ChatFullTextEditorScreen(
                                     )
                                 }
 
-                                // Счётчик в стеке (если прикреплено несколько)
                                 if (attachedMediaList.size > 1) {
                                     Box(
                                         modifier = Modifier
@@ -325,11 +317,8 @@ fun ChatFullTextEditorScreen(
                                     }
                                 }
 
-                                // Кнопка крестика ✕: удаляет верхний элемент, предыдущий открывается обратно!
                                 IconButton(
-                                    onClick = {
-                                        attachedMediaList = attachedMediaList.dropLast(1)
-                                    },
+                                    onClick = { attachedMediaList = attachedMediaList.dropLast(1) },
                                     modifier = Modifier.size(32.dp)
                                 ) {
                                     Icon(
@@ -400,7 +389,6 @@ fun ChatFullTextEditorScreen(
                         }
                     }
 
-                    // Контейнер с оформлением под стиль
                     val editorBoxModifier = when (selectedFormat) {
                         TextStyleFormat.CODE -> Modifier
                             .fillMaxWidth()
@@ -424,12 +412,22 @@ fun ChatFullTextEditorScreen(
                     }
 
                     val textStyle = when (selectedFormat) {
-                        TextStyleFormat.HEADING -> TextStyle(
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            lineHeight = 26.sp
-                        )
+                        TextStyleFormat.HEADING -> {
+                            val headingSp = when (selectedHeadingLevel) {
+                                1 -> 24.sp
+                                2 -> 21.sp
+                                3 -> 18.sp
+                                4 -> 16.sp
+                                5 -> 14.sp
+                                else -> 12.sp
+                            }
+                            TextStyle(
+                                color = Color.White,
+                                fontSize = headingSp,
+                                fontWeight = if (selectedHeadingLevel <= 3) FontWeight.Bold else FontWeight.SemiBold,
+                                lineHeight = (headingSp.value * 1.25f).sp
+                            )
+                        }
                         TextStyleFormat.CODE -> TextStyle(
                             color = Color(0xFFE2E8F0),
                             fontSize = 14.sp,
@@ -459,9 +457,9 @@ fun ChatFullTextEditorScreen(
                             Text(
                                 text = when (selectedFormat) {
                                     TextStyleFormat.CODE -> "Введите код ($selectedLanguage)..."
-                                    TextStyleFormat.HEADING -> "Заголовок..."
-                                    TextStyleFormat.QUOTE -> "Цитата..."
-                                    TextStyleFormat.CALLOUT -> "Текст спойлера / выноски..."
+                                    TextStyleFormat.HEADING -> "Заголовок H$selectedHeadingLevel..."
+                                    TextStyleFormat.QUOTE -> "Цитата...\n— Автор"
+                                    TextStyleFormat.CALLOUT -> "Текст выноски...\n— Автор"
                                     else -> "Введите текст..."
                                 },
                                 color = Color(0xFF64748B),
@@ -470,8 +468,11 @@ fun ChatFullTextEditorScreen(
                         }
 
                         BasicTextField(
-                            value = undoState.currentText,
-                            onValueChange = { undoState.updateText(it) },
+                            value = undoState.textFieldValue,
+                            onValueChange = { newVal ->
+                                val processed = SmartListEnterHelper.processEnter(undoState.textFieldValue, newVal)
+                                undoState.updateValue(processed)
+                            },
                             textStyle = textStyle,
                             cursorBrush = SolidColor(scheme.accent),
                             modifier = Modifier
@@ -489,9 +490,33 @@ fun ChatFullTextEditorScreen(
                     .imePadding()
                     .padding(bottom = if (isEmojiOpen) 0.dp else navBottom)
             ) {
-                // Всплывающее меню стилей форматирования Aa
+                // 1. Плавающая панель выделения текста (макет media_1794257026295.png)
                 AnimatedVisibility(
-                    visible = isAaMenuOpen,
+                    visible = hasSelection && !isFormulaOpen,
+                    enter = slideInVertically { it / 2 } + fadeIn(),
+                    exit = slideOutVertically { it / 2 } + fadeOut()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        TextSelectionFloatingBar(
+                            onBold = { wrapSelection("**") },
+                            onItalic = { wrapSelection("*") },
+                            onUnderline = { wrapSelection("<u>", "</u>") },
+                            onStrikethrough = { wrapSelection("~~") },
+                            onSpoiler = { wrapSelection("||") },
+                            onCode = { wrapSelection("`") },
+                            onFontSelected = { font -> wrapSelection("[font=$font]", "[/font]") }
+                        )
+                    }
+                }
+
+                // 2. Всплывающее меню стилей форматирования Aa с подменю H1..H6
+                AnimatedVisibility(
+                    visible = isAaMenuOpen && !isFormulaOpen,
                     enter = slideInVertically { it / 2 } + fadeIn(),
                     exit = slideOutVertically { it / 2 } + fadeOut()
                 ) {
@@ -504,14 +529,23 @@ fun ChatFullTextEditorScreen(
                         StylePopupMenu(
                             selectedFormat = selectedFormat,
                             onSelectFormat = { selectedFormat = it },
+                            selectedHeadingLevel = selectedHeadingLevel,
+                            onSelectHeading = { level ->
+                                selectedHeadingLevel = level
+                                selectedFormat = TextStyleFormat.HEADING
+                                val hashes = "#".repeat(level) + " "
+                                if (!undoState.currentText.startsWith("#")) {
+                                    undoState.updateText(hashes + undoState.currentText)
+                                }
+                            },
                             onDismiss = { isAaMenuOpen = false }
                         )
                     }
                 }
 
-                // Всплывающее меню списков ≡ (макет media_1794253331200.png)
+                // 3. Всплывающее меню списков ≡ (макет media_1794253331200.png)
                 AnimatedVisibility(
-                    visible = isListMenuOpen,
+                    visible = isListMenuOpen && !isFormulaOpen,
                     enter = slideInVertically { it / 2 } + fadeIn(),
                     exit = slideOutVertically { it / 2 } + fadeOut()
                 ) {
@@ -538,211 +572,88 @@ fun ChatFullTextEditorScreen(
                     }
                 }
 
-                // Всплывающая панель формулы LaTeX ∑ (макет media_1794253317328.png)
-                AnimatedVisibility(
-                    visible = isFormulaOpen,
-                    enter = slideInVertically { it / 2 } + fadeIn(),
-                    exit = slideOutVertically { it / 2 } + fadeOut()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.BottomCenter
-                    ) {
-                        LatexFormulaInputPanel(
-                            onInsertFormula = { formula ->
-                                val space = if (undoState.currentText.isNotEmpty() && !undoState.currentText.endsWith(" ")) " " else ""
-                                undoState.updateText(undoState.currentText + space + formula + " ")
-                            },
-                            onDismiss = { isFormulaOpen = false }
-                        )
-                    }
+                // 4. Панель формулы LaTeX строго по макету media_1794253317328.png
+                // Островок скрывается, на экране отображается только поле ввода + кнопка «Готово»
+                if (isFormulaOpen) {
+                    LatexFormulaInputPanel(
+                        onInsertFormula = { formula ->
+                            val space = if (undoState.currentText.isNotEmpty() && !undoState.currentText.endsWith(" ")) " " else ""
+                            undoState.updateText(undoState.currentText + space + formula + " ")
+                        },
+                        onDismiss = { isFormulaOpen = false }
+                    )
+                } else {
+                    // Центрированная парящая панель инструментов форматирования
+                    TextFormattingToolbar(
+                        isAaActive = isAaMenuOpen || selectedFormat != TextStyleFormat.NORMAL,
+                        onToggleAa = {
+                            isAaMenuOpen = !isAaMenuOpen
+                            if (isAaMenuOpen) {
+                                isListMenuOpen = false
+                                isFormulaOpen = false
+                                isEmojiOpen = false
+                            }
+                        },
+                        onToggleEmoji = {
+                            isEmojiOpen = !isEmojiOpen
+                            if (isEmojiOpen) {
+                                isAaMenuOpen = false
+                                isListMenuOpen = false
+                                isFormulaOpen = false
+                            }
+                        },
+                        isListActive = isListMenuOpen,
+                        onToggleList = {
+                            isListMenuOpen = !isListMenuOpen
+                            if (isListMenuOpen) {
+                                isAaMenuOpen = false
+                                isFormulaOpen = false
+                                isEmojiOpen = false
+                            }
+                        },
+                        isFormulaActive = false,
+                        onToggleFormula = {
+                            isFormulaOpen = true
+                            isAaMenuOpen = false
+                            isListMenuOpen = false
+                            isEmojiOpen = false
+                        },
+                        onOpenAttach = {
+                            if (onOpenNativeAttach != null) {
+                                onOpenNativeAttach()
+                            } else {
+                                photoLauncher.launch("image/*")
+                            }
+                        },
+                        onSend = {
+                            val resolvedAttachment: MessageAttachment? = when {
+                                attachedMediaList.isEmpty() -> null
+                                attachedMediaList.size == 1 -> attachedMediaList.first()
+                                attachedMediaList.all { it is MessageAttachment.Photo } -> {
+                                    MessageAttachment.MediaAlbum(
+                                        items = attachedMediaList.filterIsInstance<MessageAttachment.Photo>().map {
+                                            MessageAttachment.AlbumMediaItem(it.uri ?: "", it.isVideo, it.hasSpoiler)
+                                        }
+                                    )
+                                }
+                                attachedMediaList.all { it is MessageAttachment.File } -> {
+                                    MessageAttachment.FileGroup(
+                                        items = attachedMediaList.filterIsInstance<MessageAttachment.File>()
+                                    )
+                                }
+                                attachedMediaList.all { it is MessageAttachment.Music } -> {
+                                    MessageAttachment.MusicGroup(
+                                        items = attachedMediaList.filterIsInstance<MessageAttachment.Music>()
+                                    )
+                                }
+                                else -> attachedMediaList.lastOrNull()
+                            }
+                            onSend(undoState.currentText, selectedFormat, selectedLanguage, resolvedAttachment)
+                        }
+                    )
                 }
 
-                // Всплывающее меню выбора типа вложения 📎
-                AnimatedVisibility(
-                    visible = isAttachMenuOpen,
-                    enter = slideInVertically { it / 2 } + fadeIn(),
-                    exit = slideOutVertically { it / 2 } + fadeOut()
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.BottomEnd
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .shadow(16.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black, spotColor = Color.Black)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFF232328))
-                                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
-                                .padding(vertical = 6.dp)
-                                .width(200.dp)
-                        ) {
-                            Column(modifier = Modifier.fillMaxWidth()) {
-                                // Фото / Видео
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            isAttachMenuOpen = false
-                                            photoLauncher.launch("image/*")
-                                        }
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Image,
-                                        contentDescription = "Фото или видео",
-                                        tint = scheme.accent,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "Фото или видео",
-                                        color = Color.White,
-                                        fontSize = 14.sp
-                                    )
-                                }
-
-                                // Файл / Документ
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            isAttachMenuOpen = false
-                                            fileLauncher.launch("*/*")
-                                        }
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Description,
-                                        contentDescription = "Файл",
-                                        tint = scheme.accent,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "Файл",
-                                        color = Color.White,
-                                        fontSize = 14.sp
-                                    )
-                                }
-
-                                // Музыка / Аудио
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            isAttachMenuOpen = false
-                                            audioLauncher.launch("audio/*")
-                                        }
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.MusicNote,
-                                        contentDescription = "Музыка",
-                                        tint = scheme.accent,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "Музыка",
-                                        color = Color.White,
-                                        fontSize = 14.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Центрированная парящая панель инструментов форматирования
-                TextFormattingToolbar(
-                    isAaActive = isAaMenuOpen || selectedFormat != TextStyleFormat.NORMAL,
-                    onToggleAa = {
-                        isAaMenuOpen = !isAaMenuOpen
-                        if (isAaMenuOpen) {
-                            isListMenuOpen = false
-                            isFormulaOpen = false
-                            isAttachMenuOpen = false
-                            isEmojiOpen = false
-                        }
-                    },
-                    onToggleEmoji = {
-                        isEmojiOpen = !isEmojiOpen
-                        if (isEmojiOpen) {
-                            isAaMenuOpen = false
-                            isListMenuOpen = false
-                            isFormulaOpen = false
-                            isAttachMenuOpen = false
-                        }
-                    },
-                    isListActive = isListMenuOpen,
-                    onToggleList = {
-                        isListMenuOpen = !isListMenuOpen
-                        if (isListMenuOpen) {
-                            isAaMenuOpen = false
-                            isFormulaOpen = false
-                            isAttachMenuOpen = false
-                            isEmojiOpen = false
-                        }
-                    },
-                    onInsertTable = {
-                        val table = "\n| Колонка 1 | Колонка 2 |\n|-----------|-----------|\n| Значение  | Данные    |\n"
-                        undoState.updateText(undoState.currentText + table)
-                    },
-                    isFormulaActive = isFormulaOpen,
-                    onToggleFormula = {
-                        isFormulaOpen = !isFormulaOpen
-                        if (isFormulaOpen) {
-                            isAaMenuOpen = false
-                            isListMenuOpen = false
-                            isAttachMenuOpen = false
-                            isEmojiOpen = false
-                        }
-                    },
-                    onOpenAttach = {
-                        isAttachMenuOpen = !isAttachMenuOpen
-                        if (isAttachMenuOpen) {
-                            isAaMenuOpen = false
-                            isListMenuOpen = false
-                            isFormulaOpen = false
-                            isEmojiOpen = false
-                        }
-                    },
-                    onSend = {
-                        val resolvedAttachment: MessageAttachment? = when {
-                            attachedMediaList.isEmpty() -> null
-                            attachedMediaList.size == 1 -> attachedMediaList.first()
-                            attachedMediaList.all { it is MessageAttachment.Photo } -> {
-                                MessageAttachment.MediaAlbum(
-                                    items = attachedMediaList.filterIsInstance<MessageAttachment.Photo>().map {
-                                        MessageAttachment.AlbumMediaItem(it.uri ?: "", it.isVideo, it.hasSpoiler)
-                                    }
-                                )
-                            }
-                            attachedMediaList.all { it is MessageAttachment.File } -> {
-                                MessageAttachment.FileGroup(
-                                    items = attachedMediaList.filterIsInstance<MessageAttachment.File>()
-                                )
-                            }
-                            attachedMediaList.all { it is MessageAttachment.Music } -> {
-                                MessageAttachment.MusicGroup(
-                                    items = attachedMediaList.filterIsInstance<MessageAttachment.Music>()
-                                )
-                            }
-                            else -> attachedMediaList.lastOrNull()
-                        }
-                        onSend(undoState.currentText, selectedFormat, selectedLanguage, resolvedAttachment)
-                    }
-                )
-
-                if (isEmojiOpen) {
+                if (isEmojiOpen && !isFormulaOpen) {
                     EmojiStickerPanel(
                         onEmojiClick = { emoji -> undoState.updateText(undoState.currentText + emoji) },
                         onStickerClick = { symbol, _ -> undoState.updateText(undoState.currentText + symbol) },
@@ -770,26 +681,4 @@ private fun queryUriMetadata(context: Context, uri: Uri): Pair<String, Long> {
         }
     } catch (_: Exception) {}
     return Pair(name, size)
-}
-
-private fun formatFileSize(size: Long): String {
-    val kb = size / 1024.0
-    return if (kb >= 1024.0) {
-        String.format(Locale.getDefault(), "%.1f MB", kb / 1024.0)
-    } else {
-        String.format(Locale.getDefault(), "%.1f KB", kb.coerceAtLeast(0.1))
-    }
-}
-
-private fun mapExtensionToFileKind(name: String): FileKind {
-    val ext = name.substringAfterLast('.', "").lowercase()
-    return when (ext) {
-        "jpg", "jpeg", "png", "webp", "heic", "gif", "bmp" -> FileKind.IMAGE
-        "pdf" -> FileKind.PDF
-        "apk" -> FileKind.APK
-        "doc", "docx", "txt", "rtf" -> FileKind.DOC
-        "zip", "rar", "7z", "tar", "gz" -> FileKind.ARCHIVE
-        "mp4", "mkv", "mov", "avi" -> FileKind.VIDEO
-        else -> FileKind.UNKNOWN
-    }
 }

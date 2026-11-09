@@ -267,25 +267,9 @@ fun ChatScreen(
         val chatBottomImePx = if (isChatImeFrozen) frozenKeyboardHeightPx else currentImeBottom
         val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
 
-        LaunchedEffect(isKeyboardVisible) {
-            if (isKeyboardVisible && state.isEmojiOpen) {
-                viewModel.closeEmojiPanel()
-            }
-        }
-
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
         val inputBarHeightDp = with(density) { inputBarHeightPx.toDp() }
-        val bottomListPadding = if (inputBarHeightDp > 0.dp) {
-            inputBarHeightDp + 12.dp
-        } else {
-            if (effectiveKeyboardVisible) 80.dp else 104.dp
-        }
-
-        LaunchedEffect(inputBarHeightPx, state.replyTo?.id, state.editing?.id) {
-            if (listState.firstVisibleItemIndex <= 1) {
-                listState.animateScrollToItem(0)
-            }
-        }
+        val bottomListPadding = (inputBarHeightDp + 8.dp).coerceIn(60.dp, 160.dp)
 
         Box(
             modifier = Modifier
@@ -520,14 +504,17 @@ fun ChatScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .onGloballyPositioned { coordinates ->
-                    inputBarHeightPx = coordinates.size.height
-                }
                 .padding(bottom = with(density) { chatBottomImePx.toDp() })
                 .safeNavigationBarPadding()
                 .padding(bottom = if (effectiveKeyboardVisible) 4.dp else 24.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        inputBarHeightPx = coordinates.size.height
+                    }
+            ) {
                 if (state.isSearchOpen) {
                     val counterText = if (isSearchListMode) {
                         formatResultsCount(state.searchMatches.size)
@@ -607,8 +594,14 @@ fun ChatScreen(
                                 inputFocusRequester.requestFocus()
                                 keyboardController?.show()
                             } else {
+                                focusManager.clearFocus()
                                 keyboardController?.hide()
                                 viewModel.toggleEmojiPanel()
+                            }
+                        },
+                        onFocusInput = {
+                            if (state.isEmojiOpen) {
+                                viewModel.closeEmojiPanel()
                             }
                         },
                         onOpenAttach = {
@@ -806,6 +799,60 @@ fun ChatScreen(
             }
         }
     }
+
+        // Полноэкранный редактор текста (расширенный ввод)
+        if (isFullEditorOpen) {
+            ChatFullTextEditorScreen(
+                initialText = state.input,
+                onClose = { textAfterEdit ->
+                    viewModel.onInputChange(textAfterEdit)
+                    isFullEditorOpen = false
+                },
+                onOpenNativeAttach = {
+                    if (isKeyboardVisible) {
+                        wasKeyboardOpenWhenAttached = true
+                        frozenKeyboardHeightPx = lastKeyboardHeightPx
+                    } else {
+                        wasKeyboardOpenWhenAttached = false
+                        frozenKeyboardHeightPx = 0
+                    }
+                    viewModel.openAttach()
+                },
+                onSend = { textToSend, format, language, attachment ->
+                    val formattedToSend = when (format) {
+                        TextStyleFormat.CODE -> {
+                            if (textToSend.startsWith("```")) textToSend
+                            else "```$language\n$textToSend\n```"
+                        }
+                        TextStyleFormat.SPOILER -> {
+                            if (textToSend.contains("||")) textToSend
+                            else "||$textToSend||"
+                        }
+                        TextStyleFormat.HEADING -> {
+                            if (textToSend.startsWith("#")) textToSend
+                            else "# $textToSend"
+                        }
+                        TextStyleFormat.QUOTE -> {
+                            if (textToSend.startsWith(">")) textToSend
+                            else "> $textToSend"
+                        }
+                        TextStyleFormat.CALLOUT -> {
+                            if (textToSend.startsWith(">>>")) textToSend
+                            else ">>> $textToSend"
+                        }
+                        else -> textToSend
+                    }
+                    if (attachment != null) {
+                        viewModel.sendAttachment(attachment, caption = formattedToSend)
+                    } else {
+                        viewModel.onInputChange(formattedToSend)
+                        viewModel.send()
+                    }
+                    isFullEditorOpen = false
+                    scope.launch { listState.animateScrollToItem(0) }
+                }
+            )
+        }
 
         // Модальное меню вложений Telegram-style (скрепка, ТЗ)
         if (state.isAttachOpen) {
@@ -1437,40 +1484,6 @@ fun ChatScreen(
                             runCatching { listState.animateScrollAndCenterItem(index) }
                         }
                     }
-                }
-            )
-        }
-
-        // 8. Полноэкранный редактор текста (расширенный ввод)
-        if (isFullEditorOpen) {
-            ChatFullTextEditorScreen(
-                initialText = state.input,
-                onClose = { textAfterEdit ->
-                    viewModel.onInputChange(textAfterEdit)
-                    isFullEditorOpen = false
-                },
-                onSend = { textToSend, format, language, attachment ->
-                    val formattedToSend = when (format) {
-                        TextStyleFormat.CODE -> {
-                            if (textToSend.startsWith("```")) textToSend
-                            else "```$language\n$textToSend\n```"
-                        }
-                        TextStyleFormat.SPOILER -> {
-                            if (textToSend.contains("||")) textToSend
-                            else "||$textToSend||"
-                        }
-                        TextStyleFormat.HEADING -> "# $textToSend"
-                        TextStyleFormat.QUOTE -> "> $textToSend"
-                        else -> textToSend
-                    }
-                    if (attachment != null) {
-                        viewModel.sendAttachment(attachment, caption = formattedToSend)
-                    } else {
-                        viewModel.onInputChange(formattedToSend)
-                        viewModel.send()
-                    }
-                    isFullEditorOpen = false
-                    scope.launch { listState.animateScrollToItem(0) }
                 }
             )
         }

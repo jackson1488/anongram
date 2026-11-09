@@ -16,7 +16,6 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Functions
-import androidx.compose.material.icons.outlined.GridOn
 import androidx.compose.material.icons.outlined.SentimentSatisfiedAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,7 +42,6 @@ fun TextFormattingToolbar(
     onToggleEmoji: () -> Unit,
     isListActive: Boolean = false,
     onToggleList: () -> Unit,
-    onInsertTable: () -> Unit,
     isFormulaActive: Boolean = false,
     onToggleFormula: () -> Unit,
     onOpenAttach: () -> Unit,
@@ -70,7 +68,7 @@ fun TextFormattingToolbar(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(2.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 // Кнопка Эмодзи 😊
                 IconButton(onClick = onToggleEmoji, modifier = Modifier.size(36.dp)) {
@@ -113,16 +111,6 @@ fun TextFormattingToolbar(
                         contentDescription = "Списки",
                         tint = if (isListActive) scheme.accent else itemColor,
                         modifier = Modifier.size(19.dp)
-                    )
-                }
-
-                // Кнопка таблицы ⊞
-                IconButton(onClick = onInsertTable, modifier = Modifier.size(36.dp)) {
-                    Icon(
-                        imageVector = Icons.Outlined.GridOn,
-                        contentDescription = "Таблица",
-                        tint = itemColor,
-                        modifier = Modifier.size(18.dp)
                     )
                 }
 

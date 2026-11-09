@@ -1,12 +1,19 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -18,10 +25,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -35,11 +46,15 @@ import com.anongram.app.features.chats.ui.input.editor.CodeLanguages
 import kotlin.math.ceil
 
 /**
- * Модуль отображения текста сообщения:
- * - Выделяет блоки кода по макету media_1794245820653.png;
- * - Поддерживает интерактивные анимированные спойлеры (||текст||);
- * - Лимит 4000 символов с кнопкой «Читать дальше»;
- * - Адаптивная раскладка времени без перекрытия текста.
+ * Модуль отображения форматированного текста сообщения:
+ * - Блоки кода по макету media_1794245820653.png;
+ * - Математические формулы LaTeX (BubbleLatexFormula);
+ * - Сворачиваемые блоки по макету media_1794256738911.png (BubbleCollapsibleBlock);
+ * - Выноски и цитаты с авторами (BubbleCalloutBlock);
+ * - Интерактивные чек-боксы (☐ / ☑) по макету media_1794255690560.png;
+ * - Заголовки H1..H6 с пропорциональными размерами;
+ * - Двухсторонние анимированные спойлеры (||текст||);
+ * - Жирный, курсив, подчёркнутый, зачёркнутый и шрифты.
  */
 @Composable
 fun BubbleTextMessage(
@@ -54,9 +69,9 @@ fun BubbleTextMessage(
     val scheme = LocalAnonGramScheme.current
     val rawText = message.text
     val isIncoming = message.direction == MessageDirection.INCOMING
-
-    // Проверяем, является ли сообщение блоком кода
     val trimmed = rawText.trim()
+
+    // 1. Проверяем, является ли сообщение блоком кода
     val isCodeBlock = trimmed.startsWith("```") ||
         (trimmed.lines().size > 1 && CodeLanguages.any { trimmed.startsWith(it, ignoreCase = true) })
 
@@ -74,13 +89,120 @@ fun BubbleTextMessage(
         return
     }
 
-    // Проверяем, есть ли спойлер ||текст||
+    // 2. Проверяем формулу LaTeX (\(...\) или $$...$$)
+    if ((trimmed.startsWith("\\(") && trimmed.endsWith("\\)")) ||
+        (trimmed.startsWith("$$") && trimmed.endsWith("$$"))
+    ) {
+        Column(modifier = modifier) {
+            BubbleLatexFormula(formula = trimmed)
+            Spacer(modifier = Modifier.height(4.dp))
+            BubbleTimestampRow(
+                timeLabel = message.timeLabel(),
+                isEdited = message.isEdited,
+                isIncoming = isIncoming,
+                status = message.status,
+                textScale = textScale,
+                onRetry = onRetry,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+        return
+    }
+
+    // 3. Проверяем сворачиваемый блок (+++ Заголовок\nТело\n+++)
+    if (trimmed.startsWith("+++") && trimmed.endsWith("+++") && trimmed.lines().size >= 2) {
+        val lines = trimmed.removePrefix("+++").removeSuffix("+++").trim().lines()
+        val title = lines.firstOrNull() ?: ""
+        val body = lines.drop(1).joinToString("\n").trim()
+        Column(modifier = modifier) {
+            BubbleCollapsibleBlock(title = title, content = body)
+            Spacer(modifier = Modifier.height(4.dp))
+            BubbleTimestampRow(
+                timeLabel = message.timeLabel(),
+                isEdited = message.isEdited,
+                isIncoming = isIncoming,
+                status = message.status,
+                textScale = textScale,
+                onRetry = onRetry,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+        return
+    }
+
+    // 4. Проверяем выноску (>>> Текст\n— Автор) или цитату (> Текст\n— Автор)
+    if (trimmed.startsWith(">>>") || (trimmed.startsWith(">") && !trimmed.startsWith(">>"))) {
+        val isCallout = trimmed.startsWith(">>>")
+        val clean = if (isCallout) trimmed.removePrefix(">>>").trim() else trimmed.removePrefix(">").trim()
+        val lines = clean.lines()
+        val authorLine = lines.lastOrNull { it.trim().startsWith("—") || it.trim().startsWith("- ") }
+        val bodyText = if (authorLine != null) {
+            lines.filter { it != authorLine }.joinToString("\n").trim()
+        } else {
+            clean
+        }
+
+        Column(modifier = modifier) {
+            BubbleCalloutBlock(
+                text = bodyText,
+                author = authorLine?.trim()?.removePrefix("-")?.trim(),
+                isQuote = !isCallout
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            BubbleTimestampRow(
+                timeLabel = message.timeLabel(),
+                isEdited = message.isEdited,
+                isIncoming = isIncoming,
+                status = message.status,
+                textScale = textScale,
+                onRetry = onRetry,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+        return
+    }
+
+    // 5. Проверяем наличие чек-листа (☐ или ☑)
+    if (trimmed.lines().any { it.trimStart().startsWith("☐") || it.trimStart().startsWith("☑") }) {
+        Column(modifier = modifier) {
+            trimmed.lines().forEach { line ->
+                val lineTrimmed = line.trimStart()
+                if (lineTrimmed.startsWith("☐") || lineTrimmed.startsWith("☑")) {
+                    InteractiveChecklistItem(
+                        initialChecked = lineTrimmed.startsWith("☑"),
+                        text = lineTrimmed.substring(1).trim(),
+                        textSizeSp = textSizeSp
+                    )
+                } else if (line.isNotBlank()) {
+                    Text(
+                        text = line,
+                        color = TextPrimary,
+                        fontSize = textSizeSp.sp,
+                        lineHeight = (textSizeSp * 1.26f).sp,
+                        modifier = Modifier.padding(vertical = 1.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            BubbleTimestampRow(
+                timeLabel = message.timeLabel(),
+                isEdited = message.isEdited,
+                isIncoming = isIncoming,
+                status = message.status,
+                textScale = textScale,
+                onRetry = onRetry,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+        return
+    }
+
+    // 6. Проверяем спойлер ||текст||
     if (rawText.contains("||") && rawText.indexOf("||") != rawText.lastIndexOf("||")) {
         val parts = rawText.split("||")
         Column(modifier = modifier) {
             parts.forEachIndexed { index, part ->
                 if (index % 2 == 1) {
-                    // Внутри спойлера
                     BubbleSpoilerText(
                         text = part,
                         style = TextStyle(
@@ -92,7 +214,7 @@ fun BubbleTextMessage(
                     )
                 } else if (part.isNotEmpty()) {
                     Text(
-                        text = part,
+                        text = buildRichAnnotatedText(part, scheme.accent),
                         color = TextPrimary,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.26f).sp
@@ -100,7 +222,7 @@ fun BubbleTextMessage(
                 }
             }
 
-            Spacer(modifier = Modifier.padding(top = 4.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             BubbleTimestampRow(
                 timeLabel = message.timeLabel(),
@@ -115,7 +237,55 @@ fun BubbleTextMessage(
         return
     }
 
-    // Лимит 4000 символов для обычного текста
+    // 7. Проверяем заголовки H1..H6 (# ... ######)
+    val firstLine = rawText.lines().firstOrNull() ?: ""
+    val headingMatch = Regex("^(#{1,6})\\s+(.+)").find(firstLine)
+    if (headingMatch != null && rawText.lines().size <= 5) {
+        val hashes = headingMatch.groupValues[1]
+        val headingTitle = headingMatch.groupValues[2]
+        val remaining = rawText.lines().drop(1).joinToString("\n").trim()
+        val level = hashes.length
+        val (headingSizeSp, headingWeight) = when (level) {
+            1 -> 24.sp to FontWeight.Bold
+            2 -> 21.sp to FontWeight.Bold
+            3 -> 18.sp to FontWeight.Bold
+            4 -> 16.sp to FontWeight.SemiBold
+            5 -> 14.sp to FontWeight.SemiBold
+            else -> 12.sp to FontWeight.SemiBold
+        }
+
+        Column(modifier = modifier) {
+            Text(
+                text = headingTitle,
+                color = Color.White,
+                fontSize = headingSizeSp,
+                fontWeight = headingWeight,
+                lineHeight = (headingSizeSp.value * 1.25f).sp
+            )
+            if (remaining.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = buildRichAnnotatedText(remaining, scheme.accent),
+                    color = TextPrimary,
+                    fontSize = textSizeSp.sp,
+                    lineHeight = (textSizeSp * 1.26f).sp
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            BubbleTimestampRow(
+                timeLabel = message.timeLabel(),
+                isEdited = message.isEdited,
+                isIncoming = isIncoming,
+                status = message.status,
+                textScale = textScale,
+                onRetry = onRetry,
+                modifier = Modifier.align(Alignment.End)
+            )
+        }
+        return
+    }
+
+    // 8. Стандартный текст с богатым форматированием
     val isOverLimit = rawText.length > 4000
     val textToDisplay = if (isOverLimit) rawText.take(4000) + "…" else rawText
 
@@ -126,7 +296,7 @@ fun BubbleTextMessage(
             highlightColor = scheme.accent
         )
     } else {
-        AnnotatedString(textToDisplay)
+        buildRichAnnotatedText(textToDisplay, scheme.accent)
     }
 
     Column(modifier = modifier) {
@@ -151,6 +321,144 @@ fun BubbleTextMessage(
                     .clickable(onClick = onOpenFullText)
                     .padding(top = 4.dp, bottom = 2.dp)
             )
+        }
+    }
+}
+
+/**
+ * Интерактивный элемент чек-листа с фиолетовой галочкой по макету media_1794255690560.png.
+ */
+@Composable
+private fun InteractiveChecklistItem(
+    initialChecked: Boolean,
+    text: String,
+    textSizeSp: Int,
+    modifier: Modifier = Modifier
+) {
+    var isChecked by remember { mutableStateOf(initialChecked) }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { isChecked = !isChecked }
+            .padding(vertical = 3.dp)
+    ) {
+        Icon(
+            imageVector = if (isChecked) Icons.Filled.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
+            contentDescription = if (isChecked) "Выполнено" else "Не выполнено",
+            tint = if (isChecked) Color(0xFFC084FC) else Color(0xFFA1A1AA),
+            modifier = Modifier.size(19.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            color = if (isChecked) Color(0xFF94A3B8) else TextPrimary,
+            fontSize = textSizeSp.sp,
+            textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
+            lineHeight = (textSizeSp * 1.26f).sp
+        )
+    }
+}
+
+/**
+ * Разбирает разметку Markdown / HTML / Шрифтов в AnnotatedString:
+ * - **жирный**
+ * - *курсив*
+ * - ~~зачёркнутый~~
+ * - <u>подчёркнутый</u>
+ * - `код`
+ * - [font=serif]...[/font], [font=mono]...[/font], [font=cursive]...[/font]
+ */
+fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString {
+    return buildAnnotatedString {
+        var cursor = 0
+        val len = source.length
+
+        // Регулярные выражения для инлайн-стилей
+        val tokenRegex = Regex(
+            "(\\*\\*([^*]+)\\*\\*)|" +                     // 1: **bold**
+            "(\\*([^*]+)\\*)|" +                           // 3: *italic*
+            "(~~([^~]+)~~)|" +                             // 5: ~~strike~~
+            "(<u>([^<]+)<\\/u>)|" +                        // 7: <u>underline</u>
+            "(`([^`]+)`)|" +                               // 9: `code`
+            "(\\[font=(sans|serif|mono|cursive)\\]([^\\[]+)\\[\\/font\\])" // 11: font
+        )
+
+        val matches = tokenRegex.findAll(source).toList()
+        if (matches.isEmpty()) {
+            append(source)
+            return@buildAnnotatedString
+        }
+
+        var lastEnd = 0
+        for (m in matches) {
+            if (m.range.first > lastEnd) {
+                append(source.substring(lastEnd, m.range.first))
+            }
+
+            when {
+                // **bold**
+                m.groupValues[1].isNotEmpty() -> {
+                    val inner = m.groupValues[2]
+                    pushStyle(SpanStyle(fontWeight = FontWeight.Bold))
+                    append(inner)
+                    pop()
+                }
+                // *italic*
+                m.groupValues[3].isNotEmpty() -> {
+                    val inner = m.groupValues[4]
+                    pushStyle(SpanStyle(fontStyle = FontStyle.Italic))
+                    append(inner)
+                    pop()
+                }
+                // ~~strike~~
+                m.groupValues[5].isNotEmpty() -> {
+                    val inner = m.groupValues[6]
+                    pushStyle(SpanStyle(textDecoration = TextDecoration.LineThrough))
+                    append(inner)
+                    pop()
+                }
+                // <u>underline</u>
+                m.groupValues[7].isNotEmpty() -> {
+                    val inner = m.groupValues[8]
+                    pushStyle(SpanStyle(textDecoration = TextDecoration.Underline))
+                    append(inner)
+                    pop()
+                }
+                // `code`
+                m.groupValues[9].isNotEmpty() -> {
+                    val inner = m.groupValues[10]
+                    pushStyle(
+                        SpanStyle(
+                            fontFamily = FontFamily.Monospace,
+                            background = Color(0x33A1A1AA),
+                            color = Color(0xFFF1F5F9)
+                        )
+                    )
+                    append(" $inner ")
+                    pop()
+                }
+                // [font=...]...[/font]
+                m.groupValues[11].isNotEmpty() -> {
+                    val fontType = m.groupValues[12]
+                    val inner = m.groupValues[13]
+                    val family = when (fontType) {
+                        "serif" -> FontFamily.Serif
+                        "mono" -> FontFamily.Monospace
+                        "cursive" -> FontFamily.Cursive
+                        else -> FontFamily.SansSerif
+                    }
+                    pushStyle(SpanStyle(fontFamily = family))
+                    append(inner)
+                    pop()
+                }
+            }
+            lastEnd = m.range.last + 1
+        }
+
+        if (lastEnd < len) {
+            append(source.substring(lastEnd, len))
         }
     }
 }

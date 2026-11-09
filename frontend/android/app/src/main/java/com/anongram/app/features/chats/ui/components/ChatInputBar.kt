@@ -38,6 +38,7 @@ internal fun ChatInputBar(
     onCancelRecording: () -> Unit,
     onStopLockedRecording: () -> Unit,
     onOpenFullEditor: () -> Unit = {},
+    onFocusInput: () -> Unit = {},
     focusRequester: FocusRequester? = null,
     modifier: Modifier = Modifier
 ) {
@@ -67,6 +68,7 @@ internal fun ChatInputBar(
         onCancelRecording = onCancelRecording,
         onStopLockedRecording = onStopLockedRecording,
         onOpenFullEditor = onOpenFullEditor,
+        onFocusInput = onFocusInput,
         focusRequester = focusRequester,
         modifier = modifier
     )
