@@ -229,51 +229,130 @@ interface IAuthRepository {
 
 ---
 
-## 6. ГОТОВЫЙ МАСТЕР-ПРОМПТ ДЛЯ ЗАПУСКА АГЕНТА / СУБАГЕНТА
+---
 
-Скопируйте текст ниже и передайте его агенту (или используйте для автономного запуска субагента):
+## 6. СТРОГАЯ КАРТА ФАЙЛОВ И ТРЕБОВАНИЯ К ДОКУМЕНТАЦИИ
+
+### 6.1. Точные пути создаваемых файлов (Strict File Map)
+
+Все файлы модуля Auth должны быть размещены строго по следующим путям (не создавать файлы в случайных папках!):
+
+```
+frontend/android/app/src/main/java/com/anongram/app/features/auth/
+├── AUTH_CHANGELOG.md                          # Обязательный журнал изменений и описание компонентов
+├── domain/
+│   ├── model/
+│   │   ├── UserIdentity.kt                    # Модель пользователя (publicId, nickname, avatarUri, masterVkHex)
+│   │   ├── AuthState.kt                       # Sealed-интерфейс состояний: Loading, Unauthenticated, Authenticated
+│   │   └── SeedPhrase.kt                      # Модель мнемоники BIP-39 (12/24 слова)
+│   └── repository/
+│       └── IAuthRepository.kt                 # Интерфейс репозитория аутентификации
+├── data/
+│   ├── crypto/
+│   │   ├── Bip39WordList.kt                   # Массив 2048 слов официального словаря BIP-39
+│   │   ├── KeyGenerator.kt                    # Деривация Seed, Ed25519 ключей и вычисление Public ID (SHA-256)
+│   │   └── KeystoreVault.kt                   # Безопасное хранилище в Android Keystore / EncryptedSharedPreferences
+│   └── repository/
+│       └── AuthRepositoryImpl.kt              # Реализация IAuthRepository с публикацией паспорта на бэкенд
+└── ui/
+    ├── WelcomeScreen.kt                       # Приветственный экран с кнопками «Создать личность» и «Войти»
+    ├── registration/
+    │   ├── CreateIdentityScreen.kt            # Ввод псевдонима, выбор аватара, запуск генерации ключей
+    │   └── BackupSeedScreen.kt                # Сетка 3x4 из 12 слов, предупреждение о защите, тест памяти
+    ├── login/
+    │   └── RestoreAccountScreen.kt            # Ввод мнемоники с автокомплитом и кнопкой вставки из буфера
+    ├── pin/
+    │   └── PinLockScreen.kt                   # Локальный PIN-код и вызов биометрии
+    ├── state/
+    │   └── AuthViewModel.kt                   # ViewModel с StateFlow<AuthState>
+    └── navigation/
+        └── AuthNavGraph.kt                    # Навигационный граф переходов между экранами авторизации
+```
+
+Файлы для интеграции:
+- Точка входа приложения:
+  `frontend/android/app/src/main/java/com/anongram/app/MainActivity.kt`
+- Каркас навигации (переход в профиль):
+  `frontend/android/app/src/main/java/com/anongram/app/features/profile/ui/ProfileScreen.kt`
+
+---
+
+### 6.2. Требования к документированию и комментированию кода (КРИТИЧЕСКИ ВАЖНО)
+
+1. **Подробные KDoc комментарии в каждом файле**:
+   - Каждый класс, интерфейс, `data class`, функция и публичное свойство должны сопровождаться чётким KDoc-комментарием на русском языке.
+   - Описывать: назначение компонента, архитектурную роль, входные параметры и возвращаемое значение.
+   - В сложных алгоритмах (деривация ключей, тест мнемоники, переходы UI) оставлять построчные поясняющие комментарии.
+2. **Обязательный файл журнала изменений `AUTH_CHANGELOG.md`**:
+   - Агент обязан создать и заполнить файл `frontend/android/app/src/main/java/com/anongram/app/features/auth/AUTH_CHANGELOG.md`.
+   - В нём необходимо задокументировать:
+     - Список всех созданных файлов с описанием их ответственности.
+     - Описание доменных моделей и потока данных.
+     - Инструкцию, как работает проверка сессии при старте приложения.
+     - Описание связи с бэкендом (публикация Passport Blob).
+
+---
+
+## 7. ГОТОВЫЙ МАСТЕР-ПРОМПТ ДЛЯ ЗАПУСКА АГЕНТА В ОТДЕЛЬНОМ ОКНЕ/ТАБЕ
+
+Скопируйте текст ниже и передайте его агенту для выполнения задачи:
 
 ```text
 Ты — ведущий Android-разработчик AnonGram (Kotlin, Jetpack Compose, Clean Architecture).
 
 ТВОЯ ЗАДАЧА:
-Разработать и подключить модуль Регистрации и Аутентификации в пакете `com.anongram.app.features.auth` в соответствии со спецификацией REGISTRATION_AND_AUTH_SPEC.md и связать его с MainActivity.kt.
+Разработать и подключить модуль Регистрации и Аутентификации (Вход и Регистрация) в строгом соответствии со спецификацией `REGISTRATION_AND_AUTH_SPEC.md` и связать его с `MainActivity.kt`.
 
-ЖЕСТКИЕ ПРАВИЛА ПРОЕКТА:
-1. СТРОГО ЗАПРЕЩЕНО запускать локальную сборку `./gradlew` на машине пользователя. Сборка выполняется ТОЛЬКО через GitHub Actions Cloud CI (git commit && git push origin main).
-2. При установке APK на устройство (adb -t 1 install -r -d ...) выполнять ТОЛЬКО тихую установку. ЗАПРЕЩЕНО запускать приложение через monkey, am start и т.д. Пользователь откроет его сам!
+СТРОЖАЙШИЕ ПРАВИЛА ПРОЕКТА:
+1. СТРОГО ЗАПРЕЩЕНО запускать локальную сборку `./gradlew` на машине пользователя. Все сборки выполняются ИСКЛЮЧИТЕЛЬНО через GitHub Actions Cloud CI (git add -A && git commit -m "..." && git push origin main).
+2. При установке APK на устройство (adb -t 1 install -r -d ...) выполнять ТОЛЬКО тихую установку. СТРОГО ЗАПРЕЩЕНО запускать приложение командами monkey, am start и др. Пользователь откроет приложение сам!
 3. Все пересылки сообщений строго анонимны (forwardedFrom = null).
-4. Основной модуль features/attach/ ЗАЩИЩЁН и НЕ ДОЛЖЕН модифицироваться.
+4. Основной модуль `features/attach/` ЗАЩИЩЁН и НЕ ДОЛЖЕН модифицироваться.
 5. Регистрация полностью децентрализована: 12 слов BIP-39, деривация Ed25519, publicId = SHA256(MasterVK). Никаких номеров телефонов или email!
 
+ТОЧНЫЕ ПУТИ ФАЙЛОВ ДЛЯ СОЗДАНИЯ (СОЗДАВАТЬ СТРОГО ЗДЕСЬ!):
+- Журнал изменений:
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/AUTH_CHANGELOG.md`
+- Domain Layer:
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/domain/model/UserIdentity.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/domain/model/AuthState.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/domain/model/SeedPhrase.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/domain/repository/IAuthRepository.kt`
+- Data Layer:
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/data/crypto/Bip39WordList.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/data/crypto/KeyGenerator.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/data/crypto/KeystoreVault.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/data/repository/AuthRepositoryImpl.kt`
+- UI Layer (Jetpack Compose):
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/ui/WelcomeScreen.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/ui/registration/CreateIdentityScreen.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/ui/registration/BackupSeedScreen.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/ui/login/RestoreAccountScreen.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/ui/pin/PinLockScreen.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/ui/state/AuthViewModel.kt`
+  `frontend/android/app/src/main/java/com/anongram/app/features/auth/ui/navigation/AuthNavGraph.kt`
+- Интеграция:
+  `frontend/android/app/src/main/java/com/anongram/app/MainActivity.kt`
+
+ОБЯЗАТЕЛЬНЫЕ ТРЕБОВАНИЯ К КОММЕНТАРИЯМ И ДОКУМЕНТАЦИИ:
+1. Каждый файл должен содержать подробные KDoc-комментарии на русском языке с объяснением назначения каждого класса, интерфейса и метода.
+2. В файле `AUTH_CHANGELOG.md` подробно задокументируй все сделанные изменения: назначение каждого файла, архитектуру и логику переходов.
+
 ПЛАН РЕАЛИЗАЦИИ:
-Шаг 1. Создать доменные модели и интерфейс репозитория:
-- `com.anongram.app.features.auth.domain.model.UserIdentity`
-- `com.anongram.app.features.auth.domain.model.AuthState`
-- `com.anongram.app.features.auth.domain.model.SeedPhrase`
-- `com.anongram.app.features.auth.domain.repository.IAuthRepository`
-
-Шаг 2. Реализовать криптографию и локальное защищённое хранилище (data layer):
-- `Bip39WordList.kt`: встроенный массив 2048 слов BIP-39.
-- `KeyGenerator.kt`: генератор 12 слов, деривация seed и вычисление publicId (SHA-256).
-- `KeystoreVault.kt`: сохранение профиля и ключей в EncryptedSharedPreferences / SharedPreferences с шифрованием.
-- `AuthRepositoryImpl.kt`: реализация IAuthRepository с публикацией паспорта на бэкенд.
-
-Шаг 3. Реализовать UI-экраны в Jetpack Compose (ObsidianBlack, неоновый фиолетовый #8B5CF6):
-- `WelcomeScreen.kt`: приветствие с логотипом, описанием преимуществ и кнопками «Создать личность» и «Войти».
-- `CreateIdentityScreen.kt`: ввод псевдонима, выбор аватара, визуализатор генерации ключей.
-- `BackupSeedScreen.kt`: сетка 3x4 из 12 слов, предупреждение о безопасности, копирование и тест памяти (выбор 3-го и 7-го слова).
-- `RestoreAccountScreen.kt`: ввод 12 слов с автокомплитом и вставкой из буфера.
-- `AuthViewModel.kt`: управление StateFlow<AuthState>.
-- `AuthNavGraph.kt`: навигация между экранами авторизации.
-
-Шаг 4. Интеграция в MainActivity:
-- При запуске проверять authRepository.checkExistingSession(). Если пользователь не авторизован — открывать AuthNavGraph.
-- При успешной авторизации плавно переключать на MainAppShell.
-
-Шаг 5. Деплой и верификация:
-- git commit и git push origin main.
-- Дождаться сборки в GitHub Actions Cloud CI.
-- Скачать APK и установить через adb -t 1 install -r -d build-artifacts/debug/app-debug.apk.
-- Ни в коем случае НЕ открывать приложение через adb!
+Шаг 1. Создать доменные модели и интерфейс IAuthRepository с полными KDoc-комментариями.
+Шаг 2. Реализовать Bip39WordList (2048 слов), KeyGenerator (вычисление Public ID = SHA256(MasterVK)), KeystoreVault (Android Keystore / EncryptedSharedPreferences) и AuthRepositoryImpl.
+Шаг 3. Реализовать экраны Jetpack Compose в теме ObsidianBlack с неоновыми фиолетовыми акцентами (#8B5CF6 / #C084FC):
+  - WelcomeScreen: футуристичный экран первого запуска с щитом AnonGram и кнопками «Создать анонимную личность» и «Войти».
+  - CreateIdentityScreen: ввод псевдонима, неоновый аватар, анимация генерации ключей.
+  - BackupSeedScreen: сетка 3x4 из 12 слов, предупреждение о безопасности, копирование и тест памяти (проверка 3-го и 7-го слова).
+  - RestoreAccountScreen: ввод 12 слов с автокомплитом и вставкой из буфера.
+  - AuthViewModel и AuthNavGraph.
+Шаг 4. Интеграция в MainActivity.kt:
+  - Проверять состояние authRepository.checkExistingSession().
+  - Если Unauthenticated -> показывать AuthNavGraph.
+  - Если Authenticated -> показывать MainAppShell.
+Шаг 5. Заполнить `AUTH_CHANGELOG.md`, закоммитить изменения, отправить в main, дождаться Cloud CI сборки, скачать APK и установить тихо через ADB:
+  `adb -t 1 install -r -d build-artifacts/debug/app-debug.apk`
+  (НЕ открывать приложение через adb!).
 ```
+
