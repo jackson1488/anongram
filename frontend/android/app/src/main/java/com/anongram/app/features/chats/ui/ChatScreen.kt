@@ -431,6 +431,7 @@ fun ChatScreen(
                                     parts[0].toLong() * 60_000L + parts[1].toLong() * 1000L
                                 }.getOrDefault(15_000L)
                                 val isOut = msg.direction == MessageDirection.OUTGOING
+                                val name = if (isOut) "Вы" else session.title
                                 val voiceUri = if (!v.uri.isNullOrBlank()) {
                                     val f = java.io.File(v.uri)
                                     if (f.exists()) {
