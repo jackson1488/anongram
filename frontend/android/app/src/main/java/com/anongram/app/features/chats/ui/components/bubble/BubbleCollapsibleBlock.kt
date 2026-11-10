@@ -54,57 +54,71 @@ fun BubbleCollapsibleBlock(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF1E1E26))
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
+            .background(scheme.accent.copy(alpha = 0.12f))
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            // Заголовок со стрелкой-шевроном (^ / v)
-            Row(
+        Row(modifier = Modifier.fillMaxWidth()) {
+            // Вертикальная акцентная линия слева
+            Box(
+                modifier = Modifier
+                    .width(3.5.dp)
+                    .matchParentSize()
+                    .background(scheme.accent, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+            )
+
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { isExpanded = !isExpanded }
-                    .padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(vertical = 4.dp)
             ) {
-                Icon(
-                    imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                    contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
-                    tint = scheme.accent,
-                    modifier = Modifier.size(20.dp)
-                )
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                Text(
-                    text = title.ifBlank { "Сворачиваемый блок" },
-                    color = Color.White,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Скрываемое тело блока
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
-            ) {
-                Column(modifier = Modifier.fillMaxWidth()) {
-                    HorizontalDivider(
-                        color = Color(0x22FFFFFF),
-                        thickness = 0.5.dp
+                // Заголовок со стрелкой-шевроном (^ / v)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { isExpanded = !isExpanded }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
+                        tint = scheme.accent,
+                        modifier = Modifier.size(20.dp)
                     )
+
+                    Spacer(modifier = Modifier.width(8.dp))
+
                     Text(
-                        text = content,
-                        color = Color(0xFFE2E8F0),
-                        fontSize = 14.sp,
-                        lineHeight = 20.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp)
+                        text = title.ifBlank { "Сворачиваемый блок" },
+                        color = Color.White,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
                     )
+                }
+
+                // Скрываемое тело блока
+                AnimatedVisibility(
+                    visible = isExpanded,
+                    enter = expandVertically() + fadeIn(),
+                    exit = shrinkVertically() + fadeOut()
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        HorizontalDivider(
+                            color = scheme.accent.copy(alpha = 0.2f),
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(horizontal = 10.dp)
+                        )
+                        Text(
+                            text = content,
+                            color = Color(0xFFE2E8F0),
+                            fontSize = 14.sp,
+                            lineHeight = 20.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 10.dp, vertical = 8.dp)
+                        )
+                    }
                 }
             }
         }

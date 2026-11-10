@@ -38,14 +38,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 
-enum class TextStyleFormat(val label: String, val glyph: String, val hasStar: Boolean = false) {
-    HEADING("Заголовок", "H", hasStar = true),
+enum class TextStyleFormat(val label: String, val glyph: String) {
+    HEADING("Заголовок", "H"),
     NORMAL("Текст", "T"),
     QUOTE("Цитата", "“"),
-    CALLOUT("Выноска", "≡", hasStar = true),
-    SPOILER("Спойлер", "✦", hasStar = true),
-    CODE("Код", "</>"),
-    SMALL("Мелкий шрифт", "≡", hasStar = true)
+    CALLOUT("Выноска", "≡"),
+    SPOILER("Спойлер", "✦"),
+    CODE("Код", "</>")
 }
 
 val CodeLanguages = listOf(
@@ -104,7 +103,8 @@ fun StylePopupMenu(
                                     if (format == TextStyleFormat.HEADING) {
                                         isHeadingSubmenuOpen = true
                                     } else {
-                                        onSelectFormat(format)
+                                        val newFormat = if (isSelected) TextStyleFormat.NORMAL else format
+                                        onSelectFormat(newFormat)
                                         onDismiss()
                                     }
                                 }
@@ -124,14 +124,6 @@ fun StylePopupMenu(
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = if (format == TextStyleFormat.CODE) FontFamily.Monospace else FontFamily.Default
                                     )
-                                    if (format.hasStar) {
-                                        Text(
-                                            text = "★",
-                                            color = Color(0xFFC084FC),
-                                            fontSize = 7.sp,
-                                            modifier = Modifier.align(Alignment.BottomEnd)
-                                        )
-                                    }
                                 }
 
                                 Spacer(modifier = Modifier.width(12.dp))

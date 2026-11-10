@@ -40,52 +40,65 @@ fun BubbleCalloutBlock(
 ) {
     val scheme = LocalAnonGramScheme.current
 
-    val containerBg = if (isQuote) Color(0xFF1E1F29) else Color(0xFF261D35)
-    val borderColor = if (isQuote) scheme.accent.copy(alpha = 0.5f) else Color(0xFFC084FC).copy(alpha = 0.6f)
+    val containerBg = if (isQuote) scheme.accent.copy(alpha = 0.12f) else Color(0xFFC084FC).copy(alpha = 0.12f)
+    val accentColor = if (isQuote) scheme.accent else Color(0xFFC084FC)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(10.dp))
             .background(containerBg)
-            .border(1.dp, borderColor, RoundedCornerShape(12.dp))
-            .padding(12.dp)
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top
+        Row(modifier = Modifier.fillMaxWidth()) {
+            // Вертикальная акцентная линия цитаты / выноски
+            Box(
+                modifier = Modifier
+                    .width(3.5.dp)
+                    .matchParentSize()
+                    .background(accentColor, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 8.dp)
             ) {
-                Icon(
-                    imageVector = if (isQuote) Icons.Outlined.FormatQuote else Icons.Outlined.Lightbulb,
-                    contentDescription = null,
-                    tint = if (isQuote) scheme.accent else Color(0xFFC084FC),
-                    modifier = Modifier
-                        .size(20.dp)
-                        .padding(top = 2.dp)
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = text,
-                        color = Color.White,
-                        fontSize = 14.5.sp,
-                        fontStyle = if (isQuote) FontStyle.Italic else FontStyle.Normal,
-                        lineHeight = 21.sp
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Icon(
+                        imageVector = if (isQuote) Icons.Outlined.FormatQuote else Icons.Outlined.Lightbulb,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .padding(top = 2.dp)
                     )
 
-                    if (!author.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = if (author.startsWith("—")) author else "— $author",
-                            color = Color(0xFFA1A1AA),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            fontStyle = FontStyle.Italic,
-                            modifier = Modifier.align(Alignment.End)
+                            text = text,
+                            color = Color.White,
+                            fontSize = 14.5.sp,
+                            fontStyle = if (isQuote) FontStyle.Italic else FontStyle.Normal,
+                            lineHeight = 21.sp
                         )
+
+                        if (!author.isNullOrBlank() && author.trim() != "—" && author.trim() != "-") {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val cleanAuthor = author.trim().removePrefix("—").removePrefix("-").trim()
+                            Text(
+                                text = "— $cleanAuthor",
+                                color = Color(0xFFA1A1AA),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                fontStyle = FontStyle.Italic,
+                                modifier = Modifier.align(Alignment.End)
+                            )
+                        }
                     }
                 }
             }

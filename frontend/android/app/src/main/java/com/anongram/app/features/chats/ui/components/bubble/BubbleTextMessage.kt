@@ -178,20 +178,39 @@ fun BubbleTextMessage(
         return
     }
 
-    // 5. Проверяем наличие чек-листа (☐ или ☑)
-    if (trimmed.lines().any { it.trimStart().startsWith("☐") || it.trimStart().startsWith("☑") }) {
+    // 5. Проверяем наличие чек-листа (☐ / ☑ / [ ] / [x] / - [ ] / - [x])
+    val hasChecklist = trimmed.lines().any { line ->
+        val t = line.trimStart()
+        t.startsWith("☐") || t.startsWith("☑") ||
+        t.startsWith("- [ ]") || t.startsWith("- [x]", ignoreCase = true) ||
+        t.startsWith("[ ]") || t.startsWith("[x]", ignoreCase = true)
+    }
+    if (hasChecklist) {
         Column(modifier = modifier) {
             trimmed.lines().forEach { line ->
-                val lineTrimmed = line.trimStart()
-                if (lineTrimmed.startsWith("☐") || lineTrimmed.startsWith("☑")) {
+                val t = line.trimStart()
+                val isCheckItem = t.startsWith("☐") || t.startsWith("☑") ||
+                    t.startsWith("- [ ]") || t.startsWith("- [x]", ignoreCase = true) ||
+                    t.startsWith("[ ]") || t.startsWith("[x]", ignoreCase = true)
+
+                if (isCheckItem) {
+                    val (isChecked, itemText) = when {
+                        t.startsWith("☑") -> Pair(true, t.substring(1).trim())
+                        t.startsWith("☐") -> Pair(false, t.substring(1).trim())
+                        t.startsWith("- [x]", ignoreCase = true) -> Pair(true, t.substring(5).trim())
+                        t.startsWith("- [ ]") -> Pair(false, t.substring(5).trim())
+                        t.startsWith("[x]", ignoreCase = true) -> Pair(true, t.substring(3).trim())
+                        t.startsWith("[ ]") -> Pair(false, t.substring(3).trim())
+                        else -> Pair(false, t)
+                    }
                     InteractiveChecklistItem(
-                        initialChecked = lineTrimmed.startsWith("☑"),
-                        text = lineTrimmed.substring(1).trim(),
+                        initialChecked = isChecked,
+                        text = itemText,
                         textSizeSp = textSizeSp
                     )
                 } else if (line.isNotBlank()) {
                     Text(
-                        text = line,
+                        text = buildRichAnnotatedText(line, scheme.accent),
                         color = TextPrimary,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.26f).sp,
@@ -255,7 +274,7 @@ fun BubbleTextMessage(
     // 7. Проверяем заголовки H1..H6 (# ... ######)
     val firstLine = rawText.lines().firstOrNull() ?: ""
     val headingMatch = Regex("^(#{1,6})\\s+(.+)").find(firstLine)
-    if (headingMatch != null && rawText.lines().size <= 5) {
+    if (headingMatch != null) {
         val hashes = headingMatch.groupValues[1]
         val headingTitle = headingMatch.groupValues[2]
         val remaining = rawText.lines().drop(1).joinToString("\n").trim()

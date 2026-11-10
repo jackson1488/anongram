@@ -77,7 +77,8 @@ fun ListPopupMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            onSelectStyle(style)
+                            val newStyle = if (isSelected) ListStyle.NONE else style
+                            onSelectStyle(newStyle)
                             onDismiss()
                         }
                         .padding(horizontal = 14.dp, vertical = 9.dp),
@@ -184,40 +185,44 @@ object ListFormattingHelper {
                 ListStyle.BULLET -> "• "
                 ListStyle.NUMBERED -> "1. "
                 ListStyle.CHECKLIST -> "☐ "
-                ListStyle.COLLAPSIBLE -> "^ Заголовок\nСодержимое блока"
+                ListStyle.COLLAPSIBLE -> "^ "
             }
         }
 
-        val lines = text.split("\n")
+        if (style == ListStyle.COLLAPSIBLE) {
+            return if (text.startsWith("^ ")) text
+            else if (text.isBlank()) "^ "
+            else "^ \n$text"
+        }
+
+        val cleanText = if (text.startsWith("^ ")) text.removePrefix("^ ") else text
+        val lines = cleanText.split("\n")
         return when (style) {
             ListStyle.NONE -> {
                 lines.joinToString("\n") { line ->
-                    line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
+                    line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑]|\\[[ xX]\\]|-\\s*\\[[ xX]\\])\\s*"), "$1")
                 }
             }
             ListStyle.BULLET -> {
                 lines.joinToString("\n") { line ->
-                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
+                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑]|\\[[ xX]\\]|-\\s*\\[[ xX]\\])\\s*"), "$1")
                     if (clean.isBlank()) "• " else "• $clean"
                 }
             }
             ListStyle.NUMBERED -> {
                 var counter = 1
                 lines.joinToString("\n") { line ->
-                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
+                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑]|\\[[ xX]\\]|-\\s*\\[[ xX]\\])\\s*"), "$1")
                     if (clean.isBlank()) "${counter++}. " else "${counter++}. $clean"
                 }
             }
             ListStyle.CHECKLIST -> {
                 lines.joinToString("\n") { line ->
-                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑])\\s*"), "$1")
+                    val clean = line.replaceFirst(Regex("^(\\s*)([•\\-]|\\d+\\.|[☐☑]|\\[[ xX]\\]|-\\s*\\[[ xX]\\])\\s*"), "$1")
                     if (clean.isBlank()) "☐ " else "☐ $clean"
                 }
             }
-            ListStyle.COLLAPSIBLE -> {
-                if (text.startsWith("^ ")) text
-                else "^ Заголовок\n${if (text.isBlank()) "Содержимое блока" else text}"
-            }
+            ListStyle.COLLAPSIBLE -> text
         }
     }
 
@@ -260,7 +265,7 @@ object SmartListEnterHelper {
         // 1. Пустой маркер: пользователь нажал Enter на пустом пункте -> стереть маркер и выйти из списка
         val emptyBullet = lineBeforeCursor.matches(Regex("^(\\s*)•\\s*$"))
         val emptyNumber = lineBeforeCursor.matches(Regex("^(\\s*)\\d+\\.\\s*$"))
-        val emptyCheck = lineBeforeCursor.matches(Regex("^(\\s*)[☐☑]\\s*$"))
+        val emptyCheck = lineBeforeCursor.matches(Regex("^(\\s*)([☐☑]|\\[[ xX]\\]|-\\s*\\[[ xX]\\])\\s*$"))
 
         if (emptyBullet || emptyNumber || emptyCheck) {
             val updatedText = oldText.substring(0, lineStart) + oldText.substring(cursor)
@@ -288,8 +293,8 @@ object SmartListEnterHelper {
             return TextFieldValue(text = updatedText, selection = TextRange(newCursor))
         }
 
-        // 4. Чек-лист (☐ / ☑)
-        val checkMatch = Regex("^(\\s*)[☐☑]\\s+").find(lineBeforeCursor)
+        // 4. Чек-лист (☐ / ☑ / [ ] / [x] / - [ ])
+        val checkMatch = Regex("^(\\s*)([☐☑]|\\[[ xX]\\]|-\\s*\\[[ xX]\\])\\s+").find(lineBeforeCursor)
         if (checkMatch != null) {
             val indent = checkMatch.groupValues[1]
             val continuation = "\n${indent}☐ "

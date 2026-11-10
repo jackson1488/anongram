@@ -76,6 +76,18 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.changedToDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.style.TextDecoration
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.features.chats.messages.domain.ChatMessage
@@ -83,6 +95,7 @@ import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.ui.components.EmojiStickerPanel
+import com.anongram.app.features.chats.ui.components.bubble.ChatRealPhotoBox
 import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
 import java.util.Locale
 
@@ -240,100 +253,255 @@ fun ChatFullTextEditorScreen(
                         .fillMaxSize()
                         .verticalScroll(scrollState)
                 ) {
-                    // Карточка активного прикреплённого медиа со стеком
-                    val activeAttachment = attachedMediaList.lastOrNull()
-                    if (activeAttachment != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(bottom = 12.dp)
-                                .shadow(8.dp, RoundedCornerShape(14.dp))
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFF1E1E24))
-                                .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
-                                .padding(10.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                    // Превью прикреплённых медиафайлов: полноразмерное фото или сетка-альбом
+                    if (attachedMediaList.isNotEmpty()) {
+                        val photos = attachedMediaList.filterIsInstance<MessageAttachment.Photo>()
+                        if (photos.size == 1 && attachedMediaList.size == 1) {
+                            // Одиночное фото / видео: крупная карточка с реальным изображением
+                            val photo = photos.first()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(210.dp)
+                                    .padding(bottom = 12.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF1E1E24))
+                                    .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                             ) {
-                                val fakeMsg = remember(activeAttachment) {
-                                    ChatMessage(
-                                        id = "draft_preview",
-                                        direction = MessageDirection.OUTGOING,
-                                        epochMs = System.currentTimeMillis(),
-                                        attachment = activeAttachment
+                                if (photo.uri != null) {
+                                    ChatRealPhotoBox(
+                                        uriString = photo.uri,
+                                        isVideo = photo.isVideo,
+                                        hasSpoiler = photo.hasSpoiler,
+                                        modifier = Modifier.fillMaxSize()
                                     )
                                 }
-                                ReplyAttachmentMiniThumb(
-                                    message = fakeMsg,
-                                    accent = scheme.accent,
-                                    size = 44.dp
-                                )
-
-                                Spacer(modifier = Modifier.width(10.dp))
-
-                                Column(modifier = Modifier.weight(1f)) {
-                                    val (title, subtitle) = when (activeAttachment) {
-                                        is MessageAttachment.Photo -> {
-                                            val t = if (activeAttachment.isVideo) "Видеозапись" else "Фотография"
-                                            val sub = if (activeAttachment.label.isNotBlank()) activeAttachment.label else "Медиафайл"
-                                            Pair(t, sub)
-                                        }
-                                        is MessageAttachment.Music -> {
-                                            Pair(activeAttachment.title, "${activeAttachment.artist} • ${activeAttachment.durationLabel}")
-                                        }
-                                        is MessageAttachment.File -> {
-                                            Pair(activeAttachment.name, "${activeAttachment.kind.label} • ${activeAttachment.sizeLabel}")
-                                        }
-                                        else -> Pair("Вложение", "Файл")
-                                    }
-
+                                // Кнопка удаления
+                                IconButton(
+                                    onClick = { attachedMediaList = emptyList() },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(8.dp)
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.65f))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Close,
+                                        contentDescription = "Удалить вложение",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                                // Кнопка «+ Добавить ещё»
+                                Row(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomEnd)
+                                        .padding(8.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Color.Black.copy(alpha = 0.75f))
+                                        .clickable { isEditorAttachOpen = true }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Add,
+                                        contentDescription = null,
+                                        tint = scheme.accent,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = title,
+                                        text = "Добавить ещё",
                                         color = Color.White,
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = subtitle,
-                                        color = Color(0xFFA1A1AA),
                                         fontSize = 12.sp,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
+                                        fontWeight = FontWeight.SemiBold
                                     )
                                 }
-
-                                if (attachedMediaList.size > 1) {
-                                    Box(
+                            }
+                        } else if (photos.size >= 2 && photos.size == attachedMediaList.size) {
+                            // Альбом фотографий: компактная сетка с кнопкой добавления
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF1E1E24))
+                                    .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                                    .padding(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Альбом (${photos.size} фото)",
+                                        color = Color.White,
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Row(
                                         modifier = Modifier
-                                            .padding(end = 6.dp)
-                                            .clip(RoundedCornerShape(10.dp))
-                                            .background(scheme.accent.copy(alpha = 0.25f))
-                                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                                            .clip(RoundedCornerShape(14.dp))
+                                            .background(scheme.accent.copy(alpha = 0.2f))
+                                            .clickable { isEditorAttachOpen = true }
+                                            .padding(horizontal = 10.dp, vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Add,
+                                            contentDescription = null,
+                                            tint = scheme.accent,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "+${attachedMediaList.size - 1}",
+                                            text = "Добавить ещё",
                                             color = scheme.accent,
-                                            fontSize = 11.sp,
+                                            fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold
                                         )
                                     }
                                 }
 
-                                IconButton(
-                                    onClick = { attachedMediaList = attachedMediaList.dropLast(1) },
-                                    modifier = Modifier.size(32.dp)
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Close,
-                                        contentDescription = "Удалить вложение",
-                                        tint = Color(0xFFA1A1AA),
-                                        modifier = Modifier.size(18.dp)
-                                    )
+                                    itemsIndexed(photos) { index, item ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(110.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(Color(0xFF26262E))
+                                        ) {
+                                            if (item.uri != null) {
+                                                ChatRealPhotoBox(
+                                                    uriString = item.uri,
+                                                    isVideo = item.isVideo,
+                                                    hasSpoiler = item.hasSpoiler,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            } else {
+                                                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                                    Icon(Icons.Outlined.Image, contentDescription = null, tint = Color.White)
+                                                }
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    attachedMediaList = attachedMediaList.filterIndexed { i, _ -> i != index }
+                                                },
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .padding(4.dp)
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.Black.copy(alpha = 0.65f))
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Close,
+                                                    contentDescription = "Удалить",
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            // Файлы, музыка или смешанные вложения
+                            val activeAttachment = attachedMediaList.last()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp)
+                                    .shadow(8.dp, RoundedCornerShape(14.dp))
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF1E1E24))
+                                    .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+                                    .padding(10.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    val (title, subtitle, icon) = when (activeAttachment) {
+                                        is MessageAttachment.Music -> Triple(
+                                            activeAttachment.title,
+                                            "${activeAttachment.artist} • ${activeAttachment.durationLabel}",
+                                            Icons.Outlined.MusicNote
+                                        )
+                                        is MessageAttachment.File -> Triple(
+                                            activeAttachment.name,
+                                            "${activeAttachment.kind.label} • ${activeAttachment.sizeLabel}",
+                                            Icons.Outlined.Description
+                                        )
+                                        else -> Triple("Вложение", "Файл", Icons.Outlined.Description)
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(scheme.accent.copy(alpha = 0.2f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(imageVector = icon, contentDescription = null, tint = scheme.accent, modifier = Modifier.size(24.dp))
+                                    }
+
+                                    Spacer(modifier = Modifier.width(10.dp))
+
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = title,
+                                            color = Color.White,
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(
+                                            text = subtitle,
+                                            color = Color(0xFFA1A1AA),
+                                            fontSize = 12.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+
+                                    if (attachedMediaList.size > 1) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(end = 6.dp)
+                                                .clip(RoundedCornerShape(10.dp))
+                                                .background(scheme.accent.copy(alpha = 0.25f))
+                                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                                        ) {
+                                            Text(
+                                                text = "+${attachedMediaList.size - 1}",
+                                                color = scheme.accent,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                        }
+                                    }
+
+                                    IconButton(
+                                        onClick = { attachedMediaList = attachedMediaList.dropLast(1) },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Close,
+                                            contentDescription = "Удалить вложение",
+                                            tint = Color(0xFFA1A1AA),
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -447,11 +615,6 @@ fun ChatFullTextEditorScreen(
                             fontStyle = FontStyle.Italic,
                             lineHeight = 22.sp
                         )
-                        TextStyleFormat.SMALL -> TextStyle(
-                            color = Color(0xFFA1A1AA),
-                            fontSize = 12.sp,
-                            lineHeight = 17.sp
-                        )
                         else -> TextStyle(
                             color = Color.White,
                             fontSize = 16.sp,
@@ -459,16 +622,24 @@ fun ChatFullTextEditorScreen(
                         )
                     }
 
+                    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+
                     Box(modifier = editorBoxModifier) {
                         if (undoState.currentText.isEmpty()) {
                             Text(
                                 text = when (selectedFormat) {
                                     TextStyleFormat.CODE -> "Введите код ($selectedLanguage)..."
                                     TextStyleFormat.HEADING -> "Заголовок H$selectedHeadingLevel..."
-                                    TextStyleFormat.QUOTE -> "Цитата...\n— Автор"
-                                    TextStyleFormat.CALLOUT -> "Текст выноски...\n— Автор"
-                                    else -> "Введите текст..."
+                                    TextStyleFormat.QUOTE -> "Цитата..."
+                                    TextStyleFormat.CALLOUT -> "Текст выноски..."
+                                    else -> if (selectedListStyle == ListStyle.COLLAPSIBLE) "Введите заголовок..." else "Введите текст..."
                                 },
+                                color = Color(0xFF64748B),
+                                style = textStyle
+                            )
+                        } else if (undoState.currentText == "^ " || undoState.currentText == "^") {
+                            Text(
+                                text = "  Введите заголовок...",
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
@@ -480,12 +651,52 @@ fun ChatFullTextEditorScreen(
                                 val processed = SmartListEnterHelper.processEnter(undoState.textFieldValue, newVal)
                                 undoState.updateValue(processed)
                             },
+                            onTextLayout = { textLayoutResult = it },
                             visualTransformation = remember(scheme.accent) { EditorWysiwygVisualTransformation(scheme.accent) },
                             textStyle = textStyle,
                             cursorBrush = SolidColor(scheme.accent),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester)
+                                .pointerInput(undoState.textFieldValue.text) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                                            val down = event.changes.firstOrNull { it.changedToDown() } ?: continue
+                                            val layout = textLayoutResult ?: continue
+                                            val text = undoState.textFieldValue.text
+                                            if (text.isEmpty()) continue
+
+                                            val offset = layout.getOffsetForPosition(down.position)
+                                            if (offset in text.indices) {
+                                                val lineIndex = layout.getLineForOffset(offset)
+                                                val lineStart = layout.getLineStart(lineIndex)
+                                                val lineEnd = layout.getLineEnd(lineIndex)
+                                                val line = text.substring(lineStart, lineEnd)
+                                                val t = line.trimStart()
+                                                val leadingSpaces = line.length - t.length
+                                                val checkStart = lineStart + leadingSpaces
+
+                                                if (offset in checkStart..(checkStart + 5).coerceAtMost(text.length)) {
+                                                    val (hasMatch, toggledPrefix, oldLen) = when {
+                                                        t.startsWith("☐") -> Triple(true, "☑", 1)
+                                                        t.startsWith("☑") -> Triple(true, "☐", 1)
+                                                        t.startsWith("[ ]") -> Triple(true, "[x]", 3)
+                                                        t.startsWith("[x]", ignoreCase = true) -> Triple(true, "[ ]", 3)
+                                                        t.startsWith("- [ ]") -> Triple(true, "- [x]", 5)
+                                                        t.startsWith("- [x]", ignoreCase = true) -> Triple(true, "- [ ]", 5)
+                                                        else -> Triple(false, "", 0)
+                                                    }
+                                                    if (hasMatch) {
+                                                        down.consume()
+                                                        val newText = text.substring(0, checkStart) + toggledPrefix + text.substring(checkStart + oldLen)
+                                                        undoState.updateText(newText)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                         )
                     }
                 }
@@ -718,6 +929,65 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         italicRegex.findAll(raw).forEach { match ->
             builder.addStyle(
                 SpanStyle(fontStyle = FontStyle.Italic),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        // Подсветка зачёркнутого ~~...~~
+        val strikeRegex = Regex("~~(.*?)~~")
+        strikeRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(textDecoration = TextDecoration.LineThrough),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        // Подсветка подчёркнутого <u>...</u>
+        val underlineRegex = Regex("<u>(.*?)</u>")
+        underlineRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(textDecoration = TextDecoration.Underline),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        // Подсветка сворачиваемого заголовка ^ ...
+        val collapsibleRegex = Regex("(?m)^\\^\\s*(.*)$")
+        collapsibleRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(
+                    color = Color(0xFFC084FC),
+                    fontWeight = FontWeight.SemiBold
+                ),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        // Подсветка заголовков #{1,6} ...
+        val headingRegex = Regex("(?m)^(#{1,6})\\s+(.*)$")
+        headingRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                ),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        // Подсветка выполненных пунктов чек-листа
+        val checkedRegex = Regex("(?m)^(\\s*)(☑|\\[x\\]|-\\s*\\[x\\])\\s*(.*)$", RegexOption.IGNORE_CASE)
+        checkedRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(
+                    color = Color(0xFF94A3B8),
+                    textDecoration = TextDecoration.LineThrough
+                ),
                 match.range.first,
                 match.range.last + 1
             )
