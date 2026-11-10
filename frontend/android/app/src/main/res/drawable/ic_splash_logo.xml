@@ -1,21 +1,22 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="192dp"
     android:height="192dp"
-    android:viewportWidth="24"
-    android:viewportHeight="24">
-    <!-- Master Cryptographic Shield -->
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Neon Purple Master Splash Shield -->
     <path
-        android:pathData="M12,22 C12,22 20,18 20,12 V5 L12,2 L4,5 V12 C4,18 12,22 12,22 Z"
-        android:strokeColor="#00F2FE"
-        android:strokeWidth="1.8"
+        android:pathData="M50,90 C50,90 84,73 84,48 V20 L50,8 L16,20 V48 C16,73 50,90 50,90 Z"
+        android:strokeColor="#C084FC"
+        android:strokeWidth="6"
+        android:fillColor="#150B28"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"/>
-    <!-- Approved Canonical Stealth Plane -->
+    <!-- Stealth Plane Left Wing -->
     <path
-        android:pathData="M7,11 L17,7 L13,17 L11,13 L7,11 Z"
-        android:strokeColor="#FFFFFFFF"
-        android:fillColor="#1AFFFFFF"
-        android:strokeWidth="1.5"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"/>
+        android:pathData="M69,30 L31,52 L49,50 Z"
+        android:fillColor="#9333EA"/>
+    <!-- Stealth Plane Right Wing -->
+    <path
+        android:pathData="M69,30 L72,33 L54,71 L49,50 Z"
+        android:fillColor="#FFFFFF"/>
 </vector>

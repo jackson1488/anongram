@@ -87,14 +87,14 @@ fun ProfileScreen(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(CyberCyan.copy(alpha = 0.15f))
-                    .border(1.dp, CyberCyan.copy(alpha = 0.6f), RoundedCornerShape(16.dp)),
+                    .background(Color(0xFF8B5CF6).copy(alpha = 0.20f))
+                    .border(1.dp, Color(0xFFC084FC).copy(alpha = 0.7f), RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_stat_anongram),
                     contentDescription = null,
-                    tint = TextPrimary,
+                    tint = Color(0xFFC084FC),
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -109,7 +109,7 @@ fun ProfileScreen(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "$displayPublicId (Ed25519)",
-                    color = CyberCyan,
+                    color = Color(0xFFC084FC),
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace
                 )

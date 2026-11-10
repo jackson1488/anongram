@@ -4,19 +4,37 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <group android:translateX="18" android:translateY="18" android:scaleX="3.0" android:scaleY="3.0">
-        <!-- Cryptographic Shield -->
+        <!-- Cryptographic Shield with Neon Purple Accent -->
         <path
             android:pathData="M12,22 C12,22 20,18 20,12 V5 L12,2 L4,5 V12 C4,18 12,22 12,22 Z"
-            android:strokeColor="#00F2FE"
-            android:strokeWidth="1.8"
+            android:strokeColor="#C084FC"
+            android:strokeWidth="1.9"
+            android:fillColor="#150B28"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"/>
-        <!-- Stealth Origami Airplane -->
+        <!-- Inner Glow Contour -->
         <path
-            android:pathData="M7,11 L17,7 L13,17 L11,13 L7,11 Z"
-            android:fillColor="#10B981"
-            android:strokeColor="#FFFFFF"
-            android:strokeWidth="1.2"
+            android:pathData="M12,20 C12,20 18.5,16.5 18.5,11.5 V5.8 L12,3.3 L5.5,5.8 V11.5 C5.5,16.5 12,20 12,20 Z"
+            android:strokeColor="#8B5CF6"
+            android:strokeWidth="0.8"
+            android:strokeAlpha="0.6"/>
+        <!-- Stealth Origami Airplane with Neon Violet Wings -->
+        <!-- Left Wing -->
+        <path
+            android:pathData="M16.5,7.5 L7,12 L11.5,11.8 Z"
+            android:fillColor="#9333EA"/>
+        <!-- Right Wing / Main Body -->
+        <path
+            android:pathData="M16.5,7.5 L17.2,8.2 L13,16.5 L11.5,11.8 Z"
+            android:fillColor="#FFFFFF"/>
+        <!-- Center Fold -->
+        <path
+            android:pathData="M11.5,11.8 L13,16.5 L10.5,13 Z"
+            android:fillColor="#6B21A8"/>
+        <path
+            android:pathData="M7,12 L17,7.2 L13,16.8 L11.5,12 Z"
+            android:strokeColor="#C084FC"
+            android:strokeWidth="0.6"
             android:strokeLineCap="round"
             android:strokeLineJoin="round"/>
     </group>

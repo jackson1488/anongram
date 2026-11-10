@@ -43,6 +43,22 @@ internal fun AppHeader(modifier: Modifier = Modifier) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF8B5CF6).copy(alpha = 0.22f))
+                    .border(1.dp, Color(0xFFC084FC).copy(alpha = 0.6f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_stat_anongram),
+                    contentDescription = null,
+                    tint = Color(0xFFC084FC),
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = "AnonGram",
                 fontSize = 20.sp,

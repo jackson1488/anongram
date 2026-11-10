@@ -1,0 +1,74 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Глубокий обсидианово-фиолетовый фон с радиальным свечением -->
+    <radialGradient id="bgGlow" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#281347" />
+      <stop offset="50%" stop-color="#140924" />
+      <stop offset="100%" stop-color="#07030D" />
+    </radialGradient>
+
+    <!-- Фирменный неоновый фиолетовый градиент щита -->
+    <linearGradient id="shieldNeonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E9D5FF" />
+      <stop offset="25%" stop-color="#C084FC" />
+      <stop offset="70%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#6D28D9" />
+    </linearGradient>
+
+    <!-- Градиент самолётика: сияющий белый с лиловым отливом -->
+    <linearGradient id="planeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="60%" stop-color="#F3E8FF" />
+      <stop offset="100%" stop-color="#D8B4FE" />
+    </linearGradient>
+
+    <!-- Неоновое свечение щита -->
+    <filter id="neonShieldGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="40" result="blur1" />
+      <feGaussianBlur stdDeviation="16" result="blur2" />
+      <feMerge>
+        <feMergeNode in="blur1" />
+        <feMergeNode in="blur2" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <!-- Мягкая тень под самолётиком -->
+    <filter id="planeShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="-4" dy="12" stdDeviation="18" flood-color="#4C1D95" flood-opacity="0.8" />
+    </filter>
+  </defs>
+
+  <!-- Закруглённая форма иконки (Squircle) -->
+  <rect width="1024" height="1024" rx="230" fill="url(#bgGlow)" />
+
+  <!-- Декоративные кибер-контуры фона -->
+  <path d="M512 60 L912 280 V744 L512 964 L112 744 V280 Z" 
+        fill="none" stroke="#8B5CF6" stroke-width="4" stroke-opacity="0.15" />
+  <circle cx="512" cy="512" r="410" fill="none" stroke="#C084FC" stroke-width="3" stroke-dasharray="12 12" stroke-opacity="0.12" />
+
+  <!-- Внешний неоновый щит AnonGram -->
+  <path d="M512 870 C512 870 835 700 835 450 V210 L512 90 L189 210 V450 C189 700 512 870 512 870 Z" 
+        fill="#120822" stroke="url(#shieldNeonGrad)" stroke-width="48" stroke-linecap="round" stroke-linejoin="round"
+        filter="url(#neonShieldGlow)" />
+
+  <!-- Внутренний тонкий светящийся контур щита -->
+  <path d="M512 820 C512 820 790 660 790 440 V235 L512 135 L234 235 V440 C234 660 512 820 512 820 Z" 
+        fill="none" stroke="#C084FC" stroke-width="8" stroke-opacity="0.4" />
+
+  <!-- Самолётик (Telegram-стиль со стрелой в щите) -->
+  <g filter="url(#planeShadow)">
+    <!-- Левое крыло (с тенью) -->
+    <polygon points="695,305 315,525 495,510" fill="#9333EA" opacity="0.95" />
+    
+    <!-- Правое крыло (основное, ярко освещённое) -->
+    <polygon points="695,305 725,335 550,710 495,510" fill="url(#planeGrad)" />
+    
+    <!-- Нижний клапан / хвост -->
+    <polygon points="495,510 550,710 445,565" fill="#6B21A8" opacity="0.9" />
+    
+    <!-- Линии сгиба оригами -->
+    <line x1="695" y1="305" x2="495" y2="510" stroke="#581C87" stroke-width="8" stroke-linecap="round" />
+    <line x1="495" y1="510" x2="550" y2="710" stroke="#581C87" stroke-width="8" stroke-linecap="round" />
+  </g>
+</svg>
