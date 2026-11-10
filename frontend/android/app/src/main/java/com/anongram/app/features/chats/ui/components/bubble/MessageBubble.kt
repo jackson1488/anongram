@@ -339,13 +339,13 @@ internal fun MessageBubble(
                             (message.text.isNotBlank() || messageTextSizeSp > 16)
 
                         val baseColor = when {
-                            isSelected -> scheme.accent.copy(alpha = 0.28f)
+                            isSelected -> Color(0xFF3F2B66)
                             isEdgeToEdgeMedia -> Color(0xFF141418)
                             isIncoming -> CardDark
-                            else -> scheme.accent.copy(alpha = 0.18f)
+                            else -> Color(0xFF281C3D)
                         }
                         val bubbleColor = if (pulseAlpha > 0f) {
-                            lerp(baseColor, scheme.accent.copy(alpha = 0.72f), pulseAlpha)
+                            lerp(baseColor, scheme.accent, pulseAlpha)
                         } else {
                             baseColor
                         }

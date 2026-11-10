@@ -1,8 +1,13 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,8 +15,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckBox
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -22,6 +29,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.text.AnnotatedString
@@ -109,11 +117,19 @@ fun BubbleTextMessage(
         return
     }
 
-    // 3. Проверяем сворачиваемый блок (+++ Заголовок\nТело\n+++)
-    if (trimmed.startsWith("+++") && trimmed.endsWith("+++") && trimmed.lines().size >= 2) {
-        val lines = trimmed.removePrefix("+++").removeSuffix("+++").trim().lines()
-        val title = lines.firstOrNull() ?: ""
-        val body = lines.drop(1).joinToString("\n").trim()
+    // 3. Проверяем сворачиваемый блок (+++ Заголовок\nТело\n+++) или (^ Заголовок\nТело)
+    val isCollapsiblePlus = trimmed.startsWith("+++") && trimmed.endsWith("+++") && trimmed.lines().size >= 2
+    val isCollapsibleChevron = trimmed.startsWith("^") && trimmed.lines().size >= 2
+    if (isCollapsiblePlus || isCollapsibleChevron) {
+        val (title, body) = if (isCollapsiblePlus) {
+            val lines = trimmed.removePrefix("+++").removeSuffix("+++").trim().lines()
+            Pair(lines.firstOrNull() ?: "", lines.drop(1).joinToString("\n").trim())
+        } else {
+            val lines = trimmed.lines()
+            val titleLine = lines.first().removePrefix("^").trim()
+            val bodyLines = lines.drop(1).joinToString("\n").trim()
+            Pair(titleLine, bodyLines)
+        }
         Column(modifier = modifier) {
             BubbleCollapsibleBlock(title = title, content = body)
             Spacer(modifier = Modifier.height(4.dp))
@@ -199,26 +215,25 @@ fun BubbleTextMessage(
 
     // 6. Проверяем спойлер ||текст||
     if (rawText.contains("||") && rawText.indexOf("||") != rawText.lastIndexOf("||")) {
-        val parts = rawText.split("||")
+        val lines = rawText.split("\n")
         Column(modifier = modifier) {
-            parts.forEachIndexed { index, part ->
-                if (index % 2 == 1) {
-                    BubbleSpoilerText(
-                        text = part,
-                        style = TextStyle(
-                            color = TextPrimary,
-                            fontSize = textSizeSp.sp,
-                            lineHeight = (textSizeSp * 1.26f).sp
-                        ),
-                        modifier = Modifier.padding(vertical = 2.dp)
+            lines.forEachIndexed { lineIdx, line ->
+                if (line.contains("||") && line.indexOf("||") != line.lastIndexOf("||")) {
+                    InlineSpoilerLine(
+                        line = line,
+                        textSizeSp = textSizeSp,
+                        accent = scheme.accent
                     )
-                } else if (part.isNotEmpty()) {
+                } else if (line.isNotEmpty()) {
                     Text(
-                        text = buildRichAnnotatedText(part, scheme.accent),
+                        text = buildRichAnnotatedText(line, scheme.accent),
                         color = TextPrimary,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.26f).sp
                     )
+                }
+                if (lineIdx < lines.size - 1 && line.isEmpty()) {
+                    Spacer(modifier = Modifier.height((textSizeSp * 0.5f).dp))
                 }
             }
 
@@ -326,7 +341,7 @@ fun BubbleTextMessage(
 }
 
 /**
- * Интерактивный элемент чек-листа с фиолетовой галочкой по макету media_1794255690560.png.
+ * Интерактивный элемент чек-листа с крупным фиолетовым чекбоксом по макету media_1794255690560.png.
  */
 @Composable
 private fun InteractiveChecklistItem(
@@ -344,13 +359,28 @@ private fun InteractiveChecklistItem(
             .clickable { isChecked = !isChecked }
             .padding(vertical = 3.dp)
     ) {
-        Icon(
-            imageVector = if (isChecked) Icons.Filled.CheckBox else Icons.Outlined.CheckBoxOutlineBlank,
-            contentDescription = if (isChecked) "Выполнено" else "Не выполнено",
-            tint = if (isChecked) Color(0xFFC084FC) else Color(0xFFA1A1AA),
-            modifier = Modifier.size(19.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
+        Box(
+            modifier = Modifier
+                .size(22.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .background(if (isChecked) Color(0xFF8B5CF6) else Color(0xFF26262E))
+                .border(
+                    width = if (isChecked) 0.dp else 1.5.dp,
+                    color = if (isChecked) Color.Transparent else Color(0x66FFFFFF),
+                    shape = RoundedCornerShape(6.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isChecked) {
+                Icon(
+                    imageVector = Icons.Outlined.Check,
+                    contentDescription = "Выполнено",
+                    tint = Color.White,
+                    modifier = Modifier.size(15.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = text,
             color = if (isChecked) Color(0xFF94A3B8) else TextPrimary,
@@ -358,6 +388,48 @@ private fun InteractiveChecklistItem(
             textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
             lineHeight = (textSizeSp * 1.26f).sp
         )
+    }
+}
+
+/**
+ * Инлайн-спойлер внутри строки: слова и скрытые частицы располагаются в FlowRow
+ * без разрыва предложения на отдельные строки.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun InlineSpoilerLine(
+    line: String,
+    textSizeSp: Int,
+    accent: Color,
+    modifier: Modifier = Modifier
+) {
+    val parts = line.split("||")
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Start,
+        verticalArrangement = Alignment.CenterVertically
+    ) {
+        parts.forEachIndexed { index, part ->
+            if (index % 2 == 1) {
+                // Скрытый фрагмент
+                BubbleSpoilerText(
+                    text = part,
+                    style = TextStyle(
+                        color = TextPrimary,
+                        fontSize = textSizeSp.sp,
+                        lineHeight = (textSizeSp * 1.26f).sp
+                    ),
+                    modifier = Modifier.padding(horizontal = 2.dp)
+                )
+            } else if (part.isNotEmpty()) {
+                Text(
+                    text = buildRichAnnotatedText(part, accent),
+                    color = TextPrimary,
+                    fontSize = textSizeSp.sp,
+                    lineHeight = (textSizeSp * 1.26f).sp
+                )
+            }
+        }
     }
 }
 

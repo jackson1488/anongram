@@ -184,7 +184,7 @@ object ListFormattingHelper {
                 ListStyle.BULLET -> "• "
                 ListStyle.NUMBERED -> "1. "
                 ListStyle.CHECKLIST -> "☐ "
-                ListStyle.COLLAPSIBLE -> "+++ Заголовок\nСодержимое блока\n+++"
+                ListStyle.COLLAPSIBLE -> "^ Заголовок\nСодержимое блока"
             }
         }
 
@@ -215,8 +215,8 @@ object ListFormattingHelper {
                 }
             }
             ListStyle.COLLAPSIBLE -> {
-                if (text.startsWith("+++") && text.endsWith("+++")) text
-                else "+++ Заголовок\n${if (text.isBlank()) "Содержимое блока" else text}\n+++"
+                if (text.startsWith("^ ")) text
+                else "^ Заголовок\n${if (text.isBlank()) "Содержимое блока" else text}"
             }
         }
     }

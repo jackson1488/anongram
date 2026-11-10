@@ -16,6 +16,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Functions
+import androidx.compose.material.icons.outlined.Keyboard
 import androidx.compose.material.icons.outlined.SentimentSatisfiedAlt
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +40,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 fun TextFormattingToolbar(
     isAaActive: Boolean,
     onToggleAa: () -> Unit,
+    isEmojiActive: Boolean = false,
     onToggleEmoji: () -> Unit,
     isListActive: Boolean = false,
     onToggleList: () -> Unit,
@@ -70,12 +72,12 @@ fun TextFormattingToolbar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Кнопка Эмодзи 😊
+                // Кнопка Эмодзи / Клавиатура
                 IconButton(onClick = onToggleEmoji, modifier = Modifier.size(36.dp)) {
                     Icon(
-                        imageVector = Icons.Outlined.SentimentSatisfiedAlt,
-                        contentDescription = "Эмодзи",
-                        tint = itemColor,
+                        imageVector = if (isEmojiActive) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
+                        contentDescription = if (isEmojiActive) "Клавиатура" else "Эмодзи",
+                        tint = if (isEmojiActive) scheme.accent else itemColor,
                         modifier = Modifier.size(20.dp)
                     )
                 }

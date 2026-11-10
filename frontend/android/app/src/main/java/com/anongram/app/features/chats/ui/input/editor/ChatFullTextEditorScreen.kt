@@ -62,12 +62,17 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -108,6 +113,7 @@ fun ChatFullTextEditorScreen(
     var isFormulaOpen by remember { mutableStateOf(false) }
     var isLanguageMenuOpen by remember { mutableStateOf(false) }
     var isEmojiOpen by remember { mutableStateOf(false) }
+    var isEditorAttachOpen by remember { mutableStateOf(false) }
 
     // Стек прикреплённых медиа
     var attachedMediaList by remember { mutableStateOf<List<MessageAttachment>>(emptyList()) }
@@ -144,6 +150,7 @@ fun ChatFullTextEditorScreen(
 
     BackHandler {
         when {
+            isEditorAttachOpen -> isEditorAttachOpen = false
             isFormulaOpen -> isFormulaOpen = false
             isListMenuOpen -> isListMenuOpen = false
             isAaMenuOpen -> isAaMenuOpen = false
@@ -473,6 +480,7 @@ fun ChatFullTextEditorScreen(
                                 val processed = SmartListEnterHelper.processEnter(undoState.textFieldValue, newVal)
                                 undoState.updateValue(processed)
                             },
+                            visualTransformation = remember(scheme.accent) { EditorWysiwygVisualTransformation(scheme.accent) },
                             textStyle = textStyle,
                             cursorBrush = SolidColor(scheme.accent),
                             modifier = Modifier
@@ -508,7 +516,6 @@ fun ChatFullTextEditorScreen(
                             onUnderline = { wrapSelection("<u>", "</u>") },
                             onStrikethrough = { wrapSelection("~~") },
                             onSpoiler = { wrapSelection("||") },
-                            onCode = { wrapSelection("`") },
                             onFontSelected = { font -> wrapSelection("[font=$font]", "[/font]") }
                         )
                     }
@@ -594,6 +601,7 @@ fun ChatFullTextEditorScreen(
                                 isEmojiOpen = false
                             }
                         },
+                        isEmojiActive = isEmojiOpen,
                         onToggleEmoji = {
                             isEmojiOpen = !isEmojiOpen
                             if (isEmojiOpen) {
@@ -619,11 +627,7 @@ fun ChatFullTextEditorScreen(
                             isEmojiOpen = false
                         },
                         onOpenAttach = {
-                            if (onOpenNativeAttach != null) {
-                                onOpenNativeAttach()
-                            } else {
-                                photoLauncher.launch("image/*")
-                            }
+                            isEditorAttachOpen = true
                         },
                         onSend = {
                             val resolvedAttachment: MessageAttachment? = when {
@@ -659,11 +663,67 @@ fun ChatFullTextEditorScreen(
                         onStickerClick = { symbol, _ -> undoState.updateText(undoState.currentText + symbol) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(260.dp)
+                            .height(290.dp)
                     )
                 }
             }
         }
+
+        // Изолированная шторка вложений редактора текста
+        EditorAttachSheet(
+            visible = isEditorAttachOpen,
+            onDismiss = { isEditorAttachOpen = false },
+            onAttachSelected = { newAttachments ->
+                attachedMediaList = attachedMediaList + newAttachments
+            }
+        )
+    }
+}
+
+/**
+ * Визуальная трансформация для редактора текста:
+ * Отображает спойлер ||...|| мерцающим фиолетовым фоном сразу при вводе (WYSIWYG),
+ * а также подсвечивает полужирный **...** и курсив *...* без искажения индексов курсора.
+ */
+private class EditorWysiwygVisualTransformation(private val accent: Color) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val raw = text.text
+        val builder = AnnotatedString.Builder(raw)
+
+        // Подсветка спойлера ||...||
+        val spoilerRegex = Regex("\\|\\|(.*?)\\|\\|")
+        spoilerRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(
+                    background = Color(0xFF3F2B66),
+                    color = Color(0xFFE9D5FF)
+                ),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        // Подсветка жирного **...**
+        val boldRegex = Regex("\\*\\*(.*?)\\*\\*")
+        boldRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(fontWeight = FontWeight.Bold),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        // Подсветка курсива *...*
+        val italicRegex = Regex("(?<!\\*)\\*(?!\\*)(.*?)(?<!\\*)\\*(?!\\*)")
+        italicRegex.findAll(raw).forEach { match ->
+            builder.addStyle(
+                SpanStyle(fontStyle = FontStyle.Italic),
+                match.range.first,
+                match.range.last + 1
+            )
+        }
+
+        return TransformedText(builder.toAnnotatedString(), OffsetMapping.Identity)
     }
 }
 

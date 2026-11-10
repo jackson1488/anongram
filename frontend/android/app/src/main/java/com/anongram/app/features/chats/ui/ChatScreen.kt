@@ -31,6 +31,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -269,7 +271,12 @@ fun ChatScreen(
 
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
         val inputBarHeightDp = with(density) { inputBarHeightPx.toDp() }
-        val bottomListPadding = (inputBarHeightDp + 8.dp).coerceIn(60.dp, 160.dp)
+        val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val bottomListPadding = if (effectiveKeyboardVisible) {
+            inputBarHeightDp + 4.dp + 16.dp
+        } else {
+            inputBarHeightDp + 24.dp + navBottom + 20.dp
+        }
 
         Box(
             modifier = Modifier
@@ -624,13 +631,17 @@ fun ChatScreen(
                         focusRequester = inputFocusRequester
                     )
 
-                    // Панель эмодзи/стикеров под полем ввода (шаг 6)
+                    // Панель эмодзи/стикеров под полем ввода (высота синхронизирована с клавиатурой)
                     if (state.isEmojiOpen) {
+                        val stickerHeight = if (lastKeyboardHeightPx > 0) with(density) { lastKeyboardHeightPx.toDp() } else 290.dp
                         EmojiStickerPanel(
                             onEmojiClick = viewModel::appendEmoji,
                             onStickerClick = { symbol, colorSeed ->
                                 viewModel.sendSticker(symbol, colorSeed)
-                            }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(stickerHeight)
                         )
                     }
                 }

@@ -48,7 +48,6 @@ fun TextSelectionFloatingBar(
     onUnderline: () -> Unit,
     onStrikethrough: () -> Unit,
     onSpoiler: () -> Unit,
-    onCode: () -> Unit,
     onFontSelected: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -129,20 +128,6 @@ fun TextSelectionFloatingBar(
                         text = "✦",
                         color = Color(0xFFC084FC),
                         fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            )
-
-            // </> — Встроенный моноширинный код
-            SelectionActionItem(
-                onClick = onCode,
-                content = {
-                    Text(
-                        text = "</>",
-                        color = Color.White,
-                        fontSize = 13.sp,
-                        fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold
                     )
                 }
