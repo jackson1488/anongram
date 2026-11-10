@@ -115,9 +115,20 @@ fun ChatFullTextEditorScreen(
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val undoState = rememberUndoRedoState(initialText)
+    val initialFontMatch = remember(initialText) {
+        Regex("^\\[font=(sans|serif|mono|cursive)\\]([\\s\\S]*?)\\[\\/font\\]$").matchEntire(initialText.trim())
+    }
+    val cleanInitialText = remember(initialText) {
+        initialFontMatch?.groupValues?.get(2) ?: initialText
+    }
+    val initialFontKey = remember(initialText) {
+        initialFontMatch?.groupValues?.get(1) ?: "sans"
+    }
+
+    val undoState = rememberUndoRedoState(cleanInitialText)
     val focusRequester = remember { FocusRequester() }
 
+    var selectedFontFamily by remember { mutableStateOf(initialFontKey) }
     var selectedFormat by remember { mutableStateOf(TextStyleFormat.NORMAL) }
     var selectedHeadingLevel by remember { mutableIntStateOf(1) }
     var selectedLanguage by remember { mutableStateOf("ABNF") }
@@ -129,6 +140,15 @@ fun ChatFullTextEditorScreen(
     var isLanguageMenuOpen by remember { mutableStateOf(false) }
     var isEmojiOpen by remember { mutableStateOf(false) }
     var isEditorAttachOpen by remember { mutableStateOf(false) }
+
+    fun getFinalText(): String {
+        val raw = undoState.currentText
+        return if (selectedFontFamily != "sans" && raw.isNotBlank()) {
+            "[font=$selectedFontFamily]$raw[/font]"
+        } else {
+            raw
+        }
+    }
 
     // Стек прикреплённых медиа
     var attachedMediaList by remember { mutableStateOf<List<MessageAttachment>>(emptyList()) }
@@ -192,12 +212,16 @@ fun ChatFullTextEditorScreen(
             isAaMenuOpen -> isAaMenuOpen = false
             isLanguageMenuOpen -> isLanguageMenuOpen = false
             isEmojiOpen -> isEmojiOpen = false
-            else -> onClose(undoState.currentText)
+            else -> onClose(getFinalText())
         }
     }
 
     LaunchedEffect(Unit) {
-        runCatching { focusRequester.requestFocus() }
+        kotlinx.coroutines.delay(80)
+        runCatching {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
     }
 
     val topPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -208,7 +232,7 @@ fun ChatFullTextEditorScreen(
             .fillMaxSize()
             .background(ObsidianBlack)
             .padding(top = topPadding)
-            // Тап в пустое место экрана закрывает формулу/меню и возвращает стандартную панель инструментов
+            // Тап в пустое место экрана закрывает формулу/меню и возвращает стандартную панель инструментов + фокус
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -217,6 +241,8 @@ fun ChatFullTextEditorScreen(
                 if (isAaMenuOpen) isAaMenuOpen = false
                 if (isListMenuOpen) isListMenuOpen = false
                 if (isEmojiOpen) isEmojiOpen = false
+                focusRequester.requestFocus()
+                keyboardController?.show()
             }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -227,7 +253,7 @@ fun ChatFullTextEditorScreen(
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { onClose(undoState.currentText) }) {
+                IconButton(onClick = { onClose(getFinalText()) }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "Назад",
@@ -588,7 +614,7 @@ fun ChatFullTextEditorScreen(
                         }
                     }
 
-                    val editorBoxModifier = when (selectedFormat) {
+                    val baseEditorBoxModifier = when (selectedFormat) {
                         TextStyleFormat.CODE -> Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
@@ -610,6 +636,22 @@ fun ChatFullTextEditorScreen(
                         else -> Modifier.fillMaxWidth()
                     }
 
+                    val editorBoxModifier = baseEditorBoxModifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        if (isEmojiOpen) isEmojiOpen = false
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
+
+                    val currentFontFamily = when (selectedFontFamily) {
+                        "serif" -> FontFamily.Serif
+                        "mono" -> FontFamily.Monospace
+                        "cursive" -> FontFamily.Cursive
+                        else -> FontFamily.Default
+                    }
+
                     val textStyle = when (selectedFormat) {
                         TextStyleFormat.HEADING -> {
                             val headingSp = when (selectedHeadingLevel) {
@@ -624,6 +666,7 @@ fun ChatFullTextEditorScreen(
                                 color = Color.White,
                                 fontSize = headingSp,
                                 fontWeight = if (selectedHeadingLevel <= 3) FontWeight.Bold else FontWeight.SemiBold,
+                                fontFamily = currentFontFamily,
                                 lineHeight = (headingSp.value * 1.25f).sp
                             )
                         }
@@ -637,11 +680,13 @@ fun ChatFullTextEditorScreen(
                             color = Color(0xFFCBD5E1),
                             fontSize = 15.sp,
                             fontStyle = FontStyle.Italic,
+                            fontFamily = currentFontFamily,
                             lineHeight = 22.sp
                         )
                         else -> TextStyle(
                             color = Color.White,
                             fontSize = 16.sp,
+                            fontFamily = currentFontFamily,
                             lineHeight = 22.sp
                         )
                     }
@@ -688,17 +733,12 @@ fun ChatFullTextEditorScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester)
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) {
-                                    if (isEmojiOpen) isEmojiOpen = false
-                                }
                                 .pointerInput(undoState.textFieldValue.text) {
                                     awaitPointerEventScope {
                                         while (true) {
                                             val event = awaitPointerEvent(PointerEventPass.Initial)
                                             val down = event.changes.firstOrNull { it.changedToDown() } ?: continue
+                                            if (isEmojiOpen) isEmojiOpen = false
                                             val layout = textLayoutResult ?: continue
                                             val text = undoState.textFieldValue.text
                                             if (text.isEmpty()) continue
@@ -763,7 +803,7 @@ fun ChatFullTextEditorScreen(
                             onUnderline = { wrapSelection("<u>", "</u>") },
                             onStrikethrough = { wrapSelection("~~") },
                             onSpoiler = { wrapSelection("||") },
-                            onFontSelected = { font -> wrapSelection("[font=$font]", "[/font]") }
+                            onFontSelected = { font -> selectedFontFamily = font }
                         )
                     }
                 }
@@ -805,7 +845,7 @@ fun ChatFullTextEditorScreen(
                                 applyLinePrefix("#".repeat(level) + " ")
                             },
                             onSelectFont = { fontKey ->
-                                wrapSelection("[font=$fontKey]", "[/font]")
+                                selectedFontFamily = fontKey
                             },
                             onSelectQuoteVariant = { isCollapsible ->
                                 if (isCollapsible) {
@@ -960,7 +1000,7 @@ fun ChatFullTextEditorScreen(
                                 }
                                 else -> attachedMediaList.lastOrNull()
                             }
-                            onSend(undoState.currentText, selectedFormat, selectedLanguage, resolvedAttachment)
+                            onSend(getFinalText(), selectedFormat, selectedLanguage, resolvedAttachment)
                         }
                     )
                 }
@@ -997,15 +1037,17 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = text.text
         val builder = AnnotatedString.Builder(raw)
-        val hiddenStyle = SpanStyle(color = Color.Transparent, fontSize = 0.001.sp)
+        val markerStyle = SpanStyle(color = Color(0x38FFFFFF))
+        val spoilerMarkerStyle = SpanStyle(color = Color(0x55C084FC))
+        val headingMarkerStyle = SpanStyle(color = Color(0x55C084FC))
 
-        // 1. Спойлер ||...|| -> теги || скрываются, текст покрывается вуалью
+        // 1. Спойлер ||...|| -> маркеры мягко подсвечены, скрытый текст на фиолетовом фоне
         val spoilerRegex = Regex("\\|\\|([\\s\\S]*?)\\|\\|")
         spoilerRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
             if (end - start >= 4) {
-                builder.addStyle(hiddenStyle, start, start + 2)
+                builder.addStyle(spoilerMarkerStyle, start, start + 2)
                 builder.addStyle(
                     SpanStyle(
                         background = Color(0xFF3F2B66),
@@ -1014,59 +1056,59 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
                     start + 2,
                     end - 2
                 )
-                builder.addStyle(hiddenStyle, end - 2, end)
+                builder.addStyle(spoilerMarkerStyle, end - 2, end)
             }
         }
 
-        // 2. Полужирный **...** -> теги ** скрываются, текст жирный
+        // 2. Полужирный **...**
         val boldRegex = Regex("\\*\\*([\\s\\S]*?)\\*\\*")
         boldRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
             if (end - start >= 4) {
-                builder.addStyle(hiddenStyle, start, start + 2)
+                builder.addStyle(markerStyle, start, start + 2)
                 builder.addStyle(
                     SpanStyle(fontWeight = FontWeight.Bold, color = Color.White),
                     start + 2,
                     end - 2
                 )
-                builder.addStyle(hiddenStyle, end - 2, end)
+                builder.addStyle(markerStyle, end - 2, end)
             }
         }
 
-        // 3. Курсив *...* -> теги * скрываются, текст курсивный
+        // 3. Курсив *...*
         val italicRegex = Regex("(?<!\\*)\\*(?!\\*)([\\s\\S]*?)(?<!\\*)\\*(?!\\*)")
         italicRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
             if (end - start >= 2) {
-                builder.addStyle(hiddenStyle, start, start + 1)
+                builder.addStyle(markerStyle, start, start + 1)
                 builder.addStyle(
                     SpanStyle(fontStyle = FontStyle.Italic, color = Color.White),
                     start + 1,
                     end - 1
                 )
-                builder.addStyle(hiddenStyle, end - 1, end)
+                builder.addStyle(markerStyle, end - 1, end)
             }
         }
 
-        // 4. Зачёркнутый ~~...~~ -> теги ~~ скрываются, текст перечёркнутый
+        // 4. Зачёркнутый ~~...~~
         val strikeRegex = Regex("~~([\\s\\S]*?)~~")
         strikeRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
             if (end - start >= 4) {
-                builder.addStyle(hiddenStyle, start, start + 2)
+                builder.addStyle(markerStyle, start, start + 2)
                 builder.addStyle(
                     SpanStyle(textDecoration = TextDecoration.LineThrough, color = Color(0xFF94A3B8)),
                     start + 2,
                     end - 2
                 )
-                builder.addStyle(hiddenStyle, end - 2, end)
+                builder.addStyle(markerStyle, end - 2, end)
             }
         }
 
-        // 5. Подчёркнутый <u>...</u> -> теги <u> и </u> скрываются
+        // 5. Подчёркнутый <u>...</u>
         val underlineRegex = Regex("<u>([\\s\\S]*?)</u>")
         underlineRegex.findAll(raw).forEach { match ->
             val fullStart = match.range.first
@@ -1074,23 +1116,23 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             val innerStart = fullStart + 3
             val innerEnd = fullEnd - 4
             if (innerEnd >= innerStart) {
-                builder.addStyle(hiddenStyle, fullStart, innerStart)
+                builder.addStyle(markerStyle, fullStart, innerStart)
                 builder.addStyle(
                     SpanStyle(textDecoration = TextDecoration.Underline, color = Color.White),
                     innerStart,
                     innerEnd
                 )
-                builder.addStyle(hiddenStyle, innerEnd, fullEnd)
+                builder.addStyle(markerStyle, innerEnd, fullEnd)
             }
         }
 
-        // 6. Моноширинный `...` -> кавычки ` скрываются, текст моноширинный
+        // 6. Моноширинный `...`
         val codeRegex = Regex("`([^`]+)`")
         codeRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
             if (end - start >= 2) {
-                builder.addStyle(hiddenStyle, start, start + 1)
+                builder.addStyle(markerStyle, start, start + 1)
                 builder.addStyle(
                     SpanStyle(
                         fontFamily = FontFamily.Monospace,
@@ -1100,12 +1142,12 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
                     start + 1,
                     end - 1
                 )
-                builder.addStyle(hiddenStyle, end - 1, end)
+                builder.addStyle(markerStyle, end - 1, end)
             }
         }
 
         // 7. Кастомные шрифты [font=...]...[/font]
-        val fontRegex = Regex("\\[font=(sans|serif|mono|cursive)\\]([^\\[]+)\\[\\/font\\]")
+        val fontRegex = Regex("\\[font=(sans|serif|mono|cursive)\\]([\\s\\S]*?)\\[\\/font\\]")
         fontRegex.findAll(raw).forEach { match ->
             val fullStart = match.range.first
             val fullEnd = match.range.last + 1
@@ -1119,33 +1161,23 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
                 "cursive" -> FontFamily.Cursive
                 else -> FontFamily.SansSerif
             }
-            builder.addStyle(hiddenStyle, fullStart, innerStart)
+            builder.addStyle(markerStyle, fullStart, innerStart)
             builder.addStyle(SpanStyle(fontFamily = family, color = Color.White), innerStart, innerEnd)
-            builder.addStyle(hiddenStyle, innerEnd, fullEnd)
+            builder.addStyle(markerStyle, innerEnd, fullEnd)
         }
 
-        // 8. Заголовки #{1,6} -> решётки # скрываются, текст рендерится как крупный заголовок
+        // 8. Заголовки #{1,6}
         val headingRegex = Regex("(?m)^(#{1,6}\\s+)(.*)$")
         headingRegex.findAll(raw).forEach { match ->
             val prefix = match.groupValues[1]
             val headingText = match.groupValues[2]
-            val level = prefix.trim().length
-            val headingSizeSp = when (level) {
-                1 -> 24.sp
-                2 -> 21.sp
-                3 -> 18.sp
-                4 -> 16.sp
-                5 -> 14.sp
-                else -> 12.sp
-            }
             val prefixStart = match.range.first
             val prefixEnd = prefixStart + prefix.length
             val textEnd = prefixEnd + headingText.length
 
-            builder.addStyle(hiddenStyle, prefixStart, prefixEnd)
+            builder.addStyle(headingMarkerStyle, prefixStart, prefixEnd)
             builder.addStyle(
                 SpanStyle(
-                    fontSize = headingSizeSp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 ),
@@ -1154,7 +1186,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             )
         }
 
-        // 9. Сворачиваемые блоки ^ ... -> скрываем ^ тег, выделяем заголовок
+        // 9. Сворачиваемые блоки ^ ...
         val collapsibleRegex = Regex("(?m)^(\\^\\s*)(.*)$")
         collapsibleRegex.findAll(raw).forEach { match ->
             val prefix = match.groupValues[1]
@@ -1162,7 +1194,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             val prefixStart = match.range.first
             val prefixEnd = prefixStart + prefix.length
             val titleEnd = prefixEnd + title.length
-            builder.addStyle(hiddenStyle, prefixStart, prefixEnd)
+            builder.addStyle(headingMarkerStyle, prefixStart, prefixEnd)
             builder.addStyle(
                 SpanStyle(color = Color(0xFFC084FC), fontWeight = FontWeight.Bold),
                 prefixEnd,
@@ -1170,7 +1202,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             )
         }
 
-        // 10. Цитаты > и >>> -> скрываем префикс с hiddenStyle, текст курсивом
+        // 10. Цитаты > и >>>
         val quoteRegex = Regex("(?m)^((?:>>>|>)\\s*)(.*)$")
         quoteRegex.findAll(raw).forEach { match ->
             val prefix = match.groupValues[1]
@@ -1178,7 +1210,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             val prefixStart = match.range.first
             val prefixEnd = prefixStart + prefix.length
             val textEnd = prefixEnd + quoteText.length
-            builder.addStyle(hiddenStyle, prefixStart, prefixEnd)
+            builder.addStyle(headingMarkerStyle, prefixStart, prefixEnd)
             builder.addStyle(
                 SpanStyle(color = Color.White, fontStyle = FontStyle.Italic),
                 prefixEnd,

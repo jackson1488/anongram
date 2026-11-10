@@ -254,8 +254,17 @@ internal fun MessageBubble(
             }
         }
 
+        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+        val screenWidth = configuration.screenWidthDp.dp
+        val bubbleMaxWidth = when (message.attachment) {
+            is MessageAttachment.File -> screenWidth * 0.84f
+            is MessageAttachment.FileGroup, is MessageAttachment.MusicGroup -> screenWidth * 0.77f
+            is MessageAttachment.Contact -> screenWidth * 0.78f
+            else -> screenWidth * 0.80f
+        }
+
         val incomingShiftDp by animateDpAsState(
-            targetValue = if (isSelectionMode && isIncoming) 32.dp else 0.dp,
+            targetValue = if (isSelectionMode && isIncoming) 36.dp else 0.dp,
             animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
             label = "incomingShiftDp"
         )
@@ -277,14 +286,20 @@ internal fun MessageBubble(
                 exit = shrinkHorizontally(
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
                 ) + fadeOut(),
-                modifier = Modifier.align(Alignment.CenterStart)
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 6.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .padding(end = 8.dp)
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) scheme.accent else CardDark)
+                        .background(if (isSelected) scheme.accent else Color(0x33000000))
+                        .border(
+                            width = 2.dp,
+                            color = if (isSelected) scheme.accent else Color(0x88FFFFFF),
+                            shape = CircleShape
+                        )
                         .clickable(onClick = onSelect),
                     contentAlignment = Alignment.Center
                 ) {
@@ -299,18 +314,12 @@ internal fun MessageBubble(
                 }
             }
 
-            BoxWithConstraints(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = incomingShiftDp),
+                    .offset(x = incomingShiftDp),
                 contentAlignment = if (isIncoming) Alignment.TopStart else Alignment.TopEnd
             ) {
-                val bubbleMaxWidth = when (message.attachment) {
-                    is MessageAttachment.File -> maxWidth * 0.86f
-                    is MessageAttachment.FileGroup, is MessageAttachment.MusicGroup -> maxWidth * 0.77f
-                    is MessageAttachment.Contact -> maxWidth * 0.78f
-                    else -> maxWidth * 0.82f
-                }
 
                 Column(
                     horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End

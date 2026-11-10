@@ -28,12 +28,21 @@ fun BubbleHeadingBlock(
         else -> 12.sp to FontWeight.SemiBold
     }
 
-    Text(
-        text = text,
-        color = Color.White,
-        fontSize = fontSizeSp,
-        fontWeight = fontWeight,
-        lineHeight = (fontSizeSp.value * 1.25f).sp,
-        modifier = modifier.padding(vertical = 2.dp)
-    )
+    if (text.contains("||")) {
+        InlineSpoilerLine(
+            line = text,
+            textSizeSp = fontSizeSp.value.toInt(),
+            accent = Color(0xFFC084FC),
+            modifier = modifier.padding(vertical = 2.dp)
+        )
+    } else {
+        Text(
+            text = buildRichAnnotatedText(text, Color.White),
+            color = Color.White,
+            fontSize = fontSizeSp,
+            fontWeight = fontWeight,
+            lineHeight = (fontSizeSp.value * 1.25f).sp,
+            modifier = modifier.padding(vertical = 2.dp)
+        )
+    }
 }

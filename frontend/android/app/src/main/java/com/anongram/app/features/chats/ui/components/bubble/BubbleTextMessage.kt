@@ -331,7 +331,8 @@ fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString 
             "(~~([^~]+)~~)|" +                             // 5: ~~strike~~
             "(<u>([^<]+)<\\/u>)|" +                        // 7: <u>underline</u>
             "(`([^`]+)`)|" +                               // 9: `code`
-            "(\\[font=(sans|serif|mono|cursive)\\]([^\\[]+)\\[\\/font\\])" // 11: font
+            "(\\[font=(sans|serif|mono|cursive)\\]([\\s\\S]*?)\\[\\/font\\])|" + // 11: font
+            "(\\|\\|([\\s\\S]*?)\\|\\|)"                   // 14: ||spoiler||
         )
 
         val matches = tokenRegex.findAll(source).toList()
@@ -399,6 +400,18 @@ fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString 
                         else -> FontFamily.SansSerif
                     }
                     pushStyle(SpanStyle(fontFamily = family))
+                    append(inner)
+                    pop()
+                }
+                // ||spoiler||
+                m.groupValues[14].isNotEmpty() -> {
+                    val inner = m.groupValues[15]
+                    pushStyle(
+                        SpanStyle(
+                            background = Color(0xFF3F2B66),
+                            color = Color(0xFFE9D5FF)
+                        )
+                    )
                     append(inner)
                     pop()
                 }

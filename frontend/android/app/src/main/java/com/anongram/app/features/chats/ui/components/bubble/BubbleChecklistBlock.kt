@@ -84,15 +84,24 @@ fun BubbleChecklistBlock(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                Text(
-                    text = item.text,
-                    color = if (isChecked) Color(0xFF94A3B8) else Color.White,
-                    fontSize = textSizeSp.sp,
-                    lineHeight = (textSizeSp * 1.25f).sp,
-                    fontWeight = FontWeight.Normal,
-                    textDecoration = TextDecoration.None,
-                    modifier = Modifier.weight(1f)
-                )
+                if (item.text.contains("||")) {
+                    InlineSpoilerLine(
+                        line = item.text,
+                        textSizeSp = textSizeSp,
+                        accent = scheme.accent,
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Text(
+                        text = buildRichAnnotatedText(item.text, scheme.accent),
+                        color = if (isChecked) Color(0xFF94A3B8) else Color.White,
+                        fontSize = textSizeSp.sp,
+                        lineHeight = (textSizeSp * 1.25f).sp,
+                        fontWeight = FontWeight.Normal,
+                        textDecoration = TextDecoration.None,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }

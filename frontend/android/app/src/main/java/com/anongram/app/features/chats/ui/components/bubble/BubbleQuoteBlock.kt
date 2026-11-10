@@ -103,21 +103,55 @@ fun BubbleQuoteBlock(
 
             // Текст цитаты
             if (isCollapsible && !isExpanded) {
-                Text(
-                    text = buildRichAnnotatedText(text, scheme.accent),
-                    color = Color.White,
-                    fontSize = textSizeSp.sp,
-                    lineHeight = (textSizeSp * 1.28f).sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
+                if (text.contains("||")) {
+                    Column {
+                        text.lines().take(3).forEach { ql ->
+                            if (ql.contains("||")) {
+                                InlineSpoilerLine(ql, textSizeSp, scheme.accent)
+                            } else {
+                                Text(
+                                    text = buildRichAnnotatedText(ql, scheme.accent),
+                                    color = Color.White,
+                                    fontSize = textSizeSp.sp,
+                                    lineHeight = (textSizeSp * 1.28f).sp
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = buildRichAnnotatedText(text, scheme.accent),
+                        color = Color.White,
+                        fontSize = textSizeSp.sp,
+                        lineHeight = (textSizeSp * 1.28f).sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             } else {
-                Text(
-                    text = buildRichAnnotatedText(text, scheme.accent),
-                    color = Color.White,
-                    fontSize = textSizeSp.sp,
-                    lineHeight = (textSizeSp * 1.28f).sp
-                )
+                if (text.contains("||")) {
+                    Column {
+                        text.lines().forEach { ql ->
+                            if (ql.contains("||")) {
+                                InlineSpoilerLine(ql, textSizeSp, scheme.accent)
+                            } else {
+                                Text(
+                                    text = buildRichAnnotatedText(ql, scheme.accent),
+                                    color = Color.White,
+                                    fontSize = textSizeSp.sp,
+                                    lineHeight = (textSizeSp * 1.28f).sp
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Text(
+                        text = buildRichAnnotatedText(text, scheme.accent),
+                        color = Color.White,
+                        fontSize = textSizeSp.sp,
+                        lineHeight = (textSizeSp * 1.28f).sp
+                    )
+                }
             }
 
             // Нижняя строка: Автор слева и Шеврон сворачивания справа
