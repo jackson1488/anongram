@@ -16,7 +16,6 @@ object LanguageSettingsStore {
     private const val KEY_SHOW_TRANSLATE_BUTTON = "show_translate_button"
     private const val KEY_TRANSLATE_ENTIRE_CHATS = "translate_entire_chats"
     private const val KEY_DO_NOT_TRANSLATE_LANG = "do_not_translate_lang"
-    private const val KEY_CUSTOM_LANG_ACTIVE = "custom_lang_active"
 
     private val _language = MutableStateFlow(AppLanguage.RU)
     val language: StateFlow<AppLanguage> = _language.asStateFlow()
@@ -30,9 +29,6 @@ object LanguageSettingsStore {
     private val _doNotTranslateLanguage = MutableStateFlow("Русский")
     val doNotTranslateLanguage: StateFlow<String> = _doNotTranslateLanguage.asStateFlow()
 
-    private val _isCustomLanguageActive = MutableStateFlow(false)
-    val isCustomLanguageActive: StateFlow<Boolean> = _isCustomLanguageActive.asStateFlow()
-
     private var initialized = false
 
     fun ensureInitialized(context: Context) {
@@ -44,17 +40,14 @@ object LanguageSettingsStore {
         _showTranslateButton.value = prefs.getBoolean(KEY_SHOW_TRANSLATE_BUTTON, false)
         _translateEntireChats.value = prefs.getBoolean(KEY_TRANSLATE_ENTIRE_CHATS, false)
         _doNotTranslateLanguage.value = prefs.getString(KEY_DO_NOT_TRANSLATE_LANG, "Русский") ?: "Русский"
-        _isCustomLanguageActive.value = prefs.getBoolean(KEY_CUSTOM_LANG_ACTIVE, false)
     }
 
     fun setLanguage(context: Context, newLanguage: AppLanguage) {
         _language.value = newLanguage
-        _isCustomLanguageActive.value = false
         context.applicationContext
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_LANGUAGE, newLanguage.code)
-            .putBoolean(KEY_CUSTOM_LANG_ACTIVE, false)
             .apply()
     }
 
@@ -82,15 +75,6 @@ object LanguageSettingsStore {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_DO_NOT_TRANSLATE_LANG, lang)
-            .apply()
-    }
-
-    fun setCustomLanguageActive(context: Context, active: Boolean) {
-        _isCustomLanguageActive.value = active
-        context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_CUSTOM_LANG_ACTIVE, active)
             .apply()
     }
 }

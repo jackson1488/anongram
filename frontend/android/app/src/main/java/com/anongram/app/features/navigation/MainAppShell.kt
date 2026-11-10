@@ -58,6 +58,7 @@ import com.anongram.app.features.profile.ui.ProfileScreen
 import com.anongram.app.features.qr.ui.QrHubOverlay
 import com.anongram.app.features.services.ui.ServicesScreen
 import com.anongram.app.features.settings.ui.SettingsScreen
+import com.anongram.app.features.settings.language.ui.LanguageSettingsScreen
 import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
@@ -81,6 +82,7 @@ fun MainAppShell(
     var isSearchOpen by remember { mutableStateOf(false) }
     var isContactsOpen by remember { mutableStateOf(false) }
     var isArchiveOpen by remember { mutableStateOf(false) }
+    var isLanguageOpen by remember { mutableStateOf(false) }
     var selectedSession by remember { mutableStateOf<IChatSession?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -111,6 +113,7 @@ fun MainAppShell(
     val searchProgress = remember { Animatable(0f) }
     val contactsProgress = remember { Animatable(0f) }
     val archiveProgress = remember { Animatable(0f) }
+    val languageProgress = remember { Animatable(0f) }
 
     fun openSession(session: IChatSession) {
         chatsViewModel.clearSelection()
@@ -159,15 +162,24 @@ fun MainAppShell(
         scope.closeOverlay(archiveProgress) { isArchiveOpen = false }
     }
 
+    fun openLanguage() {
+        scope.openOverlay(languageProgress) { isLanguageOpen = true }
+    }
+
+    fun closeLanguage() {
+        scope.closeOverlay(languageProgress) { isLanguageOpen = false }
+    }
+
     val showDetailPane = false
     val showDetailOverlay = selectedSession != null
 
     BackHandler(
         enabled = selectedSession != null || isSearchOpen || isContactsOpen ||
-            isArchiveOpen || isQrOpen
+            isArchiveOpen || isQrOpen || isLanguageOpen
     ) {
         when {
             isQrOpen -> isQrOpen = false
+            isLanguageOpen -> closeLanguage()
             isSearchOpen -> closeSearch()
             isContactsOpen -> closeContacts()
             isArchiveOpen -> closeArchive()
@@ -206,7 +218,8 @@ fun MainAppShell(
                         AppHeader()
                         SettingsScreen(
                             currentThemeId = scheme.id,
-                            onThemeSelect = themeController::selectTheme
+                            onThemeSelect = themeController::selectTheme,
+                            onOpenLanguage = { openLanguage() }
                         )
                     }
 
@@ -342,6 +355,18 @@ fun MainAppShell(
             }
         }
 
+        if (isLanguageOpen) {
+            AnonGramTransitionScreen(
+                progress = languageProgress.value,
+                isExit = false,
+                config = navConfig
+            ) {
+                LanguageSettingsScreen(
+                    onBack = { closeLanguage() }
+                )
+            }
+        }
+
         if (isQrOpen) {
             QrHubOverlay(
                 onClose = { isQrOpen = false },
@@ -353,9 +378,9 @@ fun MainAppShell(
         }
 
         // Остров виден только на корневых экранах: любой дочерний экран
-        // (чат, поиск, контакты, архив, QR) его скрывает.
+        // (чат, поиск, контакты, архив, QR, язык) его скрывает.
         val isRootScreen = selectedSession == null && !isSearchOpen && !isContactsOpen &&
-            !isArchiveOpen && !isQrOpen
+            !isArchiveOpen && !isQrOpen && !isLanguageOpen
 
         AnimatedVisibility(
             visible = isRootScreen,

@@ -11,7 +11,5 @@ object LanguageStringsEn : LanguageI18nStrings {
     override val doNotTranslateTitle: String = "Do not translate"
     override val translationFootnote: String = "The «Translate» button will appear in the menu upon tapping a text message."
     override val languageSectionTitle: String = "Language"
-    override val searchPlaceholder: String = "Search"
-    override val searchEmptyNotice: String = "No languages found"
-    override fun languageAddedNotice(name: String): String = "Language «$name» will be added in an upcoming update"
+    override val close: String = "Close"
 }

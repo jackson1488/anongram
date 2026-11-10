@@ -1,10 +1,6 @@
 package com.anongram.app.features.settings.language.ui
 
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,12 +38,9 @@ import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.settings.language.i18n.LanguageI18n
 import com.anongram.app.features.settings.language.model.LanguageCatalog
-import com.anongram.app.features.settings.language.model.LanguageItem
-import com.anongram.app.features.settings.language.ui.components.LanguageCustomCard
 import com.anongram.app.features.settings.language.ui.components.LanguageListCard
 import com.anongram.app.features.settings.language.ui.components.LanguageTopBar
 import com.anongram.app.features.settings.language.ui.components.LanguageTranslationCard
@@ -55,10 +48,9 @@ import com.anongram.app.features.settings.language.ui.components.TelegramRadioBu
 
 /**
  * Полноэкранный экран «Язык» в стиле Telegram:
- * 1. Верхний бар с круглыми кнопками (Назад, Поиск).
+ * 1. Верхний бар с круглой кнопкой Назад и центрированным заголовком «Язык».
  * 2. Карточка «Перевод сообщений» с тумблерами и анимированной строкой «Не переводить».
- * 3. Карточка «Язык» со специальным пунктом SpermoGram.
- * 4. Карточка полного списка языков с Telegram-радиокнопками слева и мгновенным переключением.
+ * 3. Карточка «Язык» с радиокнопками слева и мгновенным переключением (Русский / English).
  */
 @Composable
 fun LanguageSettingsScreen(
@@ -70,37 +62,13 @@ fun LanguageSettingsScreen(
     val showTranslateButton by LanguageSettingsStore.showTranslateButton.collectAsState()
     val translateEntireChats by LanguageSettingsStore.translateEntireChats.collectAsState()
     val doNotTranslateLanguage by LanguageSettingsStore.doNotTranslateLanguage.collectAsState()
-    val isCustomLangActive by LanguageSettingsStore.isCustomLanguageActive.collectAsState()
 
     val strings = remember(currentLanguage) { LanguageI18n.forLanguage(currentLanguage) }
 
-    var searchQuery by remember { mutableStateOf("") }
-    var isSearchActive by remember { mutableStateOf(false) }
     var showDoNotTranslateDialog by remember { mutableStateOf(false) }
 
     // Обработка системного «Назад»
-    BackHandler {
-        if (isSearchActive) {
-            isSearchActive = false
-            searchQuery = ""
-        } else {
-            onBack()
-        }
-    }
-
-    // Фильтрация списка языков по запросу
-    val filteredLanguages = remember(searchQuery) {
-        if (searchQuery.isBlank()) {
-            LanguageCatalog.languages
-        } else {
-            val q = searchQuery.trim().lowercase()
-            LanguageCatalog.languages.filter {
-                it.nativeName.lowercase().contains(q) ||
-                it.englishName.lowercase().contains(q) ||
-                it.code.lowercase().contains(q)
-            }
-        }
-    }
+    BackHandler(onBack = onBack)
 
     Box(
         modifier = modifier
@@ -113,15 +81,7 @@ fun LanguageSettingsScreen(
             // Верхняя панель в стиле Telegram
             LanguageTopBar(
                 title = strings.screenTitle,
-                searchQuery = searchQuery,
-                isSearchActive = isSearchActive,
-                searchPlaceholder = strings.searchPlaceholder,
-                onBack = onBack,
-                onSearchQueryChange = { searchQuery = it },
-                onSearchActiveToggle = { active ->
-                    isSearchActive = active
-                    if (!active) searchQuery = ""
-                }
+                onBack = onBack
             )
 
             // Основной скроллируемый контент
@@ -132,74 +92,43 @@ fun LanguageSettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                if (!isSearchActive) {
-                    // Карточка 1: Перевод сообщений
-                    LanguageTranslationCard(
-                        strings = strings,
-                        showTranslateButton = showTranslateButton,
-                        translateEntireChats = translateEntireChats,
-                        doNotTranslateLanguage = doNotTranslateLanguage,
-                        onShowTranslateButtonChange = {
-                            LanguageSettingsStore.setShowTranslateButton(context, it)
-                        },
-                        onTranslateEntireChatsChange = {
-                            LanguageSettingsStore.setTranslateEntireChats(context, it)
-                        },
-                        onDoNotTranslateClick = {
-                            showDoNotTranslateDialog = true
-                        }
-                    )
+                // Карточка 1: Перевод сообщений
+                LanguageTranslationCard(
+                    strings = strings,
+                    showTranslateButton = showTranslateButton,
+                    translateEntireChats = translateEntireChats,
+                    doNotTranslateLanguage = doNotTranslateLanguage,
+                    onShowTranslateButtonChange = {
+                        LanguageSettingsStore.setShowTranslateButton(context, it)
+                    },
+                    onTranslateEntireChatsChange = {
+                        LanguageSettingsStore.setTranslateEntireChats(context, it)
+                    },
+                    onDoNotTranslateClick = {
+                        showDoNotTranslateDialog = true
+                    }
+                )
 
-                    // Карточка 2: Кастомный язык (SpermoGram)
-                    LanguageCustomCard(
-                        strings = strings,
-                        isSelected = isCustomLangActive,
-                        onSelect = {
-                            val nextState = !isCustomLangActive
-                            LanguageSettingsStore.setCustomLanguageActive(context, nextState)
-                            if (nextState) {
-                                Toast.makeText(
-                                    context,
-                                    "SpermoGram активирован",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    )
-                }
-
-                // Карточка 3: Список языков с радиокнопками слева
+                // Карточка 2: Список языков с радиокнопками слева (Русский и English)
                 LanguageListCard(
-                    languages = filteredLanguages,
+                    languages = LanguageCatalog.languages,
                     selectedLanguageCode = currentLanguage.code,
-                    isCustomLanguageSelected = isCustomLangActive,
                     strings = strings,
                     onSelectLanguage = { lang ->
                         when (lang.code.lowercase()) {
-                            "ru" -> {
-                                LanguageSettingsStore.setLanguage(context, AppLanguage.RU)
-                            }
-                            "en" -> {
-                                LanguageSettingsStore.setLanguage(context, AppLanguage.EN)
-                            }
-                            else -> {
-                                Toast.makeText(
-                                    context,
-                                    strings.languageAddedNotice(lang.nativeName),
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
+                            "ru" -> LanguageSettingsStore.setLanguage(context, AppLanguage.RU)
+                            "en" -> LanguageSettingsStore.setLanguage(context, AppLanguage.EN)
                         }
                     }
                 )
 
-                Spacer(modifier = Modifier.height(80.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
 
         // Диалог выбора языка исключения («Не переводить»)
         if (showDoNotTranslateDialog) {
-            val options = listOf("Русский", "English", "Любой")
+            val options = LanguageCatalog.languages.map { it.nativeName }
             AlertDialog(
                 onDismissRequest = { showDoNotTranslateDialog = false },
                 containerColor = CardDark,
@@ -230,7 +159,6 @@ fun LanguageSettingsScreen(
                                     selected = isSelected,
                                     activeColor = Color(0xFFB388FF)
                                 )
-                                Spacer(modifier = Modifier.height(0.dp))
                                 Text(
                                     text = opt,
                                     color = TextPrimary,
@@ -243,7 +171,7 @@ fun LanguageSettingsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showDoNotTranslateDialog = false }) {
-                        Text(text = "Закрыть", color = Color(0xFFB388FF))
+                        Text(text = strings.close, color = Color(0xFFB388FF))
                     }
                 }
             )

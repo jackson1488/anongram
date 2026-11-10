@@ -72,6 +72,7 @@ import kotlin.math.roundToInt
 fun SettingsScreen(
     currentThemeId: String,
     onThemeSelect: (String) -> Unit,
+    onOpenLanguage: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -86,81 +87,67 @@ fun SettingsScreen(
     val strings = LocalInputStrings.current
 
     var themePickerOpen by remember { mutableStateOf(false) }
-    var languageScreenOpen by remember { mutableStateOf(false) }
     val activeThemeName = AnonGramThemes.byId(currentThemeId).displayName
 
-    Box(modifier = modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 110.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Text(
-                text = "Настройки чатов",
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                fontSize = 16.sp
-            )
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 110.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Настройки чатов",
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            fontSize = 16.sp
+        )
 
-            // Карточка «Размер текста сообщений» (1..30) + живое превью чата (как в Telegram)
-            ChatTextSizeSettingsCard(
-                textSizeSp = textSizeSp,
-                userName = registeredUserName,
-                onTextSizeChange = { newSize ->
-                    ChatTextSettingsStore.setMessageTextSizeSp(context, newSize)
-                }
-            )
+        // Карточка «Размер текста сообщений» (1..30) + живое превью чата (как в Telegram)
+        ChatTextSizeSettingsCard(
+            textSizeSp = textSizeSp,
+            userName = registeredUserName,
+            onTextSizeChange = { newSize ->
+                ChatTextSettingsStore.setMessageTextSizeSp(context, newSize)
+            }
+        )
 
-            Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-            Text(
-                text = strings.settingsSectionGeneral,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                fontSize = 16.sp
-            )
+        Text(
+            text = strings.settingsSectionGeneral,
+            fontWeight = FontWeight.Bold,
+            color = TextPrimary,
+            fontSize = 16.sp
+        )
 
-            SettingsRow(
-                title = strings.settingsLanguageTitle,
-                value = "${currentLanguage.displayName} (${currentLanguage.code.uppercase()})",
-                highlight = true,
-                onClick = { languageScreenOpen = true }
-            )
+        SettingsRow(
+            title = strings.settingsLanguageTitle,
+            value = "${currentLanguage.displayName} (${currentLanguage.code.uppercase()})",
+            highlight = true,
+            onClick = onOpenLanguage
+        )
 
-            SettingsRow(
-                title = "Тема оформления",
-                value = activeThemeName,
-                highlight = true,
-                onClick = { themePickerOpen = true }
-            )
-            SettingsRow(title = "Переходы экранов", value = "11 стилей · активен SPRING_SWIPE")
-            SettingsRow(title = "Крипто-ядро", value = "Rust · ML-KEM-1024 · ChaCha20-Poly1305")
-            SettingsRow(title = "Жесты", value = "Полноэкранный свайп · Predictive Back")
-        }
+        SettingsRow(
+            title = "Тема оформления",
+            value = activeThemeName,
+            highlight = true,
+            onClick = { themePickerOpen = true }
+        )
+        SettingsRow(title = "Переходы экранов", value = "11 стилей · активен SPRING_SWIPE")
+        SettingsRow(title = "Крипто-ядро", value = "Rust · ML-KEM-1024 · ChaCha20-Poly1305")
+        SettingsRow(title = "Жесты", value = "Полноэкранный свайп · Predictive Back")
+    }
 
-        if (themePickerOpen) {
-            ThemePickerDialog(
-                currentThemeId = currentThemeId,
-                onSelect = { id ->
-                    onThemeSelect(id)
-                    themePickerOpen = false
-                },
-                onDismiss = { themePickerOpen = false }
-            )
-        }
-
-        // Полноэкранный экран настроек языка в стиле Telegram с анимацией
-        AnimatedVisibility(
-            visible = languageScreenOpen,
-            enter = slideInHorizontally(initialOffsetX = { it }) + fadeIn(),
-            exit = slideOutHorizontally(targetOffsetX = { it }) + fadeOut()
-        ) {
-            LanguageSettingsScreen(
-                onBack = { languageScreenOpen = false }
-            )
-        }
+    if (themePickerOpen) {
+        ThemePickerDialog(
+            currentThemeId = currentThemeId,
+            onSelect = { id ->
+                onThemeSelect(id)
+                themePickerOpen = false
+            },
+            onDismiss = { themePickerOpen = false }
+        )
     }
 }
 

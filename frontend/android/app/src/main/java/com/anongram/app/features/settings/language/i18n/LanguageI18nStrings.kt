@@ -11,7 +11,5 @@ interface LanguageI18nStrings {
     val doNotTranslateTitle: String
     val translationFootnote: String
     val languageSectionTitle: String
-    val searchPlaceholder: String
-    val searchEmptyNotice: String
-    fun languageAddedNotice(name: String): String
+    val close: String
 }

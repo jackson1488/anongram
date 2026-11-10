@@ -11,7 +11,5 @@ object LanguageStringsRu : LanguageI18nStrings {
     override val doNotTranslateTitle: String = "Не переводить"
     override val translationFootnote: String = "Кнопка «Перевести» появится в меню по нажатию на текстовое сообщение."
     override val languageSectionTitle: String = "Язык"
-    override val searchPlaceholder: String = "Поиск"
-    override val searchEmptyNotice: String = "Язык не найден"
-    override fun languageAddedNotice(name: String): String = "Язык «$name» будет добавлен в ближайшем обновлении"
+    override val close: String = "Закрыть"
 }
