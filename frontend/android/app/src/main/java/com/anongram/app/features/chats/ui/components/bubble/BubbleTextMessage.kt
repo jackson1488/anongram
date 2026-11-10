@@ -407,9 +407,9 @@ private fun InlineSpoilerLine(
     FlowRow(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Start,
-        verticalArrangement = Alignment.CenterVertically
+        verticalArrangement = Arrangement.Center
     ) {
-        parts.forEachIndexed { index, part ->
+        for ((index, part) in parts.withIndex()) {
             if (index % 2 == 1) {
                 // Скрытый фрагмент
                 BubbleSpoilerText(
