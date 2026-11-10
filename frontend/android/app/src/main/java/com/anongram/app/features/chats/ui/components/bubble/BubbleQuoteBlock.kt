@@ -38,12 +38,12 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
- * Аутентичная цитата и сворачиваемый блок в стиле Telegram (макеты media_1794333692036.png и media_1794333701837.png):
+ * Аутентичная цитата и выноска в стиле Telegram (макеты media_1794333692036.png и media_1794333701837.png):
  * - Вертикальная акцентная линия слева;
  * - Глиф кавычки ” в правом верхнем углу;
- * - Высококонтрастный текст с инлайн-стилями;
- * - Интерактивная кнопка-шеврона ^ / v в правом нижнем углу для сворачивания/разворачивания;
- * - Опциональный автор цитаты в левом нижнем углу («— Автор»).
+ * - Высококонтрастный текст с инлайн-стилями и спойлерами;
+ * - Кнопка сворачивания/разворачивания в правом нижнем углу;
+ * - Подпись автора («— Автор») в левом нижнем углу (как в цитате, так и в выноске).
  */
 @Composable
 fun BubbleQuoteBlock(
@@ -51,18 +51,21 @@ fun BubbleQuoteBlock(
     title: String? = null,
     author: String? = null,
     isCollapsible: Boolean = false,
+    isCallout: Boolean = false,
     initiallyExpanded: Boolean = false,
     textSizeSp: Int = 15,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
-    var isExpanded by remember { mutableStateOf(if (isCollapsible) initiallyExpanded else true) }
+    val blockAccent = if (isCallout) Color(0xFFC084FC) else scheme.accent
+    val canCollapse = isCollapsible || isCallout || text.lines().size > 2 || text.length > 120
+    var isExpanded by remember { mutableStateOf(if (canCollapse) initiallyExpanded else true) }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(scheme.accent.copy(alpha = 0.12f))
+            .background(blockAccent.copy(alpha = if (isCallout) 0.16f else 0.12f))
             .animateContentSize()
     ) {
         // Вертикальная акцентная линия слева
@@ -71,14 +74,14 @@ fun BubbleQuoteBlock(
                 .width(3.5.dp)
                 .matchParentSize()
                 .align(Alignment.CenterStart)
-                .background(scheme.accent, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+                .background(blockAccent, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
         )
 
         // Верхний правый глиф кавычки ” по макету Telegram
         Icon(
             imageVector = Icons.Outlined.FormatQuote,
             contentDescription = null,
-            tint = scheme.accent.copy(alpha = 0.6f),
+            tint = blockAccent.copy(alpha = 0.6f),
             modifier = Modifier
                 .size(20.dp)
                 .align(Alignment.TopEnd)
@@ -90,27 +93,27 @@ fun BubbleQuoteBlock(
                 .fillMaxWidth()
                 .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)
         ) {
-            // Заголовок сворачиваемого блока (если задан)
+            // Заголовок (если задан)
             if (!title.isNullOrBlank()) {
                 Text(
                     text = title,
-                    color = scheme.accent,
+                    color = blockAccent,
                     fontSize = (textSizeSp + 1).sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
             }
 
-            // Текст цитаты
-            if (isCollapsible && !isExpanded) {
+            // Текст цитаты / выноски
+            if (canCollapse && !isExpanded) {
                 if (text.contains("||")) {
                     Column {
                         text.lines().take(3).forEach { ql ->
                             if (ql.contains("||")) {
-                                InlineSpoilerLine(ql, textSizeSp, scheme.accent)
+                                InlineSpoilerLine(ql, textSizeSp, blockAccent)
                             } else {
                                 Text(
-                                    text = buildRichAnnotatedText(ql, scheme.accent),
+                                    text = buildRichAnnotatedText(ql, blockAccent),
                                     color = Color.White,
                                     fontSize = textSizeSp.sp,
                                     lineHeight = (textSizeSp * 1.28f).sp
@@ -120,7 +123,7 @@ fun BubbleQuoteBlock(
                     }
                 } else {
                     Text(
-                        text = buildRichAnnotatedText(text, scheme.accent),
+                        text = buildRichAnnotatedText(text, blockAccent),
                         color = Color.White,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.28f).sp,
@@ -133,10 +136,10 @@ fun BubbleQuoteBlock(
                     Column {
                         text.lines().forEach { ql ->
                             if (ql.contains("||")) {
-                                InlineSpoilerLine(ql, textSizeSp, scheme.accent)
+                                InlineSpoilerLine(ql, textSizeSp, blockAccent)
                             } else {
                                 Text(
-                                    text = buildRichAnnotatedText(ql, scheme.accent),
+                                    text = buildRichAnnotatedText(ql, blockAccent),
                                     color = Color.White,
                                     fontSize = textSizeSp.sp,
                                     lineHeight = (textSizeSp * 1.28f).sp
@@ -146,7 +149,7 @@ fun BubbleQuoteBlock(
                     }
                 } else {
                     Text(
-                        text = buildRichAnnotatedText(text, scheme.accent),
+                        text = buildRichAnnotatedText(text, blockAccent),
                         color = Color.White,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.28f).sp
@@ -154,8 +157,8 @@ fun BubbleQuoteBlock(
                 }
             }
 
-            // Нижняя строка: Автор слева и Шеврон сворачивания справа
-            if (!author.isNullOrBlank() || isCollapsible) {
+            // Нижняя строка: Автор в левом углу и кнопка Развернуть/Свернуть в правом углу
+            if (!author.isNullOrBlank() || canCollapse) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -174,11 +177,11 @@ fun BubbleQuoteBlock(
                         Spacer(modifier = Modifier.weight(1f))
                     }
 
-                    if (isCollapsible) {
+                    if (canCollapse) {
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = scheme.accent.copy(alpha = 0.22f),
-                            border = BorderStroke(1.dp, scheme.accent.copy(alpha = 0.5f)),
+                            color = blockAccent.copy(alpha = 0.22f),
+                            border = BorderStroke(1.dp, blockAccent.copy(alpha = 0.5f)),
                             modifier = Modifier
                                 .clip(RoundedCornerShape(14.dp))
                                 .clickable { isExpanded = !isExpanded }
@@ -189,16 +192,16 @@ fun BubbleQuoteBlock(
                             ) {
                                 Text(
                                     text = if (isExpanded) "Свернуть" else "Развернуть",
-                                    color = scheme.accent,
-                                    fontSize = 13.5.sp,
+                                    color = blockAccent,
+                                    fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
                                     contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
-                                    tint = scheme.accent,
-                                    modifier = Modifier.size(20.dp)
+                                    tint = blockAccent,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }

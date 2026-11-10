@@ -26,7 +26,8 @@ sealed interface MessageBlock {
     data class Quote(
         val text: String,
         val author: String? = null,
-        val isCollapsible: Boolean = false
+        val isCollapsible: Boolean = false,
+        val isCallout: Boolean = false
     ) : MessageBlock
 
     /**

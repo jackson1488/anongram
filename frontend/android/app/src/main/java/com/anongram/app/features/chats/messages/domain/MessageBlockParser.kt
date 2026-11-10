@@ -91,7 +91,14 @@ object MessageBlockParser {
                     bodyLines.add(lines[idx])
                     idx++
                 }
-                val (bodyText, author) = extractAuthorFromLines(bodyLines)
+                var (bodyText, author) = extractAuthorFromLines(bodyLines)
+                if (author == null && idx < lines.size) {
+                    val nextLine = lines[idx].trim()
+                    if (isAuthorLine(nextLine)) {
+                        author = cleanAuthorLine(nextLine).ifEmpty { null }
+                        idx++
+                    }
+                }
                 blocks.add(
                     MessageBlock.Collapsible(
                         title = title.ifEmpty { "Сворачиваемый блок" },
@@ -114,7 +121,14 @@ object MessageBlockParser {
                 if (idx < lines.size && lines[idx].trim().startsWith("+++")) {
                     idx++
                 }
-                val (bodyText, author) = extractAuthorFromLines(bodyLines)
+                var (bodyText, author) = extractAuthorFromLines(bodyLines)
+                if (author == null && idx < lines.size) {
+                    val nextLine = lines[idx].trim()
+                    if (isAuthorLine(nextLine)) {
+                        author = cleanAuthorLine(nextLine).ifEmpty { null }
+                        idx++
+                    }
+                }
                 blocks.add(
                     MessageBlock.Collapsible(
                         title = title.ifEmpty { "Сворачиваемый блок" },
@@ -125,9 +139,10 @@ object MessageBlockParser {
                 continue
             }
 
-            // 5. Цитата (обычная > или сворачиваемая >>>)
+            // 5. Цитата (обычная > или выноска >>>)
             if (t.startsWith(">")) {
-                val isCollapsible = t.startsWith(">>>")
+                val isCallout = t.startsWith(">>>")
+                val isCollapsible = isCallout
                 val quoteLines = mutableListOf<String>()
 
                 while (idx < lines.size) {
@@ -144,12 +159,23 @@ object MessageBlockParser {
                     idx++
                 }
 
-                val (quoteText, author) = extractAuthorFromLines(quoteLines)
+                var (quoteText, author) = extractAuthorFromLines(quoteLines)
+
+                // Если автор на следующей строке сразу под цитатой/выноской без значка >
+                if (author == null && idx < lines.size) {
+                    val nextLine = lines[idx].trim()
+                    if (isAuthorLine(nextLine)) {
+                        author = cleanAuthorLine(nextLine).ifEmpty { null }
+                        idx++
+                    }
+                }
+
                 blocks.add(
                     MessageBlock.Quote(
                         text = quoteText,
                         author = author,
-                        isCollapsible = isCollapsible
+                        isCollapsible = isCollapsible,
+                        isCallout = isCallout
                     )
                 )
                 continue
@@ -228,12 +254,40 @@ object MessageBlockParser {
         }
     }
 
+    private fun isAuthorLine(line: String): Boolean {
+        val t = line.trim()
+        return t.startsWith("—") ||
+            t.startsWith("--") ||
+            t.startsWith("~") ||
+            (t.startsWith("- ") && !t.startsWith("- [") && !t.startsWith("- [x]", ignoreCase = true)) ||
+            t.startsWith("(c)", ignoreCase = true) ||
+            t.startsWith("©") ||
+            t.startsWith("Автор:", ignoreCase = true) ||
+            t.startsWith("автор:", ignoreCase = true) ||
+            t.startsWith("Author:", ignoreCase = true) ||
+            t.startsWith("author:", ignoreCase = true)
+    }
+
+    private fun cleanAuthorLine(line: String): String {
+        return line.trim()
+            .removePrefix("—")
+            .removePrefix("--")
+            .removePrefix("~")
+            .removePrefix("-")
+            .removePrefix("(c)")
+            .removePrefix("(C)")
+            .removePrefix("©")
+            .removePrefix("Автор:")
+            .removePrefix("автор:")
+            .removePrefix("Author:")
+            .removePrefix("author:")
+            .trim()
+    }
+
     private fun extractAuthorFromLines(lines: List<String>): Pair<String, String?> {
         val lastLine = lines.lastOrNull()?.trim() ?: return Pair("", null)
-        val isAuthor = lastLine.startsWith("—") || lastLine.startsWith("--") ||
-            (lastLine.startsWith("- ") && !lastLine.startsWith("- ["))
-        if (isAuthor) {
-            val author = lastLine.removePrefix("—").removePrefix("--").removePrefix("-").trim()
+        if (isAuthorLine(lastLine)) {
+            val author = cleanAuthorLine(lastLine)
             val text = lines.dropLast(1).joinToString("\n").trim()
             return Pair(text, author.ifEmpty { null })
         }

@@ -154,20 +154,16 @@ fun BubbleTextMessage(
                         text = block.text,
                         author = block.author,
                         isCollapsible = block.isCollapsible,
+                        isCallout = block.isCallout,
                         textSizeSp = textSizeSp
                     )
                 }
                 is com.anongram.app.features.chats.messages.domain.MessageBlock.Collapsible -> {
-                    val (displayTitle, displayText) = if (block.content.isBlank()) {
-                        null to block.title
-                    } else {
-                        block.title to block.content
-                    }
-                    BubbleQuoteBlock(
-                        text = displayText,
-                        title = displayTitle,
+                    BubbleCollapsibleBlock(
+                        title = block.title,
+                        content = block.content,
                         author = block.author,
-                        isCollapsible = true,
+                        initiallyExpanded = false,
                         textSizeSp = textSizeSp
                     )
                 }

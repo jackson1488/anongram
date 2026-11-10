@@ -185,14 +185,14 @@ object ListFormattingHelper {
                 ListStyle.BULLET -> "• "
                 ListStyle.NUMBERED -> "1. "
                 ListStyle.CHECKLIST -> "☐ "
-                ListStyle.COLLAPSIBLE -> "^ "
+                ListStyle.COLLAPSIBLE -> "^ Заголовок\nВведите текст..."
             }
         }
 
         if (style == ListStyle.COLLAPSIBLE) {
-            return if (text.startsWith("^ ")) text
-            else if (text.isBlank()) "^ "
-            else "^ \n$text"
+            return if (text.isBlank()) "^ Заголовок\nВведите текст..."
+            else if (text.startsWith("^ ")) text
+            else "^ Заголовок\n$text"
         }
 
         val cleanText = if (text.startsWith("^ ")) text.removePrefix("^ ") else text

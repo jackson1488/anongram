@@ -186,6 +186,21 @@ fun ChatFullTextEditorScreen(
         }
     }
 
+    // Хелпер вставки сворачиваемого блока (^ Заголовок\nВведите текст...)
+    fun insertCollapsibleBlock() {
+        val currentVal = undoState.textFieldValue
+        val text = currentVal.text
+        val start = minOf(currentVal.selection.start, currentVal.selection.end)
+        val end = maxOf(currentVal.selection.start, currentVal.selection.end)
+        val selected = if (start != end) text.substring(start, end).trim() else ""
+        val body = if (selected.isNotEmpty()) selected else "Введите текст..."
+        val block = "^ Заголовок\n$body\n"
+        val newText = text.substring(0, start) + block + text.substring(end)
+        val titleStart = start + 2
+        val titleEnd = titleStart + "Заголовок".length
+        undoState.updateValue(TextFieldValue(newText, TextRange(titleStart, titleEnd)))
+    }
+
     // Хелпер применения префикса к текущей строке/параграфу (заголовки, цитаты)
     fun applyLinePrefix(prefix: String) {
         val currentVal = undoState.textFieldValue
@@ -712,6 +727,12 @@ fun ChatFullTextEditorScreen(
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
+                        } else if (undoState.currentText.startsWith("^") && !undoState.currentText.contains("\n") && undoState.currentText.trim().length > 1) {
+                            Text(
+                                text = "\n  Введите текст...",
+                                color = Color(0xFF64748B),
+                                style = textStyle
+                            )
                         } else if (undoState.currentText.trim() == ">" || undoState.currentText.trim() == ">>>") {
                             Text(
                                 text = "  Цитата...",
@@ -849,14 +870,14 @@ fun ChatFullTextEditorScreen(
                             },
                             onSelectQuoteVariant = { isCollapsible ->
                                 if (isCollapsible) {
-                                    applyLinePrefix("^ ")
+                                    insertCollapsibleBlock()
                                 } else {
                                     applyLinePrefix("> ")
                                 }
                             },
                             onSelectCalloutVariant = { isCollapsible ->
                                 if (isCollapsible) {
-                                    applyLinePrefix("^ ")
+                                    insertCollapsibleBlock()
                                 } else {
                                     applyLinePrefix(">>> ")
                                 }

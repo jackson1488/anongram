@@ -1,5 +1,6 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
@@ -49,9 +50,9 @@ fun BubbleSpoilerText(
     val infiniteTransition = rememberInfiniteTransition(label = "spoilerFloatingParticles")
     val animTime by infiniteTransition.animateFloat(
         initialValue = 0f,
-        targetValue = 31.4159f, // 10 * PI
+        targetValue = 62.8318f, // 20 * PI
         animationSpec = infiniteRepeatable(
-            animation = tween(8000),
+            animation = tween(3000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "animTime"
@@ -67,58 +68,64 @@ fun BubbleSpoilerText(
             text = text,
             style = style,
             modifier = Modifier
-                .alpha(if (isRevealed) 1f else 0.08f)
-                .padding(horizontal = 3.dp, vertical = 1.dp)
+                .alpha(if (isRevealed) 1f else 0.04f)
+                .padding(horizontal = 4.dp, vertical = 1.dp)
         )
 
-        // Живая вуаль с дрейфующими плавающими частицами Telegram
+        // Живая вуаль с динамическими дрейфующими и мерцающими частицами Telegram
         if (veilAlpha > 0.01f) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .alpha(veilAlpha)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0xFF3F2B66).copy(alpha = 0.90f))
+                    .background(Color(0xFF2C194D).copy(alpha = 0.94f))
             ) {
                 Canvas(modifier = Modifier.matchParentSize()) {
                     val width = size.width
                     val height = size.height
-                    // Плотное облако плавающих частиц
-                    val numDots = ((width * height) / 220f).toInt().coerceIn(28, 70)
+                    if (width <= 0 || height <= 0) return@Canvas
+
+                    // Высокая плотность плавающих мерцающих частиц
+                    val numDots = ((width * height) / 45f).toInt().coerceIn(60, 240)
 
                     for (i in 0 until numDots) {
-                        // Начальные распределенные координаты
-                        val seedX = ((i * 0.173f + 0.07f) % 1.0f)
-                        val seedY = ((i * 0.281f + 0.13f) % 1.0f)
+                        // Равномерные псевдослучайные начальные координаты
+                        val seedX = ((i * 0.1732f + 0.037f) % 1.0f)
+                        val seedY = ((i * 0.2819f + 0.083f) % 1.0f)
 
-                        // Скорости дрейфа по осям X и Y
-                        val driftSpeedX = 0.035f + (i % 5) * 0.012f
-                        val driftSpeedY = 0.025f + (i % 7) * 0.009f
+                        // Скорости дрейфа (в стороны и вверх, создавая эффект искрящегося дыма)
+                        val driftSpeedX = 0.22f + (i % 7) * 0.08f
+                        val driftSpeedY = -0.18f - (i % 5) * 0.07f
 
-                        // Плавный дрейф с циклическим бесшовным переносом (wrap-around)
-                        val curXNorm = ((seedX + animTime * driftSpeedX + sin(animTime * 0.8f + i) * 0.02f) % 1.0f + 1.0f) % 1.0f
-                        val curYNorm = ((seedY + animTime * driftSpeedY + sin(animTime * 0.6f + i * 2) * 0.025f) % 1.0f + 1.0f) % 1.0f
+                        // Плавный циклический бесшовный перенос частиц
+                        val curXNorm = ((seedX + animTime * driftSpeedX + sin(animTime * 1.6f + i) * 0.035f) % 1.0f + 1.0f) % 1.0f
+                        val curYNorm = ((seedY + animTime * driftSpeedY + sin(animTime * 1.9f + i * 2) * 0.035f) % 1.0f + 1.0f) % 1.0f
 
-                        val x = curXNorm * width
-                        val y = curYNorm * height
+                        val px = curXNorm * width
+                        val py = curYNorm * height
 
-                        // Радиус частицы и мерцание
-                        val radius = (0.7f + (i % 3) * 0.45f).dp.toPx()
-                        val wave = sin(animTime * 2.5f + i * 1.7f)
-                        val dotAlpha = ((wave + 1f) / 2f).coerceIn(0.25f, 0.95f)
+                        // Быстрое искрящееся мерцание (10-15 Hz)
+                        val twinkle = sin(animTime * 9f + i * 19.3f)
+                        val dotAlpha = ((twinkle + 1f) * 0.5f).coerceIn(0.20f, 1.0f)
 
-                        val color = when (i % 5) {
-                            0 -> Color(0xFFE9D5FF).copy(alpha = dotAlpha)        // Нежный лавандовый
-                            1 -> Color(0xFFC084FC).copy(alpha = dotAlpha)        // Насыщенный сиреневый
-                            2 -> Color.White.copy(alpha = dotAlpha * 0.90f)      // Чистая белая искра
-                            3 -> Color(0xFFA855F7).copy(alpha = dotAlpha * 0.80f)// Аметистовый
-                            else -> Color(0xFFE0E7FF).copy(alpha = dotAlpha)     // Ледяной кристалл
+                        // Радиус частицы от тончайшей пылинки до яркой искры
+                        val radius = (0.75f + (i % 4) * 0.42f).dp.toPx()
+
+                        // Звёздная палитра Telegram Stardust: белый, неоновый фиолет, лаванда, аквамарин
+                        val color = when (i % 6) {
+                            0 -> Color(0xFFFFFFFF).copy(alpha = dotAlpha)             // Яркая белая искра
+                            1 -> Color(0xFFE9D5FF).copy(alpha = dotAlpha)             // Лавандовая пыль
+                            2 -> Color(0xFFC084FC).copy(alpha = dotAlpha * 0.95f)      // Фиолетовый неон
+                            3 -> Color(0xFFA855F7).copy(alpha = dotAlpha * 0.90f)      // Пурпурный
+                            4 -> Color(0xFF67E8F9).copy(alpha = dotAlpha * 0.85f)      // Кристальный аквамарин
+                            else -> Color(0xFFF3E8FF).copy(alpha = dotAlpha)          // Розово-белый кристалл
                         }
 
                         drawCircle(
                             color = color,
                             radius = radius,
-                            center = Offset(x, y)
+                            center = Offset(px, py)
                         )
                     }
                 }
