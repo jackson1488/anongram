@@ -106,13 +106,14 @@ class AuthRepositoryImpl(
         identity: UserIdentity,
         seedPhrase: SeedPhrase,
         pin: String?
-    ) = withContext(Dispatchers.IO) {
+    ): Unit = withContext(Dispatchers.IO) {
         vault.saveIdentity(identity, seedPhrase, pin)
         _authState.value = AuthState.Authenticated(identity)
         // Фоновая публикация паспорта на сервер
         scope.launch {
             publishPassportToServer(identity)
         }
+        Unit
     }
 
     /**

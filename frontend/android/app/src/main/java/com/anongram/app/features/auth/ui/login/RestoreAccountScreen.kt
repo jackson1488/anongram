@@ -52,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.ui.safeNavigationBarPadding
@@ -119,10 +120,10 @@ fun RestoreAccountScreen(
             errorMessage = null
             Toast.makeText(context, "Вставлено 12 слов мнемоники", Toast.LENGTH_SHORT).show()
         } else if (pastedWords.isNotEmpty()) {
-            for (i in pastedWords.indices.coerceAtMost(12)) {
+            for (i in 0 until minOf(pastedWords.size, 12)) {
                 words[i] = pastedWords[i].lowercase()
             }
-            Toast.makeText(context, "Вставлено ${pastedWords.size} слов", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Вставлено ${minOf(pastedWords.size, 12)} слов", Toast.LENGTH_SHORT).show()
         } else {
             Toast.makeText(context, "Буфер обмена пуст", Toast.LENGTH_SHORT).show()
         }
