@@ -2,6 +2,7 @@ package com.anongram.app.features.profile.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +18,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -27,14 +31,36 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
 import com.anongram.app.core.theme.CardBorder
+import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.CyberCyan
 import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.features.auth.data.crypto.KeystoreVault
 
-/** Раздел «Профиль» (секция 5 из 5): локальная крипто-идентичность на seed-фразе. */
+/**
+ * Раздел «Крипто-Профиль»: отображает локальную криптографическую идентичность,
+ * деривированный Public ID, статус ключей Ed25519 и параметры Zero-Knowledge сессии.
+ *
+ * @param onLogout Колбэк при выходе из профиля со стиранием ключей.
+ * @param modifier Модификатор макета.
+ */
 @Composable
-fun ProfileScreen(modifier: Modifier = Modifier) {
+fun ProfileScreen(
+    onLogout: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val vault = remember { KeystoreVault(context) }
+    val identity = remember { vault.loadIdentity() }
+
+    val nickname = identity?.nickname ?: "AnonUser"
+    val displayPublicId = if (identity != null && identity.publicId.length >= 16) {
+        "0x${identity.publicId.take(6)}…${identity.publicId.takeLast(6)}"
+    } else {
+        "0x4D9F…88E1"
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -75,14 +101,14 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             Spacer(modifier = Modifier.width(14.dp))
             Column {
                 Text(
-                    text = "Локальная идентичность",
+                    text = nickname,
                     fontWeight = FontWeight.Bold,
                     color = TextPrimary,
-                    fontSize = 14.sp
+                    fontSize = 15.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = "0x4D9F…88E1 (Ed25519)",
+                    text = "$displayPublicId (Ed25519)",
                     color = CyberCyan,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace
@@ -90,9 +116,33 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        ProfileRow(title = "Seed-фраза", value = "24 слова · BIP-39 · 100% Offline")
-        ProfileRow(title = "Верификация", value = "SAS · 60 цифр при личной встрече")
-        ProfileRow(title = "Аккаунт", value = "Без номера телефона и серверов")
+        ProfileRow(title = "Seed-фраза", value = "12 слов · BIP-39 · 100% Offline")
+        ProfileRow(title = "Квантовая защита", value = "Гибридный бандл ML-DSA-87")
+        ProfileRow(title = "Верификация", value = "Blind Relay Hash · SHA-256")
+        ProfileRow(title = "Аккаунт", value = "Без номера телефона, email и паролей")
+
+        if (onLogout != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(Color(0xFF241017))
+                    .border(1.dp, CrimsonKillSwitch.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                    .clickable { onLogout() }
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Выйти из аккаунта (стереть ключи)",
+                    color = CrimsonKillSwitch,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 13.sp
+                )
+            }
+        }
     }
 }
 
