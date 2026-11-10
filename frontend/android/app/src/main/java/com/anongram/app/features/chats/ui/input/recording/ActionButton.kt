@@ -26,6 +26,7 @@ import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.state.RecordMode
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -52,6 +53,7 @@ fun ActionButton(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
 
     Box(
         modifier = modifier
@@ -149,28 +151,28 @@ fun ActionButton(
         if (canSend) {
             Icon(
                 imageVector = if (isEditing) Icons.Outlined.Check else Icons.AutoMirrored.Outlined.Send,
-                contentDescription = if (isEditing) "Сохранить" else "Отправить",
+                contentDescription = if (isEditing) strings.save else strings.send,
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )
         } else if (isRecording) {
             Icon(
                 imageVector = Icons.Outlined.Stop,
-                contentDescription = "Остановить",
+                contentDescription = strings.stop,
                 tint = Color.White,
                 modifier = Modifier.size(22.dp)
             )
         } else if (isCameraMode) {
             Icon(
                 imageVector = Icons.Outlined.Videocam,
-                contentDescription = "Видео-кружок (тап = микрофон)",
+                contentDescription = strings.videoRoundDesc,
                 tint = scheme.accent,
                 modifier = Modifier.size(22.dp)
             )
         } else {
             Icon(
                 imageVector = Icons.Outlined.Mic,
-                contentDescription = "Микрофон (тап = камера)",
+                contentDescription = strings.micDesc,
                 tint = scheme.accent,
                 modifier = Modifier.size(22.dp)
             )

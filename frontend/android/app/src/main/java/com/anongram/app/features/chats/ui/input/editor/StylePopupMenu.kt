@@ -41,6 +41,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 enum class TextStyleFormat(val label: String, val glyph: String) {
     BOLD("Жирный", "B"),
@@ -54,6 +56,20 @@ enum class TextStyleFormat(val label: String, val glyph: String) {
     SPOILER("Спойлер", "✦"),
     CODE("Код", "</>"),
     NORMAL("Обычный текст", "T")
+}
+
+fun TextStyleFormat.getLabel(strings: InputI18nStrings): String = when (this) {
+    TextStyleFormat.BOLD -> strings.styleBold
+    TextStyleFormat.ITALIC -> strings.styleItalic
+    TextStyleFormat.UNDERLINE -> strings.styleUnderline
+    TextStyleFormat.STRIKE -> strings.styleStrikethrough
+    TextStyleFormat.HEADING -> strings.styleHeading
+    TextStyleFormat.QUOTE -> strings.styleQuote
+    TextStyleFormat.CALLOUT -> strings.styleCallout
+    TextStyleFormat.FONT -> strings.styleFont
+    TextStyleFormat.SPOILER -> strings.styleSpoiler
+    TextStyleFormat.CODE -> strings.styleCode
+    TextStyleFormat.NORMAL -> strings.styleRegular
 }
 
 val CodeLanguages = listOf(
@@ -85,6 +101,7 @@ fun StylePopupMenu(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     var activeSubmenu by remember { mutableStateOf(ActiveSubmenu.NONE) }
 
     Box(
@@ -124,7 +141,7 @@ fun StylePopupMenu(
                 }
                 ActiveSubmenu.QUOTE -> {
                     QuoteVariantSubmenu(
-                        title = "Цитата",
+                        title = strings.styleQuote,
                         onSelectVariant = { isCollapsible ->
                             onSelectQuoteVariant(isCollapsible)
                             onSelectFormat(TextStyleFormat.QUOTE)
@@ -135,7 +152,7 @@ fun StylePopupMenu(
                 }
                 ActiveSubmenu.CALLOUT -> {
                     QuoteVariantSubmenu(
-                        title = "Выноска",
+                        title = strings.styleCallout,
                         onSelectVariant = { isCollapsible ->
                             onSelectCalloutVariant(isCollapsible)
                             onSelectFormat(TextStyleFormat.CALLOUT)
@@ -199,7 +216,7 @@ fun StylePopupMenu(
                                     Spacer(modifier = Modifier.width(12.dp))
 
                                     Text(
-                                        text = format.label,
+                                        text = format.getLabel(strings),
                                         color = if (isSelected) scheme.accent else Color.White,
                                         fontSize = 13.5.sp,
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -209,14 +226,14 @@ fun StylePopupMenu(
                                 if (hasSubmenu) {
                                     Icon(
                                         imageVector = Icons.Outlined.ChevronRight,
-                                        contentDescription = "Подменю",
+                                        contentDescription = strings.submenu,
                                         tint = Color(0xFFA1A1AA),
                                         modifier = Modifier.size(16.dp)
                                     )
                                 } else if (isSelected) {
                                     Icon(
                                         imageVector = Icons.Outlined.Check,
-                                        contentDescription = "Выбрано",
+                                        contentDescription = strings.selected,
                                         tint = scheme.accent,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -236,15 +253,16 @@ private fun FontPickerSubmenu(
     onBack: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val fonts = listOf(
-        "Стандартный (Sans)" to "sans",
-        "С засечками (Serif)" to "serif",
-        "Моноширинный (Mono)" to "mono",
-        "Рукописный (Cursive)" to "cursive"
+        strings.fontSans to "sans",
+        strings.fontSerif to "serif",
+        strings.fontMono to "mono",
+        strings.fontCursive to "cursive"
     )
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SubmenuHeader(title = "Назад к стилям", onBack = onBack)
+        SubmenuHeader(title = strings.backToStyles, onBack = onBack)
 
         fonts.forEach { (label, key) ->
             Row(
@@ -277,9 +295,10 @@ private fun QuoteVariantSubmenu(
     onBack: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        SubmenuHeader(title = "Назад к стилям", onBack = onBack)
+        SubmenuHeader(title = strings.backToStyles, onBack = onBack)
 
         Row(
             modifier = Modifier
@@ -289,7 +308,7 @@ private fun QuoteVariantSubmenu(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Обычная $title",
+                text = strings.standardQuote(title),
                 color = Color.White,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Medium
@@ -304,7 +323,7 @@ private fun QuoteVariantSubmenu(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Сворачиваемая $title (^)",
+                text = strings.collapsibleQuote(title),
                 color = scheme.accent,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.SemiBold
@@ -316,6 +335,7 @@ private fun QuoteVariantSubmenu(
 @Composable
 private fun SubmenuHeader(title: String, onBack: () -> Unit) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -325,7 +345,7 @@ private fun SubmenuHeader(title: String, onBack: () -> Unit) {
     ) {
         Icon(
             imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-            contentDescription = "Назад",
+            contentDescription = strings.back,
             tint = scheme.accent,
             modifier = Modifier.size(18.dp)
         )

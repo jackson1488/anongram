@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Панель ввода формулы LaTeX строго по макету media_1794253317328.png.
@@ -46,6 +47,7 @@ fun LatexFormulaInputPanel(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     var formulaText by remember { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
 
@@ -74,7 +76,7 @@ fun LatexFormulaInputPanel(
             ) {
                 if (formulaText.isEmpty()) {
                     Text(
-                        text = "Формула LaTeX",
+                        text = strings.latexFormula,
                         color = Color(0xFF64748B),
                         fontSize = 15.sp,
                         fontFamily = FontFamily.Monospace
@@ -122,7 +124,7 @@ fun LatexFormulaInputPanel(
                 )
             ) {
                 Text(
-                    text = "Готово",
+                    text = strings.done,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )

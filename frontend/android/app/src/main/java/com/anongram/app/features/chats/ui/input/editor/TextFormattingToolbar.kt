@@ -31,6 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Центрированная парящая панель инструментов форматирования над клавиатурой
@@ -51,6 +52,7 @@ fun TextFormattingToolbar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val itemColor = Color(0xFFB0B0B5)
 
     Box(
@@ -76,7 +78,7 @@ fun TextFormattingToolbar(
                 IconButton(onClick = onToggleEmoji, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = if (isEmojiActive) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                        contentDescription = if (isEmojiActive) "Клавиатура" else "Эмодзи",
+                        contentDescription = if (isEmojiActive) strings.keyboard else strings.emoji,
                         tint = if (isEmojiActive) scheme.accent else itemColor,
                         modifier = Modifier.size(20.dp)
                     )
@@ -110,7 +112,7 @@ fun TextFormattingToolbar(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.FormatListBulleted,
-                        contentDescription = "Списки",
+                        contentDescription = strings.lists,
                         tint = if (isListActive) scheme.accent else itemColor,
                         modifier = Modifier.size(19.dp)
                     )
@@ -127,7 +129,7 @@ fun TextFormattingToolbar(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Functions,
-                        contentDescription = "Формула LaTeX",
+                        contentDescription = strings.latexFormula,
                         tint = if (isFormulaActive) scheme.accent else itemColor,
                         modifier = Modifier.size(19.dp)
                     )
@@ -137,7 +139,7 @@ fun TextFormattingToolbar(
                 IconButton(onClick = onOpenAttach, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = Icons.Outlined.AttachFile,
-                        contentDescription = "Прикрепить файл/фото",
+                        contentDescription = strings.attachFilePhoto,
                         tint = itemColor,
                         modifier = Modifier.size(20.dp)
                     )
@@ -157,7 +159,7 @@ fun TextFormattingToolbar(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
-                contentDescription = "Отправить",
+                contentDescription = strings.send,
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )

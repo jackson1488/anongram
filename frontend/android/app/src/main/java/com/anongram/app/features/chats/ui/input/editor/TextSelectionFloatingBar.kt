@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Плавающая панель форматирования выделенного текста по макету media_1794257026295.png.
@@ -52,6 +53,7 @@ fun TextSelectionFloatingBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     var isFontMenuOpen by remember { mutableStateOf(false) }
 
     Box(
@@ -154,8 +156,8 @@ fun TextSelectionFloatingBar(
                     val fonts = listOf(
                         "Sans-Serif" to "sans",
                         "Serif" to "serif",
-                        "Моноширинный" to "mono",
-                        "Рукописный" to "cursive"
+                        strings.fontMonoShort to "mono",
+                        strings.fontCursiveShort to "cursive"
                     )
                     fonts.forEach { (label, key) ->
                         DropdownMenuItem(

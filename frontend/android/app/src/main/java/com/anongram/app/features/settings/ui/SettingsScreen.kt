@@ -48,6 +48,10 @@ import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.i18n.AppLanguage
+import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
+import com.anongram.app.features.settings.ui.components.LanguagePickerDialog
 import com.anongram.app.features.settings.ui.components.ThemePickerDialog
 import kotlin.math.roundToInt
 
@@ -55,6 +59,7 @@ import kotlin.math.roundToInt
  * Раздел «Настройки» (секция 4 из 5):
  * - Настройки чатов: ползунок «Размер текста сообщений» (1–30) с живым превью и именем пользователя при регистрации
  * - Тема оформления (через ThemeController)
+ * - Язык интерфейса (RU / EN с переключением на лету)
  * - Переходы экранов, крипто-ядро, жесты
  */
 @Composable
@@ -66,12 +71,16 @@ fun SettingsScreen(
     val context = LocalContext.current
     LaunchedEffect(context) {
         ChatTextSettingsStore.ensureInitialized(context)
+        LanguageSettingsStore.ensureInitialized(context)
     }
 
     val textSizeSp by ChatTextSettingsStore.messageTextSizeSp.collectAsState()
     val registeredUserName by ChatTextSettingsStore.registeredUserName.collectAsState()
+    val currentLanguage by LanguageSettingsStore.language.collectAsState()
+    val strings = LocalInputStrings.current
 
     var themePickerOpen by remember { mutableStateOf(false) }
+    var languagePickerOpen by remember { mutableStateOf(false) }
     val activeThemeName = AnonGramThemes.byId(currentThemeId).displayName
 
     Column(
@@ -100,10 +109,17 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
-            text = "Основные настройки",
+            text = strings.settingsSectionGeneral,
             fontWeight = FontWeight.Bold,
             color = TextPrimary,
             fontSize = 16.sp
+        )
+
+        SettingsRow(
+            title = strings.settingsLanguageTitle,
+            value = "${currentLanguage.displayName} (${currentLanguage.code.uppercase()})",
+            highlight = true,
+            onClick = { languagePickerOpen = true }
         )
 
         SettingsRow(
@@ -115,6 +131,17 @@ fun SettingsScreen(
         SettingsRow(title = "Переходы экранов", value = "11 стилей · активен SPRING_SWIPE")
         SettingsRow(title = "Крипто-ядро", value = "Rust · ML-KEM-1024 · ChaCha20-Poly1305")
         SettingsRow(title = "Жесты", value = "Полноэкранный свайп · Predictive Back")
+    }
+
+    if (languagePickerOpen) {
+        LanguagePickerDialog(
+            currentLanguage = currentLanguage,
+            onSelectLanguage = { lang ->
+                LanguageSettingsStore.setLanguage(context, lang)
+                languagePickerOpen = false
+            },
+            onDismiss = { languagePickerOpen = false }
+        )
     }
 
     if (themePickerOpen) {

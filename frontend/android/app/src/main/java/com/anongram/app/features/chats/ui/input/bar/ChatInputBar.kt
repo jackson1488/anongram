@@ -51,6 +51,7 @@ import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.messages.state.RecordingState
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import com.anongram.app.features.chats.ui.input.recording.ActionButton
 import com.anongram.app.features.chats.ui.input.recording.RecordingBar
 import com.anongram.app.features.chats.ui.input.reply.FusedEditBar
@@ -96,6 +97,7 @@ fun ChatInputBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val isRecording = recording.mode != RecordMode.NONE
 
     Row(
@@ -163,14 +165,14 @@ fun ChatInputBar(
                         ) {
                             Icon(
                                 imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                                contentDescription = "Эмодзи",
+                                contentDescription = strings.emoji,
                                 tint = if (isEmojiOpen) scheme.accent else TextMuted,
                                 modifier = Modifier.size(23.dp)
                             )
                         }
 
                         // Центральная область ввода: раздувается до 160 dp (~на 2 см выше)
-                        val placeholderText = if (editing?.attachment != null) "Подпись" else "Сообщение"
+                        val placeholderText = if (editing?.attachment != null) strings.captionPlaceholder else strings.messagePlaceholder
                         Box(
                             modifier = Modifier
                                 .weight(1f)
@@ -221,7 +223,7 @@ fun ChatInputBar(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.AttachFile,
-                                contentDescription = "Вложить",
+                                contentDescription = strings.attach,
                                 tint = TextMuted,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -264,7 +266,7 @@ fun ChatInputBar(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.OpenInFull,
-                        contentDescription = "Раскрыть полноценно",
+                        contentDescription = strings.openFullEditor,
                         tint = scheme.accent.copy(alpha = 0.85f),
                         modifier = Modifier.size(15.dp)
                     )

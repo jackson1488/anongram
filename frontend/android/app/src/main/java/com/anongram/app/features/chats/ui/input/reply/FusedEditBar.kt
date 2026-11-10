@@ -35,6 +35,7 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
 import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Слитно встроенная плашка редактирования / замены файла.
@@ -48,6 +49,7 @@ fun FusedEditBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val hasAttachment = editing.attachment != null
     val isPhoto = editing.attachment is MessageAttachment.Photo || editing.attachment is MessageAttachment.MediaAlbum
     val snippet = replyPreviewSnippet(editing)
@@ -91,7 +93,7 @@ fun FusedEditBar(
                 )
         ) {
             Text(
-                text = if (hasAttachment) "Заменить" else "Изменение сообщения",
+                text = if (hasAttachment) strings.replace else strings.editMessage,
                 color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -100,7 +102,7 @@ fun FusedEditBar(
             )
             Spacer(modifier = Modifier.height(1.dp))
             Text(
-                text = if (hasAttachment) snippet else editing.text.ifBlank { "Сообщение" },
+                text = if (hasAttachment) snippet else editing.text.ifBlank { strings.message },
                 color = TextPrimary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -114,7 +116,7 @@ fun FusedEditBar(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Brush,
-                    contentDescription = "Редактировать фото",
+                    contentDescription = strings.editPhoto,
                     tint = scheme.accent,
                     modifier = Modifier.size(17.dp)
                 )
@@ -127,7 +129,7 @@ fun FusedEditBar(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Close,
-                contentDescription = "Отменить редактирование",
+                contentDescription = strings.cancelEdit,
                 tint = TextSecondary,
                 modifier = Modifier.size(16.dp)
             )

@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Аутентичная цитата и выноска в стиле Telegram (макеты media_1794333692036.png и media_1794333701837.png):
@@ -57,6 +58,7 @@ fun BubbleQuoteBlock(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val blockAccent = if (isCallout) Color(0xFFC084FC) else scheme.accent
     val canCollapse = isCollapsible || isCallout || text.lines().size > 2 || text.length > 120
     var isExpanded by remember { mutableStateOf(if (canCollapse) initiallyExpanded else true) }
@@ -191,7 +193,7 @@ fun BubbleQuoteBlock(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = if (isExpanded) "Свернуть" else "Развернуть",
+                                    text = if (isExpanded) strings.collapse else strings.expand,
                                     color = blockAccent,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -199,7 +201,7 @@ fun BubbleQuoteBlock(
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Icon(
                                     imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                                    contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
+                                    contentDescription = if (isExpanded) strings.collapse else strings.expand,
                                     tint = blockAccent,
                                     modifier = Modifier.size(18.dp)
                                 )

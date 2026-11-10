@@ -7,6 +7,7 @@ import com.anongram.app.features.attach.ui.AttachSheetContent
 import com.anongram.app.features.attach.ui.AttachTab
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Специализированная шторка вложений для полноэкранного редактора сообщений (EditorAttachSheet).
@@ -23,10 +24,11 @@ fun EditorAttachSheet(
     modifier: Modifier = Modifier
 ) {
     if (!visible) return
+    val strings = LocalInputStrings.current
 
     AttachSheetContent(
         chatId = "editor_draft",
-        recipientName = "Черновик",
+        recipientName = strings.draft,
         initialTab = AttachTab.GALLERY,
         isSingleReplaceMode = false,
         onDismiss = onDismiss,
@@ -35,7 +37,7 @@ fun EditorAttachSheet(
                 when (draft) {
                     is AttachmentDraft.Media -> {
                         MessageAttachment.Photo(
-                            label = draft.uri.lastPathSegment ?: "Медиа",
+                            label = draft.uri.lastPathSegment ?: strings.media,
                             colorSeed = 2,
                             isVideo = draft.isVideo,
                             uri = draft.uri.toString(),
@@ -52,8 +54,8 @@ fun EditorAttachSheet(
                     }
                     is AttachmentDraft.Audio -> {
                         MessageAttachment.Music(
-                            title = draft.title.ifBlank { "Аудиотрек" },
-                            artist = draft.artist.ifBlank { "Неизвестен" },
+                            title = draft.title.ifBlank { strings.audioTrack },
+                            artist = draft.artist.ifBlank { strings.unknown },
                             durationLabel = formatDuration(draft.durationMs),
                             colorSeed = 3,
                             uri = draft.uri.toString()
@@ -61,7 +63,7 @@ fun EditorAttachSheet(
                     }
                     is AttachmentDraft.Location -> {
                         MessageAttachment.Geo(
-                            address = draft.address ?: "Геопозиция (${draft.lat}, ${draft.lon})"
+                            address = draft.address ?: strings.location(draft.lat, draft.lon)
                         )
                     }
                     is AttachmentDraft.Contact -> {
@@ -72,7 +74,7 @@ fun EditorAttachSheet(
                     }
                     is AttachmentDraft.LiveLocation -> {
                         MessageAttachment.Geo(
-                            address = "Трансляция геопозиции (${draft.durationMin} мин)"
+                            address = strings.liveLocation(draft.durationMin)
                         )
                     }
                 }

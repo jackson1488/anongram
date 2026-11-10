@@ -11,6 +11,15 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.features.chats.ui.input.i18n.InputI18n
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
+
 /** Активная цветовая схема; компоненты читают её вместо хардкода акцентов. */
 val LocalAnonGramScheme = staticCompositionLocalOf { AnonGramThemes.CyberStealth }
 
@@ -19,6 +28,13 @@ fun AnonGramTheme(
     scheme: AnonGramScheme = AnonGramThemes.CyberStealth,
     content: @Composable () -> Unit
 ) {
+    val context = LocalContext.current
+    LaunchedEffect(context) {
+        LanguageSettingsStore.ensureInitialized(context)
+    }
+    val currentLanguage by LanguageSettingsStore.language.collectAsState()
+    val inputStrings = remember(currentLanguage) { InputI18n.forLanguage(currentLanguage) }
+
     val colorScheme = darkColorScheme(
         primary = scheme.accent,
         secondary = NeonEmerald,
@@ -42,7 +58,10 @@ fun AnonGramTheme(
         }
     }
 
-    CompositionLocalProvider(LocalAnonGramScheme provides scheme) {
+    CompositionLocalProvider(
+        LocalAnonGramScheme provides scheme,
+        LocalInputStrings provides inputStrings
+    ) {
         MaterialTheme(
             colorScheme = colorScheme,
             content = content

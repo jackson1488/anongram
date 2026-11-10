@@ -37,6 +37,7 @@ import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.messages.state.RecordingState
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Строка активной записи: красная пульсирующая точка, таймер, «Влево - отмена».
@@ -49,6 +50,7 @@ fun RecordingBar(
     onLock: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalInputStrings.current
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
         initialValue = 0.3f,
@@ -97,7 +99,7 @@ fun RecordingBar(
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = if (recording.isLocked) "Отмена" else "« Влево - отмена",
+                    text = if (recording.isLocked) strings.cancel else strings.slideLeftToCancel,
                     color = TextMuted,
                     fontSize = 12.sp
                 )
@@ -106,7 +108,7 @@ fun RecordingBar(
                 Spacer(modifier = Modifier.width(8.dp))
                 Icon(
                     imageVector = Icons.Outlined.Lock,
-                    contentDescription = "Заблокировать",
+                    contentDescription = strings.lockRecording,
                     tint = TextMuted,
                     modifier = Modifier
                         .size(16.dp)

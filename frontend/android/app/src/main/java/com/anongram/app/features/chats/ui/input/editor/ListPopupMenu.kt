@@ -38,6 +38,8 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 enum class ListStyle(val label: String, val icon: ImageVector) {
     NONE("Без списка", Icons.Outlined.FormatClear),
@@ -45,6 +47,14 @@ enum class ListStyle(val label: String, val icon: ImageVector) {
     NUMBERED("Список с номерами", Icons.Outlined.FormatListNumbered),
     CHECKLIST("Чек-лист", Icons.Outlined.CheckBoxOutlineBlank),
     COLLAPSIBLE("Сворачиваемый блок", Icons.Outlined.UnfoldMore)
+}
+
+fun ListStyle.getLabel(strings: InputI18nStrings): String = when (this) {
+    ListStyle.NONE -> strings.listNone
+    ListStyle.BULLET -> strings.listBullet
+    ListStyle.NUMBERED -> strings.listNumbered
+    ListStyle.CHECKLIST -> strings.listChecklist
+    ListStyle.COLLAPSIBLE -> strings.listCollapsible
 }
 
 /**
@@ -60,6 +70,7 @@ fun ListPopupMenu(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
 
     Box(
         modifier = modifier
@@ -91,13 +102,13 @@ fun ListPopupMenu(
                     ) {
                         Icon(
                             imageVector = style.icon,
-                            contentDescription = style.label,
+                            contentDescription = style.getLabel(strings),
                             tint = if (isSelected) scheme.accent else Color.White,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = style.label,
+                            text = style.getLabel(strings),
                             color = if (isSelected) scheme.accent else Color.White,
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
@@ -106,7 +117,7 @@ fun ListPopupMenu(
                     if (isSelected) {
                         Icon(
                             imageVector = Icons.Outlined.Check,
-                            contentDescription = "Выбрано",
+                            contentDescription = strings.selected,
                             tint = scheme.accent,
                             modifier = Modifier.size(18.dp)
                         )
@@ -133,13 +144,13 @@ fun ListPopupMenu(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.FormatIndentIncrease,
-                    contentDescription = "Отступ вправо",
+                    contentDescription = strings.indentRight,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Отступ вправо",
+                    text = strings.indentRight,
                     color = Color.White,
                     fontSize = 14.sp
                 )
@@ -158,13 +169,13 @@ fun ListPopupMenu(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.FormatIndentDecrease,
-                    contentDescription = "Отменить отступ",
+                    contentDescription = strings.outdent,
                     tint = Color.White,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = "Отменить отступ",
+                    text = strings.outdent,
                     color = Color.White,
                     fontSize = 14.sp
                 )
@@ -178,21 +189,26 @@ fun ListPopupMenu(
  */
 object ListFormattingHelper {
 
-    fun applyStyle(text: String, style: ListStyle): String {
+    fun applyStyle(
+        text: String,
+        style: ListStyle,
+        templateTitle: String = "Заголовок",
+        templateBody: String = "Введите текст..."
+    ): String {
         if (text.isEmpty()) {
             return when (style) {
                 ListStyle.NONE -> ""
                 ListStyle.BULLET -> "• "
                 ListStyle.NUMBERED -> "1. "
                 ListStyle.CHECKLIST -> "☐ "
-                ListStyle.COLLAPSIBLE -> "^ Заголовок\nВведите текст..."
+                ListStyle.COLLAPSIBLE -> "^ $templateTitle\n$templateBody"
             }
         }
 
         if (style == ListStyle.COLLAPSIBLE) {
-            return if (text.isBlank()) "^ Заголовок\nВведите текст..."
+            return if (text.isBlank()) "^ $templateTitle\n$templateBody"
             else if (text.startsWith("^ ")) text
-            else "^ Заголовок\n$text"
+            else "^ $templateTitle\n$text"
         }
 
         val cleanText = if (text.startsWith("^ ")) text.removePrefix("^ ") else text

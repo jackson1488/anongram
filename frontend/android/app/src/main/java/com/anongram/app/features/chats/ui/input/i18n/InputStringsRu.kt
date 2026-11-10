@@ -1,0 +1,106 @@
+package com.anongram.app.features.chats.ui.input.i18n
+
+/**
+ * Русская локализация (RU) для модулей клавиатуры, инпута, редактора и цитат.
+ */
+object InputStringsRu : InputI18nStrings {
+    override val messagePlaceholder: String = "Сообщение..."
+    override val captionPlaceholder: String = "Подпись"
+    override val emoji: String = "Эмодзи"
+    override val attach: String = "Вложить"
+    override val openFullEditor: String = "Раскрыть полноценно"
+    override val send: String = "Отправить"
+    override val save: String = "Сохранить"
+    override val stop: String = "Остановить"
+    override val micDesc: String = "Микрофон (тап = камера)"
+    override val videoRoundDesc: String = "Видео-кружок (тап = микрофон)"
+
+    override val cancel: String = "Отмена"
+    override val slideLeftToCancel: String = "« Влево - отмена"
+    override val lockRecording: String = "Заблокировать"
+
+    override val editMessage: String = "Изменение сообщения"
+    override val message: String = "Сообщение"
+    override val replace: String = "Заменить"
+    override val editPhoto: String = "Редактировать фото"
+    override val cancelEdit: String = "Отменить редактирование"
+    override fun inReplyTo(author: String): String = "В ответ $author"
+    override val replyToSelf: String = "себе"
+    override val cancelReply: String = "Отменить ответ"
+
+    override val back: String = "Назад"
+    override val undo: String = "Отменить"
+    override val redo: String = "Повторить"
+
+    override val removeAttachment: String = "Удалить вложение"
+    override val addMore: String = "Добавить ещё"
+    override fun albumPhotos(count: Int): String = "Альбом ($count фото)"
+    override val attachment: String = "Вложение"
+    override val file: String = "Файл"
+    override val delete: String = "Удалить"
+    override val draft: String = "Черновик"
+    override val media: String = "Медиа"
+    override val audioTrack: String = "Аудиотрек"
+    override val unknown: String = "Неизвестен"
+    override fun location(lat: Double, lon: Double): String = "Геопозиция ($lat, $lon)"
+    override fun liveLocation(durationMin: Int): String = "Трансляция геопозиции ($durationMin мин)"
+
+    override val keyboard: String = "Клавиатура"
+    override val lists: String = "Списки"
+    override val latexFormula: String = "Формула LaTeX"
+    override val attachFilePhoto: String = "Прикрепить файл/фото"
+
+    override val styleBold: String = "Жирный"
+    override val styleItalic: String = "Курсив"
+    override val styleUnderline: String = "Подчёркнутый"
+    override val styleStrikethrough: String = "Зачёркнутый"
+    override val styleHeading: String = "Заголовок"
+    override val styleQuote: String = "Цитата"
+    override val styleCallout: String = "Выноска"
+    override val styleFont: String = "Шрифт"
+    override val styleSpoiler: String = "Спойлер"
+    override val styleCode: String = "Код"
+    override val styleRegular: String = "Обычный текст"
+    override val backToStyles: String = "Назад к стилям"
+    override val selected: String = "Выбрано"
+    override val submenu: String = "Подменю"
+    override fun standardQuote(title: String): String = "Обычная $title"
+    override fun collapsibleQuote(title: String): String = "Сворачиваемая $title (^)"
+
+    override val fontSans: String = "Стандартный (Sans)"
+    override val fontSerif: String = "С засечками (Serif)"
+    override val fontMono: String = "Моноширинный (Mono)"
+    override val fontCursive: String = "Рукописный (Cursive)"
+    override val fontMonoShort: String = "Моноширинный"
+    override val fontCursiveShort: String = "Рукописный"
+
+    override val listNone: String = "Без списка"
+    override val listBullet: String = "Список с маркерами"
+    override val listNumbered: String = "Список с номерами"
+    override val listChecklist: String = "Чек-лист"
+    override val listCollapsible: String = "Сворачиваемый блок"
+    override val indentRight: String = "Отступ вправо"
+    override val outdent: String = "Отменить отступ"
+
+    override fun codePlaceholder(language: String): String = "Введите код ($language)..."
+    override fun headingPlaceholder(level: Int): String = "Заголовок H$level..."
+    override val quotePlaceholder: String = "Цитата..."
+    override val calloutPlaceholder: String = "Текст выноски..."
+    override val enterHeadingPlaceholder: String = "Введите заголовок..."
+    override val enterTextPlaceholder: String = "Введите текст..."
+    override val collapsibleTemplateTitle: String = "Заголовок"
+    override val collapsibleTemplateBody: String = "Введите текст..."
+
+    override fun headingLevel(level: Int, sp: Int): String = "Заголовок $level (${sp}sp)"
+
+    override val done: String = "Готово"
+
+    override val expand: String = "Развернуть"
+    override val collapse: String = "Свернуть"
+
+    override val settingsSectionGeneral: String = "Основные настройки"
+    override val settingsLanguageTitle: String = "Язык интерфейса"
+    override val settingsLanguageSubtitle: String = "Русский и английский язык ввода и интерфейса"
+    override val activeLanguageBadge: String = "Активен"
+    override val close: String = "Закрыть"
+}

@@ -98,6 +98,7 @@ import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.ui.components.EmojiStickerPanel
 import com.anongram.app.features.chats.ui.components.bubble.ChatRealPhotoBox
 import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import java.util.Locale
 
 /**
@@ -113,6 +114,7 @@ fun ChatFullTextEditorScreen(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val initialFontMatch = remember(initialText) {
@@ -193,11 +195,12 @@ fun ChatFullTextEditorScreen(
         val start = minOf(currentVal.selection.start, currentVal.selection.end)
         val end = maxOf(currentVal.selection.start, currentVal.selection.end)
         val selected = if (start != end) text.substring(start, end).trim() else ""
-        val body = if (selected.isNotEmpty()) selected else "Введите текст..."
-        val block = "^ Заголовок\n$body\n"
+        val body = if (selected.isNotEmpty()) selected else strings.collapsibleTemplateBody
+        val title = strings.collapsibleTemplateTitle
+        val block = "^ $title\n$body\n"
         val newText = text.substring(0, start) + block + text.substring(end)
         val titleStart = start + 2
-        val titleEnd = titleStart + "Заголовок".length
+        val titleEnd = titleStart + title.length
         undoState.updateValue(TextFieldValue(newText, TextRange(titleStart, titleEnd)))
     }
 
@@ -271,7 +274,7 @@ fun ChatFullTextEditorScreen(
                 IconButton(onClick = { onClose(getFinalText()) }) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = "Назад",
+                        contentDescription = strings.back,
                         tint = Color.White,
                         modifier = Modifier.size(24.dp)
                     )
@@ -285,7 +288,7 @@ fun ChatFullTextEditorScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Undo,
-                        contentDescription = "Отменить",
+                        contentDescription = strings.undo,
                         tint = if (undoState.canUndo) Color.White else Color(0xFF55555A),
                         modifier = Modifier.size(22.dp)
                     )
@@ -297,7 +300,7 @@ fun ChatFullTextEditorScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Redo,
-                        contentDescription = "Повторить",
+                        contentDescription = strings.redo,
                         tint = if (undoState.canRedo) Color.White else Color(0xFF55555A),
                         modifier = Modifier.size(22.dp)
                     )
@@ -353,7 +356,7 @@ fun ChatFullTextEditorScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Outlined.Close,
-                                        contentDescription = "Удалить вложение",
+                                        contentDescription = strings.removeAttachment,
                                         tint = Color.White,
                                         modifier = Modifier.size(18.dp)
                                     )
@@ -377,7 +380,7 @@ fun ChatFullTextEditorScreen(
                                     )
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
-                                        text = "Добавить ещё",
+                                        text = strings.addMore,
                                         color = Color.White,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -403,7 +406,7 @@ fun ChatFullTextEditorScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
                                     Text(
-                                        text = "Альбом (${photos.size} фото)",
+                                        text = strings.albumPhotos(photos.size),
                                         color = Color.White,
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.SemiBold
@@ -424,7 +427,7 @@ fun ChatFullTextEditorScreen(
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "Добавить ещё",
+                                            text = strings.addMore,
                                             color = scheme.accent,
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.Bold
@@ -468,7 +471,7 @@ fun ChatFullTextEditorScreen(
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Outlined.Close,
-                                                    contentDescription = "Удалить",
+                                                    contentDescription = strings.delete,
                                                     tint = Color.White,
                                                     modifier = Modifier.size(14.dp)
                                                 )
@@ -505,7 +508,7 @@ fun ChatFullTextEditorScreen(
                                             "${activeAttachment.kind.label} • ${activeAttachment.sizeLabel}",
                                             Icons.Outlined.Description
                                         )
-                                        else -> Triple("Вложение", "Файл", Icons.Outlined.Description)
+                                        else -> Triple(strings.attachment, strings.file, Icons.Outlined.Description)
                                     }
 
                                     Box(
@@ -562,7 +565,7 @@ fun ChatFullTextEditorScreen(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Outlined.Close,
-                                            contentDescription = "Удалить вложение",
+                                            contentDescription = strings.removeAttachment,
                                             tint = Color(0xFFA1A1AA),
                                             modifier = Modifier.size(18.dp)
                                         )
@@ -712,30 +715,30 @@ fun ChatFullTextEditorScreen(
                         if (undoState.currentText.isEmpty()) {
                             Text(
                                 text = when (selectedFormat) {
-                                    TextStyleFormat.CODE -> "Введите код ($selectedLanguage)..."
-                                    TextStyleFormat.HEADING -> "Заголовок H$selectedHeadingLevel..."
-                                    TextStyleFormat.QUOTE -> "Цитата..."
-                                    TextStyleFormat.CALLOUT -> "Текст выноски..."
-                                    else -> if (selectedListStyle == ListStyle.COLLAPSIBLE) "Введите заголовок..." else "Введите текст..."
+                                    TextStyleFormat.CODE -> strings.codePlaceholder(selectedLanguage)
+                                    TextStyleFormat.HEADING -> strings.headingPlaceholder(selectedHeadingLevel)
+                                    TextStyleFormat.QUOTE -> strings.quotePlaceholder
+                                    TextStyleFormat.CALLOUT -> strings.calloutPlaceholder
+                                    else -> if (selectedListStyle == ListStyle.COLLAPSIBLE) strings.enterHeadingPlaceholder else strings.enterTextPlaceholder
                                 },
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
                         } else if (undoState.currentText.trim() == "^") {
                             Text(
-                                text = "  Заголовок\n  Введите текст...",
+                                text = "  ${strings.collapsibleTemplateTitle}\n  ${strings.collapsibleTemplateBody}",
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
                         } else if (undoState.currentText.startsWith("^") && !undoState.currentText.contains("\n") && undoState.currentText.trim().length > 1) {
                             Text(
-                                text = "\n  Введите текст...",
+                                text = "\n  ${strings.collapsibleTemplateBody}",
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
                         } else if (undoState.currentText.trim() == ">" || undoState.currentText.trim() == ">>>") {
                             Text(
-                                text = "  Цитата...",
+                                text = "  ${strings.quotePlaceholder}",
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
@@ -911,7 +914,12 @@ fun ChatFullTextEditorScreen(
                                 val lineEnd = text.indexOf('\n', selEnd).let { if (it == -1) text.length else it }
                                 val targetBlock = text.substring(lineStart, lineEnd)
 
-                                val formattedBlock = ListFormattingHelper.applyStyle(targetBlock, style)
+                                val formattedBlock = ListFormattingHelper.applyStyle(
+                                    targetBlock,
+                                    style,
+                                    strings.collapsibleTemplateTitle,
+                                    strings.collapsibleTemplateBody
+                                )
                                 val newText = text.substring(0, lineStart) + formattedBlock + text.substring(lineEnd)
                                 val newCursor = (lineStart + formattedBlock.length).coerceAtMost(newText.length)
                                 undoState.updateValue(TextFieldValue(newText, TextRange(newCursor)))

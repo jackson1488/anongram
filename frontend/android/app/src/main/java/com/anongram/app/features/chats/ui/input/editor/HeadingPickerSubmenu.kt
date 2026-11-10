@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Подменю уровней заголовков H1..H6 («заголовок 1 до 6 как в ворде»).
@@ -34,14 +35,15 @@ fun HeadingPickerSubmenu(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
 
     val headingLevels = listOf(
-        1 to "Заголовок 1 (24sp)",
-        2 to "Заголовок 2 (21sp)",
-        3 to "Заголовок 3 (18sp)",
-        4 to "Заголовок 4 (16sp)",
-        5 to "Заголовок 5 (14sp)",
-        6 to "Заголовок 6 (12sp)"
+        1 to strings.headingLevel(1, 24),
+        2 to strings.headingLevel(2, 21),
+        3 to strings.headingLevel(3, 18),
+        4 to strings.headingLevel(4, 16),
+        5 to strings.headingLevel(5, 14),
+        6 to strings.headingLevel(6, 12)
     )
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -55,13 +57,13 @@ fun HeadingPickerSubmenu(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                contentDescription = "Назад",
+                contentDescription = strings.back,
                 tint = scheme.accent,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(10.dp))
             Text(
-                text = "Назад к стилям",
+                text = strings.backToStyles,
                 color = scheme.accent,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold

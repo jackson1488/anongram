@@ -1,0 +1,106 @@
+package com.anongram.app.features.chats.ui.input.i18n
+
+/**
+ * English localization (EN) for keyboard, input, editor, quote blocks and settings modules.
+ */
+object InputStringsEn : InputI18nStrings {
+    override val messagePlaceholder: String = "Message..."
+    override val captionPlaceholder: String = "Caption"
+    override val emoji: String = "Emoji"
+    override val attach: String = "Attach"
+    override val openFullEditor: String = "Open full editor"
+    override val send: String = "Send"
+    override val save: String = "Save"
+    override val stop: String = "Stop"
+    override val micDesc: String = "Microphone (tap = camera)"
+    override val videoRoundDesc: String = "Video note (tap = mic)"
+
+    override val cancel: String = "Cancel"
+    override val slideLeftToCancel: String = "« Slide left to cancel"
+    override val lockRecording: String = "Lock"
+
+    override val editMessage: String = "Editing message"
+    override val message: String = "Message"
+    override val replace: String = "Replace"
+    override val editPhoto: String = "Edit photo"
+    override val cancelEdit: String = "Cancel edit"
+    override fun inReplyTo(author: String): String = "In reply to $author"
+    override val replyToSelf: String = "yourself"
+    override val cancelReply: String = "Cancel reply"
+
+    override val back: String = "Back"
+    override val undo: String = "Undo"
+    override val redo: String = "Redo"
+
+    override val removeAttachment: String = "Remove attachment"
+    override val addMore: String = "Add more"
+    override fun albumPhotos(count: Int): String = "Album ($count photos)"
+    override val attachment: String = "Attachment"
+    override val file: String = "File"
+    override val delete: String = "Delete"
+    override val draft: String = "Draft"
+    override val media: String = "Media"
+    override val audioTrack: String = "Audio track"
+    override val unknown: String = "Unknown"
+    override fun location(lat: Double, lon: Double): String = "Location ($lat, $lon)"
+    override fun liveLocation(durationMin: Int): String = "Live location ($durationMin min)"
+
+    override val keyboard: String = "Keyboard"
+    override val lists: String = "Lists"
+    override val latexFormula: String = "LaTeX formula"
+    override val attachFilePhoto: String = "Attach file/photo"
+
+    override val styleBold: String = "Bold"
+    override val styleItalic: String = "Italic"
+    override val styleUnderline: String = "Underline"
+    override val styleStrikethrough: String = "Strikethrough"
+    override val styleHeading: String = "Heading"
+    override val styleQuote: String = "Quote"
+    override val styleCallout: String = "Callout"
+    override val styleFont: String = "Font"
+    override val styleSpoiler: String = "Spoiler"
+    override val styleCode: String = "Code"
+    override val styleRegular: String = "Regular text"
+    override val backToStyles: String = "Back to styles"
+    override val selected: String = "Selected"
+    override val submenu: String = "Submenu"
+    override fun standardQuote(title: String): String = "Standard $title"
+    override fun collapsibleQuote(title: String): String = "Collapsible $title (^)"
+
+    override val fontSans: String = "Standard (Sans)"
+    override val fontSerif: String = "Serif"
+    override val fontMono: String = "Monospace (Mono)"
+    override val fontCursive: String = "Cursive"
+    override val fontMonoShort: String = "Monospace"
+    override val fontCursiveShort: String = "Cursive"
+
+    override val listNone: String = "No list"
+    override val listBullet: String = "Bulleted list"
+    override val listNumbered: String = "Numbered list"
+    override val listChecklist: String = "Checklist"
+    override val listCollapsible: String = "Collapsible block"
+    override val indentRight: String = "Indent"
+    override val outdent: String = "Outdent"
+
+    override fun codePlaceholder(language: String): String = "Enter code ($language)..."
+    override fun headingPlaceholder(level: Int): String = "Heading H$level..."
+    override val quotePlaceholder: String = "Quote..."
+    override val calloutPlaceholder: String = "Callout text..."
+    override val enterHeadingPlaceholder: String = "Enter heading..."
+    override val enterTextPlaceholder: String = "Enter text..."
+    override val collapsibleTemplateTitle: String = "Heading"
+    override val collapsibleTemplateBody: String = "Enter text..."
+
+    override fun headingLevel(level: Int, sp: Int): String = "Heading $level (${sp}sp)"
+
+    override val done: String = "Done"
+
+    override val expand: String = "Expand"
+    override val collapse: String = "Collapse"
+
+    override val settingsSectionGeneral: String = "General settings"
+    override val settingsLanguageTitle: String = "Interface language"
+    override val settingsLanguageSubtitle: String = "English and Russian language for keyboard and UI"
+    override val activeLanguageBadge: String = "Active"
+    override val close: String = "Close"
+}

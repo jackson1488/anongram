@@ -34,6 +34,7 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
 import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Слитно встроенная плашка ответа (Фото 1) — без разделительной полоски.
@@ -49,7 +50,8 @@ fun FusedReplyBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
-    val author = if (replyTo.direction == MessageDirection.INCOMING) peerName else "себе"
+    val strings = LocalInputStrings.current
+    val author = if (replyTo.direction == MessageDirection.INCOMING) peerName else strings.replyToSelf
     val snippet = replyPreviewSnippet(replyTo)
 
     Row(
@@ -88,7 +90,7 @@ fun FusedReplyBar(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "В ответ $author",
+                text = strings.inReplyTo(author),
                 color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -110,7 +112,7 @@ fun FusedReplyBar(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Close,
-                contentDescription = "Отменить ответ",
+                contentDescription = strings.cancelReply,
                 tint = TextSecondary,
                 modifier = Modifier.size(16.dp)
             )

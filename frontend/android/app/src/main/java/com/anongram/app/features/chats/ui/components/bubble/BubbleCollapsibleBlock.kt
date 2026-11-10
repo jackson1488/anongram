@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Аутентичный сворачиваемый блок по макету media_1794256738911.png (^ Заголовок / Тело / Автор):
@@ -60,6 +61,7 @@ fun BubbleCollapsibleBlock(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     var isExpanded by remember { mutableStateOf(initiallyExpanded) }
 
     Box(
@@ -179,7 +181,7 @@ fun BubbleCollapsibleBlock(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = if (isExpanded) "Свернуть" else "Развернуть",
+                            text = if (isExpanded) strings.collapse else strings.expand,
                             color = scheme.accent,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold
@@ -187,7 +189,7 @@ fun BubbleCollapsibleBlock(
                         Spacer(modifier = Modifier.width(4.dp))
                         Icon(
                             imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                            contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
+                            contentDescription = if (isExpanded) strings.collapse else strings.expand,
                             tint = scheme.accent,
                             modifier = Modifier.size(18.dp)
                         )

@@ -1,0 +1,123 @@
+package com.anongram.app.features.chats.ui.input.i18n
+
+/**
+ * Типобезопасный контракт всех текстовых ресурсов для модуля клавиатуры, инпута,
+ * редактора форматирования, цитат и сопутствующих настроек AnonGram.
+ *
+ * Для добавления любого нового языка достаточно реализовать этот интерфейс.
+ */
+interface InputI18nStrings {
+    // Поле ввода сообщений (ChatInputBar)
+    val messagePlaceholder: String
+    val captionPlaceholder: String
+    val emoji: String
+    val attach: String
+    val openFullEditor: String
+    val send: String
+    val save: String
+    val stop: String
+    val micDesc: String
+    val videoRoundDesc: String
+
+    // Панель голосовых / видео-сообщений (RecordingBar)
+    val cancel: String
+    val slideLeftToCancel: String
+    val lockRecording: String
+
+    // Панели ответа и редактирования (FusedReplyBar, FusedEditBar)
+    val editMessage: String
+    val message: String
+    val replace: String
+    val editPhoto: String
+    val cancelEdit: String
+    fun inReplyTo(author: String): String
+    val replyToSelf: String
+    val cancelReply: String
+
+    // Заголовок и управление редактором (ChatFullTextEditorScreen)
+    val back: String
+    val undo: String
+    val redo: String
+
+    // Вложения редактора (EditorAttachSheet)
+    val removeAttachment: String
+    val addMore: String
+    fun albumPhotos(count: Int): String
+    val attachment: String
+    val file: String
+    val delete: String
+    val draft: String
+    val media: String
+    val audioTrack: String
+    val unknown: String
+    fun location(lat: Double, lon: Double): String
+    fun liveLocation(durationMin: Int): String
+
+    // Панель форматирования текста (TextFormattingToolbar)
+    val keyboard: String
+    val lists: String
+    val latexFormula: String
+    val attachFilePhoto: String
+
+    // Меню стилей и шрифтов (StylePopupMenu)
+    val styleBold: String
+    val styleItalic: String
+    val styleUnderline: String
+    val styleStrikethrough: String
+    val styleHeading: String
+    val styleQuote: String
+    val styleCallout: String
+    val styleFont: String
+    val styleSpoiler: String
+    val styleCode: String
+    val styleRegular: String
+    val backToStyles: String
+    val selected: String
+    val submenu: String
+    fun standardQuote(title: String): String
+    fun collapsibleQuote(title: String): String
+
+    // Варианты шрифтов
+    val fontSans: String
+    val fontSerif: String
+    val fontMono: String
+    val fontCursive: String
+    val fontMonoShort: String
+    val fontCursiveShort: String
+
+    // Меню списков (ListPopupMenu)
+    val listNone: String
+    val listBullet: String
+    val listNumbered: String
+    val listChecklist: String
+    val listCollapsible: String
+    val indentRight: String
+    val outdent: String
+
+    // Плейсхолдеры и шаблоны
+    fun codePlaceholder(language: String): String
+    fun headingPlaceholder(level: Int): String
+    val quotePlaceholder: String
+    val calloutPlaceholder: String
+    val enterHeadingPlaceholder: String
+    val enterTextPlaceholder: String
+    val collapsibleTemplateTitle: String
+    val collapsibleTemplateBody: String
+
+    // Подменю уровней заголовков (HeadingPickerSubmenu)
+    fun headingLevel(level: Int, sp: Int): String
+
+    // Панель формул LaTeX (LatexFormulaInputPanel)
+    val done: String
+
+    // Сообщения в чате (Quote, Callout, Collapsible)
+    val expand: String
+    val collapse: String
+
+    // Настройки и выбор языка
+    val settingsSectionGeneral: String
+    val settingsLanguageTitle: String
+    val settingsLanguageSubtitle: String
+    val activeLanguageBadge: String
+    val close: String
+}
