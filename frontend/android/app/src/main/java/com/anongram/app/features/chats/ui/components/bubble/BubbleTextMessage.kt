@@ -79,16 +79,15 @@ fun BubbleTextMessage(
     val isIncoming = message.direction == MessageDirection.INCOMING
     val trimmed = rawText.trim()
 
-    // 1. Проверяем, является ли сообщение блоком кода
-    val isCodeBlock = trimmed.startsWith("```") ||
-        (trimmed.lines().size > 1 && CodeLanguages.any { trimmed.startsWith(it, ignoreCase = true) })
+    val blocks = remember(rawText) { com.anongram.app.features.chats.messages.domain.MessageBlockParser.parse(rawText) }
 
-    if (isCodeBlock) {
-        val (lang, codeContent) = parseCodeBlock(trimmed)
+    // 1. Одиночный блок кода
+    if (blocks.size == 1 && blocks[0] is com.anongram.app.features.chats.messages.domain.MessageBlock.Code) {
+        val codeBlock = blocks[0] as com.anongram.app.features.chats.messages.domain.MessageBlock.Code
         BubbleCodeBlock(
             message = message,
-            language = lang,
-            codeText = codeContent,
+            language = codeBlock.language,
+            codeText = codeBlock.code,
             textScale = textScale,
             onOpenFullText = onOpenFullText,
             onRetry = onRetry,
@@ -97,265 +96,118 @@ fun BubbleTextMessage(
         return
     }
 
-    // 2. Проверяем формулу LaTeX (\(...\) или $$...$$)
-    if ((trimmed.startsWith("\\(") && trimmed.endsWith("\\)")) ||
-        (trimmed.startsWith("$$") && trimmed.endsWith("$$"))
-    ) {
-        Column(modifier = modifier) {
-            BubbleLatexFormula(formula = trimmed)
-            Spacer(modifier = Modifier.height(4.dp))
-            BubbleTimestampRow(
-                timeLabel = message.timeLabel(),
-                isEdited = message.isEdited,
-                isIncoming = isIncoming,
-                status = message.status,
-                textScale = textScale,
-                onRetry = onRetry,
-                modifier = Modifier.align(Alignment.End)
-            )
-        }
-        return
-    }
+    // 2. Одиночный абзац текста без спойлеров — адаптивная верстка со временем в конце строки
+    if (blocks.size == 1 && blocks[0] is com.anongram.app.features.chats.messages.domain.MessageBlock.Paragraph && !rawText.contains("||")) {
+        val para = blocks[0] as com.anongram.app.features.chats.messages.domain.MessageBlock.Paragraph
+        val isOverLimit = para.text.length > 4000
+        val textToDisplay = if (isOverLimit) para.text.take(4000) + "…" else para.text
 
-    // 3. Проверяем сворачиваемый блок (+++ Заголовок\nТело\n+++) или (^ Заголовок\nТело)
-    val isCollapsiblePlus = trimmed.startsWith("+++") && trimmed.endsWith("+++") && trimmed.lines().size >= 2
-    val isCollapsibleChevron = trimmed.startsWith("^") && trimmed.lines().size >= 2
-    if (isCollapsiblePlus || isCollapsibleChevron) {
-        val (title, body) = if (isCollapsiblePlus) {
-            val lines = trimmed.removePrefix("+++").removeSuffix("+++").trim().lines()
-            Pair(lines.firstOrNull() ?: "", lines.drop(1).joinToString("\n").trim())
+        val annotatedText = if (searchQuery.isNotBlank()) {
+            buildHighlightedText(
+                text = textToDisplay,
+                query = searchQuery,
+                highlightColor = scheme.accent
+            )
         } else {
-            val lines = trimmed.lines()
-            val titleLine = lines.first().removePrefix("^").trim()
-            val bodyLines = lines.drop(1).joinToString("\n").trim()
-            Pair(titleLine, bodyLines)
+            buildRichAnnotatedText(textToDisplay, scheme.accent)
         }
+
         Column(modifier = modifier) {
-            BubbleCollapsibleBlock(title = title, content = body)
-            Spacer(modifier = Modifier.height(4.dp))
-            BubbleTimestampRow(
+            AdaptiveMessageTextWithTimeLayout(
+                text = annotatedText,
+                textSizeSp = textSizeSp,
+                textScale = textScale,
                 timeLabel = message.timeLabel(),
                 isEdited = message.isEdited,
                 isIncoming = isIncoming,
                 status = message.status,
-                textScale = textScale,
-                onRetry = onRetry,
-                modifier = Modifier.align(Alignment.End)
+                onRetry = onRetry
             )
-        }
-        return
-    }
 
-    // 4. Проверяем выноску (>>> Текст\n— Автор) или цитату (> Текст\n— Автор)
-    if (trimmed.startsWith(">>>") || (trimmed.startsWith(">") && !trimmed.startsWith(">>"))) {
-        val isCallout = trimmed.startsWith(">>>")
-        val clean = if (isCallout) trimmed.removePrefix(">>>").trim() else trimmed.removePrefix(">").trim()
-        val lines = clean.lines()
-        val authorLine = lines.lastOrNull { it.trim().startsWith("—") || it.trim().startsWith("- ") }
-        val bodyText = if (authorLine != null) {
-            lines.filter { it != authorLine }.joinToString("\n").trim()
-        } else {
-            clean
-        }
-
-        Column(modifier = modifier) {
-            BubbleCalloutBlock(
-                text = bodyText,
-                author = authorLine?.trim()?.removePrefix("-")?.trim(),
-                isQuote = !isCallout
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            BubbleTimestampRow(
-                timeLabel = message.timeLabel(),
-                isEdited = message.isEdited,
-                isIncoming = isIncoming,
-                status = message.status,
-                textScale = textScale,
-                onRetry = onRetry,
-                modifier = Modifier.align(Alignment.End)
-            )
-        }
-        return
-    }
-
-    // 5. Проверяем наличие чек-листа (☐ / ☑ / [ ] / [x] / - [ ] / - [x])
-    val hasChecklist = trimmed.lines().any { line ->
-        val t = line.trimStart()
-        t.startsWith("☐") || t.startsWith("☑") ||
-        t.startsWith("- [ ]") || t.startsWith("- [x]", ignoreCase = true) ||
-        t.startsWith("[ ]") || t.startsWith("[x]", ignoreCase = true)
-    }
-    if (hasChecklist) {
-        Column(modifier = modifier) {
-            trimmed.lines().forEach { line ->
-                val t = line.trimStart()
-                val isCheckItem = t.startsWith("☐") || t.startsWith("☑") ||
-                    t.startsWith("- [ ]") || t.startsWith("- [x]", ignoreCase = true) ||
-                    t.startsWith("[ ]") || t.startsWith("[x]", ignoreCase = true)
-
-                if (isCheckItem) {
-                    val (isChecked, itemText) = when {
-                        t.startsWith("☑") -> Pair(true, t.substring(1).trim())
-                        t.startsWith("☐") -> Pair(false, t.substring(1).trim())
-                        t.startsWith("- [x]", ignoreCase = true) -> Pair(true, t.substring(5).trim())
-                        t.startsWith("- [ ]") -> Pair(false, t.substring(5).trim())
-                        t.startsWith("[x]", ignoreCase = true) -> Pair(true, t.substring(3).trim())
-                        t.startsWith("[ ]") -> Pair(false, t.substring(3).trim())
-                        else -> Pair(false, t)
-                    }
-                    InteractiveChecklistItem(
-                        initialChecked = isChecked,
-                        text = itemText,
-                        textSizeSp = textSizeSp
-                    )
-                } else if (line.isNotBlank()) {
-                    Text(
-                        text = buildRichAnnotatedText(line, scheme.accent),
-                        color = TextPrimary,
-                        fontSize = textSizeSp.sp,
-                        lineHeight = (textSizeSp * 1.26f).sp,
-                        modifier = Modifier.padding(vertical = 1.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            BubbleTimestampRow(
-                timeLabel = message.timeLabel(),
-                isEdited = message.isEdited,
-                isIncoming = isIncoming,
-                status = message.status,
-                textScale = textScale,
-                onRetry = onRetry,
-                modifier = Modifier.align(Alignment.End)
-            )
-        }
-        return
-    }
-
-    // 6. Проверяем спойлер ||текст||
-    if (rawText.contains("||") && rawText.indexOf("||") != rawText.lastIndexOf("||")) {
-        val lines = rawText.split("\n")
-        Column(modifier = modifier) {
-            lines.forEachIndexed { lineIdx, line ->
-                if (line.contains("||") && line.indexOf("||") != line.lastIndexOf("||")) {
-                    InlineSpoilerLine(
-                        line = line,
-                        textSizeSp = textSizeSp,
-                        accent = scheme.accent
-                    )
-                } else if (line.isNotEmpty()) {
-                    Text(
-                        text = buildRichAnnotatedText(line, scheme.accent),
-                        color = TextPrimary,
-                        fontSize = textSizeSp.sp,
-                        lineHeight = (textSizeSp * 1.26f).sp
-                    )
-                }
-                if (lineIdx < lines.size - 1 && line.isEmpty()) {
-                    Spacer(modifier = Modifier.height((textSizeSp * 0.5f).dp))
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            BubbleTimestampRow(
-                timeLabel = message.timeLabel(),
-                isEdited = message.isEdited,
-                isIncoming = isIncoming,
-                status = message.status,
-                textScale = textScale,
-                onRetry = onRetry,
-                modifier = Modifier.align(Alignment.End)
-            )
-        }
-        return
-    }
-
-    // 7. Проверяем заголовки H1..H6 (# ... ######)
-    val firstLine = rawText.lines().firstOrNull() ?: ""
-    val headingMatch = Regex("^(#{1,6})\\s+(.+)").find(firstLine)
-    if (headingMatch != null) {
-        val hashes = headingMatch.groupValues[1]
-        val headingTitle = headingMatch.groupValues[2]
-        val remaining = rawText.lines().drop(1).joinToString("\n").trim()
-        val level = hashes.length
-        val (headingSizeSp, headingWeight) = when (level) {
-            1 -> 24.sp to FontWeight.Bold
-            2 -> 21.sp to FontWeight.Bold
-            3 -> 18.sp to FontWeight.Bold
-            4 -> 16.sp to FontWeight.SemiBold
-            5 -> 14.sp to FontWeight.SemiBold
-            else -> 12.sp to FontWeight.SemiBold
-        }
-
-        Column(modifier = modifier) {
-            Text(
-                text = headingTitle,
-                color = Color.White,
-                fontSize = headingSizeSp,
-                fontWeight = headingWeight,
-                lineHeight = (headingSizeSp.value * 1.25f).sp
-            )
-            if (remaining.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(4.dp))
+            if (isOverLimit) {
                 Text(
-                    text = buildRichAnnotatedText(remaining, scheme.accent),
-                    color = TextPrimary,
-                    fontSize = textSizeSp.sp,
-                    lineHeight = (textSizeSp * 1.26f).sp
+                    text = "Читать дальше (${para.text.length} символов) →",
+                    color = scheme.accent,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Default,
+                    modifier = Modifier
+                        .clickable(onClick = onOpenFullText)
+                        .padding(top = 4.dp, bottom = 2.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            BubbleTimestampRow(
-                timeLabel = message.timeLabel(),
-                isEdited = message.isEdited,
-                isIncoming = isIncoming,
-                status = message.status,
-                textScale = textScale,
-                onRetry = onRetry,
-                modifier = Modifier.align(Alignment.End)
-            )
         }
         return
     }
 
-    // 8. Стандартный текст с богатым форматированием
-    val isOverLimit = rawText.length > 4000
-    val textToDisplay = if (isOverLimit) rawText.take(4000) + "…" else rawText
-
-    val annotatedText = if (searchQuery.isNotBlank()) {
-        buildHighlightedText(
-            text = textToDisplay,
-            query = searchQuery,
-            highlightColor = scheme.accent
-        )
-    } else {
-        buildRichAnnotatedText(textToDisplay, scheme.accent)
-    }
-
+    // 3. Комбинированное сообщение («комбо» как в Telegram) со свободной последовательностью любых блоков
     Column(modifier = modifier) {
-        AdaptiveMessageTextWithTimeLayout(
-            text = annotatedText,
-            textSizeSp = textSizeSp,
-            textScale = textScale,
+        blocks.forEachIndexed { index, block ->
+            when (block) {
+                is com.anongram.app.features.chats.messages.domain.MessageBlock.Heading -> {
+                    BubbleHeadingBlock(
+                        level = block.level,
+                        text = block.text
+                    )
+                }
+                is com.anongram.app.features.chats.messages.domain.MessageBlock.Quote -> {
+                    BubbleQuoteBlock(
+                        text = block.text,
+                        author = block.author,
+                        isCollapsible = block.isCollapsible,
+                        textSizeSp = textSizeSp
+                    )
+                }
+                is com.anongram.app.features.chats.messages.domain.MessageBlock.Collapsible -> {
+                    BubbleQuoteBlock(
+                        text = block.content,
+                        author = block.author,
+                        isCollapsible = true,
+                        textSizeSp = textSizeSp
+                    )
+                }
+                is com.anongram.app.features.chats.messages.domain.MessageBlock.Checklist -> {
+                    BubbleChecklistBlock(
+                        items = block.items,
+                        textSizeSp = textSizeSp
+                    )
+                }
+                is com.anongram.app.features.chats.messages.domain.MessageBlock.Code -> {
+                    BubbleCodeBlock(
+                        message = message,
+                        language = block.language,
+                        codeText = block.code,
+                        textScale = textScale,
+                        onOpenFullText = onOpenFullText,
+                        onRetry = onRetry
+                    )
+                }
+                is com.anongram.app.features.chats.messages.domain.MessageBlock.Latex -> {
+                    BubbleLatexFormula(formula = block.formula)
+                }
+                is com.anongram.app.features.chats.messages.domain.MessageBlock.Paragraph -> {
+                    BubbleParagraphBlock(
+                        text = block.text,
+                        textSizeSp = textSizeSp
+                    )
+                }
+            }
+
+            if (index < blocks.size - 1) {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        BubbleTimestampRow(
             timeLabel = message.timeLabel(),
             isEdited = message.isEdited,
             isIncoming = isIncoming,
             status = message.status,
-            onRetry = onRetry
+            textScale = textScale,
+            onRetry = onRetry,
+            modifier = Modifier.align(Alignment.End)
         )
-
-        if (isOverLimit) {
-            Text(
-                text = "Читать дальше (${rawText.length} символов) →",
-                color = scheme.accent,
-                fontSize = 12.sp,
-                fontFamily = FontFamily.Default,
-                modifier = Modifier
-                    .clickable(onClick = onOpenFullText)
-                    .padding(top = 4.dp, bottom = 2.dp)
-            )
-        }
     }
 }
 
@@ -416,7 +268,7 @@ private fun InteractiveChecklistItem(
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun InlineSpoilerLine(
+internal fun InlineSpoilerLine(
     line: String,
     textSizeSp: Int,
     accent: Color,
