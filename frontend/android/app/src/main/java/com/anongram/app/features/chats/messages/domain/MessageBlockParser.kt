@@ -138,8 +138,6 @@ object MessageBlockParser {
                         quoteLines.add(qTrim.removePrefix(">>>").trim())
                     } else if (qTrim.startsWith(">")) {
                         quoteLines.add(qTrim.removePrefix(">").trim())
-                    } else if (qLine.startsWith(" ") || qLine.startsWith("\t")) {
-                        quoteLines.add(qTrim)
                     } else {
                         break
                     }

@@ -62,6 +62,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -113,6 +114,7 @@ fun ChatFullTextEditorScreen(
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val undoState = rememberUndoRedoState(initialText)
     val focusRequester = remember { FocusRequester() }
 
@@ -214,6 +216,7 @@ fun ChatFullTextEditorScreen(
                 if (isFormulaOpen) isFormulaOpen = false
                 if (isAaMenuOpen) isAaMenuOpen = false
                 if (isListMenuOpen) isListMenuOpen = false
+                if (isEmojiOpen) isEmojiOpen = false
             }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -658,9 +661,15 @@ fun ChatFullTextEditorScreen(
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
-                        } else if (undoState.currentText == "^ " || undoState.currentText == "^") {
+                        } else if (undoState.currentText.trim() == "^") {
                             Text(
-                                text = "  Введите заголовок...",
+                                text = "  Заголовок\n  Введите текст...",
+                                color = Color(0xFF64748B),
+                                style = textStyle
+                            )
+                        } else if (undoState.currentText.trim() == ">" || undoState.currentText.trim() == ">>>") {
+                            Text(
+                                text = "  Цитата...",
                                 color = Color(0xFF64748B),
                                 style = textStyle
                             )
@@ -679,6 +688,12 @@ fun ChatFullTextEditorScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null
+                                ) {
+                                    if (isEmojiOpen) isEmojiOpen = false
+                                }
                                 .pointerInput(undoState.textFieldValue.text) {
                                     awaitPointerEventScope {
                                         while (true) {
@@ -727,7 +742,7 @@ fun ChatFullTextEditorScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .imePadding()
+                    .then(if (isEmojiOpen) Modifier else Modifier.imePadding())
                     .padding(bottom = if (isEmojiOpen) 0.dp else navBottom)
             ) {
                 // 1. Плавающая панель выделения текста (макет media_1794257026295.png)
@@ -770,12 +785,17 @@ fun ChatFullTextEditorScreen(
                             onSelectFormat = { format ->
                                 selectedFormat = format
                                 when (format) {
-                                    TextStyleFormat.QUOTE -> applyLinePrefix("> ")
-                                    TextStyleFormat.CALLOUT -> applyLinePrefix(">>> ")
+                                    TextStyleFormat.BOLD -> wrapSelection("**")
+                                    TextStyleFormat.ITALIC -> wrapSelection("*")
+                                    TextStyleFormat.UNDERLINE -> wrapSelection("<u>", "</u>")
+                                    TextStyleFormat.STRIKE -> wrapSelection("~~")
                                     TextStyleFormat.SPOILER -> wrapSelection("||")
                                     TextStyleFormat.CODE -> wrapSelection("`")
+                                    TextStyleFormat.QUOTE -> applyLinePrefix("> ")
+                                    TextStyleFormat.CALLOUT -> applyLinePrefix(">>> ")
                                     TextStyleFormat.NORMAL -> applyLinePrefix("")
                                     TextStyleFormat.HEADING -> { /* Открывает подменю */ }
+                                    TextStyleFormat.FONT -> { /* Открывает подменю */ }
                                 }
                             },
                             selectedHeadingLevel = selectedHeadingLevel,
@@ -783,6 +803,23 @@ fun ChatFullTextEditorScreen(
                                 selectedHeadingLevel = level
                                 selectedFormat = TextStyleFormat.HEADING
                                 applyLinePrefix("#".repeat(level) + " ")
+                            },
+                            onSelectFont = { fontKey ->
+                                wrapSelection("[font=$fontKey]", "[/font]")
+                            },
+                            onSelectQuoteVariant = { isCollapsible ->
+                                if (isCollapsible) {
+                                    applyLinePrefix("^ ")
+                                } else {
+                                    applyLinePrefix("> ")
+                                }
+                            },
+                            onSelectCalloutVariant = { isCollapsible ->
+                                if (isCollapsible) {
+                                    applyLinePrefix("^ ")
+                                } else {
+                                    applyLinePrefix(">>> ")
+                                }
                             },
                             onDismiss = { isAaMenuOpen = false }
                         )
@@ -875,6 +912,7 @@ fun ChatFullTextEditorScreen(
                         onToggleEmoji = {
                             isEmojiOpen = !isEmojiOpen
                             if (isEmojiOpen) {
+                                keyboardController?.hide()
                                 isAaMenuOpen = false
                                 isListMenuOpen = false
                                 isFormulaOpen = false
@@ -962,7 +1000,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         val hiddenStyle = SpanStyle(color = Color.Transparent, fontSize = 0.001.sp)
 
         // 1. Спойлер ||...|| -> теги || скрываются, текст покрывается вуалью
-        val spoilerRegex = Regex("\\|\\|(.*?)\\|\\|")
+        val spoilerRegex = Regex("\\|\\|([\\s\\S]*?)\\|\\|")
         spoilerRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
@@ -981,7 +1019,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         }
 
         // 2. Полужирный **...** -> теги ** скрываются, текст жирный
-        val boldRegex = Regex("\\*\\*(.*?)\\*\\*")
+        val boldRegex = Regex("\\*\\*([\\s\\S]*?)\\*\\*")
         boldRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
@@ -997,7 +1035,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         }
 
         // 3. Курсив *...* -> теги * скрываются, текст курсивный
-        val italicRegex = Regex("(?<!\\*)\\*(?!\\*)(.*?)(?<!\\*)\\*(?!\\*)")
+        val italicRegex = Regex("(?<!\\*)\\*(?!\\*)([\\s\\S]*?)(?<!\\*)\\*(?!\\*)")
         italicRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
@@ -1013,7 +1051,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         }
 
         // 4. Зачёркнутый ~~...~~ -> теги ~~ скрываются, текст перечёркнутый
-        val strikeRegex = Regex("~~(.*?)~~")
+        val strikeRegex = Regex("~~([\\s\\S]*?)~~")
         strikeRegex.findAll(raw).forEach { match ->
             val start = match.range.first
             val end = match.range.last + 1
@@ -1029,7 +1067,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         }
 
         // 5. Подчёркнутый <u>...</u> -> теги <u> и </u> скрываются
-        val underlineRegex = Regex("<u>(.*?)</u>")
+        val underlineRegex = Regex("<u>([\\s\\S]*?)</u>")
         underlineRegex.findAll(raw).forEach { match ->
             val fullStart = match.range.first
             val fullEnd = match.range.last + 1
@@ -1116,7 +1154,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             )
         }
 
-        // 9. Сворачиваемые блоки ^ ...
+        // 9. Сворачиваемые блоки ^ ... -> скрываем ^ тег, выделяем заголовок
         val collapsibleRegex = Regex("(?m)^(\\^\\s*)(.*)$")
         collapsibleRegex.findAll(raw).forEach { match ->
             val prefix = match.groupValues[1]
@@ -1124,19 +1162,15 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             val prefixStart = match.range.first
             val prefixEnd = prefixStart + prefix.length
             val titleEnd = prefixEnd + title.length
+            builder.addStyle(hiddenStyle, prefixStart, prefixEnd)
             builder.addStyle(
                 SpanStyle(color = Color(0xFFC084FC), fontWeight = FontWeight.Bold),
-                prefixStart,
-                prefixEnd
-            )
-            builder.addStyle(
-                SpanStyle(color = Color(0xFFC084FC), fontWeight = FontWeight.SemiBold),
                 prefixEnd,
                 titleEnd
             )
         }
 
-        // 10. Цитаты > и >>>
+        // 10. Цитаты > и >>> -> скрываем префикс с hiddenStyle, текст курсивом
         val quoteRegex = Regex("(?m)^((?:>>>|>)\\s*)(.*)$")
         quoteRegex.findAll(raw).forEach { match ->
             val prefix = match.groupValues[1]
@@ -1144,11 +1178,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             val prefixStart = match.range.first
             val prefixEnd = prefixStart + prefix.length
             val textEnd = prefixEnd + quoteText.length
-            builder.addStyle(
-                SpanStyle(color = accent, fontWeight = FontWeight.Bold),
-                prefixStart,
-                prefixEnd
-            )
+            builder.addStyle(hiddenStyle, prefixStart, prefixEnd)
             builder.addStyle(
                 SpanStyle(color = Color.White, fontStyle = FontStyle.Italic),
                 prefixEnd,
@@ -1161,8 +1191,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         checkedRegex.findAll(raw).forEach { match ->
             builder.addStyle(
                 SpanStyle(
-                    color = Color(0xFF94A3B8),
-                    textDecoration = TextDecoration.LineThrough
+                    color = Color(0xFF94A3B8)
                 ),
                 match.range.first,
                 match.range.last + 1

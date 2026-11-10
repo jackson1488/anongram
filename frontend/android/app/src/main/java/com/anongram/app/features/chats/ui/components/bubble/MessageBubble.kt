@@ -7,6 +7,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -253,15 +254,20 @@ internal fun MessageBubble(
             }
         }
 
-        Row(
+        val incomingShiftDp by animateDpAsState(
+            targetValue = if (isSelectionMode && isIncoming) 32.dp else 0.dp,
+            animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+            label = "incomingShiftDp"
+        )
+
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetPx.roundToInt(), 0) }
                 .onGloballyPositioned { coordinates ->
                     bubbleTopY = coordinates.positionInRoot().y
                 }
-                .padding(vertical = 1.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(vertical = 1.dp)
         ) {
             AnimatedVisibility(
                 visible = isSelectionMode,
@@ -270,7 +276,8 @@ internal fun MessageBubble(
                 ) + fadeIn(),
                 exit = shrinkHorizontally(
                     animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-                ) + fadeOut()
+                ) + fadeOut(),
+                modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Box(
                     modifier = Modifier
@@ -293,7 +300,9 @@ internal fun MessageBubble(
             }
 
             BoxWithConstraints(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = incomingShiftDp),
                 contentAlignment = if (isIncoming) Alignment.TopStart else Alignment.TopEnd
             ) {
                 val bubbleMaxWidth = when (message.attachment) {

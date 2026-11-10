@@ -90,7 +90,7 @@ fun BubbleChecklistBlock(
                     fontSize = textSizeSp.sp,
                     lineHeight = (textSizeSp * 1.25f).sp,
                     fontWeight = FontWeight.Normal,
-                    textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
+                    textDecoration = TextDecoration.None,
                     modifier = Modifier.weight(1f)
                 )
             }

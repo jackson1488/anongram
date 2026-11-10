@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,6 +48,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 @Composable
 fun BubbleQuoteBlock(
     text: String,
+    title: String? = null,
     author: String? = null,
     isCollapsible: Boolean = false,
     initiallyExpanded: Boolean = false,
@@ -85,8 +88,19 @@ fun BubbleQuoteBlock(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 10.dp, end = 10.dp, top = 8.dp, bottom = 6.dp)
+                .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)
         ) {
+            // Заголовок сворачиваемого блока (если задан)
+            if (!title.isNullOrBlank()) {
+                Text(
+                    text = title,
+                    color = scheme.accent,
+                    fontSize = (textSizeSp + 1).sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+
             // Текст цитаты
             if (isCollapsible && !isExpanded) {
                 Text(
@@ -108,7 +122,7 @@ fun BubbleQuoteBlock(
 
             // Нижняя строка: Автор слева и Шеврон сворачивания справа
             if (!author.isNullOrBlank() || isCollapsible) {
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -127,26 +141,32 @@ fun BubbleQuoteBlock(
                     }
 
                     if (isCollapsible) {
-                        Row(
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = scheme.accent.copy(alpha = 0.22f),
+                            border = BorderStroke(1.dp, scheme.accent.copy(alpha = 0.5f)),
                             modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
+                                .clip(RoundedCornerShape(14.dp))
                                 .clickable { isExpanded = !isExpanded }
-                                .padding(horizontal = 4.dp, vertical = 2.dp),
-                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = if (isExpanded) "Свернуть" else "Развернуть",
-                                color = scheme.accent,
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Icon(
-                                imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
-                                contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
-                                tint = scheme.accent,
-                                modifier = Modifier.size(16.dp)
-                            )
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (isExpanded) "Свернуть" else "Развернуть",
+                                    color = scheme.accent,
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = if (isExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                                    contentDescription = if (isExpanded) "Свернуть" else "Развернуть",
+                                    tint = scheme.accent,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
                 }

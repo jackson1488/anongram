@@ -158,8 +158,14 @@ fun BubbleTextMessage(
                     )
                 }
                 is com.anongram.app.features.chats.messages.domain.MessageBlock.Collapsible -> {
+                    val (displayTitle, displayText) = if (block.content.isBlank()) {
+                        null to block.title
+                    } else {
+                        block.title to block.content
+                    }
                     BubbleQuoteBlock(
-                        text = block.content,
+                        text = displayText,
+                        title = displayTitle,
                         author = block.author,
                         isCollapsible = true,
                         textSizeSp = textSizeSp
@@ -256,7 +262,7 @@ private fun InteractiveChecklistItem(
             text = text,
             color = if (isChecked) Color(0xFF94A3B8) else TextPrimary,
             fontSize = textSizeSp.sp,
-            textDecoration = if (isChecked) TextDecoration.LineThrough else TextDecoration.None,
+            textDecoration = TextDecoration.None,
             lineHeight = (textSizeSp * 1.26f).sp
         )
     }

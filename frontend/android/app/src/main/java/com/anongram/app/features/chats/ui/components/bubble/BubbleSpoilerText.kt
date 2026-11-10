@@ -60,7 +60,7 @@ fun BubbleSpoilerText(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(4.dp))
-            .clickable { isRevealed = !isRevealed }
+            .clickable(enabled = !isRevealed) { isRevealed = true }
     ) {
         // Текст сообщения
         Text(
