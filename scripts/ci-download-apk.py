@@ -4,8 +4,7 @@ import json
 import os
 import sys
 import time
-import zipfile
-import io
+import subprocess
 
 token = ""
 with open(os.path.expanduser("~/.git-credentials")) as f:
@@ -23,7 +22,6 @@ headers = {
     "Accept": "application/vnd.github+json"
 }
 
-# Auto-detect latest run for the current head commit or branch
 head_sha = sys.argv[1] if len(sys.argv) > 1 else None
 print(f"Waiting for Cloud CI build (target SHA: {head_sha or 'latest'})...")
 
@@ -53,7 +51,6 @@ if not run_id:
     print("Error: Could not find workflow run")
     sys.exit(1)
 
-# Wait for completion
 run_url = f"https://api.github.com/repos/jackson1488/anongram/actions/runs/{run_id}"
 for attempt in range(60):
     try:
@@ -77,7 +74,6 @@ else:
     print("Timeout waiting for CI build")
     sys.exit(2)
 
-# Download artifact
 print("Fetching build artifacts...")
 artifacts_url = f"https://api.github.com/repos/jackson1488/anongram/actions/runs/{run_id}/artifacts"
 req = urllib.request.Request(artifacts_url, headers=headers)
@@ -101,19 +97,25 @@ print(f"Downloading artifact {target['name']} (ID: {target['id']})...")
 
 dest_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "build-artifacts", "debug")
 os.makedirs(dest_dir, exist_ok=True)
+zip_path = os.path.join(dest_dir, "artifact.zip")
 dest_apk = os.path.join(dest_dir, "app-debug.apk")
 
-req = urllib.request.Request(download_url, headers=headers)
-with urllib.request.urlopen(req) as res:
-    zip_bytes = io.BytesIO(res.read())
-    with zipfile.ZipFile(zip_bytes) as z:
-        apk_files = [f for f in z.namelist() if f.endswith(".apk")]
-        if not apk_files:
-            print("Error: No APK found inside artifact zip")
-            sys.exit(1)
-        print(f"Found APK in archive: {apk_files[0]}")
-        with open(dest_apk, "wb") as f_out:
-            f_out.write(z.read(apk_files[0]))
+subprocess.run([
+    "curl", "-sL",
+    "-H", f"Authorization: Bearer {token}",
+    "-H", "Accept: application/vnd.github+json",
+    "-o", zip_path,
+    download_url
+], check=True)
+
+subprocess.run(["unzip", "-o", zip_path, "-d", dest_dir], check=True)
+
+for root, _, files in os.walk(dest_dir):
+    for f in files:
+        if f.endswith(".apk") and os.path.join(root, f) != dest_apk:
+            src = os.path.join(root, f)
+            os.replace(src, dest_apk)
+            break
 
 print(f"Successfully saved APK to: {dest_apk}")
 apk_size_kb = os.path.getsize(dest_apk) / 1024
