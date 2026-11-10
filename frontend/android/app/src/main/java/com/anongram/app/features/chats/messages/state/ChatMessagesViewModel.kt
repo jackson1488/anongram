@@ -15,6 +15,8 @@ import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageStatus
 import com.anongram.app.features.drafts.ChatDraft
 import com.anongram.app.features.drafts.ChatDraftsRepository
+import android.content.Context
+import com.anongram.app.features.chats.media.voice.VoiceRecorder
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,6 +49,7 @@ class ChatMessagesViewModel(
     private var recordingJob: Job? = null
     private var selfDestructJob: Job? = null
     private var highlightJob: Job? = null
+    private val voiceRecorder = VoiceRecorder()
 
     init {
         viewModelScope.launch {
@@ -1089,9 +1092,14 @@ class ChatMessagesViewModel(
 
     // --- Запись голоса и кружка (шаг 6) ---
 
-    fun startRecording(mode: RecordMode) {
+    fun startRecording(mode: RecordMode, context: Context? = null) {
         if (_uiState.value.recording.mode != RecordMode.NONE) return
         _uiState.update { it.copy(recording = RecordingState(mode = mode)) }
+
+        if (mode == RecordMode.VOICE && context != null) {
+            voiceRecorder.start(context)
+        }
+
         recordingJob = viewModelScope.launch {
             while (isActive) {
                 delay(100)
@@ -1116,16 +1124,16 @@ class ChatMessagesViewModel(
         }
     }
 
-    fun cancelRecording() = finishRecording(send = false)
+    fun cancelRecording() {
+        voiceRecorder.cancel()
+        finishRecording(send = false)
+    }
 
     /** Палец убран: незаблокированная голосовая уходит в чат, заблокированная ждёт. */
     fun endPress() {
         val recording = _uiState.value.recording
         when {
             recording.mode == RecordMode.VOICE && !recording.isLocked ->
-                finishRecording(send = true)
-
-            recording.mode == RecordMode.CIRCLE && !recording.isLocked ->
                 finishRecording(send = true)
         }
     }
@@ -1136,17 +1144,19 @@ class ChatMessagesViewModel(
         recordingJob = null
         _uiState.update { it.copy(recording = RecordingState()) }
         if (recording.mode == RecordMode.VOICE) {
-            if (recording.elapsedTenths >= 2) {
+            val result = voiceRecorder.stop()
+            if (result != null) {
                 val voice = MessageAttachment.Voice(
-                    durationLabel = recording.durationLabel,
-                    waveform = List(24) { Random.nextInt(3, 15) }
+                    durationLabel = result.durationLabel,
+                    waveform = result.waveform,
+                    uri = result.file.absolutePath
                 )
                 _uiState.update { it.copy(voiceReviewDraft = voice) }
                 ChatDraftsRepository.instance.saveDraft(
                     ChatDraft(
                         chatId = sessionId,
                         text = _uiState.value.input,
-                        voiceUri = "voice_${System.currentTimeMillis()}",
+                        voiceUri = result.file.absolutePath,
                         voiceDurationLabel = voice.durationLabel,
                         voiceWaveform = voice.waveform
                     )
@@ -1171,6 +1181,8 @@ class ChatMessagesViewModel(
     }
 
     fun discardVoiceReview() {
+        val draft = _uiState.value.voiceReviewDraft
+        draft?.uri?.let { runCatching { java.io.File(it).delete() } }
         _uiState.update { it.copy(voiceReviewDraft = null) }
         ChatDraftsRepository.instance.clearDraft(sessionId)
     }
@@ -1186,26 +1198,51 @@ class ChatMessagesViewModel(
     fun toggleCameraMode() =
         _uiState.update { it.copy(isCameraMode = !it.isCameraMode) }
 
+    fun sendVideoCircle(uri: String?, durationLabel: String) {
+        recordingJob?.cancel()
+        recordingJob = null
+        _uiState.update { it.copy(recording = RecordingState()) }
+        val attachment = MessageAttachment.VideoCircle(
+            durationLabel = durationLabel,
+            uri = uri
+        )
+        sendAttachment(attachment)
+    }
+
     private fun finishRecording(send: Boolean) {
         recordingJob?.cancel()
         recordingJob = null
         val recording = _uiState.value.recording
         _uiState.update { it.copy(recording = RecordingState()) }
-        if (!send || recording.mode == RecordMode.NONE) return
-        if (recording.elapsedTenths < 2) return
-
-        val attachment = if (recording.mode == RecordMode.VOICE) {
-            MessageAttachment.Voice(
-                durationLabel = recording.durationLabel,
-                waveform = List(24) { Random.nextInt(3, 15) }
-            )
-        } else {
-            MessageAttachment.VideoCircle(
-                durationLabel = recording.durationLabel,
-                colorSeed = Random.nextInt(0, 5)
-            )
+        if (!send || recording.mode == RecordMode.NONE) {
+            voiceRecorder.cancel()
+            return
         }
-        sendAttachment(attachment)
+
+        if (recording.mode == RecordMode.VOICE) {
+            val result = voiceRecorder.stop()
+            if (result != null) {
+                val attachment = MessageAttachment.Voice(
+                    durationLabel = result.durationLabel,
+                    waveform = result.waveform,
+                    uri = result.file.absolutePath
+                )
+                sendAttachment(attachment)
+            }
+        } else {
+            if (recording.elapsedTenths >= 2) {
+                val attachment = MessageAttachment.VideoCircle(
+                    durationLabel = recording.durationLabel,
+                    colorSeed = Random.nextInt(0, 5)
+                )
+                sendAttachment(attachment)
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        voiceRecorder.cancel()
     }
 
     // --- Вложения / панели / обои / безопасность (шаги 3–5, 7, 18) ---

@@ -1,5 +1,9 @@
 package com.anongram.app.features.chats.media.circle
 
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
+import android.view.Surface
+import android.view.TextureView
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,6 +23,7 @@ import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -39,9 +44,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.theme.FlameOrange
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import java.io.File
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -49,11 +56,12 @@ import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /**
- * Развёрнутый плеер видео-кружочка с круговым SeekBar-ом (Фото 1 и 2):
+ * Развёрнутый плеер видео-кружочка с круговым SeekBar-ом:
  * - Крупный круг по центру экрана (диаметр ~300.dp)
+ * - Воспроизведение реального видео через MediaPlayer в TextureView
  * - По внешнему ободу белая дуга прогресса воспроизведения
  * - По тапу во время воспроизведения: ставится на паузу и появляется белая точка-ручка (●)
- * - Белую точку можно пальцем водить по кругу для перемотки видеосообщения в любое место!
+ * - Белую точку можно пальцем водить по кругу для перемотки видеосообщения в любое место
  */
 @Composable
 fun VideoCircleExpandedPlayer(
@@ -80,14 +88,34 @@ fun VideoCircleExpandedPlayer(
     var isPlaying by remember { mutableStateOf(true) }
     var isDragging by remember { mutableStateOf(false) }
 
-    // Автоматический прогресс воспроизведения
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    val videoFile = remember(attachment?.uri) {
+        attachment?.uri?.let { File(it) }?.takeIf { it.exists() }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer?.run {
+                runCatching { stop() }
+                release()
+            }
+            mediaPlayer = null
+        }
+    }
+
+    // Синхронизация прогресса с реальным MediaPlayer или таймером
     LaunchedEffect(isPlaying, isDragging) {
         while (isActive && isPlaying && !isDragging) {
-            delay(100)
-            currentPosMs += 100
-            if (currentPosMs >= totalMs) {
-                currentPosMs = totalMs
-                isPlaying = false
+            delay(50)
+            val mp = mediaPlayer
+            if (mp != null && mp.isPlaying) {
+                currentPosMs = mp.currentPosition.toLong()
+            } else if (mp == null) {
+                currentPosMs += 50
+                if (currentPosMs >= totalMs) {
+                    currentPosMs = totalMs
+                    isPlaying = false
+                }
             }
         }
     }
@@ -120,6 +148,10 @@ fun VideoCircleExpandedPlayer(
                     indication = null,
                     onClick = {
                         isPlaying = !isPlaying
+                        val mp = mediaPlayer
+                        if (mp != null) {
+                            if (isPlaying) mp.start() else mp.pause()
+                        }
                     }
                 ),
             contentAlignment = Alignment.Center
@@ -129,16 +161,52 @@ fun VideoCircleExpandedPlayer(
                 modifier = Modifier
                     .size(280.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF2B221B)),
+                    .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
-                // Иконка / превью камеры
-                Icon(
-                    imageVector = Icons.Outlined.Videocam,
-                    contentDescription = null,
-                    tint = FlameOrange.copy(alpha = 0.6f),
-                    modifier = Modifier.size(64.dp)
-                )
+                if (videoFile != null) {
+                    // Реальное воспроизведение видеофайла через TextureView
+                    AndroidView(
+                        factory = { ctx ->
+                            TextureView(ctx).apply {
+                                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                                    override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                                        try {
+                                            val mp = MediaPlayer().apply {
+                                                setSurface(Surface(st))
+                                                setDataSource(videoFile.absolutePath)
+                                                isLooping = true
+                                                prepare()
+                                                if (isPlaying) start()
+                                            }
+                                            mediaPlayer = mp
+                                        } catch (_: Exception) {}
+                                    }
+
+                                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+                                    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                                        mediaPlayer?.run {
+                                            runCatching { stop() }
+                                            release()
+                                        }
+                                        mediaPlayer = null
+                                        return true
+                                    }
+                                    override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    // Fallback иконка если файл не задан
+                    Icon(
+                        imageVector = Icons.Outlined.Videocam,
+                        contentDescription = null,
+                        tint = FlameOrange.copy(alpha = 0.6f),
+                        modifier = Modifier.size(64.dp)
+                    )
+                }
 
                 // Иконка паузы / воспроизведения по центру при паузе
                 if (!isPlaying) {
@@ -185,62 +253,28 @@ fun VideoCircleExpandedPlayer(
                         .padding(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "$timeLabel ✔✔",
-                        color = Color.White,
-                        fontSize = 11.sp
+                        text = timeLabel,
+                        color = Color.White.copy(alpha = 0.85f),
+                        fontSize = 12.sp
                     )
                 }
             }
 
-            // Круговой SeekBar (обод с прогрессом и перетаскиваемой белой точкой)
-            Canvas(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(totalMs) {
-                        detectDragGestures(
-                            onDragStart = { offset ->
-                                isDragging = true
-                                val centerX = size.width / 2f
-                                val centerY = size.height / 2f
-                                val touchAngle = atan2(offset.y - centerY, offset.x - centerX)
-                                // Преобразуем угол: 0 на 12 часах (-PI/2)
-                                var norm = touchAngle + (PI / 2.0).toFloat()
-                                if (norm < 0f) norm += (2f * PI.toFloat())
-                                val fraction = (norm / (2f * PI.toFloat())).coerceIn(0f, 1f)
-                                currentPosMs = (fraction * totalMs).toLong()
-                            },
-                            onDrag = { change, _ ->
-                                change.consume()
-                                val centerX = size.width / 2f
-                                val centerY = size.height / 2f
-                                val touchAngle = atan2(change.position.y - centerY, change.position.x - centerX)
-                                var norm = touchAngle + (PI / 2.0).toFloat()
-                                if (norm < 0f) norm += (2f * PI.toFloat())
-                                val fraction = (norm / (2f * PI.toFloat())).coerceIn(0f, 1f)
-                                currentPosMs = (fraction * totalMs).toLong()
-                            },
-                            onDragEnd = {
-                                isDragging = false
-                            },
-                            onDragCancel = {
-                                isDragging = false
-                            }
-                        )
-                    }
-            ) {
-                val radius = (size.minDimension - 24.dp.toPx()) / 2f
-                val strokeWidth = 3.5.dp.toPx()
+            // Круговой SeekBar (дуга прогресса + точка ручки)
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val radius = (size.minDimension - 14.dp.toPx()) / 2f
+                val strokeWidth = 4.dp.toPx()
                 val centerOffset = Offset(size.width / 2f, size.height / 2f)
 
-                // Фоновое кольцо трека (полупрозрачное)
+                // Фоновое кольцо (полупрозрачное)
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.25f),
+                    color = Color.White.copy(alpha = 0.2f),
                     radius = radius,
                     center = centerOffset,
                     style = Stroke(width = strokeWidth)
                 )
 
-                // Дуга воспроизведения (активная белая дуга)
+                // Белая дуга прогресса
                 drawArc(
                     color = Color.White,
                     startAngle = -90f,
@@ -250,19 +284,48 @@ fun VideoCircleExpandedPlayer(
                     size = Size(radius * 2, radius * 2),
                     style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
                 )
+            }
 
-                // Белая круглая точка-манипулятор (●) на конце дуги (видна при паузе или перетаскивании)
-                if (!isPlaying || isDragging) {
-                    val angleRad = (-90f + animatedProgress * 360f) * (PI / 180.0)
-                    val thumbX = centerOffset.x + radius * cos(angleRad).toFloat()
-                    val thumbY = centerOffset.y + radius * sin(angleRad).toFloat()
+            // Белая точка-ручка (●) на ободе при паузе или перемотке
+            if (!isPlaying || isDragging) {
+                val angleDeg = -90f + animatedProgress * 360f
+                val angleRad = angleDeg * (PI.toFloat() / 180f)
+                val radiusPx = (circleSize.value * 2.8f)
 
-                    drawCircle(
-                        color = Color.White,
-                        radius = 8.dp.toPx(),
-                        center = Offset(thumbX, thumbY)
-                    )
-                }
+                val handleSize = 16.dp
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .offset {
+                            val r = 148.dp.toPx()
+                            val x = (r * cos(angleRad)).roundToInt()
+                            val y = (r * sin(angleRad)).roundToInt()
+                            IntOffset(x, y)
+                        }
+                        .size(handleSize)
+                        .clip(CircleShape)
+                        .background(Color.White)
+                        .pointerInput(totalMs) {
+                            detectDragGestures(
+                                onDragStart = { isDragging = true },
+                                onDragEnd = {
+                                    isDragging = false
+                                    mediaPlayer?.seekTo(currentPosMs.toInt())
+                                },
+                                onDragCancel = { isDragging = false },
+                                onDrag = { change, _ ->
+                                    change.consume()
+                                    val touchPos = change.position
+                                    val angle = atan2(touchPos.y, touchPos.x)
+                                    var deg = (angle * 180f / PI.toFloat()) + 90f
+                                    if (deg < 0) deg += 360f
+                                    val fraction = (deg / 360f).coerceIn(0f, 1f)
+                                    currentPosMs = (fraction * totalMs).toLong()
+                                }
+                            )
+                        }
+                )
             }
         }
     }

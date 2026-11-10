@@ -1,5 +1,7 @@
 package com.anongram.app.features.chats.media.voice
 
+import android.media.AudioAttributes
+import android.media.MediaPlayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -35,18 +38,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import java.io.File
 
 /**
- * Плашка предпрослушивания заблокированного голосового перед отправкой (Фото 2):
+ * Плашка предпрослушивания заблокированного голосового перед отправкой:
  * - Слева: кнопка удаления [ 🗑 ]
- * - По центру: фиолетовая полоса с аудиоволной, кнопкой воспроизведения и таймером ▶ 0:07
+ * - По центру: фиолетовая полоса с реальной аудиоволной, кнопкой воспроизведения и таймером
  * - Справа: круглая фиолетовая кнопка отправки [ ✈ ]
+ * - Поддерживает реальное воспроизведение аудио через MediaPlayer
  */
 @Composable
 fun VoiceDraftReviewBar(
@@ -68,14 +70,69 @@ fun VoiceDraftReviewBar(
 
     var isPlaying by remember { mutableStateOf(false) }
     var currentProgress by remember { mutableFloatStateOf(0f) }
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    DisposableEffect(voice?.uri) {
+        onDispose {
+            mediaPlayer?.run {
+                runCatching { stop() }
+                release()
+            }
+            mediaPlayer = null
+        }
+    }
+
+    fun togglePlay() {
+        if (isPlaying) {
+            mediaPlayer?.pause()
+            isPlaying = false
+        } else {
+            val uriStr = voice?.uri
+            if (!uriStr.isNullOrBlank()) {
+                val file = File(uriStr)
+                if (file.exists()) {
+                    try {
+                        if (mediaPlayer == null) {
+                            val mp = MediaPlayer()
+                            mp.setAudioAttributes(
+                                AudioAttributes.Builder()
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                                    .build()
+                            )
+                            mp.setDataSource(file.absolutePath)
+                            mp.prepare()
+                            mp.setOnCompletionListener {
+                                isPlaying = false
+                                currentProgress = 0f
+                            }
+                            mediaPlayer = mp
+                        }
+                        mediaPlayer?.start()
+                        isPlaying = true
+                        return
+                    } catch (_: Exception) {
+                    }
+                }
+            }
+            // Fallback если файла нет
+            isPlaying = true
+        }
+    }
 
     LaunchedEffect(isPlaying) {
         while (isActive && isPlaying) {
-            delay(100)
-            currentProgress += (0.1f / effectiveSeconds.toFloat().coerceAtLeast(1f))
-            if (currentProgress >= 1f) {
-                currentProgress = 0f
-                isPlaying = false
+            delay(50)
+            val mp = mediaPlayer
+            if (mp != null && mp.isPlaying) {
+                val dur = mp.duration.coerceAtLeast(1)
+                currentProgress = (mp.currentPosition.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
+            } else if (mp == null) {
+                currentProgress += (0.05f / effectiveSeconds.toFloat().coerceAtLeast(1f))
+                if (currentProgress >= 1f) {
+                    currentProgress = 0f
+                    isPlaying = false
+                }
             }
         }
     }
@@ -91,7 +148,15 @@ fun VoiceDraftReviewBar(
     ) {
         // Кнопка «Удалить» (корзина слева)
         IconButton(
-            onClick = onDiscard,
+            onClick = {
+                mediaPlayer?.run {
+                    runCatching { stop() }
+                    release()
+                }
+                mediaPlayer = null
+                voice?.uri?.let { runCatching { File(it).delete() } }
+                onDiscard()
+            },
             modifier = Modifier.size(42.dp)
         ) {
             Icon(
@@ -125,7 +190,7 @@ fun VoiceDraftReviewBar(
                         .size(30.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.25f))
-                        .clickable { isPlaying = !isPlaying },
+                        .clickable { togglePlay() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -181,7 +246,14 @@ fun VoiceDraftReviewBar(
                 .size(46.dp)
                 .clip(CircleShape)
                 .background(scheme.accent)
-                .clickable(onClick = onSend),
+                .clickable {
+                    mediaPlayer?.run {
+                        runCatching { stop() }
+                        release()
+                    }
+                    mediaPlayer = null
+                    onSend()
+                },
             contentAlignment = Alignment.Center
         ) {
             Icon(

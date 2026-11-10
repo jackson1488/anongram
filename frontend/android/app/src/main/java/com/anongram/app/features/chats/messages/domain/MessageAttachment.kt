@@ -58,10 +58,18 @@ sealed interface MessageAttachment {
         val items: List<Music>
     ) : MessageAttachment
 
-    data class Voice(val durationLabel: String, val waveform: List<Int>) : MessageAttachment
+    data class Voice(
+        val durationLabel: String,
+        val waveform: List<Int>,
+        val uri: String? = null
+    ) : MessageAttachment
 
     /** Видео-кружок: круглое превью, лимит 60 сек. */
-    data class VideoCircle(val durationLabel: String, val colorSeed: Int) : MessageAttachment
+    data class VideoCircle(
+        val durationLabel: String,
+        val colorSeed: Int = 0,
+        val uri: String? = null
+    ) : MessageAttachment
 
     data class Contact(val name: String, val phone: String) : MessageAttachment
 

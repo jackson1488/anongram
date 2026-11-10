@@ -108,8 +108,12 @@ import com.anongram.app.features.chats.ui.components.reply.ReplyPreviewDialog
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
 import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
+import android.Manifest
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.platform.LocalContext
+import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.features.chats.ui.components.bubble.saveFileToDeviceDownloads
 import com.anongram.app.features.chats.ui.components.bubble.saveMusicToDeviceMusic
 import kotlinx.coroutines.delay
@@ -147,6 +151,22 @@ fun ChatScreen(
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
     var inputBarHeightPx by remember { mutableStateOf(0) }
+    var pendingRecordMode by remember { mutableStateOf<RecordMode?>(null) }
+    val recordPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val audioGranted = permissions[Manifest.permission.RECORD_AUDIO] == true || PermissionUtils.hasRecordAudioPermission(context)
+        val cameraGranted = permissions[Manifest.permission.CAMERA] == true || PermissionUtils.hasCameraPermission(context)
+        val mode = pendingRecordMode
+        pendingRecordMode = null
+        if (mode == RecordMode.VOICE && audioGranted) {
+            viewModel.startRecording(RecordMode.VOICE, context)
+        } else if (mode == RecordMode.CIRCLE && audioGranted && cameraGranted) {
+            viewModel.startRecording(RecordMode.CIRCLE, context)
+        } else {
+            Toast.makeText(context, "Требуется разрешение для записи", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(state.isSearchOpen) {
         if (!state.isSearchOpen) {
@@ -411,11 +431,19 @@ fun ChatScreen(
                                     parts[0].toLong() * 60_000L + parts[1].toLong() * 1000L
                                 }.getOrDefault(15_000L)
                                 val isOut = msg.direction == MessageDirection.OUTGOING
-                                val name = if (isOut) "Вы" else session.title
+                                val voiceUri = if (!v.uri.isNullOrBlank()) {
+                                    val f = java.io.File(v.uri)
+                                    if (f.exists()) {
+                                        android.net.Uri.fromFile(f)
+                                    } else {
+                                        android.net.Uri.parse(v.uri)
+                                    }
+                                } else android.net.Uri.EMPTY
                                 ChatTrack(
                                     id = "voice_${msg.id}",
                                     messageId = msg.id,
                                     chatId = session.id,
+                                    uri = voiceUri,
                                     title = name,
                                     artist = name,
                                     durationLabel = v.durationLabel,
@@ -622,7 +650,32 @@ fun ChatScreen(
                             viewModel.openAttach()
                         },
                         onToggleCameraMode = viewModel::toggleCameraMode,
-                        onStartRecording = viewModel::startRecording,
+                        onStartRecording = { mode ->
+                            when (mode) {
+                                RecordMode.VOICE -> {
+                                    if (PermissionUtils.hasRecordAudioPermission(context)) {
+                                        viewModel.startRecording(mode, context)
+                                    } else {
+                                        pendingRecordMode = mode
+                                        recordPermissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
+                                    }
+                                }
+                                RecordMode.CIRCLE -> {
+                                    val hasAudio = PermissionUtils.hasRecordAudioPermission(context)
+                                    val hasCam = PermissionUtils.hasCameraPermission(context)
+                                    if (hasAudio && hasCam) {
+                                        viewModel.startRecording(mode, context)
+                                    } else {
+                                        val perms = mutableListOf<String>()
+                                        if (!hasAudio) perms.add(Manifest.permission.RECORD_AUDIO)
+                                        if (!hasCam) perms.add(Manifest.permission.CAMERA)
+                                        pendingRecordMode = mode
+                                        recordPermissionLauncher.launch(perms.toTypedArray())
+                                    }
+                                }
+                                else -> {}
+                            }
+                        },
                         onFinishRecording = { viewModel.endPress() },
                         onLockRecording = viewModel::lockRecording,
                         onCancelRecording = viewModel::cancelRecording,
@@ -1438,7 +1491,8 @@ fun ChatScreen(
                 recordingState = state.recording,
                 onCancel = viewModel::cancelRecording,
                 onSend = viewModel::stopLockedRecording,
-                onToggleLock = viewModel::lockRecording
+                onToggleLock = viewModel::lockRecording,
+                onSendVideo = { uri, dur -> viewModel.sendVideoCircle(uri, dur) }
             )
         }
 
