@@ -57,20 +57,20 @@ fun BubbleCollapsibleBlock(
             .clip(RoundedCornerShape(10.dp))
             .background(scheme.accent.copy(alpha = 0.12f))
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            // Вертикальная акцентная линия слева
-            Box(
-                modifier = Modifier
-                    .width(3.5.dp)
-                    .matchParentSize()
-                    .background(scheme.accent, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
-            )
+        // Вертикальная акцентная линия слева
+        Box(
+            modifier = Modifier
+                .width(3.5.dp)
+                .matchParentSize()
+                .align(Alignment.CenterStart)
+                .background(scheme.accent, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+        )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 6.dp, top = 4.dp, bottom = 4.dp, end = 4.dp)
+        ) {
                 // Заголовок со стрелкой-шевроном (^ / v)
                 Row(
                     modifier = Modifier
@@ -123,4 +123,3 @@ fun BubbleCollapsibleBlock(
             }
         }
     }
-}

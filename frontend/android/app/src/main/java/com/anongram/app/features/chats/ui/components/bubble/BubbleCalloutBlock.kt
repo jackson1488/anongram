@@ -49,20 +49,20 @@ fun BubbleCalloutBlock(
             .clip(RoundedCornerShape(10.dp))
             .background(containerBg)
     ) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            // Вертикальная акцентная линия цитаты / выноски
-            Box(
-                modifier = Modifier
-                    .width(3.5.dp)
-                    .matchParentSize()
-                    .background(accentColor, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
-            )
+        // Вертикальная акцентная линия цитаты / выноски
+        Box(
+            modifier = Modifier
+                .width(3.5.dp)
+                .matchParentSize()
+                .align(Alignment.CenterStart)
+                .background(accentColor, RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp))
+        )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 10.dp, vertical = 8.dp)
-            ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 6.dp, end = 10.dp, top = 8.dp, bottom = 8.dp)
+        ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.Top
@@ -104,4 +104,3 @@ fun BubbleCalloutBlock(
             }
         }
     }
-}
