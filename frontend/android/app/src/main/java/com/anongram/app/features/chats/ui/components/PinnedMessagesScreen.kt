@@ -213,7 +213,7 @@ internal fun PinnedMessagesScreen(
                                     peerName = peerName,
                                     isSelectionMode = selection.isNotEmpty(),
                                     isSelected = message.id in selection,
-                                    onClick = {
+                                    onClick = { _, _ ->
                                         if (selection.isNotEmpty()) onSelectMessage(message.id) else onMessageClick(message)
                                     },
                                     onLongClick = { onMessageLongClick(message) },
