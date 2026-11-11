@@ -805,6 +805,8 @@ private fun AttachmentContent(
                 message = message,
                 attachment = attachment,
                 accent = accent,
+                isIncoming = isIncoming,
+                onLongClick = onLongClick,
                 onPlay = { onPlayVoice(message) }
             )
         }

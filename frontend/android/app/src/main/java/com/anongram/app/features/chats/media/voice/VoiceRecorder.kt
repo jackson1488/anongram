@@ -102,23 +102,46 @@ class VoiceRecorder {
             }
         }
 
-        // Сбор амплитуд для построения волны в реальном времени
+        // Сбор реальной амплитуды микрофона (50 мс) для точной звуковой волны любой длительности
         amplitudeJob = scope.launch {
-            val samples = mutableListOf<Int>()
+            val rawSamples = mutableListOf<Int>()
             while (isActive && _isRecording.value) {
-                delay(100)
+                delay(50)
                 val rawAmp = try {
                     recorder?.maxAmplitude ?: 0
                 } catch (_: Exception) {
                     0
                 }
-                val normalized = (rawAmp / 32767f * 13f).toInt().coerceIn(0, 13) + 2
-                samples.add(normalized)
-                _liveWaveform.value = samples.toList()
+                val linear = (rawAmp / 32767f).coerceIn(0f, 1f)
+                val curved = kotlin.math.sqrt(linear.toDouble()).toFloat()
+                val normalized = (curved * 14f).toInt().coerceIn(0, 14) + 2
+                rawSamples.add(normalized)
+                _liveWaveform.value = downsampleWaveform(rawSamples, 36)
             }
         }
 
         return true
+    }
+
+    private fun downsampleWaveform(samples: List<Int>, targetBars: Int = 36): List<Int> {
+        if (samples.isEmpty()) return emptyList()
+        if (samples.size <= targetBars) return samples.toList()
+        val result = ArrayList<Int>(targetBars)
+        val step = samples.size.toFloat() / targetBars.toFloat()
+        for (i in 0 until targetBars) {
+            val start = (i * step).toInt().coerceIn(0, samples.lastIndex)
+            val end = (((i + 1) * step).toInt()).coerceIn(start + 1, samples.size)
+            var peak = 2
+            var sum = 0
+            for (j in start until end) {
+                val v = samples[j]
+                if (v > peak) peak = v
+                sum += v
+            }
+            val avg = sum / (end - start).coerceAtLeast(1)
+            result.add(((peak * 2 + avg) / 3).coerceIn(2, 16))
+        }
+        return result
     }
 
     fun stop(): VoiceRecordResult? {
@@ -151,11 +174,16 @@ class VoiceRecorder {
         }
 
         val totalSec = elapsedMs / 1000
-        val durationLabel = "%02d:%02d".format(totalSec / 60, totalSec % 60)
-        val finalWaveform = if (_liveWaveform.value.isNotEmpty()) {
-            _liveWaveform.value
+        val durationLabel = if (totalSec >= 3600) {
+            "%d:%02d:%02d".format(totalSec / 3600, (totalSec % 3600) / 60, totalSec % 60)
         } else {
-            List(20) { 4 }
+            "%d:%02d".format(totalSec / 60, totalSec % 60)
+        }
+        val currentWave = _liveWaveform.value
+        val finalWaveform = if (currentWave.isNotEmpty()) {
+            if (currentWave.size <= 36) currentWave else downsampleWaveform(currentWave, 36)
+        } else {
+            List(36) { 3 }
         }
 
         return VoiceRecordResult(

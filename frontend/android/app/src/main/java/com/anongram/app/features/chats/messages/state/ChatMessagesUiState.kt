@@ -15,10 +15,20 @@ data class RecordingState(
     val seconds: Int get() = elapsedTenths / 10
     val tenths: Int get() = elapsedTenths % 10
 
-    /** «0:07,3» — таймер записи как в ТЗ. */
-    val timeLabel: String get() = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')},$tenths"
+    /** «0:07,3» или «1:02:07,3» — таймер записи без ограничения длительности. */
+    val timeLabel: String
+        get() = if (seconds >= 3600) {
+            "${seconds / 3600}:${((seconds % 3600) / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')},$tenths"
+        } else {
+            "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')},$tenths"
+        }
 
-    val durationLabel: String get() = "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
+    val durationLabel: String
+        get() = if (seconds >= 3600) {
+            "${seconds / 3600}:${((seconds % 3600) / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}"
+        } else {
+            "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
+        }
 }
 
 /** Таймер самоуничтожения сообщений чата (шаг 18). */

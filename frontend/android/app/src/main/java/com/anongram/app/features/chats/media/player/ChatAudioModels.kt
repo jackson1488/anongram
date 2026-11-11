@@ -52,17 +52,21 @@ data class ChatPlayerState(
     val positionLabel: String
         get() {
             val totalSec = positionMs / 1000
-            val min = totalSec / 60
-            val sec = totalSec % 60
-            return "%d:%02d".format(min, sec)
+            return if (totalSec >= 3600) {
+                "%d:%02d:%02d".format(totalSec / 3600, (totalSec % 3600) / 60, totalSec % 60)
+            } else {
+                "%d:%02d".format(totalSec / 60, totalSec % 60)
+            }
         }
 
     val remainingLabel: String
         get() {
             val remMs = (durationMs - positionMs).coerceAtLeast(0L)
             val totalSec = remMs / 1000
-            val min = totalSec / 60
-            val sec = totalSec % 60
-            return "-%d:%02d".format(min, sec)
+            return if (totalSec >= 3600) {
+                "-%d:%02d:%02d".format(totalSec / 3600, (totalSec % 3600) / 60, totalSec % 60)
+            } else {
+                "-%d:%02d".format(totalSec / 60, totalSec % 60)
+            }
         }
 }

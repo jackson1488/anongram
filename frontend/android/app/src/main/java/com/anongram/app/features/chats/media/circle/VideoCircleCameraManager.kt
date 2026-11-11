@@ -17,6 +17,9 @@ import android.util.Size
 import android.view.Surface
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 /**
@@ -29,6 +32,7 @@ class VideoCircleCameraManager(private val context: Context) {
 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val recorderStopExecutor = Executors.newSingleThreadExecutor()
 
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
@@ -36,6 +40,9 @@ class VideoCircleCameraManager(private val context: Context) {
     private var mediaRecorder: MediaRecorder? = null
     private var currentVideoFile: File? = null
     private var currentCameraId: String? = null
+
+    @Volatile
+    private var pendingRecorderStopFuture: Future<*>? = null
 
     private var backgroundThread: HandlerThread? = null
     private var backgroundHandler: Handler? = null
@@ -158,6 +165,7 @@ class VideoCircleCameraManager(private val context: Context) {
             } else if (isClosingCamera) {
                 pendingOpenFront = front
             }
+            resolveCameraInfo(!front)
         }
     }
 
@@ -335,11 +343,10 @@ class VideoCircleCameraManager(private val context: Context) {
     fun switchCamera() {
         val nextFront = !isFrontCamera
         isFrontCamera = nextFront
-        isFlashOn = false
         val handler = ensureBackgroundThread() ?: return
         handler.post {
             if (isReleased) return@post
-            stopRecorderInternal(deleteIfTooShort = true)
+            stopRecorderAsync(deleteIfTooShort = true)
             closeSessionOnly()
             pendingOpenFront = nextFront
             if (cameraDevice != null && !isClosingCamera) {
@@ -392,6 +399,7 @@ class VideoCircleCameraManager(private val context: Context) {
         try {
             closeSessionOnly()
             releasePreviewSurface()
+            awaitPendingRecorderStop()
 
             val file = File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4")
             currentVideoFile = file
@@ -489,19 +497,12 @@ class VideoCircleCameraManager(private val context: Context) {
         }
     }
 
-    private fun stopRecorderInternal(deleteIfTooShort: Boolean = false): File? {
-        val file = currentVideoFile
-        currentVideoFile = null
-        val mr = mediaRecorder
-        mediaRecorder = null
-        val wasStarted = hasRecorderActuallyStarted
-        isRecording = false
-        hasRecorderActuallyStarted = false
-
-        try {
-            captureSession?.stopRepeating()
-        } catch (_: Exception) {}
-
+    private fun finalizeMediaRecorder(
+        mr: MediaRecorder?,
+        wasStarted: Boolean,
+        file: File?,
+        deleteIfTooShort: Boolean
+    ): File? {
         var stopOk = false
         if (mr != null) {
             if (wasStarted) {
@@ -524,6 +525,50 @@ class VideoCircleCameraManager(private val context: Context) {
             return null
         }
         return file
+    }
+
+    private fun awaitPendingRecorderStop() {
+        val future = pendingRecorderStopFuture ?: return
+        pendingRecorderStopFuture = null
+        runCatching { future.get(600, TimeUnit.MILLISECONDS) }
+    }
+
+    private fun stopRecorderAsync(deleteIfTooShort: Boolean = false) {
+        val file = currentVideoFile
+        currentVideoFile = null
+        val mr = mediaRecorder
+        mediaRecorder = null
+        val wasStarted = hasRecorderActuallyStarted
+        isRecording = false
+        hasRecorderActuallyStarted = false
+
+        try {
+            captureSession?.stopRepeating()
+        } catch (_: Exception) {}
+
+        if (mr == null && file == null) return
+        pendingRecorderStopFuture = runCatching {
+            recorderStopExecutor.submit {
+                finalizeMediaRecorder(mr, wasStarted, file, deleteIfTooShort)
+            }
+        }.getOrNull()
+    }
+
+    private fun stopRecorderInternal(deleteIfTooShort: Boolean = false): File? {
+        awaitPendingRecorderStop()
+        val file = currentVideoFile
+        currentVideoFile = null
+        val mr = mediaRecorder
+        mediaRecorder = null
+        val wasStarted = hasRecorderActuallyStarted
+        isRecording = false
+        hasRecorderActuallyStarted = false
+
+        try {
+            captureSession?.stopRepeating()
+        } catch (_: Exception) {}
+
+        return finalizeMediaRecorder(mr, wasStarted, file, deleteIfTooShort)
     }
 
     private fun closeSessionOnly() {
@@ -599,13 +644,16 @@ class VideoCircleCameraManager(private val context: Context) {
         pendingOpenFront = null
         val handler = backgroundHandler
         if (handler == null) {
+            awaitPendingRecorderStop()
             releasePreviewSurface()
+            runCatching { recorderStopExecutor.shutdown() }
             return
         }
         handler.post {
             stopRecorderInternal(deleteIfTooShort = false)
             closeSessionOnly()
             releasePreviewSurface()
+            runCatching { recorderStopExecutor.shutdown() }
             if (cameraDevice != null) {
                 closeCameraAsync()
                 // Остановка потока произойдёт в StateCallback.onClosed после полного закрытия камеры

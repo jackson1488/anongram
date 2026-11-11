@@ -101,7 +101,11 @@ class ChatAudioController private constructor(
     /**
      * Воспроизведение цепочки голосовых сообщений (ТЗ: непрерывный автопереход к следующему ГС вниз по чату).
      */
-    fun playVoiceSequence(queue: List<ChatTrack>, startTrack: ChatTrack) {
+    fun playVoiceSequence(
+        queue: List<ChatTrack>,
+        startTrack: ChatTrack,
+        initialPositionMs: Long = 0L
+    ) {
         if (queue.isEmpty()) return
 
         userPaused = false
@@ -110,18 +114,23 @@ class ChatAudioController private constructor(
                 queue = queue,
                 currentTrack = startTrack,
                 durationMs = startTrack.durationMs,
-                positionMs = 0L,
+                positionMs = initialPositionMs.coerceAtLeast(0L),
                 isPlaying = true,
                 isVisible = false // Плашка мини-плеера не перекрывает чат при прослушивании ГС
             )
         }
 
-        startPlayback(startTrack, autoStart = true)
+        startPlayback(startTrack, autoStart = true, initialPositionMs = initialPositionMs.coerceAtLeast(0L))
         AudioPlayerService.start(appContext)
     }
 
-    private fun startPlayback(track: ChatTrack, autoStart: Boolean = true) {
+    private var isPlayerPrepared: Boolean = false
+    private var pendingSeekMs: Long = -1L
+
+    private fun startPlayback(track: ChatTrack, autoStart: Boolean = true, initialPositionMs: Long = 0L) {
         releasePlayer()
+        isPlayerPrepared = false
+        pendingSeekMs = initialPositionMs.coerceAtLeast(0L).takeIf { it > 0L } ?: -1L
         try {
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
@@ -139,12 +148,20 @@ class ChatAudioController private constructor(
                     setDataSource(track.uri.toString())
                 }
                 setOnPreparedListener { mp ->
+                    isPlayerPrepared = true
                     val actualDur = if (track.durationMs > 0) track.durationMs else mp.duration.toLong().coerceAtLeast(1000L)
+                    val requestedPos = if (pendingSeekMs >= 0L) pendingSeekMs else initialPositionMs
+                    pendingSeekMs = -1L
+                    val targetPos = requestedPos.coerceIn(0L, actualDur.coerceAtLeast(1L))
+                    if (targetPos > 0L) {
+                        runCatching { mp.seekTo(targetPos.toInt()) }
+                    }
                     if (autoStart) {
                         mp.start()
                         _state.update {
                             it.copy(
                                 isPlaying = true,
+                                positionMs = targetPos,
                                 durationMs = actualDur
                             )
                         }
@@ -153,7 +170,7 @@ class ChatAudioController private constructor(
                         _state.update {
                             it.copy(
                                 isPlaying = false,
-                                positionMs = 0L,
+                                positionMs = targetPos,
                                 durationMs = actualDur
                             )
                         }
@@ -212,9 +229,13 @@ class ChatAudioController private constructor(
 
     fun seek(ms: Long) {
         val targetMs = ms.coerceIn(0L, _state.value.durationMs.coerceAtLeast(1L))
-        try {
-            mediaPlayer?.seekTo(targetMs.toInt())
-        } catch (_: Throwable) {}
+        if (!isPlayerPrepared) {
+            pendingSeekMs = targetMs
+        } else {
+            try {
+                mediaPlayer?.seekTo(targetMs.toInt())
+            } catch (_: Throwable) {}
+        }
         _state.update { it.copy(positionMs = targetMs) }
     }
 

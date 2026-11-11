@@ -505,7 +505,11 @@ fun ChatScreen(
                                 val v = msg.attachment as MessageAttachment.Voice
                                 val sec = runCatching {
                                     val parts = v.durationLabel.split(":")
-                                    parts[0].toLong() * 60_000L + parts[1].toLong() * 1000L
+                                    when (parts.size) {
+                                        3 -> parts[0].toLong() * 3_600_000L + parts[1].toLong() * 60_000L + parts[2].toLong() * 1000L
+                                        2 -> parts[0].toLong() * 60_000L + parts[1].toLong() * 1000L
+                                        else -> 15_000L
+                                    }
                                 }.getOrDefault(15_000L)
                                 val isOut = msg.direction == MessageDirection.OUTGOING
                                 val name = if (isOut) "Вы" else session.title

@@ -4,6 +4,8 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +27,8 @@ import android.media.MediaMetadataRetriever
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -33,10 +38,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -264,14 +272,61 @@ internal fun ChatGeoSection(
     }
 }
 
+private fun normalizeVoiceWaveformBars(samples: List<Int>, targetBars: Int = 34): List<Int> {
+    if (targetBars <= 0) return emptyList()
+    if (samples.isEmpty()) {
+        return List(targetBars) { idx -> 3 + ((idx * 5 + 2) % 9) }
+    }
+    if (samples.size == targetBars) {
+        return samples.map { it.coerceIn(2, 16) }
+    }
+    return List(targetBars) { barIdx ->
+        val start = (barIdx.toFloat() / targetBars * samples.size).toInt().coerceIn(0, samples.lastIndex)
+        val end = (((barIdx + 1).toFloat() / targetBars) * samples.size).toInt().coerceIn(start + 1, samples.size)
+        var peak = 2
+        for (i in start until end) {
+            if (samples[i] > peak) peak = samples[i]
+        }
+        peak.coerceIn(2, 16)
+    }
+}
+
+private fun parseVoiceDurationMs(label: String): Long {
+    val parts = label.trim().split(":").mapNotNull { it.toLongOrNull() }
+    val seconds = when (parts.size) {
+        3 -> parts[0] * 3600L + parts[1] * 60L + parts[2]
+        2 -> parts[0] * 60L + parts[1]
+        1 -> parts[0]
+        else -> 15L
+    }
+    return (seconds.coerceAtLeast(1L)) * 1000L
+}
+
+private fun formatVoiceTimeMs(ms: Long): String {
+    val totalSec = (ms.coerceAtLeast(0L) / 1000L).toInt()
+    val hours = totalSec / 3600
+    val minutes = (totalSec % 3600) / 60
+    val seconds = totalSec % 60
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%d:%02d", minutes, seconds)
+    }
+}
+
 /**
- * Голосовое сообщение в пузыре (поддержка реальной подсветки волны и цепочки воспроизведения).
+ * Голосовое сообщение в пузыре в стиле Telegram:
+ * круглая кнопка Play/Pause, скраббинг по дорожке (тап/перетаскивание),
+ * длительность без ограничений (M:SS / H:MM:SS) и кнопка →A для расшифровки.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChatVoiceSection(
     message: ChatMessage,
     attachment: MessageAttachment.Voice,
     accent: Color,
+    isIncoming: Boolean = false,
+    onLongClick: () -> Unit = {},
     onPlay: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -287,64 +342,193 @@ internal fun ChatVoiceSection(
     } else null
     val isPlaying = isCurrentVoice && (playerState?.isPlaying == true)
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(accent)
-                .clickable {
-                    if (isCurrentVoice) {
-                        audioController.togglePlayPause()
-                    } else {
-                        onPlay()
-                    }
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                contentDescription = if (isPlaying) "Пауза" else "Слушать",
-                tint = Color.White,
-                modifier = Modifier.size(20.dp)
-            )
+    val bars = remember(attachment.waveform) {
+        normalizeVoiceWaveformBars(attachment.waveform, targetBars = 34)
+    }
+    val fallbackDurationMs = remember(attachment.durationLabel) {
+        parseVoiceDurationMs(attachment.durationLabel)
+    }
+    val durationMs = (playerState?.durationMs ?: 0L).takeIf { it > 0L } ?: fallbackDurationMs
+    val activePosMs = playerState?.progressMs ?: 0L
+
+    var waveformWidthPx by remember { mutableIntStateOf(0) }
+    var dragFraction by remember { mutableStateOf<Float?>(null) }
+    var isTranscriptExpanded by remember(message.id) { mutableStateOf(false) }
+
+    val currentIsCurrentVoice by rememberUpdatedState(isCurrentVoice)
+    val currentDurationMs by rememberUpdatedState(durationMs)
+    val currentOnPlay by rememberUpdatedState(onPlay)
+
+    val seekToFraction: (Float) -> Unit = { fraction ->
+        val clamped = fraction.coerceIn(0f, 1f)
+        val targetMs = (clamped * currentDurationMs).toLong()
+        if (currentIsCurrentVoice) {
+            audioController.seek(targetMs)
+        } else {
+            currentOnPlay()
+            audioController.seek(targetMs)
         }
-        Spacer(modifier = Modifier.width(10.dp))
+    }
+
+    val effectiveProgress = dragFraction
+        ?: if (isCurrentVoice) (playerState?.progress ?: 0f).coerceIn(0f, 1f) else 0f
+
+    val playButtonBg = if (!isIncoming) Color.White else accent
+    val playIconTint = if (!isIncoming) accent else Color.White
+    val activeBarColor = if (!isIncoming) Color.White else accent
+    val inactiveBarColor = if (!isIncoming) Color.White.copy(alpha = 0.42f) else accent.copy(alpha = 0.34f)
+    val timeColor = if (!isIncoming) Color.White.copy(alpha = 0.85f) else TextMuted
+    val pillBg = if (!isIncoming) Color.White.copy(alpha = 0.20f) else accent.copy(alpha = 0.16f)
+    val pillActiveBg = if (!isIncoming) Color.White.copy(alpha = 0.34f) else accent.copy(alpha = 0.28f)
+    val pillText = if (!isIncoming) Color.White else accent
+
+    Column(
+        modifier = Modifier
+            .widthIn(min = 232.dp, max = 278.dp)
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+    ) {
         Row(
-            modifier = Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            val totalBars = attachment.waveform.size.coerceAtLeast(1)
-            val currentProgress = playerState?.progress ?: 0f
-            val activeBars = (currentProgress * totalBars).toInt()
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(playButtonBg)
+                    .clickable {
+                        if (isCurrentVoice) {
+                            audioController.togglePlayPause()
+                        } else {
+                            onPlay()
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "Пауза" else "Слушать",
+                    tint = playIconTint,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
 
-            attachment.waveform.forEachIndexed { index, height ->
-                val isActive = isCurrentVoice && index <= activeBars
-                Box(
+            Spacer(modifier = Modifier.width(10.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Row(
                     modifier = Modifier
-                        .width(3.dp)
-                        .height((height * 1.5f).dp.coerceIn(4.dp, 24.dp))
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(if (isActive) Color.White else accent.copy(alpha = 0.55f))
+                        .fillMaxWidth()
+                        .height(24.dp)
+                        .onSizeChanged { waveformWidthPx = it.width }
+                        .pointerInput(voiceTrackId) {
+                            detectTapGestures(
+                                onTap = { offset ->
+                                    if (waveformWidthPx > 0) {
+                                        seekToFraction(offset.x / waveformWidthPx.toFloat())
+                                    }
+                                },
+                                onLongPress = { onLongClick() }
+                            )
+                        }
+                        .pointerInput(voiceTrackId) {
+                            detectHorizontalDragGestures(
+                                onDragStart = { offset ->
+                                    if (waveformWidthPx > 0) {
+                                        dragFraction = (offset.x / waveformWidthPx.toFloat()).coerceIn(0f, 1f)
+                                    }
+                                },
+                                onHorizontalDrag = { change, _ ->
+                                    change.consume()
+                                    if (waveformWidthPx > 0) {
+                                        dragFraction = (change.position.x / waveformWidthPx.toFloat()).coerceIn(0f, 1f)
+                                    }
+                                },
+                                onDragEnd = {
+                                    dragFraction?.let { seekToFraction(it) }
+                                    dragFraction = null
+                                },
+                                onDragCancel = {
+                                    dragFraction = null
+                                }
+                            )
+                        },
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    val totalBars = bars.size.coerceAtLeast(1)
+                    bars.forEachIndexed { index, amp ->
+                        val barFraction = (index + 1).toFloat() / totalBars.toFloat()
+                        val isActive = (isCurrentVoice || dragFraction != null) && barFraction <= effectiveProgress + 0.015f
+                        val barHeightDp = (amp.coerceIn(2, 16) * 1.35f).dp.coerceIn(3.dp, 22.dp)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 0.75.dp)
+                                .height(barHeightDp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(if (isActive) activeBarColor else inactiveBarColor)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                val displayedTime = when {
+                    dragFraction != null -> formatVoiceTimeMs((dragFraction!! * durationMs).toLong())
+                    isCurrentVoice && (isPlaying || activePosMs > 0L) ->
+                        playerState?.positionLabel ?: attachment.durationLabel
+                    else -> attachment.durationLabel
+                }
+                Text(
+                    text = "$displayedTime •",
+                    color = timeColor,
+                    fontSize = 11.5.sp,
+                    maxLines = 1
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (isTranscriptExpanded) pillActiveBg else pillBg)
+                    .clickable { isTranscriptExpanded = !isTranscriptExpanded }
+                    .padding(horizontal = 8.dp, vertical = 5.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "→A",
+                    color = pillText,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
             }
         }
-        Spacer(modifier = Modifier.width(8.dp))
-        val activePosMs = playerState?.progressMs ?: 0L
-        Text(
-            text = if (isCurrentVoice && (isPlaying || activePosMs > 0L)) {
-                playerState?.positionLabel ?: attachment.durationLabel
-            } else attachment.durationLabel,
-            color = TextMuted,
-            fontSize = 11.sp,
-            fontFamily = FontFamily.Monospace
-        )
+
+        if (isTranscriptExpanded) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(
+                        if (!isIncoming) Color.White.copy(alpha = 0.14f)
+                        else SurfaceDark.copy(alpha = 0.55f)
+                    )
+                    .padding(horizontal = 10.dp, vertical = 7.dp)
+            ) {
+                Text(
+                    text = "Расшифровка речи скоро будет доступна",
+                    color = if (!isIncoming) Color.White.copy(alpha = 0.9f) else TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 16.sp
+                )
+            }
+        }
     }
 }
 

@@ -279,19 +279,22 @@ fun VideoCircleRecordOverlay(
     val controlsBottomPadding = bottomInputTopDp + 26.dp
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(if (isSoftwareWhiteFlash) Color.White else Color.Black.copy(alpha = 0.36f))
-            // Полностью блокируем любые нажатия по размытому чату позади оверлея
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) {
-                        val event = awaitPointerEvent()
-                        event.changes.forEach { it.consume() }
+        modifier = modifier.fillMaxSize()
+    ) {
+        // Фоновая подложка перехватывает касания к чату позади, не мешая кнопкам управления поверх неё
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (isSoftwareWhiteFlash) Color.White else Color.Black.copy(alpha = 0.36f))
+                .pointerInput(Unit) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            event.changes.forEach { it.consume() }
+                        }
                     }
                 }
-            }
-    ) {
+        )
         // Область позиционирования кружка (между шапкой сверху и кнопками управления над клавиатурой/полем ввода)
         Box(
             modifier = Modifier
@@ -544,13 +547,12 @@ fun VideoCircleRecordOverlay(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.72f))
                             .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
                             .clickable {
                                 isFrontCamera = !isFrontCamera
-                                isFlashOn = false
                                 cameraManager.switchCamera()
                             },
                         contentAlignment = Alignment.Center
@@ -559,15 +561,15 @@ fun VideoCircleRecordOverlay(
                             imageVector = Icons.Outlined.Cameraswitch,
                             contentDescription = "Сменить камеру",
                             tint = Color.White,
-                            modifier = Modifier.size(23.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(16.dp))
 
                     Box(
                         modifier = Modifier
-                            .size(46.dp)
+                            .size(50.dp)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.72f))
                             .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
@@ -581,7 +583,7 @@ fun VideoCircleRecordOverlay(
                             imageVector = if (isFlashOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
                             contentDescription = "Вспышка",
                             tint = if (isFlashOn) FlameOrange else Color.White,
-                            modifier = Modifier.size(23.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
