@@ -10,9 +10,10 @@ sealed interface SettingsRoute {
     data object Account : SettingsRoute
     data object ChatSettings : SettingsRoute
     data object Privacy : SettingsRoute
+    data object Security : SettingsRoute
     data object Notifications : SettingsRoute
     data object DataStorage : SettingsRoute
-    data object Folders : SettingsRoute
+    data object Animations : SettingsRoute
     data object Devices : SettingsRoute
     data object Battery : SettingsRoute
     data object Language : SettingsRoute

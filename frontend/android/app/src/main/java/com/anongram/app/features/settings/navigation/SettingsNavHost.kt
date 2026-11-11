@@ -21,11 +21,12 @@ import com.anongram.app.features.settings.battery.ui.BatterySettingsScreen
 import com.anongram.app.features.settings.chat_settings.ui.ChatAppearanceSettingsScreen
 import com.anongram.app.features.settings.data_storage.ui.DataStorageSettingsScreen
 import com.anongram.app.features.settings.devices.ui.DevicesSettingsScreen
-import com.anongram.app.features.settings.folders.ui.ChatFoldersSettingsScreen
+import com.anongram.app.features.settings.animations.ui.AnimationsSettingsScreen
 import com.anongram.app.features.settings.language.ui.LanguageSettingsScreen
 import com.anongram.app.features.settings.main.ui.SettingsMainScreen
 import com.anongram.app.features.settings.notifications.ui.NotificationsSettingsScreen
 import com.anongram.app.features.settings.privacy.ui.PrivacySecuritySettingsScreen
+import com.anongram.app.features.settings.security.ui.SecuritySettingsScreen
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import com.anongram.app.features.settings.qr.ui.QrCameraScannerScreen
 
@@ -136,6 +137,12 @@ fun SettingsNavHost(
                 )
             }
 
+            SettingsRoute.Security -> {
+                SecuritySettingsScreen(
+                    onBack = popBack
+                )
+            }
+
             SettingsRoute.Notifications -> {
                 NotificationsSettingsScreen(
                     onBack = popBack
@@ -148,8 +155,8 @@ fun SettingsNavHost(
                 )
             }
 
-            SettingsRoute.Folders -> {
-                ChatFoldersSettingsScreen(
+            SettingsRoute.Animations -> {
+                AnimationsSettingsScreen(
                     onBack = popBack
                 )
             }

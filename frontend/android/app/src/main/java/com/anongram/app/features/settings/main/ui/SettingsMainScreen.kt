@@ -28,14 +28,15 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.ChatBubble
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Devices
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -194,6 +195,14 @@ fun SettingsMainScreen(
                 )
 
                 SettingsItemRow(
+                    icon = Icons.Default.Security,
+                    iconBackgroundColor = Color(0xFF43A047),
+                    title = "Безопасность",
+                    subtitle = "Код-пароль, биометрия, квантовая защита",
+                    onClick = { onNavigate(SettingsRoute.Security) }
+                )
+
+                SettingsItemRow(
                     icon = Icons.AutoMirrored.Filled.VolumeUp,
                     iconBackgroundColor = Color(0xFFEF5350),
                     title = "Уведомления",
@@ -210,11 +219,11 @@ fun SettingsMainScreen(
                 )
 
                 SettingsItemRow(
-                    icon = Icons.Default.Folder,
-                    iconBackgroundColor = Color(0xFF26C6DA),
-                    title = "Папки с чатами",
-                    subtitle = "Сортировка чатов по папкам",
-                    onClick = { onNavigate(SettingsRoute.Folders) }
+                    icon = Icons.Default.AutoAwesome,
+                    iconBackgroundColor = Color(0xFFEC407A),
+                    title = "Анимации",
+                    subtitle = "Плавные переходы, размытие Glass, эффекты",
+                    onClick = { onNavigate(SettingsRoute.Animations) }
                 )
 
                 SettingsItemRow(
