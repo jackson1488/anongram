@@ -243,22 +243,22 @@ fun ActionButton(
                 modifier = Modifier
                     .requiredSize(width = 42.dp, height = 92.dp)
                     .clip(RoundedCornerShape(21.dp))
-                    .background(Color(0xFF222227).copy(alpha = 0.94f))
-                    .border(1.dp, CardBorder, RoundedCornerShape(21.dp))
+                    .background(scheme.islandBg.copy(alpha = 0.96f))
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(21.dp))
                     .padding(vertical = 10.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Lock,
-                    contentDescription = "Заблокировать",
-                    tint = if (dragOffsetY <= -lockDistancePx + with(density) { 10.dp.toPx() }) scheme.accent else Color.White,
+                    contentDescription = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.lockRecording,
+                    tint = if (dragOffsetY <= -lockDistancePx + with(density) { 10.dp.toPx() }) scheme.accent else scheme.textPrimary,
                     modifier = Modifier.size(18.dp)
                 )
                 Icon(
                     imageVector = Icons.Outlined.KeyboardArrowUp,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.7f),
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -295,12 +295,12 @@ fun ActionButton(
                         when {
                             isRecording || isHolding -> scheme.accent
                             canSend -> scheme.accent
-                            else -> Color(0xFF26262B)
+                            else -> scheme.surface
                         }
                     )
                     .border(
                         1.dp,
-                        if (canSend || isRecording || isHolding) scheme.accent else CardBorder,
+                        if (canSend || isRecording || isHolding) scheme.accent else scheme.islandBorder,
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -309,20 +309,20 @@ fun ActionButton(
                     Icon(
                         imageVector = if (isEditing) Icons.Outlined.Check else Icons.AutoMirrored.Outlined.Send,
                         contentDescription = if (isEditing) strings.save else strings.send,
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(20.dp)
                     )
                 } else if (isRecording) {
                     if (isCameraMode) {
                         TelegramVideoNoteIcon(
-                            tint = Color.White,
+                            tint = scheme.onAccent,
                             modifier = Modifier.size(22.dp)
                         )
                     } else {
                         Icon(
                             imageVector = Icons.Outlined.Mic,
                             contentDescription = strings.micDesc,
-                            tint = Color.White,
+                            tint = scheme.onAccent,
                             modifier = Modifier.size(24.dp)
                         )
                     }

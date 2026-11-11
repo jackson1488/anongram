@@ -240,15 +240,14 @@ fun VoiceTrimBar(
         ) {
             Icon(
                 imageVector = Icons.Outlined.Delete,
-                contentDescription = "Удалить запись",
-                tint = Color.White.copy(alpha = 0.9f),
+                contentDescription = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.deleteRecording,
+                tint = scheme.textPrimary.copy(alpha = 0.9f),
                 modifier = Modifier.size(24.dp)
             )
         }
 
         Spacer(modifier = Modifier.width(4.dp))
 
-        // Фиолетово-сиреневый контейнер с кнопкой Play и перетаскиваемой волной
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -259,25 +258,24 @@ fun VoiceTrimBar(
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Кнопка воспроизведения / паузы с таймером [ ▶ 0:04 ]
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color.White.copy(alpha = 0.24f))
+                    .background(scheme.onAccent.copy(alpha = 0.20f))
                     .clickable { togglePlayPause() }
                     .padding(horizontal = 8.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = if (isPlaying) "Пауза" else "Слушать",
-                    tint = Color.White,
+                    contentDescription = if (isPlaying) com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.pause else com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.listen,
+                    tint = scheme.onAccent,
                     modifier = Modifier.size(16.dp)
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
                     text = displayLabel,
-                    color = Color.White,
+                    color = scheme.onAccent,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.SemiBold
@@ -424,8 +422,8 @@ fun VoiceTrimBar(
         ) {
             Icon(
                 imageVector = if (isEditingMode) Icons.Outlined.Check else Icons.AutoMirrored.Outlined.Send,
-                contentDescription = if (isEditingMode) "Сохранить" else "Отправить",
-                tint = Color.White,
+                contentDescription = if (isEditingMode) com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.save else com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.send,
+                tint = scheme.onAccent,
                 modifier = Modifier.size(20.dp)
             )
         }

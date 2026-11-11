@@ -16,3 +16,9 @@
 ## 3. Анонимность (AnonGram Core Protocol)
 - Пересылка сообщений ВСЕГДА на 100% анонимна (`forwardedFrom = null`).
 - Никаких плашек «Переслано от ...».
+
+## 4. Темы, палитры и локализация для всех новых экранов
+- **Запрещено** хардкодить цвета (`Color(0xFF...)`, `Color.White`, `ObsidianBlack`, `CardDark`, `TextPrimary`) в новых UI-компонентах.
+- Для новых экранов всегда использовать [`AnonGramScreenSurface`](file:///home/jackson/anongram/frontend/android/app/src/main/java/com/anongram/app/core/ui/AnonGramScreenSurface.kt), токены `LocalAnonGramScheme.current.*` (или `MaterialTheme.colorScheme.*`) — тема тогда применяется автоматически к любым тёмным, светлым, Ч/Б и цветным палитрам из единой точки (`core/theme/`).
+- Текстовые строки модуля ввода и сопутствующих панелей подключаются через `LocalInputStrings.current` / `InputI18n.current`.
+

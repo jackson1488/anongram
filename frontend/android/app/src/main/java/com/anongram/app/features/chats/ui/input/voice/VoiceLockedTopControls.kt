@@ -54,6 +54,8 @@ fun VoiceLockedTopControls(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Всплывающий тултип слева от кнопки паузы
+            val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
+            val strings = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current
             AnimatedVisibility(
                 visible = showTooltip,
                 enter = fadeIn(),
@@ -62,14 +64,14 @@ fun VoiceLockedTopControls(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(12.dp))
-                        .background(Color.Black.copy(alpha = 0.78f))
-                        .border(1.dp, CardBorder.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .background(scheme.bannerBg)
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(12.dp))
                         .clickable { showTooltip = false }
                         .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = "Нажмите для обрезки или прослушивания",
-                        color = Color.White,
+                        text = strings.tapToTrimOrListen,
+                        color = scheme.textPrimary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -83,8 +85,8 @@ fun VoiceLockedTopControls(
                 modifier = Modifier
                     .size(44.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF222227).copy(alpha = 0.94f))
-                    .border(1.dp, CardBorder, CircleShape)
+                    .background(scheme.islandBg.copy(alpha = 0.96f))
+                    .border(1.dp, scheme.islandBorder, CircleShape)
                     .clickable {
                         showTooltip = false
                         onPauseReview()
@@ -93,8 +95,8 @@ fun VoiceLockedTopControls(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Pause,
-                    contentDescription = "Пауза / обрезка",
-                    tint = Color.White,
+                    contentDescription = strings.pauseOrTrim,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }

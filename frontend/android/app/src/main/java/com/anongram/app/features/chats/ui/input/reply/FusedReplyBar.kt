@@ -98,7 +98,7 @@ fun FusedReplyBar(
             Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = snippet,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -111,7 +111,7 @@ fun FusedReplyBar(
             Icon(
                 imageVector = Icons.Outlined.Close,
                 contentDescription = strings.cancelReply,
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(16.dp)
             )
         }

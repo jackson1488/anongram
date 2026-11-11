@@ -248,7 +248,7 @@ fun ChatFullTextEditorScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.editorBg)
             .padding(top = topPadding)
             // Тап в пустое место экрана закрывает формулу/меню и возвращает стандартную панель инструментов + фокус
             .clickable(
@@ -275,7 +275,7 @@ fun ChatFullTextEditorScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = strings.back,
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -289,7 +289,7 @@ fun ChatFullTextEditorScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Undo,
                         contentDescription = strings.undo,
-                        tint = if (undoState.canUndo) Color.White else Color(0xFF55555A),
+                        tint = if (undoState.canUndo) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.45f),
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -301,7 +301,7 @@ fun ChatFullTextEditorScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Redo,
                         contentDescription = strings.redo,
-                        tint = if (undoState.canRedo) Color.White else Color(0xFF55555A),
+                        tint = if (undoState.canRedo) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.45f),
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -333,7 +333,7 @@ fun ChatFullTextEditorScreen(
                                     .height(210.dp)
                                     .padding(bottom = 12.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Color(0xFF1E1E24))
+                                    .background(scheme.editorSurface)
                                     .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                             ) {
                                 if (photo.uri != null) {
@@ -489,7 +489,7 @@ fun ChatFullTextEditorScreen(
                                     .padding(bottom = 12.dp)
                                     .shadow(8.dp, RoundedCornerShape(14.dp))
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Color(0xFF1E1E24))
+                                    .background(scheme.editorSurface)
                                     .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                                     .padding(10.dp)
                             ) {
@@ -515,7 +515,7 @@ fun ChatFullTextEditorScreen(
                                         modifier = Modifier
                                             .size(44.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(scheme.accent.copy(alpha = 0.2f)),
+                                            .background(scheme.accentSoft),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(imageVector = icon, contentDescription = null, tint = scheme.accent, modifier = Modifier.size(24.dp))
@@ -526,7 +526,7 @@ fun ChatFullTextEditorScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
                                             text = title,
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             maxLines = 1,
@@ -535,7 +535,7 @@ fun ChatFullTextEditorScreen(
                                         Spacer(modifier = Modifier.height(2.dp))
                                         Text(
                                             text = subtitle,
-                                            color = Color(0xFFA1A1AA),
+                                            color = scheme.textSecondary,
                                             fontSize = 12.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -547,7 +547,7 @@ fun ChatFullTextEditorScreen(
                                             modifier = Modifier
                                                 .padding(end = 6.dp)
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(scheme.accent.copy(alpha = 0.25f))
+                                                .background(scheme.accentSoft)
                                                 .padding(horizontal = 7.dp, vertical = 2.dp)
                                         ) {
                                             Text(
@@ -566,7 +566,7 @@ fun ChatFullTextEditorScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.Close,
                                             contentDescription = strings.removeAttachment,
-                                            tint = Color(0xFFA1A1AA),
+                                            tint = scheme.textSecondary,
                                             modifier = Modifier.size(18.dp)
                                         )
                                     }
@@ -586,7 +586,7 @@ fun ChatFullTextEditorScreen(
                             Row(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(Color(0xFF26262B))
+                                    .background(scheme.editorSurface)
                                     .border(1.dp, scheme.accent.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
                                     .clickable { isLanguageMenuOpen = true }
                                     .padding(horizontal = 10.dp, vertical = 4.dp),
@@ -619,7 +619,7 @@ fun ChatFullTextEditorScreen(
                                                 text = lang,
                                                 fontFamily = FontFamily.Monospace,
                                                 fontWeight = if (lang == selectedLanguage) FontWeight.Bold else FontWeight.Normal,
-                                                color = if (lang == selectedLanguage) scheme.accent else Color.White
+                                                color = if (lang == selectedLanguage) scheme.accent else scheme.textPrimary
                                             )
                                         },
                                         onClick = {
@@ -636,20 +636,20 @@ fun ChatFullTextEditorScreen(
                         TextStyleFormat.CODE -> Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFF141419))
+                            .background(scheme.editorSurface)
                             .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                             .padding(12.dp)
                         TextStyleFormat.QUOTE -> Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(Color(0xFF1C1D24))
-                            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(8.dp))
+                            .background(scheme.editorSurface)
+                            .border(1.dp, scheme.cardBorder, RoundedCornerShape(8.dp))
                             .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 8.dp)
                         TextStyleFormat.CALLOUT -> Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF231E28))
-                            .border(1.dp, Color(0xFFC084FC).copy(alpha = 0.5f), RoundedCornerShape(10.dp))
+                            .background(scheme.accentSoft)
+                            .border(1.dp, scheme.accent.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
                             .padding(12.dp)
                         else -> Modifier.fillMaxWidth()
                     }
@@ -681,7 +681,7 @@ fun ChatFullTextEditorScreen(
                                 else -> 12.sp
                             }
                             TextStyle(
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = headingSp,
                                 fontWeight = if (selectedHeadingLevel <= 3) FontWeight.Bold else FontWeight.SemiBold,
                                 fontFamily = currentFontFamily,
@@ -689,20 +689,20 @@ fun ChatFullTextEditorScreen(
                             )
                         }
                         TextStyleFormat.CODE -> TextStyle(
-                            color = Color(0xFFE2E8F0),
+                            color = scheme.textPrimary,
                             fontSize = 14.sp,
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 20.sp
                         )
                         TextStyleFormat.QUOTE -> TextStyle(
-                            color = Color(0xFFCBD5E1),
+                            color = scheme.textSecondary,
                             fontSize = 15.sp,
                             fontStyle = FontStyle.Italic,
                             fontFamily = currentFontFamily,
                             lineHeight = 22.sp
                         )
                         else -> TextStyle(
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 16.sp,
                             fontFamily = currentFontFamily,
                             lineHeight = 22.sp
@@ -721,25 +721,25 @@ fun ChatFullTextEditorScreen(
                                     TextStyleFormat.CALLOUT -> strings.calloutPlaceholder
                                     else -> if (selectedListStyle == ListStyle.COLLAPSIBLE) strings.enterHeadingPlaceholder else strings.enterTextPlaceholder
                                 },
-                                color = Color(0xFF64748B),
+                                color = scheme.textMuted,
                                 style = textStyle
                             )
                         } else if (undoState.currentText.trim() == "^") {
                             Text(
                                 text = "  ${strings.collapsibleTemplateTitle}\n  ${strings.collapsibleTemplateBody}",
-                                color = Color(0xFF64748B),
+                                color = scheme.textMuted,
                                 style = textStyle
                             )
                         } else if (undoState.currentText.startsWith("^") && !undoState.currentText.contains("\n") && undoState.currentText.trim().length > 1) {
                             Text(
                                 text = "\n  ${strings.collapsibleTemplateBody}",
-                                color = Color(0xFF64748B),
+                                color = scheme.textMuted,
                                 style = textStyle
                             )
                         } else if (undoState.currentText.trim() == ">" || undoState.currentText.trim() == ">>>") {
                             Text(
                                 text = "  ${strings.quotePlaceholder}",
-                                color = Color(0xFF64748B),
+                                color = scheme.textMuted,
                                 style = textStyle
                             )
                         }

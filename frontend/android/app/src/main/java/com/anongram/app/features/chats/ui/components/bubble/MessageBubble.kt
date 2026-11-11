@@ -273,7 +273,7 @@ internal fun MessageBubble(
             label = "incomingShiftDp"
         )
 
-        val selectionViolet = Color(0xFF8B5CF6)
+        val selectionViolet = scheme.selectedGlow
 
         Box(
             modifier = Modifier
@@ -402,23 +402,25 @@ internal fun MessageBubble(
                         val singlePhotoStretch = (message.attachment is MessageAttachment.Photo) &&
                             (message.text.isNotBlank() || messageTextSizeSp > 16)
 
+                        val isOutgoingGradient = !isIncoming && !isSelected && !isEdgeToEdgeMedia &&
+                            pulseAlpha <= 0f && scheme.outgoingBubbleStart != scheme.outgoingBubbleEnd
                         val baseColor = when {
-                            isSelected -> Color(0xFF3F2B66)
-                            isEdgeToEdgeMedia -> Color(0xFF141418)
-                            isIncoming -> CardDark
-                            else -> Color(0xFF281C3D)
+                            isSelected -> scheme.selectedBubbleBg
+                            isEdgeToEdgeMedia -> scheme.card
+                            isIncoming -> scheme.incomingBubbleBg
+                            else -> scheme.outgoingBubbleStart
                         }
-                        val bubbleColor = if (pulseAlpha > 0f) {
-                            lerp(baseColor, scheme.accent, pulseAlpha)
-                        } else {
-                            baseColor
+                        val bubbleColor = when {
+                            isOutgoingGradient -> Color.Transparent
+                            pulseAlpha > 0f -> lerp(baseColor, scheme.accent, pulseAlpha)
+                            else -> baseColor
                         }
                         val bubbleBorder = when {
                             pulseAlpha > 0.005f -> BorderStroke(2.dp, scheme.accent.copy(alpha = pulseAlpha))
                             isSelected -> BorderStroke(1.4.dp, selectionViolet.copy(alpha = 0.85f))
                             isEdgeToEdgeMedia -> BorderStroke(1.2.dp, scheme.accent.copy(alpha = 0.55f))
-                            !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
-                            else -> null
+                            !isIncoming -> BorderStroke(1.dp, scheme.outgoingBubbleBorder)
+                            else -> BorderStroke(1.dp, scheme.incomingBubbleBorder)
                         }
 
                         val shapeScale = if (message.attachment == null) textScale else 1f
@@ -427,6 +429,7 @@ internal fun MessageBubble(
                         Surface(
                             shape = currentBubbleShape,
                             color = bubbleColor,
+                            contentColor = if (isIncoming) scheme.incomingText else scheme.outgoingText,
                             border = bubbleBorder,
                             shadowElevation = (pulseAlpha * 16).dp,
                             modifier = Modifier
@@ -450,7 +453,17 @@ internal fun MessageBubble(
                             val padTop = (7f * textScale).coerceIn(2.5f, 10f).dp
                             val padBottom = (6f * textScale).coerceIn(2.5f, 9f).dp
 
-                            Box {
+                            Box(
+                                modifier = if (isOutgoingGradient) {
+                                    Modifier.background(
+                                        androidx.compose.ui.graphics.Brush.linearGradient(
+                                            listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd)
+                                        )
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ) {
                                 Column(
                                     modifier = when {
                                         isEdgeToEdgeMedia -> Modifier.padding(
@@ -996,12 +1009,13 @@ private fun QuoteBlock(
     textScale: Float = 1f,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val text = if (target != null) replyPreviewSnippet(target) else "Вложение"
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape((8f * textScale).coerceIn(4f, 10f).dp))
-            .background(if (isIncoming) ReplyStripIncoming else ReplyStripOutgoing)
+            .background(if (isIncoming) scheme.replyStripIncoming else scheme.replyStripOutgoing)
             .clickable(onClick = onClick)
             .padding(
                 horizontal = (8f * textScale).coerceIn(4f, 10f).dp,
@@ -1034,7 +1048,7 @@ private fun QuoteBlock(
             )
             Text(
                 text = text,
-                color = TextSecondary,
+                color = androidx.compose.material3.LocalContentColor.current.copy(alpha = 0.78f),
                 fontSize = (12f * textScale).coerceIn(6.5f, 16f).sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis

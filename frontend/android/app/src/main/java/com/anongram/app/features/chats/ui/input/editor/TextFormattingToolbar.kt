@@ -53,7 +53,7 @@ fun TextFormattingToolbar(
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = LocalInputStrings.current
-    val itemColor = Color(0xFFB0B0B5)
+    val itemColor = scheme.textSecondary
 
     Box(
         modifier = modifier
@@ -66,8 +66,8 @@ fun TextFormattingToolbar(
                 .align(Alignment.Center)
                 .shadow(12.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black, spotColor = Color.Black)
                 .clip(RoundedCornerShape(22.dp))
-                .background(Color(0xFF1E1E24))
-                .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(22.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
                 .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
             Row(

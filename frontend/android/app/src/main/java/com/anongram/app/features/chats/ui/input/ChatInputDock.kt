@@ -197,14 +197,15 @@ internal fun BoxScope.ChatInputDock(
                     }
             ) {
                 if (state.isSearchOpen) {
+                    val strings = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current
                     val counterText = if (isSearchListMode) {
                         formatResultsCount(state.searchMatches.size)
                     } else if (state.searchQuery.isNotBlank() && state.searchMatches.isEmpty()) {
-                        "Ничего не найдено"
+                        strings.searchNothingFound
                     } else if (state.searchCounter.isNotBlank()) {
                         state.searchCounter
                     } else {
-                        "0 из 0"
+                        strings.searchZeroOfZero
                     }
                     val canOpenList = state.searchMatches.isNotEmpty() && state.searchQuery.isNotBlank()
                     ChatSearchBottomBar(

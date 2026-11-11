@@ -41,12 +41,12 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
-enum class ListStyle(val label: String, val icon: ImageVector) {
-    NONE("Без списка", Icons.Outlined.FormatClear),
-    BULLET("Список с маркерами", Icons.AutoMirrored.Outlined.FormatListBulleted),
-    NUMBERED("Список с номерами", Icons.Outlined.FormatListNumbered),
-    CHECKLIST("Чек-лист", Icons.Outlined.CheckBoxOutlineBlank),
-    COLLAPSIBLE("Сворачиваемый блок", Icons.Outlined.UnfoldMore)
+enum class ListStyle(val icon: ImageVector) {
+    NONE(Icons.Outlined.FormatClear),
+    BULLET(Icons.AutoMirrored.Outlined.FormatListBulleted),
+    NUMBERED(Icons.Outlined.FormatListNumbered),
+    CHECKLIST(Icons.Outlined.CheckBoxOutlineBlank),
+    COLLAPSIBLE(Icons.Outlined.UnfoldMore)
 }
 
 fun ListStyle.getLabel(strings: InputI18nStrings): String = when (this) {
@@ -76,8 +76,8 @@ fun ListPopupMenu(
         modifier = modifier
             .shadow(16.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black, spotColor = Color.Black)
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF232328))
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+            .background(scheme.islandBg)
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
             .padding(vertical = 6.dp)
             .width(220.dp)
     ) {
@@ -103,13 +103,13 @@ fun ListPopupMenu(
                         Icon(
                             imageVector = style.icon,
                             contentDescription = style.getLabel(strings),
-                            tint = if (isSelected) scheme.accent else Color.White,
+                            tint = if (isSelected) scheme.accent else scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = style.getLabel(strings),
-                            color = if (isSelected) scheme.accent else Color.White,
+                            color = if (isSelected) scheme.accent else scheme.textPrimary,
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                         )
@@ -127,7 +127,7 @@ fun ListPopupMenu(
 
             HorizontalDivider(
                 modifier = Modifier.padding(vertical = 4.dp),
-                color = Color(0x33FFFFFF),
+                color = scheme.divider,
                 thickness = 0.5.dp
             )
 
@@ -145,13 +145,13 @@ fun ListPopupMenu(
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.FormatIndentIncrease,
                     contentDescription = strings.indentRight,
-                    tint = Color.White,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = strings.indentRight,
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 14.sp
                 )
             }
@@ -170,13 +170,13 @@ fun ListPopupMenu(
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.FormatIndentDecrease,
                     contentDescription = strings.outdent,
-                    tint = Color.White,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = strings.outdent,
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 14.sp
                 )
             }
@@ -192,8 +192,12 @@ object ListFormattingHelper {
     fun applyStyle(
         text: String,
         style: ListStyle,
-        templateTitle: String = "Заголовок",
-        templateBody: String = "Введите текст..."
+        templateTitle: String = com.anongram.app.features.chats.ui.input.i18n.InputI18n.forLanguage(
+            com.anongram.app.core.i18n.LanguageSettingsStore.language.value
+        ).collapsibleTemplateTitle,
+        templateBody: String = com.anongram.app.features.chats.ui.input.i18n.InputI18n.forLanguage(
+            com.anongram.app.core.i18n.LanguageSettingsStore.language.value
+        ).collapsibleTemplateBody
     ): String {
         if (text.isEmpty()) {
             return when (style) {

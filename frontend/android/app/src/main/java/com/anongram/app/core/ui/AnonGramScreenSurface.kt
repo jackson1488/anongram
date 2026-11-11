@@ -1,0 +1,71 @@
+package com.anongram.app.core.ui
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.anongram.app.core.theme.LocalAnonGramScheme
+
+/**
+ * Базовый контейнер для новых экранов AnonGram.
+ * Автоматически подхватывает фон, отступы системных баров и основной цвет текста
+ * из активной темы (`LocalAnonGramScheme.current`).
+ */
+@Composable
+fun AnonGramScreenSurface(
+    modifier: Modifier = Modifier,
+    applySystemBarsPadding: Boolean = true,
+    content: @Composable BoxScope.() -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    val baseModifier = modifier
+        .fillMaxSize()
+        .background(scheme.background)
+        .let { m ->
+            if (applySystemBarsPadding) {
+                m.safeStatusBarPadding().safeNavigationBarPadding()
+            } else {
+                m
+            }
+        }
+    CompositionLocalProvider(LocalContentColor provides scheme.textPrimary) {
+        Box(modifier = baseModifier, content = content)
+    }
+}
+
+/**
+ * Единая карточка/островок для настроек и диалогов, автоматически окрашиваемая активной темой.
+ */
+@Composable
+fun AnonGramIslandCard(
+    modifier: Modifier = Modifier,
+    cornerRadius: Dp = 20.dp,
+    shape: Shape = RoundedCornerShape(cornerRadius),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    Surface(
+        modifier = modifier
+            .clip(shape)
+            .border(BorderStroke(1.dp, scheme.cardBorder), shape),
+        shape = shape,
+        color = scheme.card,
+        contentColor = scheme.textPrimary
+    ) {
+        Column(content = content)
+    }
+}

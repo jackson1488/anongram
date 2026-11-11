@@ -33,21 +33,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.FlameOrange
-import com.anongram.app.core.theme.IslandBackground
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.resolveSubItem
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 
 /**
- * Полноэкранный оверлей превью ответа на сообщение (при долгом зажатии плашки ответа):
- * - Задний фон чата размыт/затемнён;
- * - Внутри карточки: заголовок «Ответ на сообщение», обои чата и интерактивное сообщение (все типы вложений);
- * - Под карточкой справа — плавающая кнопка «Убрать ответ».
+ * Полноэкранный оверлей превью ответа на сообщение (при долгом зажатии плашки ответа).
  */
 @Composable
 fun ReplyPreviewDialog(
@@ -62,10 +57,13 @@ fun ReplyPreviewDialog(
     val resolvedMessage = remember(replyMessage, replyToSubIndex) {
         replyMessage.resolveSubItem(replyToSubIndex)
     }
+    val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.55f))
+            .background(scheme.overlayScrim)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -85,8 +83,8 @@ fun ReplyPreviewDialog(
                     .heightIn(min = 360.dp, max = 560.dp)
                     .padding(horizontal = 12.dp)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(IslandBackground)
-                    .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -96,14 +94,14 @@ fun ReplyPreviewDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF20232B))
+                        .background(scheme.card)
                         .padding(horizontal = 18.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Ответ на сообщение",
-                        color = TextPrimary,
+                        text = strings.replyToMessageTitle,
+                        color = scheme.textPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -113,8 +111,8 @@ fun ReplyPreviewDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
-                            contentDescription = "Закрыть",
-                            tint = TextSecondary,
+                            contentDescription = strings.close,
+                            tint = scheme.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -133,7 +131,7 @@ fun ReplyPreviewDialog(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .background(Color.Black.copy(alpha = 0.35f))
+                            .background(Color.Black.copy(alpha = 0.28f))
                     )
 
                     Box(
@@ -164,8 +162,8 @@ fun ReplyPreviewDialog(
             ) {
                 Surface(
                     shape = RoundedCornerShape(16.dp),
-                    color = Color(0xFF20232B),
-                    border = BorderStroke(1.dp, CardBorder),
+                    color = scheme.card,
+                    border = BorderStroke(1.dp, scheme.cardBorder),
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .clickable(
@@ -189,7 +187,7 @@ fun ReplyPreviewDialog(
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            text = "Убрать ответ",
+                            text = strings.removeReply,
                             color = FlameOrange,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium

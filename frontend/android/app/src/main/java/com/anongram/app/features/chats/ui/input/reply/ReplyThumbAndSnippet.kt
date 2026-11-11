@@ -38,11 +38,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
+import com.anongram.app.features.chats.ui.input.i18n.InputI18n
+import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -51,25 +54,32 @@ import kotlinx.coroutines.withContext
  * и цитаты внутри пузыря сообщения (QuoteBlock).
  * Поддерживает все виды вложений: одиночное фото, альбом, файлы, музыку, голосовые, кружки, контакты, гео, стикеры.
  */
-fun replyPreviewSnippet(message: ChatMessage): String {
+fun replyPreviewSnippet(
+    message: ChatMessage,
+    strings: InputI18nStrings = InputI18n.forLanguage(LanguageSettingsStore.language.value)
+): String {
     val attLabel = when (val att = message.attachment) {
-        is MessageAttachment.Photo -> if (att.isVideo) "Видео" else "Фотография"
-        is MessageAttachment.MediaAlbum -> "Альбом (${att.items.size} фото)"
+        is MessageAttachment.Photo -> if (att.isVideo) strings.videoLabel else strings.photoLabel
+        is MessageAttachment.MediaAlbum -> strings.albumPhotos(att.items.size)
         is MessageAttachment.File -> att.name
-        is MessageAttachment.FileGroup -> "Файлы (${att.items.size} шт.)"
+        is MessageAttachment.FileGroup -> strings.filesCount(att.items.size)
         is MessageAttachment.Music -> {
-            if (att.artist.isNotBlank() && att.artist != "Неизвестен" && !att.title.contains(att.artist)) {
+            if (att.artist.isNotBlank() &&
+                !att.artist.equals("Неизвестен", ignoreCase = true) &&
+                !att.artist.equals("Unknown", ignoreCase = true) &&
+                !att.title.contains(att.artist)
+            ) {
                 "${att.artist} — ${att.title}"
             } else {
                 att.title
             }
         }
-        is MessageAttachment.MusicGroup -> "Аудиозаписи (${att.items.size} шт.)"
-        is MessageAttachment.Voice -> "Голосовое сообщение (${att.durationLabel})"
-        is MessageAttachment.VideoCircle -> "Видеосообщение (${att.durationLabel})"
-        is MessageAttachment.Contact -> "Контакт: ${att.name}"
-        is MessageAttachment.Geo -> "Геопозиция: ${att.address}"
-        is MessageAttachment.Sticker -> "${att.symbol} Стикер"
+        is MessageAttachment.MusicGroup -> strings.audioTracksCount(att.items.size)
+        is MessageAttachment.Voice -> strings.voiceMessageDuration(att.durationLabel)
+        is MessageAttachment.VideoCircle -> strings.videoMessageDuration(att.durationLabel)
+        is MessageAttachment.Contact -> strings.contactNamed(att.name)
+        is MessageAttachment.Geo -> strings.locationNamed(att.address)
+        is MessageAttachment.Sticker -> strings.stickerNamed(att.symbol)
         null -> ""
     }
     return when {
@@ -77,7 +87,7 @@ fun replyPreviewSnippet(message: ChatMessage): String {
             "$attLabel • ${message.text}"
         message.text.isNotBlank() -> message.text
         attLabel.isNotBlank() -> attLabel
-        else -> "Сообщение"
+        else -> strings.message
     }
 }
 

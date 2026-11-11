@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.CheckBoxOutlineBlank
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,8 +45,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageStatus
@@ -256,7 +255,7 @@ private fun InteractiveChecklistItem(
         Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = text,
-            color = if (isChecked) Color(0xFF94A3B8) else TextPrimary,
+            color = if (isChecked) LocalContentColor.current.copy(alpha = 0.55f) else LocalContentColor.current,
             fontSize = textSizeSp.sp,
             textDecoration = TextDecoration.None,
             lineHeight = (textSizeSp * 1.26f).sp
@@ -288,7 +287,7 @@ internal fun InlineSpoilerLine(
                 BubbleSpoilerText(
                     text = part,
                     style = TextStyle(
-                        color = TextPrimary,
+                        color = LocalContentColor.current,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.26f).sp
                     ),
@@ -297,7 +296,7 @@ internal fun InlineSpoilerLine(
             } else if (part.isNotEmpty()) {
                 Text(
                     text = buildRichAnnotatedText(part, accent),
-                    color = TextPrimary,
+                    color = LocalContentColor.current,
                     fontSize = textSizeSp.sp,
                     lineHeight = (textSizeSp * 1.26f).sp
                 )
@@ -453,7 +452,7 @@ fun AdaptiveMessageTextWithTimeLayout(
     isIncoming: Boolean,
     status: MessageStatus,
     onRetry: () -> Unit,
-    timeColor: Color = TextMuted,
+    timeColor: Color = LocalContentColor.current.copy(alpha = 0.65f),
     modifier: Modifier = Modifier
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -469,7 +468,7 @@ fun AdaptiveMessageTextWithTimeLayout(
         content = {
             Text(
                 text = text,
-                color = TextPrimary,
+                color = LocalContentColor.current,
                 fontSize = textSizeSp.sp,
                 lineHeight = textLineHeight,
                 onTextLayout = { textLayoutResult = it }

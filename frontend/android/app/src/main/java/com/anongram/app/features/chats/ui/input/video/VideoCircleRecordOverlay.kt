@@ -485,7 +485,7 @@ fun VideoCircleRecordOverlay(
                             ) {
                                 Icon(
                                     imageVector = Icons.Filled.PlayArrow,
-                                    contentDescription = "Воспроизвести",
+                                    contentDescription = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.play,
                                     tint = Color.White,
                                     modifier = Modifier.size(34.dp)
                                 )
@@ -597,7 +597,7 @@ fun VideoCircleRecordOverlay(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Cameraswitch,
-                            contentDescription = "Сменить камеру",
+                            contentDescription = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.switchCamera,
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -619,7 +619,7 @@ fun VideoCircleRecordOverlay(
                     ) {
                         Icon(
                             imageVector = if (isFlashOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
-                            contentDescription = "Вспышка",
+                            contentDescription = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.flash,
                             tint = if (isFlashOn) FlameOrange else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
@@ -651,7 +651,7 @@ fun VideoCircleRecordOverlay(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Close,
-                                contentDescription = "Отмена",
+                                contentDescription = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.cancel,
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -672,7 +672,7 @@ fun VideoCircleRecordOverlay(
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.Pause,
-                                contentDescription = "Пауза и обрезка",
+                                contentDescription = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current.pauseAndTrim,
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)
                             )

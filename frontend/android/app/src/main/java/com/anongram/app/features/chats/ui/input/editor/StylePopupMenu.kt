@@ -44,18 +44,18 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
-enum class TextStyleFormat(val label: String, val glyph: String) {
-    BOLD("Жирный", "B"),
-    ITALIC("Курсив", "I"),
-    UNDERLINE("Подчёркнутый", "U"),
-    STRIKE("Зачёркнутый", "S̶"),
-    HEADING("Заголовок", "H"),
-    QUOTE("Цитата", "“"),
-    CALLOUT("Выноска", "≡"),
-    FONT("Шрифт", "Aa"),
-    SPOILER("Спойлер", "✦"),
-    CODE("Код", "</>"),
-    NORMAL("Обычный текст", "T")
+enum class TextStyleFormat(val glyph: String) {
+    BOLD("B"),
+    ITALIC("I"),
+    UNDERLINE("U"),
+    STRIKE("S̶"),
+    HEADING("H"),
+    QUOTE("“"),
+    CALLOUT("≡"),
+    FONT("Aa"),
+    SPOILER("✦"),
+    CODE("</>"),
+    NORMAL("T")
 }
 
 fun TextStyleFormat.getLabel(strings: InputI18nStrings): String = when (this) {
@@ -108,8 +108,8 @@ fun StylePopupMenu(
         modifier = modifier
             .shadow(16.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black, spotColor = Color.Black)
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF232328))
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+            .background(scheme.islandBg)
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
             .padding(vertical = 6.dp)
             .width(230.dp)
     ) {
@@ -197,7 +197,7 @@ fun StylePopupMenu(
                                     ) {
                                         Text(
                                             text = format.glyph,
-                                            color = if (isSelected) scheme.accent else Color.White,
+                                            color = if (isSelected) scheme.accent else scheme.textPrimary,
                                             fontSize = 14.sp,
                                             fontWeight = when (format) {
                                                 TextStyleFormat.BOLD -> FontWeight.Bold
@@ -217,7 +217,7 @@ fun StylePopupMenu(
 
                                     Text(
                                         text = format.getLabel(strings),
-                                        color = if (isSelected) scheme.accent else Color.White,
+                                        color = if (isSelected) scheme.accent else scheme.textPrimary,
                                         fontSize = 13.5.sp,
                                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                     )
@@ -227,7 +227,7 @@ fun StylePopupMenu(
                                     Icon(
                                         imageVector = Icons.Outlined.ChevronRight,
                                         contentDescription = strings.submenu,
-                                        tint = Color(0xFFA1A1AA),
+                                        tint = scheme.textMuted,
                                         modifier = Modifier.size(16.dp)
                                     )
                                 } else if (isSelected) {
@@ -274,7 +274,7 @@ private fun FontPickerSubmenu(
             ) {
                 Text(
                     text = label,
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 13.5.sp,
                     fontFamily = when (key) {
                         "serif" -> FontFamily.Serif
@@ -309,7 +309,7 @@ private fun QuoteVariantSubmenu(
         ) {
             Text(
                 text = strings.standardQuote(title),
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 13.5.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -359,7 +359,7 @@ private fun SubmenuHeader(title: String, onBack: () -> Unit) {
     }
 
     HorizontalDivider(
-        color = Color(0x33FFFFFF),
+        color = scheme.divider,
         thickness = 0.5.dp,
         modifier = Modifier.padding(vertical = 2.dp)
     )

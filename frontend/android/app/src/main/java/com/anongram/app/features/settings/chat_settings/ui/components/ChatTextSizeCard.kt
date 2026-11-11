@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
@@ -29,13 +30,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.TextMuted
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import kotlin.math.roundToInt
 
 /**
  * Карточка регулировки размера текста сообщений (1..30 sp) с живым превью пузырей чата.
- * Изолированный дизайн-компонент модуля `features/settings/chat_settings/`.
+ * Адаптируется к активной теме (`LocalAnonGramScheme.current`).
  */
 @Composable
 fun ChatTextSizeCard(
@@ -44,14 +44,14 @@ fun ChatTextSizeCard(
     onTextSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentPurple = Color(0xFFB388FF)
+    val scheme = LocalAnonGramScheme.current
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF141318))
-            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
     ) {
         Column(
             modifier = Modifier
@@ -60,7 +60,7 @@ fun ChatTextSizeCard(
         ) {
             Text(
                 text = "Размер текста сообщений",
-                color = accentPurple,
+                color = scheme.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -79,9 +79,9 @@ fun ChatTextSizeCard(
                     valueRange = 1f..30f,
                     steps = 28,
                     colors = SliderDefaults.colors(
-                        thumbColor = accentPurple,
-                        activeTrackColor = accentPurple,
-                        inactiveTrackColor = Color(0xFF3A3942),
+                        thumbColor = scheme.accent,
+                        activeTrackColor = scheme.accent,
+                        inactiveTrackColor = scheme.divider,
                         activeTickColor = Color.Transparent,
                         inactiveTickColor = Color.Transparent
                     ),
@@ -92,7 +92,7 @@ fun ChatTextSizeCard(
 
                 Text(
                     text = textSizeSp.toString(),
-                    color = accentPurple,
+                    color = scheme.accent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     fontFamily = FontFamily.Monospace
@@ -112,7 +112,7 @@ fun ChatTextSizeCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF0B0B0F))
+                .background(scheme.surface)
                 .padding(horizontal = 12.dp, vertical = 14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
@@ -131,13 +131,23 @@ fun ChatTextSizeCard(
                                 bottomEnd = bubbleRadius
                             )
                         )
-                        .background(Color(0xFF1F222A))
+                        .background(scheme.incomingBubbleBg)
+                        .border(
+                            1.dp,
+                            scheme.incomingBubbleBorder,
+                            RoundedCornerShape(
+                                topStart = bubbleRadius,
+                                topEnd = bubbleRadius,
+                                bottomStart = bubbleTail,
+                                bottomEnd = bubbleRadius
+                            )
+                        )
                         .padding(horizontal = padH, vertical = padV)
                 ) {
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape((8f * textScale).coerceIn(4f, 10f).dp))
-                            .background(Color(0xFF182A36))
+                            .background(scheme.replyStripIncoming)
                             .padding(
                                 horizontal = (8f * textScale).coerceIn(4f, 10f).dp,
                                 vertical = (5f * textScale).coerceIn(2.5f, 7f).dp
@@ -149,19 +159,19 @@ fun ChatTextSizeCard(
                                 .width((3f * textScale).coerceIn(2f, 4f).dp)
                                 .height((30f * textScale).coerceIn(14f, 38f).dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(Color(0xFF39C5BB))
+                                .background(scheme.accent)
                         )
                         Spacer(modifier = Modifier.width((8f * textScale).coerceIn(4f, 10f).dp))
                         Column {
                             Text(
                                 text = userName,
-                                color = Color(0xFF39C5BB),
+                                color = scheme.accent,
                                 fontSize = (11.5f * textScale).coerceIn(6f, 15.5f).sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "Доброе утро! 👋",
-                                color = Color.White,
+                                color = scheme.incomingText.copy(alpha = 0.85f),
                                 fontSize = (12.5f * textScale).coerceIn(6.5f, 16.5f).sp
                             )
                         }
@@ -175,14 +185,14 @@ fun ChatTextSizeCard(
                     ) {
                         Text(
                             text = "Знаешь, который час?",
-                            color = Color.White,
+                            color = scheme.incomingText,
                             fontSize = textSizeSp.sp,
                             lineHeight = (textSizeSp * 1.26f).coerceAtLeast(textSizeSp + 2f).sp,
                             modifier = Modifier.weight(1f, fill = false)
                         )
                         Text(
                             text = "20:07",
-                            color = TextMuted,
+                            color = scheme.textMuted,
                             fontSize = timeFontSize,
                             fontFamily = FontFamily.Monospace
                         )
@@ -194,25 +204,29 @@ fun ChatTextSizeCard(
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = Alignment.CenterEnd
             ) {
+                val outShape = RoundedCornerShape(
+                    topStart = bubbleRadius,
+                    topEnd = bubbleRadius,
+                    bottomStart = bubbleRadius,
+                    bottomEnd = bubbleTail
+                )
                 Row(
                     modifier = Modifier
                         .widthIn(max = 285.dp)
-                        .clip(
-                            RoundedCornerShape(
-                                topStart = bubbleRadius,
-                                topEnd = bubbleRadius,
-                                bottomStart = bubbleRadius,
-                                bottomEnd = bubbleTail
+                        .clip(outShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd)
                             )
                         )
-                        .background(Color(0xFF5E54A4))
+                        .border(1.dp, scheme.outgoingBubbleBorder, outShape)
                         .padding(horizontal = padH, vertical = padV),
                     verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.spacedBy(gapBetweenTextAndTime)
                 ) {
                     Text(
                         text = "В Токио утро 😎",
-                        color = Color.White,
+                        color = scheme.outgoingText,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.26f).coerceAtLeast(textSizeSp + 2f).sp,
                         modifier = Modifier.weight(1f, fill = false)
@@ -220,7 +234,7 @@ fun ChatTextSizeCard(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = "20:22",
-                            color = Color.White.copy(alpha = 0.78f),
+                            color = scheme.outgoingText.copy(alpha = 0.78f),
                             fontSize = timeFontSize,
                             fontFamily = FontFamily.Monospace
                         )
@@ -228,7 +242,7 @@ fun ChatTextSizeCard(
                         Icon(
                             painter = painterResource(id = R.drawable.ic_tick_double),
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = scheme.outgoingText,
                             modifier = Modifier.size(tickSize)
                         )
                     }

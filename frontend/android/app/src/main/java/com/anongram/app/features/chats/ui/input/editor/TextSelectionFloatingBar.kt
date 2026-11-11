@@ -60,8 +60,8 @@ fun TextSelectionFloatingBar(
         modifier = modifier
             .shadow(16.dp, RoundedCornerShape(22.dp), ambientColor = Color.Black, spotColor = Color.Black)
             .clip(RoundedCornerShape(22.dp))
-            .background(Color(0xFF1E1E24))
-            .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(22.dp))
+            .background(scheme.islandBg)
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
             .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {
         Row(
@@ -74,7 +74,7 @@ fun TextSelectionFloatingBar(
                 content = {
                     Text(
                         text = "B",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -87,7 +87,7 @@ fun TextSelectionFloatingBar(
                 content = {
                     Text(
                         text = "I",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontStyle = FontStyle.Italic,
                         fontWeight = FontWeight.Bold
@@ -101,7 +101,7 @@ fun TextSelectionFloatingBar(
                 content = {
                     Text(
                         text = "U",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         textDecoration = TextDecoration.Underline,
                         fontWeight = FontWeight.SemiBold
@@ -115,7 +115,7 @@ fun TextSelectionFloatingBar(
                 content = {
                     Text(
                         text = "S̶",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )

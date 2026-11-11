@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.AnonGramTheme
-import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.SharedPrefsThemeRepository
 import com.anongram.app.core.theme.ThemeController
 import com.anongram.app.features.auth.data.repository.AuthRepositoryImpl
@@ -58,7 +57,7 @@ class MainActivity : ComponentActivity() {
             val authViewModel = remember { AuthViewModel(authRepository) }
             val authState by authViewModel.authState.collectAsState()
 
-            AnonGramTheme(scheme = scheme) {
+            AnonGramTheme(scheme = scheme, controller = themeController) {
                 AnimatedContent(
                     targetState = authState,
                     transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -70,7 +69,7 @@ class MainActivity : ComponentActivity() {
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(ObsidianBlack),
+                                    .background(scheme.background),
                                 contentAlignment = Alignment.Center
                             ) {
                                 WelcomeShieldAnimation(size = 120.dp)

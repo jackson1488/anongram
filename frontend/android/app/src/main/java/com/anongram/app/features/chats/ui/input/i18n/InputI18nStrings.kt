@@ -159,4 +159,84 @@ interface InputI18nStrings {
     fun bannerTrackSavedNamed(title: String): String
     fun bannerOpeningFileNamed(name: String): String
     fun bannerNoAppForFileNamed(name: String): String
+
+    // Поиск, панель эмодзи/стикеров, предпросмотр reply, обрезка ГС/кружков
+    val searchNothingFound: String
+    val searchZeroOfZero: String
+    val stickersSection: String
+    val gifSection: String
+    val createSticker: String
+    val settings: String
+    val gifGallerySoon: String
+    val editingVoice: String
+    val editingVideoCircle: String
+    fun trimOrReRecord(durationLabel: String): String
+    val trimVoice: String
+    val trimVideoCircle: String
+    val photoLabel: String
+    val videoLabel: String
+    val playVideo: String
+    val listen: String
+    val playVideoNote: String
+    fun videoNoteTime(timeLabel: String): String
+    val geolocationLabel: String
+    val contactLabel: String
+    val play: String
+    val pause: String
+    val watch: String
+    val replyToMessageTitle: String
+    val removeReply: String
+    fun filesCount(count: Int): String
+    fun audioTracksCount(count: Int): String
+    fun voiceMessageDuration(durationLabel: String): String
+    fun videoMessageDuration(durationLabel: String): String
+    fun contactNamed(name: String): String
+    fun locationNamed(address: String): String
+    fun stickerNamed(symbol: String): String
+    val switchCamera: String
+    val flash: String
+    val pauseAndTrim: String
+    val deleteVideo: String
+    val tapToTrimOrListen: String
+    val pauseOrTrim: String
+    val cancelUpper: String
+    val deleteRecording: String
+
+    // Настройки тем и цветовой круг
+    val chatSettingsTitle: String
+    val themeCardTitle: String
+    val themeCardSubtitle: String
+    val themePolarityDark: String
+    val themePolarityLight: String
+    val themeTabPresets: String
+    val themeTabWheel: String
+    val themeTabSaved: String
+    val themeTintDepth: String
+    val themeTintMonochrome: String
+    val themeTintAmoled: String
+    val themeTintSoftOs: String
+    val themeTintFullOs: String
+    val themeBubbleStyle: String
+    val themeBubbleGradient: String
+    val themeBubbleTinted: String
+    val themeBubbleOutline: String
+    val themeAccentHex: String
+    val themeSaturation: String
+    val themeSaveButton: String
+    val themeCustomNamePlaceholder: String
+    val themeCopyCode: String
+    val themeImportPlaceholder: String
+    val themeImportApply: String
+    val themeNoSavedYet: String
+    val themePreviewIncoming: String
+    val themePreviewIncomingReply: String
+    fun themePreviewOutgoing(themeName: String): String
+    val themePreviewInputPlaceholder: String
+    val themeCodeCopied: String
+    val themeImportInvalid: String
+    val themeImportApplied: String
+    val themeSavedToast: String
+    val themeFilterAll: String
+    val themeFilterDark: String
+    val themeFilterLight: String
 }

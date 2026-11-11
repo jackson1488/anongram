@@ -128,8 +128,8 @@ fun ChatInputBar(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(IslandBackground, RoundedCornerShape(24.dp))
-                    .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                    .background(scheme.inputBg, RoundedCornerShape(24.dp))
+                    .border(1.dp, scheme.inputBorder, RoundedCornerShape(24.dp))
             ) {
                 if (!isRecording && !isHiddenByTrim && replyTo != null && editing == null) {
                     FusedReplyBar(
@@ -180,7 +180,7 @@ fun ChatInputBar(
                                 Icon(
                                     imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
                                     contentDescription = strings.emoji,
-                                    tint = if (isEmojiOpen) scheme.accent else TextMuted,
+                                    tint = if (isEmojiOpen) scheme.accent else scheme.textMuted,
                                     modifier = Modifier.size(23.dp)
                                 )
                             }
@@ -202,7 +202,7 @@ fun ChatInputBar(
                                     if (textValue.isEmpty()) {
                                         Text(
                                             text = placeholderText,
-                                            color = TextMuted,
+                                            color = scheme.textMuted,
                                             fontSize = 15.sp
                                         )
                                     }
@@ -219,7 +219,7 @@ fun ChatInputBar(
                                             .onFocusChanged { if (it.isFocused && !isRecording) onFocusInput() }
                                             .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
                                         textStyle = TextStyle(
-                                            color = TextPrimary,
+                                            color = scheme.textPrimary,
                                             fontSize = 15.sp,
                                             lineHeight = 20.sp
                                         ),
@@ -239,7 +239,7 @@ fun ChatInputBar(
                                     Icon(
                                         imageVector = Icons.Outlined.AttachFile,
                                         contentDescription = strings.attach,
-                                        tint = TextMuted,
+                                        tint = scheme.textMuted,
                                         modifier = Modifier.size(22.dp)
                                     )
                                 }
@@ -270,7 +270,7 @@ fun ChatInputBar(
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = recording.timeLabel,
-                                    color = TextPrimary,
+                                    color = scheme.textPrimary,
                                     fontFamily = FontFamily.Monospace,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
@@ -278,7 +278,7 @@ fun ChatInputBar(
                                 Spacer(modifier = Modifier.weight(1f))
                                 Text(
                                     text = strings.slideLeftToCancel,
-                                    color = TextMuted,
+                                    color = scheme.textMuted,
                                     fontSize = 13.sp
                                 )
                             }

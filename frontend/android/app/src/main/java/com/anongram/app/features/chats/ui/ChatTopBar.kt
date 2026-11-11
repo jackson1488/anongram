@@ -108,7 +108,7 @@ internal fun ChatTopBar(
             CompactIconButton(
                 icon = Icons.AutoMirrored.Filled.ArrowBack,
                 description = "Назад",
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 onClick = onBack
             )
         }
@@ -131,7 +131,7 @@ internal fun ChatTopBar(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = session.title,
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -151,7 +151,7 @@ internal fun ChatTopBar(
                             color = if (isPeerTyping || peerActivity != null || session.isOnline) {
                                 scheme.accent.copy(alpha = 0.85f)
                             } else {
-                                TextMuted
+                                scheme.textMuted
                             },
                             fontSize = 11.sp,
                             maxLines = 1,
@@ -560,10 +560,11 @@ private fun MenuAction(
     label: String,
     painter: Painter? = null,
     icon: ImageVector? = null,
-    tint: Color = TextPrimary,
+    tint: Color = LocalAnonGramScheme.current.textPrimary,
     trailing: ImageVector? = null,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     DropdownMenuItem(
         text = {
             Text(text = label, color = tint, fontSize = 14.sp, fontWeight = FontWeight.Normal)
@@ -573,14 +574,14 @@ private fun MenuAction(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = if (tint == TextPrimary) TextSecondary else tint,
+                    tint = if (tint == scheme.textPrimary) scheme.textSecondary else tint,
                     modifier = Modifier.size(19.dp)
                 )
             } else if (painter != null) {
                 Icon(
                     painter = painter,
                     contentDescription = null,
-                    tint = if (tint == TextPrimary) TextSecondary else tint,
+                    tint = if (tint == scheme.textPrimary) scheme.textSecondary else tint,
                     modifier = Modifier.size(19.dp)
                 )
             }
@@ -590,7 +591,7 @@ private fun MenuAction(
                 Icon(
                     imageVector = trailing,
                     contentDescription = null,
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -602,11 +603,12 @@ private fun MenuAction(
 
 @Composable
 private fun TopPill(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+    val scheme = LocalAnonGramScheme.current
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(50))
-            .background(IslandBackground)
-            .border(width = 1.dp, color = CardBorder, shape = RoundedCornerShape(50)),
+            .background(scheme.islandBg)
+            .border(width = 1.dp, color = scheme.islandBorder, shape = RoundedCornerShape(50)),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
         content = content
@@ -655,6 +657,7 @@ private fun CompactIconButton(
 
 @Composable
 private fun PeerAvatar(title: String, accent: Color, size: Dp = 34.dp) {
+    val scheme = LocalAnonGramScheme.current
     val monogram = title.split(" ")
         .filter { it.isNotBlank() }
         .take(2)
@@ -668,7 +671,7 @@ private fun PeerAvatar(title: String, accent: Color, size: Dp = 34.dp) {
     ) {
         Text(
             text = monogram,
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = if (size > 40.dp) 16.sp else 12.sp,
             fontWeight = FontWeight.Bold
         )

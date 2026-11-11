@@ -68,6 +68,7 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import com.anongram.app.features.chats.messages.domain.timeLabel
 import com.anongram.app.features.chats.ui.components.bubble.ChatMediaAlbumGrid
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -87,6 +88,7 @@ internal fun InteractiveReplyBubble(
     onJumpToMessage: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val context = LocalContext.current
     var isExpandedPhotoOpen by remember { mutableStateOf(false) }
     var isFileDownloaded by remember { mutableStateOf(false) }
@@ -123,7 +125,7 @@ internal fun InteractiveReplyBubble(
                     if (photoBitmap != null) {
                         Image(
                             bitmap = photoBitmap!!,
-                            contentDescription = "Фотография",
+                            contentDescription = strings.photoLabel,
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -132,7 +134,7 @@ internal fun InteractiveReplyBubble(
                     } else {
                         Icon(
                             imageVector = if (attachment.isVideo) Icons.Outlined.Videocam else Icons.Outlined.Image,
-                            contentDescription = if (attachment.isVideo) "Видео" else "Фотография",
+                            contentDescription = if (attachment.isVideo) strings.videoLabel else strings.photoLabel,
                             tint = Color.White.copy(alpha = 0.9f),
                             modifier = Modifier.size(if (attachment.isVideo) 54.dp else 46.dp)
                         )
@@ -148,7 +150,7 @@ internal fun InteractiveReplyBubble(
                         ) {
                             Icon(
                                 imageVector = if (isAudioPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                                contentDescription = "Воспроизвести видео",
+                                contentDescription = strings.playVideo,
                                 tint = Color.White,
                                 modifier = Modifier.size(30.dp)
                             )
@@ -388,8 +390,8 @@ internal fun InteractiveReplyBubble(
                     ) {
                         Icon(
                             imageVector = if (isAudioPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                            contentDescription = "Прослушать",
-                            tint = Color.White,
+                            contentDescription = strings.listen,
+                            tint = scheme.onAccent,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -459,7 +461,7 @@ internal fun InteractiveReplyBubble(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.PlayArrow,
-                            contentDescription = "Воспроизвести видеосообщение",
+                            contentDescription = strings.playVideoNote,
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
                         )
@@ -484,8 +486,8 @@ internal fun InteractiveReplyBubble(
                 }
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Видеосообщение • ${message.timeLabel()}",
-                    color = TextMuted,
+                    text = strings.videoNoteTime(message.timeLabel()),
+                    color = scheme.textMuted,
                     fontSize = 11.sp
                 )
             }
@@ -496,8 +498,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(14.dp)
             ) {
                 Row(
@@ -508,14 +510,14 @@ internal fun InteractiveReplyBubble(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.LocationOn,
-                        contentDescription = "Геолокация",
+                        contentDescription = strings.geolocationLabel,
                         tint = scheme.accent,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = attachment.address,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.weight(1f),
                         maxLines = 2,
@@ -523,7 +525,7 @@ internal fun InteractiveReplyBubble(
                     )
                     Text(
                         text = message.timeLabel(),
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp
                     )
                 }
@@ -535,8 +537,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(14.dp)
             ) {
                 Row(
@@ -547,7 +549,7 @@ internal fun InteractiveReplyBubble(
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Person,
-                        contentDescription = "Контакт",
+                        contentDescription = strings.contactLabel,
                         tint = scheme.accent,
                         modifier = Modifier.size(22.dp)
                     )
@@ -599,8 +601,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(14.dp)
             ) {
                 Column(
@@ -609,14 +611,14 @@ internal fun InteractiveReplyBubble(
                         .clickable(onClick = onJumpToMessage)
                 ) {
                     Text(
-                        text = message.text.ifBlank { "Сообщение" },
-                        color = TextPrimary,
+                        text = message.text.ifBlank { strings.message },
+                        color = scheme.textPrimary,
                         fontSize = 15.sp
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = message.timeLabel(),
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.align(Alignment.End)
                     )
@@ -738,13 +740,14 @@ private fun ReplyFileRowContent(
                 }
                 Icon(
                     imageVector = icon,
-                    contentDescription = "Файл",
+                    contentDescription = LocalInputStrings.current.file,
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
                 )
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
+        val rowScheme = LocalAnonGramScheme.current
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -752,7 +755,7 @@ private fun ReplyFileRowContent(
         ) {
             Text(
                 text = file.name,
-                color = TextPrimary,
+                color = rowScheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -761,7 +764,7 @@ private fun ReplyFileRowContent(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${file.sizeLabel} ${file.kind.label}",
-                color = TextMuted,
+                color = rowScheme.textMuted,
                 fontSize = 12.sp
             )
         }
@@ -771,13 +774,13 @@ private fun ReplyFileRowContent(
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,
                     contentDescription = null,
-                    tint = TextSecondary,
+                    tint = rowScheme.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = timeLabel,
-                    color = TextMuted,
+                    color = rowScheme.textMuted,
                     fontSize = 11.sp
                 )
             }
@@ -793,6 +796,8 @@ private fun ReplyMusicRowContent(
     onJumpToMessage: () -> Unit
 ) {
     var isPlaying by remember { mutableStateOf(false) }
+    val strings = LocalInputStrings.current
+    val scheme = LocalAnonGramScheme.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
@@ -807,8 +812,8 @@ private fun ReplyMusicRowContent(
         ) {
             Icon(
                 imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                contentDescription = "Воспроизвести",
-                tint = Color.White,
+                contentDescription = strings.play,
+                tint = scheme.onAccent,
                 modifier = Modifier.size(24.dp)
             )
         }

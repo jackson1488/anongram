@@ -8,9 +8,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-
-private val WallpaperDot = Color(0xFF18202E)
 
 /**
  * Узорные обои чата: 3 стиля (переключаются по «Изменить обои» в меню):
@@ -24,9 +21,10 @@ fun ChatWallpaper(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val wallpaperDot = if (scheme.isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.08f)
 
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawRect(color = ObsidianBlack)
+        drawRect(color = scheme.background)
 
         when (style % 3) {
             0 -> {
@@ -41,7 +39,7 @@ fun ChatWallpaper(
                     val offset = if (row % 2 == 0) 0f else gridStep / 2f
                     var x = offset
                     while (x <= size.width + gridStep) {
-                        drawCircle(color = WallpaperDot, radius = dotRadius, center = Offset(x, y))
+                        drawCircle(color = wallpaperDot, radius = dotRadius, center = Offset(x, y))
                         x += gridStep
                     }
                     y += rowStep

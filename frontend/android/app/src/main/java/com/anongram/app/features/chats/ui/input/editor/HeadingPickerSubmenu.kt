@@ -71,7 +71,7 @@ fun HeadingPickerSubmenu(
         }
 
         HorizontalDivider(
-            color = Color(0x33FFFFFF),
+            color = scheme.divider,
             thickness = 0.5.dp,
             modifier = Modifier.padding(vertical = 2.dp)
         )

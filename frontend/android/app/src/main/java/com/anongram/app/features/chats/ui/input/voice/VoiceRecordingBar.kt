@@ -35,17 +35,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.remember
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.messages.state.RecordingState
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
- * Строка заблокированной записи голосового сообщения (Фото 6 в стиле Telegram):
- * - Красная пульсирующая точка + таймер «0:03,4» слева
- * - Текст «ОТМЕНА» по центру (акцентный цвет)
- * - Круглая кнопка отправки [ ➤ ] с аурой Monet справа (выходит за пределы 48dp капсулы через requiredSize)
+ * Строка заблокированной записи голосового сообщения.
  */
 @Composable
 fun VoiceRecordingBar(
@@ -55,6 +50,7 @@ fun VoiceRecordingBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
 
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val pulseAlpha by infiniteTransition.animateFloat(
@@ -68,8 +64,8 @@ fun VoiceRecordingBar(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
-            .background(IslandBackground, RoundedCornerShape(24.dp))
-            .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+            .background(scheme.islandBg, RoundedCornerShape(24.dp))
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -82,7 +78,6 @@ fun VoiceRecordingBar(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Красная точка записи
             Box(
                 modifier = Modifier
                     .size(10.dp)
@@ -92,10 +87,9 @@ fun VoiceRecordingBar(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Таймер с десятыми долями (0:03,4)
             Text(
                 text = recording.timeLabel,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold
@@ -103,9 +97,8 @@ fun VoiceRecordingBar(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Текстовая кнопка «ОТМЕНА» по центру (Фото 6)
             Text(
-                text = "ОТМЕНА",
+                text = strings.cancelUpper,
                 color = scheme.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
@@ -118,12 +111,10 @@ fun VoiceRecordingBar(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Слот 42x42dp для кнопки отправки с аурой Monet [ ➤ ] (выходит за пределы капсулы через requiredSize)
             Box(
                 modifier = Modifier.size(42.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Аура / Ореол Monet (78dp)
                 Box(
                     modifier = Modifier
                         .requiredSize(78.dp)
@@ -131,7 +122,6 @@ fun VoiceRecordingBar(
                         .background(scheme.accent.copy(alpha = 0.34f))
                 )
 
-                // Внутренняя кнопка (54dp)
                 Box(
                     modifier = Modifier
                         .requiredSize(54.dp)
@@ -142,8 +132,8 @@ fun VoiceRecordingBar(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Send,
-                        contentDescription = "Отправить",
-                        tint = Color.White,
+                        contentDescription = strings.send,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(22.dp)
                     )
                 }

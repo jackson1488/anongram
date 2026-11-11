@@ -119,8 +119,8 @@ internal fun PinnedBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
                 .padding(start = 14.dp, top = 5.dp, bottom = 5.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -154,7 +154,7 @@ internal fun PinnedBar(
                     )
                     Text(
                         text = titleText,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis

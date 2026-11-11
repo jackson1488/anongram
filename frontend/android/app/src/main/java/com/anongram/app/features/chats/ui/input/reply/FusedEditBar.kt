@@ -96,8 +96,8 @@ fun FusedEditBar(
         ) {
             Text(
                 text = when {
-                    isVoice -> "Редактирование ГС"
-                    isVideoCircle -> "Редактирование кружка"
+                    isVoice -> strings.editingVoice
+                    isVideoCircle -> strings.editingVideoCircle
                     hasAttachment -> strings.replace
                     else -> strings.editMessage
                 },
@@ -110,12 +110,12 @@ fun FusedEditBar(
             Spacer(modifier = Modifier.height(1.dp))
             Text(
                 text = when {
-                    isVoice -> "${(editing.attachment as MessageAttachment.Voice).durationLabel} · обрезать или перезаписать"
-                    isVideoCircle -> "${(editing.attachment as MessageAttachment.VideoCircle).durationLabel} · обрезать или перезаписать"
+                    isVoice -> strings.trimOrReRecord((editing.attachment as MessageAttachment.Voice).durationLabel)
+                    isVideoCircle -> strings.trimOrReRecord((editing.attachment as MessageAttachment.VideoCircle).durationLabel)
                     hasAttachment -> snippet
                     else -> editing.text.ifBlank { strings.message }
                 },
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -128,7 +128,7 @@ fun FusedEditBar(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.ContentCut,
-                    contentDescription = if (isVoice) "Обрезать ГС" else "Обрезать кружок",
+                    contentDescription = if (isVoice) strings.trimVoice else strings.trimVideoCircle,
                     tint = scheme.accent,
                     modifier = Modifier.size(17.dp)
                 )
@@ -155,7 +155,7 @@ fun FusedEditBar(
             Icon(
                 imageVector = Icons.Outlined.Close,
                 contentDescription = strings.cancelEdit,
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(16.dp)
             )
         }

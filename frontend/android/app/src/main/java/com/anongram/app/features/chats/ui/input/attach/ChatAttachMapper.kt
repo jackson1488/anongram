@@ -146,8 +146,11 @@ internal fun sendAttachDraftsToChat(
                 )
             }
             is AttachmentDraft.LiveLocation -> {
+                val strings = com.anongram.app.features.chats.ui.input.i18n.InputI18n.forLanguage(
+                    com.anongram.app.core.i18n.LanguageSettingsStore.language.value
+                )
                 viewModel.sendAttachment(
-                    MessageAttachment.Geo(address = "Трансляция геопозиции (${draft.durationMin} мин.)")
+                    MessageAttachment.Geo(address = strings.liveLocation(draft.durationMin))
                 )
             }
             is AttachmentDraft.Contact -> {

@@ -52,7 +52,7 @@ if not run_id:
     sys.exit(1)
 
 run_url = f"https://api.github.com/repos/jackson1488/anongram/actions/runs/{run_id}"
-for attempt in range(60):
+for attempt in range(180):
     try:
         req = urllib.request.Request(run_url, headers=headers)
         with urllib.request.urlopen(req) as res:

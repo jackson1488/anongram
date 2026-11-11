@@ -130,8 +130,8 @@ fun BoxScope.ChatActionBannerHost(
                 modifier = Modifier
                     .shadow(elevation = 10.dp, shape = RoundedCornerShape(16.dp))
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xF01C1F26))
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .background(scheme.bannerBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
                     .clickable { ChatActionBannerBus.dismiss() }
                     .padding(horizontal = 14.dp, vertical = 10.dp)
             ) {
@@ -147,7 +147,7 @@ fun BoxScope.ChatActionBannerHost(
                     )
                     Text(
                         text = item.resolveText(strings),
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -164,6 +164,7 @@ fun BoxScope.SelectionLimitBannerHost(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     AnimatedVisibility(
         visible = warningText != null,
         enter = fadeIn(tween(180)) + slideInVertically(
@@ -184,8 +185,8 @@ fun BoxScope.SelectionLimitBannerHost(
                 modifier = Modifier
                     .shadow(elevation = 8.dp, shape = RoundedCornerShape(14.dp))
                     .clip(RoundedCornerShape(14.dp))
-                    .background(CardDark.copy(alpha = 0.96f))
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                    .background(scheme.bannerBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(14.dp))
                     .clickable { onDismiss() }
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
@@ -201,7 +202,7 @@ fun BoxScope.SelectionLimitBannerHost(
                     )
                     Text(
                         text = text,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )

@@ -196,6 +196,7 @@ fun ChatScreen(
 
     val imeMetrics = rememberChatImeMetrics(state)
     val isCircleOverlayActive = state.recording.mode == RecordMode.CIRCLE || state.videoReviewDraft != null
+    val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
 
     val videoReviewKey = state.videoReviewDraft?.uri
     var isVideoReviewPlaying by remember(videoReviewKey) { mutableStateOf(false) }
@@ -209,7 +210,7 @@ fun ChatScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
     ) {
         WallpaperBackground(
             chatId = session.id,

@@ -42,18 +42,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CardDark
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.attachmentColor
+import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
-private enum class EmojiSection(val label: String) {
-    EMOJI("Эмодзи"),
-    GIF("GIF"),
-    STICKERS("Стикеры")
+private enum class EmojiSection {
+    EMOJI,
+    GIF,
+    STICKERS
+}
+
+private fun EmojiSection.label(strings: InputI18nStrings): String = when (this) {
+    EmojiSection.EMOJI -> strings.emoji
+    EmojiSection.GIF -> strings.gifSection
+    EmojiSection.STICKERS -> strings.stickersSection
 }
 
 private val EMOJI_LIST = listOf(
@@ -73,9 +76,8 @@ private val STICKER_PACKS = listOf("⭐", "🔥", "🐱", "🐶", "🚀", "👾"
 private val STICKER_SYMBOLS = listOf("🛡️", "⚡️", "🧅", "🔑", "💻", "🤖", "🚀", "✨", "🛰️", "🛸", "🕶️", "🦾")
 
 /**
- * Панель эмодзи, GIF и стикеров (шаг 6).
- * Открывается под полем ввода.
- * Внизу переключатель: Эмодзи, GIF, Стикеры.
+ * Панель эмодзи, GIF и стикеров.
+ * Открывается под полем ввода и полностью подстраивается под тему и язык.
  */
 @Composable
 fun EmojiStickerPanel(
@@ -85,12 +87,13 @@ fun EmojiStickerPanel(
 ) {
     var activeSection by remember { mutableStateOf(EmojiSection.EMOJI) }
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .height(280.dp)
-            .background(SurfaceDark)
+            .background(scheme.emojiPanelBg)
     ) {
         // Контент секции
         Box(
@@ -133,7 +136,7 @@ fun EmojiStickerPanel(
                                     modifier = Modifier
                                         .size(32.dp)
                                         .clip(CircleShape)
-                                        .background(CardDark),
+                                        .background(scheme.card),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(text = pack, fontSize = 16.sp)
@@ -141,10 +144,10 @@ fun EmojiStickerPanel(
                             }
                             Spacer(modifier = Modifier.weight(1f))
                             IconButton(onClick = {}, modifier = Modifier.size(28.dp)) {
-                                Icon(imageVector = Icons.Outlined.Add, contentDescription = "Создать", tint = scheme.accent, modifier = Modifier.size(18.dp))
+                                Icon(imageVector = Icons.Outlined.Add, contentDescription = strings.createSticker, tint = scheme.accent, modifier = Modifier.size(18.dp))
                             }
                             IconButton(onClick = {}, modifier = Modifier.size(28.dp)) {
-                                Icon(imageVector = Icons.Outlined.Settings, contentDescription = "Настройки", tint = TextMuted, modifier = Modifier.size(16.dp))
+                                Icon(imageVector = Icons.Outlined.Settings, contentDescription = strings.settings, tint = scheme.textMuted, modifier = Modifier.size(16.dp))
                             }
                         }
 
@@ -174,7 +177,7 @@ fun EmojiStickerPanel(
                 }
                 EmojiSection.GIF -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text(text = "GIF галерея (скоро)", color = TextMuted, fontSize = 13.sp)
+                        Text(text = strings.gifGallerySoon, color = scheme.textMuted, fontSize = 13.sp)
                     }
                 }
             }
@@ -184,7 +187,7 @@ fun EmojiStickerPanel(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(IslandBackground)
+                .background(scheme.islandBg)
                 .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically
@@ -194,13 +197,13 @@ fun EmojiStickerPanel(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(50))
-                        .background(if (isSelected) scheme.accent.copy(alpha = 0.2f) else Color.Transparent)
+                        .background(if (isSelected) scheme.accentSoft else Color.Transparent)
                         .clickable { activeSection = section }
                         .padding(horizontal = 20.dp, vertical = 6.dp)
                 ) {
                     Text(
-                        text = section.label,
-                        color = if (isSelected) scheme.accent else TextSecondary,
+                        text = section.label(strings),
+                        color = if (isSelected) scheme.accent else scheme.textSecondary,
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )

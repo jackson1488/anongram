@@ -70,14 +70,14 @@ fun LatexFormulaInputPanel(
                     .fillMaxWidth()
                     .shadow(10.dp, RoundedCornerShape(14.dp), ambientColor = Color.Black, spotColor = Color.Black)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF16161B))
+                    .background(scheme.editorSurface)
                     .border(1.dp, scheme.accent.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
                 if (formulaText.isEmpty()) {
                     Text(
                         text = strings.latexFormula,
-                        color = Color(0xFF64748B),
+                        color = scheme.textMuted,
                         fontSize = 15.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -87,7 +87,7 @@ fun LatexFormulaInputPanel(
                     value = formulaText,
                     onValueChange = { formulaText = it },
                     textStyle = TextStyle(
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontFamily = FontFamily.Monospace
                     ),

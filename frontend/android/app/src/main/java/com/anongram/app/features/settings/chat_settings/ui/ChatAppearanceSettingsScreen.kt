@@ -60,10 +60,13 @@ fun ChatAppearanceSettingsScreen(
 
     BackHandler(onBack = onBack)
 
+    val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
+    val strings = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF050508))
+            .background(scheme.background)
             .safeStatusBarPadding()
             .safeNavigationBarPadding()
     ) {
@@ -79,21 +82,21 @@ fun ChatAppearanceSettingsScreen(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color(0x2EFFFFFF))
+                    .background(scheme.islandBg)
                     .clickable(onClick = onBack),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = Color.White,
+                    contentDescription = strings.back,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
 
             Text(
-                text = "Настройки чатов",
-                color = Color.White,
+                text = strings.chatSettingsTitle,
+                color = scheme.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
