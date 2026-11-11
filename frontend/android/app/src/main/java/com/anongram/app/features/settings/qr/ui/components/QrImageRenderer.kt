@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
@@ -16,9 +15,14 @@ import android.os.Environment
 import android.provider.MediaStore
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.anongram.app.R
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.EncodeHintType
+import com.google.zxing.qrcode.QRCodeWriter
+import com.google.zxing.qrcode.decoder.ErrorCorrectionLevel
 import java.io.File
-import kotlin.math.abs
 
 /**
  * Рендерер реальных HD-изображений (PNG) карточки QR-кода профиля AnonGram.
@@ -26,17 +30,19 @@ import kotlin.math.abs
  * Отрисовывает:
  * - Фоновый градиент выбранной пользователем темы;
  * - Белую скруглённую карточку с мягкой тенью;
- * - Модули QR-кода и поисковые маркеры в акцентном цвете темы;
- * - Фирменный центральный логотип самолётика AnonGram;
+ * - Модули и маркеры РЕАЛЬНОГО QR-кода (ZXing ErrorCorrectionLevel.H);
+ * - Фирменную центральную Стелс-иконку приложения (Cryptographic Shield + Stealth Plane);
  * - Хэндл профиля пользователя (@HANDLE);
  * - Нижний брендинг «AnonGram • Анонимный мессенджер».
  */
 object QrImageRenderer {
 
     fun generateQrCardBitmap(
+        context: Context,
         handle: String,
         qrColor: Color,
-        gradientColors: List<Color>
+        gradientColors: List<Color>,
+        qrPayload: String = "anongram://user?handle=${handle.removePrefix("@").uppercase()}"
     ): Bitmap {
         val width = 1080
         val height = 1350
@@ -61,7 +67,7 @@ object QrImageRenderer {
         canvas.drawRect(0f, 0f, width.toFloat(), height.toFloat(), bgPaint)
 
         // 2. Белая скруглённая карточка
-        val cardMarginHoriz = 110f
+        val cardMarginHoriz = 105f
         val cardWidth = width - cardMarginHoriz * 2
         val cardHeight = cardWidth * 1.18f
         val cardTop = (height - cardHeight) / 2f - 40f
@@ -82,10 +88,22 @@ object QrImageRenderer {
         }
         canvas.drawRoundRect(cardRect, 68f, 68f, cardPaint)
 
-        // 3. QR-код внутри карточки
-        val qrSize = cardWidth * 0.72f
+        // 3. Реальный QR-код через ZXing
+        val qrSize = cardWidth * 0.74f
         val qrLeft = cardRect.left + (cardWidth - qrSize) / 2f
-        val qrTop = cardRect.top + cardWidth * 0.12f
+        val qrTop = cardRect.top + cardWidth * 0.11f
+
+        val bitMatrix = runCatching {
+            val hints = mapOf(
+                EncodeHintType.ERROR_CORRECTION to ErrorCorrectionLevel.H,
+                EncodeHintType.MARGIN to 0,
+                EncodeHintType.CHARACTER_SET to "UTF-8"
+            )
+            QRCodeWriter().encode(qrPayload, BarcodeFormat.QR_CODE, 0, 0, hints)
+        }.getOrNull()
+
+        val gridSize = bitMatrix?.width ?: 29
+        val cellSize = qrSize / gridSize
 
         val qrPaint = Paint().apply {
             isAntiAlias = true
@@ -96,14 +114,10 @@ object QrImageRenderer {
             isAntiAlias = true
             color = effectiveQrColorInt
             style = Paint.Style.STROKE
-            strokeWidth = (qrSize / 21f) * 0.95f
+            strokeWidth = (qrSize / gridSize) * 0.95f
         }
 
-        val gridSize = 21
-        val cellSize = qrSize / gridSize
-        val seedHash = cleanHandle.hashCode()
-
-        // Finder patterns
+        // Поисковые маркеры (Finder patterns)
         fun drawFinder(startX: Int, startY: Int) {
             val fx = qrLeft + startX * cellSize
             val fy = qrTop + startY * cellSize
@@ -129,63 +143,79 @@ object QrImageRenderer {
         drawFinder(gridSize - 7, 0)
         drawFinder(0, gridSize - 7)
 
-        // Data modules
+        // Модули данных
+        val centerCol = gridSize / 2f
+        val centerRow = gridSize / 2f
+        val centerCutoutRadius = gridSize * 0.20f
+
         for (row in 0 until gridSize) {
             for (col in 0 until gridSize) {
                 val inTopLeft = row < 8 && col < 8
                 val inTopRight = row < 8 && col >= gridSize - 8
                 val inBottomLeft = row >= gridSize - 8 && col < 8
-                val inCenterLogo = row in 8..12 && col in 8..12
 
-                if (!inTopLeft && !inTopRight && !inBottomLeft && !inCenterLogo) {
-                    val hashVal = abs((row * 31 + col * 17 + seedHash) % 11)
-                    if (hashVal < 6) {
-                        val mx = qrLeft + col * cellSize + 1f
-                        val my = qrTop + row * cellSize + 1f
-                        val modRect = RectF(mx, my, mx + cellSize - 2f, my + cellSize - 2f)
+                val dx = col + 0.5f - centerCol
+                val dy = row + 0.5f - centerRow
+                val inCenterBadge = (dx * dx + dy * dy) <= (centerCutoutRadius * centerCutoutRadius)
+
+                if (!inTopLeft && !inTopRight && !inBottomLeft && !inCenterBadge) {
+                    val isModule = bitMatrix?.get(col, row) ?: false
+                    if (isModule) {
+                        val mx = qrLeft + col * cellSize + 1.2f
+                        val my = qrTop + row * cellSize + 1.2f
+                        val modRect = RectF(mx, my, mx + cellSize - 2.4f, my + cellSize - 2.4f)
                         canvas.drawRoundRect(modRect, cellSize * 0.35f, cellSize * 0.35f, qrPaint)
                     }
                 }
             }
         }
 
-        // Центральный круг с самолётиком
+        // 4. Фирменный центральный значок со стелс-иконкой приложения
         val cx = qrLeft + qrSize / 2f
         val cy = qrTop + qrSize / 2f
-        val centerRadius = cellSize * 2.1f
-        canvas.drawCircle(cx, cy, centerRadius, qrPaint)
+        val badgeRadius = cellSize * 2.8f
 
-        val planePaint = Paint().apply {
+        // Белая обводка значка
+        val borderPaint = Paint().apply {
             isAntiAlias = true
             color = android.graphics.Color.WHITE
             style = Paint.Style.FILL
         }
-        val r = centerRadius * 0.55f
-        val planePath = Path().apply {
-            moveTo(cx + r * 0.85f, cy - r * 0.75f)
-            lineTo(cx - r * 0.95f, cy + r * 0.1f)
-            lineTo(cx - r * 0.15f, cy + r * 0.25f)
-            lineTo(cx + r * 0.25f, cy + r * 0.95f)
-            close()
-        }
-        canvas.drawPath(planePath, planePaint)
+        canvas.drawCircle(cx, cy, badgeRadius + 6f, borderPaint)
 
-        // 4. Текст @HANDLE
+        // Цветной круг
+        canvas.drawCircle(cx, cy, badgeRadius, qrPaint)
+
+        // Стелс-иконка приложения (Cryptographic Shield + Stealth Plane)
+        val stealthIcon = ContextCompat.getDrawable(context, R.drawable.ic_stat_anongram)
+        if (stealthIcon != null) {
+            val iconHalf = (badgeRadius * 0.58f).toInt()
+            stealthIcon.setBounds(
+                (cx - iconHalf).toInt(),
+                (cy - iconHalf).toInt(),
+                (cx + iconHalf).toInt(),
+                (cy + iconHalf).toInt()
+            )
+            stealthIcon.setTint(android.graphics.Color.WHITE)
+            stealthIcon.draw(canvas)
+        }
+
+        // 5. Текст @HANDLE
         val textPaint = Paint().apply {
             isAntiAlias = true
             color = effectiveQrColorInt
-            textSize = 58f
+            textSize = 62f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             textAlign = Paint.Align.CENTER
         }
-        val textY = qrTop + qrSize + 92f
+        val textY = qrTop + qrSize + 98f
         canvas.drawText("@$cleanHandle", cx, textY, textPaint)
 
-        // 5. Нижняя подпись бренда под карточкой
+        // 6. Нижняя подпись бренда под карточкой
         val brandPaint = Paint().apply {
             isAntiAlias = true
-            color = android.graphics.Color.argb(210, 255, 255, 255)
-            textSize = 32f
+            color = android.graphics.Color.argb(215, 255, 255, 255)
+            textSize = 34f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
             textAlign = Paint.Align.CENTER
         }
@@ -201,9 +231,10 @@ object QrImageRenderer {
         context: Context,
         handle: String,
         qrColor: Color,
-        gradientColors: List<Color>
+        gradientColors: List<Color>,
+        qrPayload: String = "anongram://user?handle=${handle.removePrefix("@").uppercase()}"
     ) {
-        val bitmap = generateQrCardBitmap(handle, qrColor, gradientColors)
+        val bitmap = generateQrCardBitmap(context, handle, qrColor, gradientColors, qrPayload)
         val imagesDir = File(context.cacheDir, "shared_qr")
         imagesDir.mkdirs()
         val file = File(imagesDir, "anongram_qr_${handle.removePrefix("@").lowercase()}.png")
@@ -236,10 +267,11 @@ object QrImageRenderer {
         context: Context,
         handle: String,
         qrColor: Color,
-        gradientColors: List<Color>
+        gradientColors: List<Color>,
+        qrPayload: String = "anongram://user?handle=${handle.removePrefix("@").uppercase()}"
     ): Boolean {
         return try {
-            val bitmap = generateQrCardBitmap(handle, qrColor, gradientColors)
+            val bitmap = generateQrCardBitmap(context, handle, qrColor, gradientColors, qrPayload)
             val filename = "AnonGram_QR_${handle.removePrefix("@").uppercase()}_${System.currentTimeMillis()}.png"
             val resolver = context.contentResolver
 

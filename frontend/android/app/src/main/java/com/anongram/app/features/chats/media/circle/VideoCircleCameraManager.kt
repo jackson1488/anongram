@@ -193,8 +193,11 @@ class VideoCircleCameraManager(private val context: Context) {
     }
 
     fun toggleFlash() {
-        if (isFrontCamera) return
         isFlashOn = !isFlashOn
+        if (isFrontCamera) {
+            // Front camera uses software white screen illumination in UI
+            return
+        }
         val session = captureSession ?: return
         val camera = cameraDevice ?: return
         val st = surfaceTexture ?: return
