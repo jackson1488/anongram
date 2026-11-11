@@ -89,7 +89,8 @@ class MainActivity : ComponentActivity() {
                         is AuthState.Authenticated -> {
                             MainAppShell(
                                 themeController = themeController,
-                                widthSizeClass = windowSizeClass.widthSizeClass
+                                widthSizeClass = windowSizeClass.widthSizeClass,
+                                onLogout = { authViewModel.logout() }
                             )
                         }
                     }

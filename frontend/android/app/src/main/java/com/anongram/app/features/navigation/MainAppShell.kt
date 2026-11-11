@@ -75,6 +75,7 @@ import kotlinx.coroutines.launch
 fun MainAppShell(
     themeController: ThemeController,
     widthSizeClass: WindowWidthSizeClass,
+    onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var currentTab by remember { mutableIntStateOf(0) }
@@ -83,6 +84,7 @@ fun MainAppShell(
     var isContactsOpen by remember { mutableStateOf(false) }
     var isArchiveOpen by remember { mutableStateOf(false) }
     var isLanguageOpen by remember { mutableStateOf(false) }
+    var isSettingsSubScreenOpen by remember { mutableStateOf(false) }
     var selectedSession by remember { mutableStateOf<IChatSession?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -215,11 +217,12 @@ fun MainAppShell(
                     }
 
                     2 -> {
-                        AppHeader()
                         SettingsScreen(
                             currentThemeId = scheme.id,
                             onThemeSelect = themeController::selectTheme,
-                            onOpenLanguage = { openLanguage() }
+                            onOpenLanguage = { openLanguage() },
+                            onLogout = onLogout,
+                            onSubScreenVisibilityChange = { isSettingsSubScreenOpen = it }
                         )
                     }
 
@@ -380,7 +383,8 @@ fun MainAppShell(
         // Остров виден только на корневых экранах: любой дочерний экран
         // (чат, поиск, контакты, архив, QR, язык) его скрывает.
         val isRootScreen = selectedSession == null && !isSearchOpen && !isContactsOpen &&
-            !isArchiveOpen && !isQrOpen && !isLanguageOpen
+            !isArchiveOpen && !isQrOpen && !isLanguageOpen &&
+            !(currentTab == 2 && isSettingsSubScreenOpen)
 
         AnimatedVisibility(
             visible = isRootScreen,

@@ -1,4 +1,4 @@
-package com.anongram.app.features.settings.ui.components
+package com.anongram.app.features.settings.language.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,9 +37,8 @@ import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
- * Диалоговое окно выбора языка интерфейса: переключатель между Русским и English.
- * При выборе нового языка настройки сохраняются немедленно, и весь интерфейс
- * реактивно перерисовывается.
+ * Диалоговое окно выбора языка интерфейса внутри модуля `language`:
+ * переключатель между Русским и English с мгновенным сохранением.
  */
 @Composable
 fun LanguagePickerDialog(

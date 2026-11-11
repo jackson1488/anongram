@@ -1,7 +1,6 @@
-package com.anongram.app.features.settings.ui.components
+package com.anongram.app.features.settings.chat_settings.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -34,9 +33,12 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
 
-/** Диалог выбора темы оформления: свотч градиента + название + галочка активной. */
+/**
+ * Диалог выбора цветовой темы оформления чатов AnonGram.
+ * Изолированный компонент модуля `features/settings/chat_settings/`.
+ */
 @Composable
-internal fun ThemePickerDialog(
+fun ThemePickerDialog(
     currentThemeId: String,
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit
