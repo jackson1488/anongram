@@ -1,5 +1,6 @@
 package com.anongram.app.features.settings.qr.ui.components
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -8,10 +9,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,7 +25,7 @@ import androidx.compose.ui.unit.dp
 
 /**
  * Элемент цветовой темы для экрана QR-кода.
- * @param id Уникальный порядковый номер цвета (0..41).
+ * @param id Уникальный порядковый номер цвета (0..83).
  * @param color Основной цвет плашки и акцента QR-кода.
  * @param gradient Цвета градиента для фона экрана и экспортируемого изображения.
  */
@@ -74,7 +78,7 @@ object QrThemePalette {
         QrThemeItem(28, Color(0xFF38BDF8), listOf(Color(0xFF7DD3FC), Color(0xFF0284C7), Color(0xFF034A70))),
         QrThemeItem(29, Color(0xFF4F75C2), listOf(Color(0xFF688EDB), Color(0xFF3B5B9E), Color(0xFF1C2E52))),
 
-        // Ряд 30: Королевский синий / Индиго / Фиолетовый
+        // Ряд 6: Королевский синий / Индиго / Фиолетовый
         QrThemeItem(30, Color(0xFF2563EB), listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8), Color(0xFF0F2B75))),
         QrThemeItem(31, Color(0xFF6366F1), listOf(Color(0xFF818CF8), Color(0xFF4F46E5), Color(0xFF252175))),
         QrThemeItem(32, Color(0xFF7C3AED), listOf(Color(0xFF9333EA), Color(0xFF6D28D9), Color(0xFF3B1278))),
@@ -88,7 +92,63 @@ object QrThemePalette {
         QrThemeItem(38, Color(0xFFDB2777), listOf(Color(0xFFF472B6), Color(0xFFBE185D), Color(0xFF60082D))),
         QrThemeItem(39, Color(0xFFEC4899), listOf(Color(0xFFF472B6), Color(0xFFDB2777), Color(0xFF700D39))),
         QrThemeItem(40, Color(0xFF9F4A63), listOf(Color(0xFFB55D77), Color(0xFF7E3348), Color(0xFF431622))),
-        QrThemeItem(41, Color(0xFFA8636E), listOf(Color(0xFFBC7782), Color(0xFF854752), Color(0xFF472228)))
+        QrThemeItem(41, Color(0xFFA8636E), listOf(Color(0xFFBC7782), Color(0xFF854752), Color(0xFF472228))),
+
+        // Ряд 8: Cyberpunk & Neon
+        QrThemeItem(42, Color(0xFF00F0FF), listOf(Color(0xFF38F9D7), Color(0xFF00B4D8), Color(0xFF032B43))),
+        QrThemeItem(43, Color(0xFF00FF66), listOf(Color(0xFF69FF97), Color(0xFF00B042), Color(0xFF043414))),
+        QrThemeItem(44, Color(0xFFFFE600), listOf(Color(0xFFFFF720), Color(0xFFD4AC0D), Color(0xFF423403))),
+        QrThemeItem(45, Color(0xFFFF007F), listOf(Color(0xFFFF529A), Color(0xFFB8005A), Color(0xFF450021))),
+        QrThemeItem(46, Color(0xFF9D00FF), listOf(Color(0xFFB54DFF), Color(0xFF6A00B0), Color(0xFF280044))),
+        QrThemeItem(47, Color(0xFFFF6600), listOf(Color(0xFFFF8C3A), Color(0xFFCC4400), Color(0xFF4D1700))),
+
+        // Ряд 9: Deep Space & Obsidian
+        QrThemeItem(48, Color(0xFF0A0A0C), listOf(Color(0xFF1B1B22), Color(0xFF0E0E12), Color(0xFF050507))),
+        QrThemeItem(49, Color(0xFF0F172A), listOf(Color(0xFF1E293B), Color(0xFF0F172A), Color(0xFF050811))),
+        QrThemeItem(50, Color(0xFF064E3B), listOf(Color(0xFF047857), Color(0xFF064E3B), Color(0xFF021B14))),
+        QrThemeItem(51, Color(0xFF311042), listOf(Color(0xFF581C87), Color(0xFF311042), Color(0xFF15041D))),
+        QrThemeItem(52, Color(0xFF1E293B), listOf(Color(0xFF334155), Color(0xFF1E293B), Color(0xFF080C12))),
+        QrThemeItem(53, Color(0xFF172554), listOf(Color(0xFF1E40AF), Color(0xFF172554), Color(0xFF070F26))),
+
+        // Ряд 10: Luxury Gems & Jewelry
+        QrThemeItem(54, Color(0xFFD4AF37), listOf(Color(0xFFF1D779), Color(0xFFA67C1E), Color(0xFF4A3408))),
+        QrThemeItem(55, Color(0xFF9B111E), listOf(Color(0xFFD72638), Color(0xFF800C19), Color(0xFF3D030A))),
+        QrThemeItem(56, Color(0xFF097969), listOf(Color(0xFF2E8B57), Color(0xFF097969), Color(0xFF04342C))),
+        QrThemeItem(57, Color(0xFF0F52BA), listOf(Color(0xFF2A75D3), Color(0xFF0A3B85), Color(0xFF031633))),
+        QrThemeItem(58, Color(0xFF6C3082), listOf(Color(0xFF9947B8), Color(0xFF512063), Color(0xFF230B2C))),
+        QrThemeItem(59, Color(0xFFFFC87C), listOf(Color(0xFFFFDAA8), Color(0xFFC78B3E), Color(0xFF54340E))),
+
+        // Ряд 11: Nature & Earth
+        QrThemeItem(60, Color(0xFF8A9A5B), listOf(Color(0xFFA4B674), Color(0xFF6B7B42), Color(0xFF343C1D))),
+        QrThemeItem(61, Color(0xFF2E5A44), listOf(Color(0xFF447D60), Color(0xFF244836), Color(0xFF11251B))),
+        QrThemeItem(62, Color(0xFFB35434), listOf(Color(0xFFD47352), Color(0xFF8B3A1F), Color(0xFF45190B))),
+        QrThemeItem(63, Color(0xFFC2B280), listOf(Color(0xFFD8CBA2), Color(0xFF998A5B), Color(0xFF4D4428))),
+        QrThemeItem(64, Color(0xFF4E3629), listOf(Color(0xFF70503D), Color(0xFF3B281E), Color(0xFF1B110B))),
+        QrThemeItem(65, Color(0xFFA0522D), listOf(Color(0xFFC46E44), Color(0xFF7E3D1F), Color(0xFF3C1A0B))),
+
+        // Ряд 12: Nordic Pastels
+        QrThemeItem(66, Color(0xFFB39DDB), listOf(Color(0xFFD1C4E9), Color(0xFF9575CD), Color(0xFF4527A0))),
+        QrThemeItem(67, Color(0xFFA5D6A7), listOf(Color(0xFFC8E6C9), Color(0xFF81C784), Color(0xFF2E7D32))),
+        QrThemeItem(68, Color(0xFFFFCCBC), listOf(Color(0xFFFFE0B2), Color(0xFFFFAB91), Color(0xFFBF360C))),
+        QrThemeItem(69, Color(0xFF90CAF9), listOf(Color(0xFFBBDEFB), Color(0xFF64B5F6), Color(0xFF1565C0))),
+        QrThemeItem(70, Color(0xFFF48FB1), listOf(Color(0xFFF8BBD0), Color(0xFFF06292), Color(0xFFAD1457))),
+        QrThemeItem(71, Color(0xFFFFF59D), listOf(Color(0xFFFFF9C4), Color(0xFFFFF176), Color(0xFFF57F17))),
+
+        // Ряд 13: Ocean & Marine
+        QrThemeItem(72, Color(0xFF003B46), listOf(Color(0xFF07575B), Color(0xFF003B46), Color(0xFF001F24))),
+        QrThemeItem(73, Color(0xFFFF6F61), listOf(Color(0xFFFF8A7A), Color(0xFFD94D40), Color(0xFF6E1F18))),
+        QrThemeItem(74, Color(0xFF66CDAA), listOf(Color(0xFF8CE3C3), Color(0xFF45A583), Color(0xFF194C3B))),
+        QrThemeItem(75, Color(0xFF4682B4), listOf(Color(0xFF6495ED), Color(0xFF31628C), Color(0xFF122C42))),
+        QrThemeItem(76, Color(0xFF1F3A52), listOf(Color(0xFF325475), Color(0xFF162D42), Color(0xFF091624))),
+        QrThemeItem(77, Color(0xFF008080), listOf(Color(0xFF20B2AA), Color(0xFF005A5A), Color(0xFF002929))),
+
+        // Ряд 14: Sunset & Twilight
+        QrThemeItem(78, Color(0xFFE63946), listOf(Color(0xFFFF5964), Color(0xFFBA202C), Color(0xFF59070E))),
+        QrThemeItem(79, Color(0xFF6A0572), listOf(Color(0xFF8E0E99), Color(0xFF4F0355), Color(0xFF26012A))),
+        QrThemeItem(80, Color(0xFFC70039), listOf(Color(0xFFE31B54), Color(0xFF930028), Color(0xFF420011))),
+        QrThemeItem(81, Color(0xFF2A0845), listOf(Color(0xFF4E1678), Color(0xFF2A0845), Color(0xFF10021C))),
+        QrThemeItem(82, Color(0xFFFFB703), listOf(Color(0xFFFFC72C), Color(0xFFD49200), Color(0xFF5E3F00))),
+        QrThemeItem(83, Color(0xFF900C3F), listOf(Color(0xFFB81B57), Color(0xFF6B072D), Color(0xFF330114)))
     )
 
     val defaultTheme: QrThemeItem = items[0]
@@ -99,8 +159,8 @@ object QrThemePalette {
     /**
      * Получить сохранённую пользователем тему QR-кода из постоянного хранилища.
      */
-    fun getSavedTheme(context: android.content.Context): QrThemeItem {
-        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+    fun getSavedTheme(context: Context): QrThemeItem {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         val savedId = prefs.getInt(KEY_THEME_ID, defaultTheme.id)
         return items.firstOrNull { it.id == savedId } ?: defaultTheme
     }
@@ -108,17 +168,18 @@ object QrThemePalette {
     /**
      * Сохранить выбранную тему QR-кода в постоянное хранилище (не сбрасывается при перезаходе).
      */
-    fun saveTheme(context: android.content.Context, theme: QrThemeItem) {
-        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+    fun saveTheme(context: Context, theme: QrThemeItem) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         prefs.edit().putInt(KEY_THEME_ID, theme.id).apply()
     }
 }
 
 /**
- * Панель палитры расцветок (6 колонок × 7 рядов) в стиле Telegram / iPhone Glass:
- * - Скруглённая полупрозрачная карточка с мягким матовым бордером;
+ * Панель палитры расцветок (84 оттенка в 14 рядах по 6 колонок) с плавной прокруткой («листать можно»):
+ * - Скруглённая полупрозрачная карточка с мягким матовым бордером iPhone Glass;
+ * - Внутренний скролл позволяет легко и комфортно листать все 84 темы;
  * - Выделенный кружок имеет внешнее белое кольцо с отступом;
- * - Клик по любому кружку активирует цветовую тему.
+ * - Клик по любому кружку мгновенно активирует и сохраняет цветовую тему.
  */
 @Composable
 fun QrColorPaletteSheet(
@@ -126,17 +187,22 @@ fun QrColorPaletteSheet(
     onSelectTheme: (QrThemeItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scrollState = rememberScrollState()
+
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .height(236.dp)
             .clip(RoundedCornerShape(28.dp))
-            .background(Color(0xFF1E1E24).copy(alpha = 0.90f))
+            .background(Color(0xFF1E1E24).copy(alpha = 0.92f))
             .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(28.dp))
             .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState),
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             val chunked = QrThemePalette.items.chunked(6)
             for (row in chunked) {

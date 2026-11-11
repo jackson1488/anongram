@@ -72,7 +72,7 @@ fun QrCodeCard(
 
     Column(
         modifier = modifier
-            .width(314.dp)
+            .width(330.dp)
             .shadow(24.dp, RoundedCornerShape(36.dp), spotColor = Color.Black.copy(alpha = 0.35f))
             .clip(RoundedCornerShape(36.dp))
             .background(Color.White)
@@ -80,10 +80,10 @@ fun QrCodeCard(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.size(242.dp),
+            modifier = Modifier.size(256.dp),
             contentAlignment = Alignment.Center
         ) {
-            Canvas(modifier = Modifier.size(242.dp)) {
+            Canvas(modifier = Modifier.size(256.dp)) {
                 val matrix = bitMatrix
                 val gridSize = matrix?.width ?: 29
                 val cellSize = size.width / gridSize
@@ -152,7 +152,7 @@ fun QrCodeCard(
             // 3. Фирменная Стелс-иконка приложения в центре QR-кода (Cryptographic Shield + Stealth Plane)
             Box(
                 modifier = Modifier
-                    .size(54.dp)
+                    .size(56.dp)
                     .clip(CircleShape)
                     .background(effectiveColor)
                     .border(2.5.dp, Color.White, CircleShape),
@@ -162,7 +162,7 @@ fun QrCodeCard(
                     painter = painterResource(id = R.drawable.ic_stat_anongram),
                     contentDescription = "AnonGram Stealth Logo",
                     tint = Color.White,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier.size(30.dp)
                 )
             }
         }
@@ -173,8 +173,8 @@ fun QrCodeCard(
         Text(
             text = handleText,
             color = effectiveColor,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold,
+            fontSize = 25.sp,
+            fontWeight = FontWeight.Black,
             letterSpacing = 0.5.sp
         )
     }

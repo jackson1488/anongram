@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.qr.ui
 
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
@@ -66,6 +67,7 @@ import com.anongram.app.features.settings.qr.ui.components.QrThemePalette
  * - По умолчанию палитры нет, крупный QR-код расположен строго в центре экрана;
  * - При открытии палитры карточка плавно сдвигается вверх к шапке, а палитра выезжает точно под карточкой (как на фото);
  * - Сохранение выбранного цвета в SharedPreferences — цвет сохраняется при перезаходе и не сбрасывается на дефолт;
+ * - При системном жесте «Назад» — закрывается открытая палитра вместо закрытия экрана;
  * - Кнопка «Поделиться» отправляет ИСКЛЮЧИТЕЛЬНО текущий PNG-файл без текста и водяных знаков;
  * - Реальная генерация QR-кода ZXing со стелс-иконкой приложения (щит + самолётик) в центре;
  * - Премиальный iPhone Glass стиль оформления кнопок.
@@ -87,9 +89,14 @@ fun MyQrCodeScreen(
     // По умолчанию палитра скрыта!
     var isPaletteVisible by remember { mutableStateOf(false) }
 
+    // При системном жесте "Назад" — закрываем палитру, не выходя из экрана
+    BackHandler(enabled = isPaletteVisible) {
+        isPaletteVisible = false
+    }
+
     // Плавное масштабирование карточки при открытии палитры
     val cardScale by animateFloatAsState(
-        targetValue = if (isPaletteVisible) 0.90f else 1.0f,
+        targetValue = if (isPaletteVisible) 0.86f else 1.0f,
         animationSpec = tween(durationMillis = 300),
         label = "QrCardScale"
     )
