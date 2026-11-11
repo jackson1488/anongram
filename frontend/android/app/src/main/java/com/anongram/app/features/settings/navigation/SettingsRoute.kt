@@ -5,6 +5,7 @@ package com.anongram.app.features.settings.navigation
  */
 sealed interface SettingsRoute {
     data object Main : SettingsRoute
+    data object Search : SettingsRoute
     data object MyQr : SettingsRoute
     data object QrScanner : SettingsRoute
     data object Account : SettingsRoute

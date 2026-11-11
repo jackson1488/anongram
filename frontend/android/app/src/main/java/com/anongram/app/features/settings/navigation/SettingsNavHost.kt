@@ -27,6 +27,7 @@ import com.anongram.app.features.settings.main.ui.SettingsMainScreen
 import com.anongram.app.features.settings.notifications.ui.NotificationsSettingsScreen
 import com.anongram.app.features.settings.privacy.ui.PrivacySecuritySettingsScreen
 import com.anongram.app.features.settings.security.ui.SecuritySettingsScreen
+import com.anongram.app.features.settings.search.ui.SettingsSearchScreen
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import com.anongram.app.features.settings.qr.ui.QrCameraScannerScreen
 
@@ -92,6 +93,13 @@ fun SettingsNavHost(
                 SettingsMainScreen(
                     onNavigate = navigateTo,
                     onLogout = onLogout
+                )
+            }
+
+            SettingsRoute.Search -> {
+                SettingsSearchScreen(
+                    onNavigate = navigateTo,
+                    onBack = popBack
                 )
             }
 

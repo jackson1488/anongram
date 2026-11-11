@@ -334,7 +334,7 @@ fun SettingsMainScreen(
                         modifier = Modifier
                             .size(34.dp)
                             .clip(CircleShape)
-                            .clickable { },
+                            .clickable { onNavigate(SettingsRoute.Search) },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
