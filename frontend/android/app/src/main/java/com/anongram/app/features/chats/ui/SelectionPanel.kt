@@ -30,9 +30,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
-import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Панель режима выделения сообщений в стиле плавающих островков:
@@ -60,6 +58,7 @@ internal fun SelectionPanel(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -72,8 +71,8 @@ internal fun SelectionPanel(
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(IslandBackground)
-                .border(1.dp, CardBorder, CircleShape),
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             IconButton(
@@ -83,7 +82,7 @@ internal fun SelectionPanel(
                 Icon(
                     imageVector = Icons.Outlined.Close,
                     contentDescription = "Отмена выбора",
-                    tint = TextPrimary,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -95,14 +94,14 @@ internal fun SelectionPanel(
                 .weight(1f)
                 .height(50.dp)
                 .clip(RoundedCornerShape(25.dp))
-                .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(25.dp))
                 .padding(horizontal = 16.dp),
             contentAlignment = Alignment.CenterStart
         ) {
             Text(
                 text = "Выбрано $selectedCount",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -113,8 +112,8 @@ internal fun SelectionPanel(
             modifier = Modifier
                 .height(50.dp)
                 .clip(RoundedCornerShape(25.dp))
-                .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(25.dp))
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -128,7 +127,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Brush,
                             contentDescription = "Редактировать",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -139,7 +138,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.FileDownload,
                             contentDescription = "Сохранить в галерею",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -150,7 +149,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.Reply,
                             contentDescription = "Переслать",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier
                                 .size(20.dp)
                                 .graphicsLayer { scaleX = -1f }
@@ -163,7 +162,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Share,
                             contentDescription = "Поделиться",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -174,7 +173,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Удалить",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -188,7 +187,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Brush,
                             contentDescription = "Редактировать",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -199,7 +198,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.FileDownload,
                             contentDescription = "Сохранить в Загрузки",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -210,7 +209,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.Reply,
                             contentDescription = "Переслать",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier
                                 .size(20.dp)
                                 .graphicsLayer { scaleX = -1f }
@@ -223,7 +222,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Share,
                             contentDescription = "Поделиться",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -234,7 +233,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Удалить",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -250,7 +249,7 @@ internal fun SelectionPanel(
                                 Icon(
                                     imageVector = Icons.Outlined.Brush,
                                     contentDescription = "Редактировать / Заменить",
-                                    tint = TextPrimary,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -261,7 +260,7 @@ internal fun SelectionPanel(
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
                                     contentDescription = "Сохранить в галерею",
-                                    tint = TextPrimary,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -272,7 +271,7 @@ internal fun SelectionPanel(
                                 Icon(
                                     imageVector = Icons.Outlined.Share,
                                     contentDescription = "Поделиться",
-                                    tint = TextPrimary,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -286,7 +285,7 @@ internal fun SelectionPanel(
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
                                     contentDescription = "Сохранить альбом в галерею",
-                                    tint = TextPrimary,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -300,7 +299,7 @@ internal fun SelectionPanel(
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
                                     contentDescription = "Сохранить",
-                                    tint = TextPrimary,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -314,7 +313,7 @@ internal fun SelectionPanel(
                                 Icon(
                                     imageVector = Icons.Outlined.ContentCopy,
                                     contentDescription = "Копировать",
-                                    tint = TextPrimary,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
@@ -329,7 +328,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.Reply,
                             contentDescription = "Переслать",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier
                                 .size(20.dp)
                                 .graphicsLayer { scaleX = -1f }
@@ -344,7 +343,7 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Delete,
                             contentDescription = "Удалить",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
                     }

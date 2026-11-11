@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.FlameOrange
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /** Кнопка «вниз» (шаг 13): круглая, справа над полем, с горящим огненным счётчиком непрочитанных сообщений рядом. */
 @Composable
@@ -41,6 +42,7 @@ internal fun ScrollDownButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     androidx.compose.animation.AnimatedVisibility(
         visible = visible,
         enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.scaleIn(),
@@ -86,15 +88,15 @@ internal fun ScrollDownButton(
                     .size(44.dp)
                     .shadow(elevation = 6.dp, shape = CircleShape)
                     .clip(CircleShape)
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, CircleShape)
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, CircleShape)
                     .clickable(onClick = onClick),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.KeyboardArrowDown,
                     contentDescription = "Прокрутить вниз",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(24.dp)
                 )
             }

@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.features.attach.ui.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
@@ -194,7 +193,7 @@ fun ChatScreen(
         }
     }
 
-    val imeMetrics = rememberChatImeMetrics(state)
+    val imeMetrics = rememberChatImeMetrics(state, isReplaceAttachOpen = isReplaceAttachSheetOpen)
     val isCircleOverlayActive = state.recording.mode == RecordMode.CIRCLE || state.videoReviewDraft != null
     val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
 
@@ -358,48 +357,56 @@ fun ChatScreen(
                 .align(Alignment.TopCenter)
         )
 
-        ChatOverlaysHost(
-            session = session,
-            state = state,
-            viewModel = viewModel,
-            listState = listState,
-            audioController = audioController,
-            imeMetrics = imeMetrics,
-            inputFocusRequester = inputFocusRequester,
-            activeSessions = activeSessions,
-            onOpenTargetSession = onOpenTargetSession,
-            onOpenDirectPeer = onOpenDirectPeer,
-            isFullEditorOpen = isFullEditorOpen,
-            onCloseFullEditor = { isFullEditorOpen = false },
-            isWallpaperOpen = isWallpaperOpen,
-            onCloseWallpaper = { isWallpaperOpen = false },
-            isReplyPreviewOpen = isReplyPreviewOpen,
-            onCloseReplyPreview = { isReplyPreviewOpen = false },
-            isReplaceAttachSheetOpen = isReplaceAttachSheetOpen,
-            replaceInitialTab = replaceInitialTab,
-            onCloseReplaceAttach = { isReplaceAttachSheetOpen = false },
-            forwardingMessageIds = forwardingMessageIds,
-            onStartForward = { ids -> forwardingMessageIds = ids },
-            onCloseForward = { forwardingMessageIds = null },
-            viewingMediaMessage = viewingMediaMessage,
-            viewingMediaInitialIndex = viewingMediaInitialIndex,
-            viewingOverrideSingleUri = viewingOverrideSingleUri,
-            wasKeyboardOpenBeforeViewer = wasKeyboardOpenBeforeViewer,
-            onUpdateMediaViewer = { updated -> viewingMediaMessage = updated },
-            onCloseMediaViewer = { _ ->
-                viewingMediaMessage = null
-                viewingOverrideSingleUri = null
-                wasKeyboardOpenBeforeViewer = false
-            },
-            actionMenuAnchorTopY = actionMenuAnchorTopY,
-            actionMenuAnchorBottomY = actionMenuAnchorBottomY,
-            isMusicSheetOpen = isMusicSheetOpen,
-            isAudioSheetOpen = isAudioSheetOpen,
-            isAudioFullScreenOpen = isAudioFullScreenOpen,
-            onCloseMusicSheet = { isMusicSheetOpen = false },
-            fullTextMessageModal = fullTextMessageModal,
-            onCloseFullTextModal = { fullTextMessageModal = null }
-        )
+        // Модальные оверлеи (скрепка, замена вложения, просмотр медиа, меню и т.д.)
+        // ВСЕГДА выше шапки (z=1) и поля ввода (z=3).
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(10f)
+        ) {
+            ChatOverlaysHost(
+                session = session,
+                state = state,
+                viewModel = viewModel,
+                listState = listState,
+                audioController = audioController,
+                imeMetrics = imeMetrics,
+                inputFocusRequester = inputFocusRequester,
+                activeSessions = activeSessions,
+                onOpenTargetSession = onOpenTargetSession,
+                onOpenDirectPeer = onOpenDirectPeer,
+                isFullEditorOpen = isFullEditorOpen,
+                onCloseFullEditor = { isFullEditorOpen = false },
+                isWallpaperOpen = isWallpaperOpen,
+                onCloseWallpaper = { isWallpaperOpen = false },
+                isReplyPreviewOpen = isReplyPreviewOpen,
+                onCloseReplyPreview = { isReplyPreviewOpen = false },
+                isReplaceAttachSheetOpen = isReplaceAttachSheetOpen,
+                replaceInitialTab = replaceInitialTab,
+                onCloseReplaceAttach = { isReplaceAttachSheetOpen = false },
+                forwardingMessageIds = forwardingMessageIds,
+                onStartForward = { ids -> forwardingMessageIds = ids },
+                onCloseForward = { forwardingMessageIds = null },
+                viewingMediaMessage = viewingMediaMessage,
+                viewingMediaInitialIndex = viewingMediaInitialIndex,
+                viewingOverrideSingleUri = viewingOverrideSingleUri,
+                wasKeyboardOpenBeforeViewer = wasKeyboardOpenBeforeViewer,
+                onUpdateMediaViewer = { updated -> viewingMediaMessage = updated },
+                onCloseMediaViewer = { _ ->
+                    viewingMediaMessage = null
+                    viewingOverrideSingleUri = null
+                    wasKeyboardOpenBeforeViewer = false
+                },
+                actionMenuAnchorTopY = actionMenuAnchorTopY,
+                actionMenuAnchorBottomY = actionMenuAnchorBottomY,
+                isMusicSheetOpen = isMusicSheetOpen,
+                isAudioSheetOpen = isAudioSheetOpen,
+                isAudioFullScreenOpen = isAudioFullScreenOpen,
+                onCloseMusicSheet = { isMusicSheetOpen = false },
+                fullTextMessageModal = fullTextMessageModal,
+                onCloseFullTextModal = { fullTextMessageModal = null }
+            )
+        }
 
         SelectionLimitBannerHost(
             warningText = state.limitWarning,

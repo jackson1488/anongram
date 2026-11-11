@@ -314,7 +314,7 @@ internal fun PinnedBar(
                 Icon(
                     imageVector = Icons.Outlined.PushPin,
                     contentDescription = "Все закреплённые сообщения",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
             }

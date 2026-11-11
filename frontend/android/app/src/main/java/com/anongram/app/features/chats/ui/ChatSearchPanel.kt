@@ -43,26 +43,17 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.timeLabel
-
-private val SEARCH_ISLAND_BG = IslandBackground // 100% непрозрачный фон островков
 
 /**
  * Верхняя парящая полоска поиска Telegram-style:
  * ДВА РАЗДЕЛЬНЫХ ОСТРОВКА одинаковой высоты (50.dp):
  * 1) Круглый островок «Назад» (выход из поиска)
  * 2) Островок поиска с полем ввода и кнопкой очистки «✕»
- * Оба островка непрозрачные с тонкой обводкой CardBorder.
  */
 @Composable
 internal fun ChatSearchTopBar(
@@ -85,8 +76,8 @@ internal fun ChatSearchTopBar(
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(SEARCH_ISLAND_BG)
-                .border(1.dp, CardBorder, CircleShape),
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             IconButton(
@@ -96,7 +87,7 @@ internal fun ChatSearchTopBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = "Закрыть поиск",
-                    tint = TextPrimary,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -108,8 +99,8 @@ internal fun ChatSearchTopBar(
                 .weight(1f)
                 .height(50.dp)
                 .clip(RoundedCornerShape(25.dp))
-                .background(SEARCH_ISLAND_BG)
-                .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(25.dp))
                 .padding(horizontal = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -120,7 +111,7 @@ internal fun ChatSearchTopBar(
                 if (query.isEmpty()) {
                     Text(
                         text = "Поиск",
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 15.sp
                     )
                 }
@@ -129,7 +120,7 @@ internal fun ChatSearchTopBar(
                     onValueChange = onQueryChange,
                     modifier = Modifier.fillMaxWidth(),
                     textStyle = TextStyle(
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Normal
                     ),
@@ -146,7 +137,7 @@ internal fun ChatSearchTopBar(
                     Icon(
                         imageVector = Icons.Outlined.Close,
                         contentDescription = "Очистить запрос",
-                        tint = TextSecondary,
+                        tint = scheme.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -167,6 +158,7 @@ internal fun ChatSearchNavigationButtons(
     onNext: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -177,15 +169,15 @@ internal fun ChatSearchNavigationButtons(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(SEARCH_ISLAND_BG)
-                .border(1.dp, CardBorder, CircleShape)
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, CircleShape)
                 .clickable(enabled = canNavigate, onClick = onPrevious),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.KeyboardArrowUp,
                 contentDescription = "Предыдущее совпадение",
-                tint = if (canNavigate) TextPrimary else TextMuted.copy(alpha = 0.4f),
+                tint = if (canNavigate) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.4f),
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -195,15 +187,15 @@ internal fun ChatSearchNavigationButtons(
             modifier = Modifier
                 .size(44.dp)
                 .clip(CircleShape)
-                .background(SEARCH_ISLAND_BG)
-                .border(1.dp, CardBorder, CircleShape)
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, CircleShape)
                 .clickable(enabled = canNavigate, onClick = onNext),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.KeyboardArrowDown,
                 contentDescription = "Следующее совпадение",
-                tint = if (canNavigate) TextPrimary else TextMuted.copy(alpha = 0.4f),
+                tint = if (canNavigate) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.4f),
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -231,8 +223,8 @@ internal fun ChatSearchBottomBar(
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .height(44.dp)
             .clip(RoundedCornerShape(22.dp))
-            .background(SEARCH_ISLAND_BG)
-            .border(1.dp, CardBorder, RoundedCornerShape(22.dp))
+            .background(scheme.islandBg)
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
@@ -240,7 +232,7 @@ internal fun ChatSearchBottomBar(
         // Счётчик результатов («1 из 3» или «273 результата»)
         Text(
             text = if (counter.isBlank()) "0 из 0" else counter,
-            color = if (enabled) TextPrimary else TextMuted.copy(alpha = 0.45f),
+            color = if (enabled) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.45f),
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
@@ -248,7 +240,7 @@ internal fun ChatSearchBottomBar(
         // Кнопка переключения режима («Списком» или «В чате»)
         Text(
             text = if (isListMode) "В чате" else "Списком",
-            color = if (enabled) scheme.accent else TextMuted.copy(alpha = 0.35f),
+            color = if (enabled) scheme.accent else scheme.textMuted.copy(alpha = 0.35f),
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.clickable(enabled = enabled, onClick = onListClick)
@@ -272,9 +264,8 @@ internal fun formatResultsCount(count: Int): String {
 }
 
 /**
- * Экран списка результатов поиска (Фото 8 / media_1793133464433.png):
- * Непрозрачный фон ObsidianBlack, аватар слева, имя отправителя («Ринат» или «Вы»), время («02:32»),
- * сниппет сообщения с подсветкой поискового запроса и тонкий разделитель между элементами.
+ * Экран списка результатов поиска:
+ * аватар слева, имя отправителя, время, сниппет с подсветкой совпадений.
  */
 @Composable
 internal fun ChatSearchResultsList(
@@ -291,7 +282,7 @@ internal fun ChatSearchResultsList(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
     ) {
         if (matches.isEmpty()) {
             Box(
@@ -302,7 +293,7 @@ internal fun ChatSearchResultsList(
             ) {
                 Text(
                     text = "Ничего не найдено",
-                    color = TextMuted,
+                    color = scheme.textMuted,
                     fontSize = 15.sp
                 )
             }
@@ -344,17 +335,16 @@ internal fun ChatSearchResultsList(
                                     )
                                 }
                             } else {
-                                // Аватар для "Вы" (белый круг как в Telegram скриншоте)
                                 Box(
                                     modifier = Modifier
                                         .size(46.dp)
                                         .clip(CircleShape)
-                                        .background(Color.White),
+                                        .background(scheme.accent),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
                                         text = "Вы",
-                                        color = Color(0xFF1A1A1A),
+                                        color = scheme.onAccent,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -372,13 +362,13 @@ internal fun ChatSearchResultsList(
                                 ) {
                                     Text(
                                         text = senderName,
-                                        color = TextPrimary,
+                                        color = scheme.textPrimary,
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         text = message.timeLabel(),
-                                        color = TextSecondary,
+                                        color = scheme.textSecondary,
                                         fontSize = 12.sp
                                     )
                                 }
@@ -399,9 +389,10 @@ internal fun ChatSearchResultsList(
                                             text = buildHighlightedSnippet(
                                                 text = att.name,
                                                 query = query,
-                                                highlightColor = scheme.accent
+                                                highlightColor = scheme.accent,
+                                                highlightTextColor = scheme.textPrimary
                                             ),
-                                            color = Color(0xFF9D84FF),
+                                            color = scheme.accent,
                                             fontSize = 14.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -413,9 +404,10 @@ internal fun ChatSearchResultsList(
                                             text = buildHighlightedSnippet(
                                                 text = photoText,
                                                 query = query,
-                                                highlightColor = scheme.accent
+                                                highlightColor = scheme.accent,
+                                                highlightTextColor = scheme.textPrimary
                                             ),
-                                            color = TextSecondary,
+                                            color = scheme.textSecondary,
                                             fontSize = 14.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -424,7 +416,7 @@ internal fun ChatSearchResultsList(
                                     is MessageAttachment.Voice -> {
                                         Text(
                                             text = "🎙 Голосовое сообщение",
-                                            color = TextSecondary,
+                                            color = scheme.textSecondary,
                                             fontSize = 14.sp
                                         )
                                     }
@@ -433,9 +425,10 @@ internal fun ChatSearchResultsList(
                                             text = buildHighlightedSnippet(
                                                 text = "🎵 ${att.artist} — ${att.title}",
                                                 query = query,
-                                                highlightColor = scheme.accent
+                                                highlightColor = scheme.accent,
+                                                highlightTextColor = scheme.textPrimary
                                             ),
-                                            color = TextSecondary,
+                                            color = scheme.textSecondary,
                                             fontSize = 14.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -446,9 +439,10 @@ internal fun ChatSearchResultsList(
                                             text = buildHighlightedSnippet(
                                                 text = "📍 ${att.address}",
                                                 query = query,
-                                                highlightColor = scheme.accent
+                                                highlightColor = scheme.accent,
+                                                highlightTextColor = scheme.textPrimary
                                             ),
-                                            color = TextSecondary,
+                                            color = scheme.textSecondary,
                                             fontSize = 14.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -459,9 +453,10 @@ internal fun ChatSearchResultsList(
                                             text = buildHighlightedSnippet(
                                                 text = "👤 ${att.name} (${att.phone})",
                                                 query = query,
-                                                highlightColor = scheme.accent
+                                                highlightColor = scheme.accent,
+                                                highlightTextColor = scheme.textPrimary
                                             ),
-                                            color = TextSecondary,
+                                            color = scheme.textSecondary,
                                             fontSize = 14.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -471,11 +466,12 @@ internal fun ChatSearchResultsList(
                                         val annotated = buildHighlightedSnippet(
                                             text = message.text,
                                             query = query,
-                                            highlightColor = scheme.accent
+                                            highlightColor = scheme.accent,
+                                            highlightTextColor = scheme.textPrimary
                                         )
                                         Text(
                                             text = annotated,
-                                            color = TextSecondary,
+                                            color = scheme.textSecondary,
                                             fontSize = 14.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -485,9 +481,9 @@ internal fun ChatSearchResultsList(
                             }
                         }
 
-                        // Тонкий разделитель под текстом (как в Telegram скриншоте media_1793133464433.png)
+                        // Тонкий разделитель под текстом
                         HorizontalDivider(
-                            color = CardBorder.copy(alpha = 0.35f),
+                            color = scheme.divider.copy(alpha = 0.55f),
                             thickness = 0.5.dp,
                             modifier = Modifier.padding(start = 76.dp)
                         )
@@ -504,7 +500,8 @@ internal fun ChatSearchResultsList(
 internal fun buildHighlightedSnippet(
     text: String,
     query: String,
-    highlightColor: Color
+    highlightColor: Color,
+    highlightTextColor: Color = Color.White
 ): AnnotatedString {
     if (query.isBlank()) return AnnotatedString(text)
     val builder = AnnotatedString.Builder()
@@ -523,7 +520,7 @@ internal fun buildHighlightedSnippet(
         builder.pushStyle(
             SpanStyle(
                 background = highlightColor.copy(alpha = 0.35f),
-                color = Color.White,
+                color = highlightTextColor,
                 fontWeight = FontWeight.Bold
             )
         )

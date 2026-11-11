@@ -60,17 +60,10 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.FlameOrange
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.state.SelfDestruct
-
-private val AccentViolet = Color(0xFF7A4DF3)
 
 /**
  * Верхняя панель чата — парящие закругленные «таблетки»:
@@ -186,7 +179,7 @@ internal fun ChatTopBar(
                 CompactIconButton(
                     painter = painterResource(id = R.drawable.ic_phone),
                     description = "Аудиозвонок",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     onClick = { /* Аудиозвонок */ }
                 )
                 ChatMenu(
@@ -225,6 +218,7 @@ private fun ChatMenu(
     onClearHistory: () -> Unit,
     onDeleteChat: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     var menuOpen by remember { mutableStateOf(false) }
     var isNotificationsSubmenu by remember { mutableStateOf(false) }
     var showMuteDurationSheet by remember { mutableStateOf(false) }
@@ -235,7 +229,7 @@ private fun ChatMenu(
         CompactIconButton(
             icon = Icons.Outlined.MoreVert,
             description = "Меню чата",
-            tint = TextSecondary,
+            tint = scheme.textSecondary,
             onClick = {
                 isNotificationsSubmenu = false
                 menuOpen = true
@@ -251,8 +245,8 @@ private fun ChatMenu(
             },
             offset = DpOffset(x = 0.dp, y = (-44).dp),
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color(0xFF161E2D),
-            border = BorderStroke(1.dp, CardBorder)
+            containerColor = scheme.islandBg,
+            border = BorderStroke(1.dp, scheme.islandBorder)
         ) {
             if (!isNotificationsSubmenu) {
                 // 1. Уведомления > (Колокольчик)
@@ -405,16 +399,17 @@ private fun ClearHistoryDialog(
     onConfirm: (alsoDeleteForPeer: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     var alsoDeleteForPeer by remember { mutableStateOf(true) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = Color(0xFF161E2D),
+        containerColor = scheme.cardBg,
         title = {
             Text(
                 text = "Очистить историю",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -423,7 +418,7 @@ private fun ClearHistoryDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Вы точно хотите очистить историю сообщений с $peerName?",
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.height(14.dp))
@@ -439,15 +434,15 @@ private fun ClearHistoryDialog(
                         checked = alsoDeleteForPeer,
                         onCheckedChange = { alsoDeleteForPeer = it },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = AccentViolet,
-                            checkmarkColor = Color.White,
-                            uncheckedColor = TextSecondary
+                            checkedColor = scheme.accent,
+                            checkmarkColor = scheme.onAccent,
+                            uncheckedColor = scheme.textSecondary
                         )
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Также очистить для $peerName",
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 13.sp
                     )
                 }
@@ -464,7 +459,7 @@ private fun ClearHistoryDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Отмена", color = TextSecondary)
+                Text(text = "Отмена", color = scheme.textSecondary)
             }
         }
     )
@@ -480,12 +475,13 @@ private fun DeleteChatDialog(
     onConfirm: (alsoDeleteForPeer: Boolean) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     var alsoDeleteForPeer by remember { mutableStateOf(true) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = Color(0xFF161E2D),
+        containerColor = scheme.cardBg,
         title = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -495,7 +491,7 @@ private fun DeleteChatDialog(
                 Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = "Удалить чат",
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center
@@ -506,7 +502,7 @@ private fun DeleteChatDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
                     text = "Вы точно хотите удалить чат с $peerName?",
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 14.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -524,15 +520,15 @@ private fun DeleteChatDialog(
                         checked = alsoDeleteForPeer,
                         onCheckedChange = { alsoDeleteForPeer = it },
                         colors = CheckboxDefaults.colors(
-                            checkedColor = AccentViolet,
-                            checkmarkColor = Color.White,
-                            uncheckedColor = TextSecondary
+                            checkedColor = scheme.accent,
+                            checkmarkColor = scheme.onAccent,
+                            uncheckedColor = scheme.textSecondary
                         )
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "Также удалить для $peerName",
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 13.sp
                     )
                 }
@@ -549,7 +545,7 @@ private fun DeleteChatDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Отмена", color = TextSecondary)
+                Text(text = "Отмена", color = scheme.textSecondary)
             }
         }
     )

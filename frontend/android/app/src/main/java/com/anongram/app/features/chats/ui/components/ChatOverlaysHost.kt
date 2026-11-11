@@ -206,9 +206,12 @@ private fun ChatInputAndMediaOverlays(
             },
             onDismiss = {
                 imeMetrics.imeState.wasKeyboardOpenWhenAttached = false
+                imeMetrics.imeState.frozenKeyboardHeightPx = 0
                 viewModel.closeAttach()
             },
             onSend = { drafts ->
+                imeMetrics.imeState.wasKeyboardOpenWhenAttached = false
+                imeMetrics.imeState.frozenKeyboardHeightPx = 0
                 sendAttachDraftsToChat(drafts, viewModel)
                 viewModel.closeAttach()
             }
@@ -222,14 +225,28 @@ private fun ChatInputAndMediaOverlays(
             recipientName = session.title,
             initialTab = replaceInitialTab,
             isSingleReplaceMode = true,
+            keyboardHeightPx = imeMetrics.imeState.frozenKeyboardHeightPx,
+            wasKeyboardOpen = imeMetrics.imeState.wasKeyboardOpenWhenAttached,
+            onRestoreKeyboard = {
+                runCatching {
+                    inputFocusRequester.requestFocus()
+                    keyboardController?.show()
+                }
+            },
             onSingleReplace = { draft ->
+                imeMetrics.imeState.wasKeyboardOpenWhenAttached = false
+                imeMetrics.imeState.frozenKeyboardHeightPx = 0
                 onCloseReplaceAttach()
                 val (newAttachment, sheetCaption) = mapSingleReplaceDraft(draft)
                 if (newAttachment != null) {
                     viewModel.replaceEditingAttachment(newAttachment, sheetCaption?.ifBlank { null })
                 }
             },
-            onDismiss = onCloseReplaceAttach,
+            onDismiss = {
+                imeMetrics.imeState.wasKeyboardOpenWhenAttached = false
+                imeMetrics.imeState.frozenKeyboardHeightPx = 0
+                onCloseReplaceAttach()
+            },
             onSend = {}
         )
     }

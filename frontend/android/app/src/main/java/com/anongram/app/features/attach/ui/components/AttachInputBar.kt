@@ -53,15 +53,16 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.features.attach.ui.theme.AttachPurple
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.ui.input.emoji.EmojiStickerPanel
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
  * Плавающая нижняя панель ввода подписи:
  * - Появляется вместо панели вкладок, как только выбран хотя бы один элемент.
  * - Кнопка стикеров/эмодзи вместо счетчика выбора (как в чате, с открытием панели стикеров и эмодзи).
- * - Поле "Добавить подпись...", текст передается в драфт.
- * - Круглая фиолетовая кнопка отправки.
+ * - Поле подписи, текст передается в драфт.
+ * - Круглая акцентная кнопка отправки.
  * - Поддерживает imePadding: при открытии клавиатуры поднимается над ней.
  */
 @Composable
@@ -76,6 +77,8 @@ fun AttachInputBar(
     onToggleEmoji: (() -> Unit)? = null,
     onCloseEmoji: (() -> Unit)? = null
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
     val keyboardController = LocalSoftwareKeyboardController.current
     var internalEmojiOpen by remember { mutableStateOf(false) }
     val effectiveEmojiOpen = onToggleEmoji?.let { isEmojiOpen } ?: internalEmojiOpen
@@ -131,8 +134,8 @@ fun AttachInputBar(
                         .fillMaxWidth()
                         .shadow(elevation = 16.dp, shape = RoundedCornerShape(28.dp), ambientColor = Color.Black, spotColor = Color.Black)
                         .clip(RoundedCornerShape(28.dp))
-                        .background(Color(0xF51E1E1E))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
+                        .background(scheme.inputBg)
+                        .border(1.dp, scheme.inputBorder, RoundedCornerShape(28.dp))
                         .padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.Bottom
                 ) {
@@ -146,28 +149,28 @@ fun AttachInputBar(
                         },
                         modifier = Modifier
                             .padding(bottom = 2.dp)
-                            .size(38.dp)
+                            .size(40.dp)
                     ) {
                         Icon(
                             imageVector = if (effectiveEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                            contentDescription = "Стикеры и эмодзи",
-                            tint = if (effectiveEmojiOpen) AttachPurple else Color(0xFF8E8E93),
+                            contentDescription = strings.emojiAndStickers,
+                            tint = if (effectiveEmojiOpen) scheme.accent else scheme.textMuted,
                             modifier = Modifier.size(24.dp)
                         )
                     }
 
                     Spacer(modifier = Modifier.width(6.dp))
 
-                    // Поле ввода "Добавить подпись...", раздувается до ~5 см (110 dp), далее скролл
+                    // Поле ввода подписи, раздувается до ~110 dp, далее скролл
                     BasicTextField(
                         value = caption,
                         onValueChange = { onCaptionChange(it.take(1000)) },
                         textStyle = TextStyle(
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 15.sp,
                             lineHeight = 20.sp
                         ),
-                        cursorBrush = SolidColor(AttachPurple),
+                        cursorBrush = SolidColor(scheme.accent),
                         decorationBox = { innerTextField ->
                             Box(
                                 modifier = Modifier
@@ -179,8 +182,8 @@ fun AttachInputBar(
                             ) {
                                 if (caption.isEmpty()) {
                                     Text(
-                                        text = "Добавить подпись...",
-                                        color = Color(0xFF64748B),
+                                        text = strings.captionPlaceholder,
+                                        color = scheme.textMuted,
                                         fontSize = 15.sp
                                     )
                                 }
@@ -199,7 +202,7 @@ fun AttachInputBar(
                     if (caption.length >= 800) {
                         Text(
                             text = "${caption.length}/1000",
-                            color = if (caption.length >= 1000) Color(0xFFFF3B30) else Color.White.copy(alpha = 0.85f),
+                            color = if (caption.length >= 1000) Color(0xFFFF3B30) else scheme.textSecondary,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier
@@ -210,19 +213,19 @@ fun AttachInputBar(
 
                     Spacer(modifier = Modifier.width(4.dp))
 
-                    // Круглая фиолетовая кнопка отправки с бейджем количества (макет media_1793295326790.png)
+                    // Круглая кнопка отправки с бейджем количества
                     Box(contentAlignment = Alignment.TopStart) {
                         IconButton(
                             onClick = onSend,
                             modifier = Modifier
                                 .size(42.dp)
                                 .clip(CircleShape)
-                                .background(AttachPurple)
+                                .background(scheme.accent)
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.Send,
-                                contentDescription = "Отправить",
-                                tint = Color.White,
+                                contentDescription = strings.send,
+                                tint = scheme.onAccent,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -232,13 +235,13 @@ fun AttachInputBar(
                                     .offset(x = (-3).dp, y = (-3).dp)
                                     .size(18.dp)
                                     .clip(CircleShape)
-                                    .background(Color(0xFFC084FC))
-                                    .border(1.5.dp, Color(0xFF1E1E1E), CircleShape),
+                                    .background(scheme.accent.copy(alpha = 0.85f))
+                                    .border(1.5.dp, scheme.inputBg, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = selectedCount.toString(),
-                                    color = Color.White,
+                                    color = scheme.onAccent,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold
                                 )

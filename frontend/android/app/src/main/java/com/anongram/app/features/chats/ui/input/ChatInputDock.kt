@@ -77,7 +77,10 @@ internal data class ChatImeMetrics(
  * и согласованными отступами для списка сообщений, кружков и баннеров.
  */
 @Composable
-internal fun rememberChatImeMetrics(state: ChatMessagesUiState): ChatImeMetrics {
+internal fun rememberChatImeMetrics(
+    state: ChatMessagesUiState,
+    isReplaceAttachOpen: Boolean = false
+): ChatImeMetrics {
     val density = LocalDensity.current
     val imeState = remember { ChatImeLayoutState() }
     val currentImeBottom = WindowInsets.ime.getBottom(density)
@@ -85,8 +88,16 @@ internal fun rememberChatImeMetrics(state: ChatMessagesUiState): ChatImeMetrics 
         imeState.lastKeyboardHeightPx = currentImeBottom
     }
     val isKeyboardVisible = currentImeBottom > 0
+    val isAnyAttachOpen = state.isAttachOpen || isReplaceAttachOpen
 
-    if (state.isAttachOpen && imeState.wasKeyboardOpenWhenAttached && currentImeBottom > 0) {
+    LaunchedEffect(isAnyAttachOpen) {
+        if (!isAnyAttachOpen) {
+            imeState.wasKeyboardOpenWhenAttached = false
+            imeState.frozenKeyboardHeightPx = 0
+        }
+    }
+
+    if (isAnyAttachOpen && imeState.wasKeyboardOpenWhenAttached && currentImeBottom > 0) {
         imeState.frozenKeyboardHeightPx = currentImeBottom
     }
 
@@ -104,10 +115,10 @@ internal fun rememberChatImeMetrics(state: ChatMessagesUiState): ChatImeMetrics 
     }
 
     val isRecordingImeFrozen = isRecordingActive && imeState.wasKeyboardOpenWhenRecording
-    val isChatImeFrozen = (state.isAttachOpen && imeState.wasKeyboardOpenWhenAttached) || isRecordingImeFrozen
+    val isChatImeFrozen = (isAnyAttachOpen && imeState.wasKeyboardOpenWhenAttached) || isRecordingImeFrozen
     val chatBottomImePx = when {
         isRecordingImeFrozen -> imeState.frozenRecordingImePx
-        state.isAttachOpen && imeState.wasKeyboardOpenWhenAttached -> imeState.frozenKeyboardHeightPx
+        isAnyAttachOpen && imeState.wasKeyboardOpenWhenAttached -> imeState.frozenKeyboardHeightPx
         else -> currentImeBottom
     }
     val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
@@ -249,6 +260,13 @@ internal fun BoxScope.ChatInputDock(
                                     is MessageAttachment.Voice -> viewModel.openVoiceEditTrim()
                                     is MessageAttachment.VideoCircle -> viewModel.openVideoEditTrim()
                                     else -> {
+                                        if (imeMetrics.isKeyboardVisible) {
+                                            imeMetrics.imeState.wasKeyboardOpenWhenAttached = true
+                                            imeMetrics.imeState.frozenKeyboardHeightPx = imeMetrics.imeState.lastKeyboardHeightPx
+                                        } else {
+                                            imeMetrics.imeState.wasKeyboardOpenWhenAttached = false
+                                            imeMetrics.imeState.frozenKeyboardHeightPx = 0
+                                        }
                                         val tab = when (att) {
                                             is MessageAttachment.File, is MessageAttachment.FileGroup -> AttachTab.FILE
                                             is MessageAttachment.Music, is MessageAttachment.MusicGroup -> AttachTab.MUSIC

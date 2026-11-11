@@ -242,6 +242,7 @@ internal fun ChatHeaderScrim(
     isBlurred: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
     val isScrolled by remember(listState) {
         derivedStateOf {
             listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 10
@@ -259,8 +260,8 @@ internal fun ChatHeaderScrim(
             .then(if (isBlurred) Modifier.blur(22.dp) else Modifier)
             .background(
                 Brush.verticalGradient(
-                    0.0f to Color.Black.copy(alpha = headerScrimAlpha),
-                    0.65f to Color.Black.copy(alpha = headerScrimAlpha * 0.65f),
+                    0.0f to scheme.background.copy(alpha = headerScrimAlpha),
+                    0.65f to scheme.background.copy(alpha = headerScrimAlpha * 0.65f),
                     1.0f to Color.Transparent
                 )
             )

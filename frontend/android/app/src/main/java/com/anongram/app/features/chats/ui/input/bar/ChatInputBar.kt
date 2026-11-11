@@ -36,9 +36,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -53,11 +50,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.messages.state.RecordingState
@@ -110,9 +103,8 @@ fun ChatInputBar(
     val isRecording = recording.mode != RecordMode.NONE
     val isLockedRecording = recording.isLocked && isRecording
 
-    var textValue: String by remember(input) { mutableStateOf(input) }
     val scrollState = rememberScrollState()
-    val isMultiline = !isRecording && !isHiddenByTrim && (textValue.lines().size >= 3 || textValue.length >= 60)
+    val isMultiline = !isRecording && !isHiddenByTrim && (input.lines().size >= 3 || input.length >= 60)
 
     Box(
         modifier = modifier
@@ -199,7 +191,7 @@ fun ChatInputBar(
                                         .padding(end = if (isMultiline) 28.dp else 0.dp),
                                     contentAlignment = Alignment.CenterStart
                                 ) {
-                                    if (textValue.isEmpty()) {
+                                    if (input.isEmpty()) {
                                         Text(
                                             text = placeholderText,
                                             color = scheme.textMuted,
@@ -207,10 +199,9 @@ fun ChatInputBar(
                                         )
                                     }
                                     BasicTextField(
-                                        value = textValue,
+                                        value = input,
                                         onValueChange = { newText ->
                                             if (!isRecording) {
-                                                textValue = newText
                                                 onInputChange(newText)
                                             }
                                         },
@@ -228,7 +219,7 @@ fun ChatInputBar(
                                 }
                             }
 
-                            if (editing?.attachment == null && !canSend) {
+                            if (editing == null && !canSend) {
                                 IconButton(
                                     onClick = { if (!isRecording) onOpenAttach() },
                                     enabled = !isRecording,

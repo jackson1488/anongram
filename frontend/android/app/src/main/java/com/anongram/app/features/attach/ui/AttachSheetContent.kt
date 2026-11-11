@@ -272,6 +272,8 @@ fun AttachSheetContent(
                         .first { it >= keyboardHeightPx * 0.90f && it > 0 }
                     keyboardController?.hide()
                 }
+            } else if (wasKeyboardOpen) {
+                keyboardController?.hide()
             }
             animateTo(openOffset, 300)
         }

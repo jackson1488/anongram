@@ -34,7 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.anongram.app.core.theme.ObsidianBlack
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.wallpapers.api.WallpaperModule
 import com.anongram.app.features.wallpapers.model.ResolvedWallpaper
 import com.anongram.app.features.wallpapers.model.ThemePreset
@@ -72,6 +72,7 @@ fun WallpaperBackground(
     previewWallpaper: ResolvedWallpaper? = null
 ) {
     val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
     val provider = remember(context) { WallpaperModule.getProvider(context) }
 
     // Если передан previewWallpaper (например, в окне выбора темы), используем его для живого превью
@@ -87,7 +88,7 @@ fun WallpaperBackground(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
     ) {
         val motionModifier = if (resolved.motion) {
             Modifier
@@ -104,8 +105,8 @@ fun WallpaperBackground(
 
         when (val source = resolved.source) {
             is WallpaperSource.None -> {
-                // Чистый пустой тёмный фон
-                Box(modifier = Modifier.fillMaxSize().background(ObsidianBlack))
+                // Чистый пустой фон текущей темы
+                Box(modifier = Modifier.fillMaxSize().background(scheme.background))
             }
 
             is WallpaperSource.Theme -> {
@@ -189,7 +190,8 @@ private fun PhotoWallpaper(
         )
     } else {
         // Запасной фон до завершения загрузки фото
-        Box(modifier = modifier.background(ObsidianBlack))
+        val scheme = LocalAnonGramScheme.current
+        Box(modifier = modifier.background(scheme.background))
     }
 }
 
@@ -201,8 +203,10 @@ fun ThemePatternCanvas(
     preset: ThemePreset,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val dotColor = if (scheme.isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
     Canvas(modifier = modifier.fillMaxSize()) {
-        drawRect(color = ObsidianBlack)
+        drawRect(color = scheme.background)
 
         when (preset.patternStyle) {
             0 -> {
@@ -210,7 +214,6 @@ fun ThemePatternCanvas(
                 val gridStep = 28.dp.toPx()
                 val rowStep = gridStep * 0.86f
                 val dotRadius = 1.2.dp.toPx()
-                val dotColor = Color(0xFF141923)
 
                 var row = 0
                 var y = 0f
