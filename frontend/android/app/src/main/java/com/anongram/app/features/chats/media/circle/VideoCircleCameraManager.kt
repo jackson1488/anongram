@@ -50,6 +50,13 @@ class VideoCircleCameraManager(private val context: Context) {
     var videoSize: Size = Size(640, 480)
         private set
 
+    @Volatile
+    private var isOpeningCamera: Boolean = false
+
+    companion object {
+        private val cameraCache = java.util.concurrent.ConcurrentHashMap<Boolean, Pair<String, Size>>()
+    }
+
     private fun startBackgroundThread() {
         if (backgroundThread == null) {
             backgroundThread = HandlerThread("VideoCircleCameraThread").apply { start() }
@@ -66,6 +73,24 @@ class VideoCircleCameraManager(private val context: Context) {
         backgroundHandler = null
     }
 
+    private fun resolveCameraInfo(front: Boolean): Pair<String, Size>? {
+        cameraCache[front]?.let { return it }
+        return try {
+            val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
+                val chars = cameraManager.getCameraCharacteristics(id)
+                val facing = chars.get(CameraCharacteristics.LENS_FACING)
+                if (front) facing == CameraCharacteristics.LENS_FACING_FRONT
+                else facing == CameraCharacteristics.LENS_FACING_BACK
+            } ?: cameraManager.cameraIdList.firstOrNull() ?: return null
+            val size = chooseSupportedVideoSize(cameraId)
+            val pair = cameraId to size
+            cameraCache[front] = pair
+            pair
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun chooseSupportedVideoSize(cameraId: String): Size {
         return try {
             val chars = cameraManager.getCameraCharacteristics(cameraId)
@@ -74,7 +99,6 @@ class VideoCircleCameraManager(private val context: Context) {
             if (sizes.isNullOrEmpty()) {
                 Size(640, 480)
             } else {
-                // Ищем стандартное разрешение около 640x480 или 720p, которое гарантированно поддерживается H.264 кодеком
                 sizes.firstOrNull { it.width == 640 && it.height == 480 }
                     ?: sizes.firstOrNull { it.width == 720 && it.height == 480 }
                     ?: sizes.firstOrNull { it.width == 1280 && it.height == 720 }
@@ -84,6 +108,65 @@ class VideoCircleCameraManager(private val context: Context) {
             }
         } catch (_: Exception) {
             Size(640, 480)
+        }
+    }
+
+    /**
+     * Запускает открытие камеры параллельно с инфлейтом TextureView для мгновенного старта.
+     */
+    @SuppressLint("MissingPermission")
+    fun preOpenCamera(front: Boolean = true, autoStartRecording: Boolean = true) {
+        this.isFrontCamera = front
+        this.shouldAutoRecord = autoStartRecording
+        startBackgroundThread()
+        if (autoStartRecording && currentVideoFile == null) {
+            currentVideoFile = File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4")
+        }
+        backgroundHandler?.post {
+            if (cameraDevice == null && !isOpeningCamera) {
+                openCameraOnBackground(front)
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun openCameraOnBackground(front: Boolean) {
+        try {
+            val (cameraId, size) = resolveCameraInfo(front) ?: return
+            currentCameraId = cameraId
+            videoSize = size
+            isOpeningCamera = true
+
+            cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+                override fun onOpened(camera: CameraDevice) {
+                    isOpeningCamera = false
+                    cameraDevice = camera
+                    val st = surfaceTexture
+                    if (st != null) {
+                        st.setDefaultBufferSize(videoSize.width, videoSize.height)
+                        if (shouldAutoRecord && !isRecording) {
+                            val started = startRecordingInternal(camera)
+                            if (!started) createPreviewSession()
+                        } else if (!isRecording) {
+                            createPreviewSession()
+                        }
+                    }
+                }
+
+                override fun onDisconnected(camera: CameraDevice) {
+                    isOpeningCamera = false
+                    runCatching { camera.close() }
+                    cameraDevice = null
+                }
+
+                override fun onError(camera: CameraDevice, error: Int) {
+                    isOpeningCamera = false
+                    runCatching { camera.close() }
+                    cameraDevice = null
+                }
+            }, backgroundHandler)
+        } catch (_: Exception) {
+            isOpeningCamera = false
         }
     }
 
@@ -102,44 +185,24 @@ class VideoCircleCameraManager(private val context: Context) {
             currentVideoFile = File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4")
         }
 
-        try {
-            closeCameraOnly()
-
-            val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
-                val chars = cameraManager.getCameraCharacteristics(id)
-                val facing = chars.get(CameraCharacteristics.LENS_FACING)
-                if (front) facing == CameraCharacteristics.LENS_FACING_FRONT
-                else facing == CameraCharacteristics.LENS_FACING_BACK
-            } ?: cameraManager.cameraIdList.firstOrNull() ?: return
-
-            currentCameraId = cameraId
-            videoSize = chooseSupportedVideoSize(cameraId)
+        backgroundHandler?.post {
+            val info = resolveCameraInfo(front) ?: return@post
+            videoSize = info.second
             surfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height)
 
-            cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
-                override fun onOpened(camera: CameraDevice) {
-                    cameraDevice = camera
-                    if (shouldAutoRecord) {
-                        val started = startRecordingInternal(camera)
-                        if (!started) {
-                            createPreviewSession()
-                        }
-                    } else {
-                        createPreviewSession()
-                    }
+            val existing = cameraDevice
+            if (existing != null && currentCameraId == info.first) {
+                if (shouldAutoRecord && !isRecording) {
+                    val started = startRecordingInternal(existing)
+                    if (!started) createPreviewSession()
+                } else if (!isRecording) {
+                    createPreviewSession()
                 }
-
-                override fun onDisconnected(camera: CameraDevice) {
-                    runCatching { camera.close() }
-                    cameraDevice = null
-                }
-
-                override fun onError(camera: CameraDevice, error: Int) {
-                    runCatching { camera.close() }
-                    cameraDevice = null
-                }
-            }, backgroundHandler)
-        } catch (_: Exception) {}
+            } else if (!isOpeningCamera || currentCameraId != info.first) {
+                closeCameraOnly()
+                openCameraOnBackground(front)
+            }
+        }
     }
 
     private fun createPreviewSession() {
@@ -344,6 +407,13 @@ class VideoCircleCameraManager(private val context: Context) {
         }
 
         return if (file != null && file.exists() && file.length() > 0L) file else null
+    }
+
+    /** Останавливает запись и освобождает камеру, оставляя файл для предпросмотра и обрезки */
+    fun pauseRecordingForReview(): File? {
+        val file = stopRecording()
+        closeCameraOnly()
+        return file
     }
 
     fun cancelRecording() {

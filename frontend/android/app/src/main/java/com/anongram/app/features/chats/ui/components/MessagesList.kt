@@ -14,6 +14,10 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -35,6 +39,9 @@ import com.anongram.app.features.chats.media.player.ChatTrack
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
 import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
 import kotlinx.coroutines.launch
+
+/** Позволяет медиа-превью в пузырях откладывать старт декодеров на время активного скролла */
+internal val LocalIsListScrolling = compositionLocalOf { false }
 
 /** Окно между сообщениями одной группы — 2dp, между группами — 8dp. */
 private const val GROUP_GAP_MS = 5 * 60_000L
@@ -93,7 +100,9 @@ internal fun MessagesList(
     }
     val messageById = remember(messages) { messages.associateBy { it.id } }
     val scope = rememberCoroutineScope()
+    val isScrolling by remember(listState) { derivedStateOf { listState.isScrollInProgress } }
 
+    CompositionLocalProvider(LocalIsListScrolling provides isScrolling) {
     LazyColumn(
         state = listState,
         reverseLayout = true,
@@ -207,6 +216,7 @@ internal fun MessagesList(
                 )
             }
         }
+    }
     }
 }
 

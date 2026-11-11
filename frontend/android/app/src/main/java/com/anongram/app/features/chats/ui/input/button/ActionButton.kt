@@ -162,7 +162,7 @@ fun ActionButton(
                             var isLocked = false
 
                             val holdJob = this@coroutineScope.launch {
-                                delay(160)
+                                delay(90)
                                 if (!isCancelled && !isLocked) {
                                     isRecordingStarted = true
                                     currentOnStartRecording(

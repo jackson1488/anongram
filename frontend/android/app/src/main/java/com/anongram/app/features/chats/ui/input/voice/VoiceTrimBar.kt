@@ -47,22 +47,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlin.math.roundToInt
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.runtime.mutableIntStateOf
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.media.common.MediaTrimmer
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
- * Панель редактирования, обрезки и предпрослушивания голосового сообщения перед отправкой (Фото 5):
- * - Слева: белая корзина [ 🗑 ] для удаления записи
- * - По центру: фиолетово-сиреневый контейнер:
- *   - Левый ползунок обрезки [ ❙ ]
- *   - Интерактивная аудиоволна с прогрессом
- *   - Кнопка воспроизведения/паузы с таймером [ ▶ 0:04 ]
- *   - Правый ползунок обрезки [ ❙ ]
- * - Справа: круглая кнопка отправки с белым самолётиком [ ➤ ]
+ * Панель редактирования, обрезки и предпрослушивания голосового сообщения:
+ * - Слева: корзина [ 🗑 ] для удаления / отмены
+ * - По центру: [ ▶ 0:04 ] + интерактивная волна с ДВУМЯ подвижными ползунками обрезки (левый и правый)
+ *   и возможностью перемотки по волне в любую точку
+ * - Справа: кнопка отправки [ ➤ ] (или сохранения [ ✓ ] в режиме редактирования отправленного ГС)
  */
 @Composable
 fun VoiceTrimBar(
@@ -70,23 +74,39 @@ fun VoiceTrimBar(
     onDiscard: () -> Unit,
     onSend: (startFraction: Float, endFraction: Float) -> Unit,
     modifier: Modifier = Modifier,
+    isEditingMode: Boolean = false,
     fallbackDurationSeconds: Int = 4,
     fallbackWaveform: List<Int> = remember { listOf(4, 9, 6, 14, 8, 12, 5, 10, 7, 13, 6, 11, 4, 9, 7, 12, 8, 14, 6, 10) }
 ) {
     val scheme = LocalAnonGramScheme.current
+    val density = LocalDensity.current
     val effectiveWaveform = if (voice != null && voice.waveform.isNotEmpty()) voice.waveform else fallbackWaveform
-    val totalSeconds = if (voice != null) {
-        val parts = voice.durationLabel.split(":")
-        if (parts.size == 2) {
-            (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: fallbackDurationSeconds)
-        } else fallbackDurationSeconds
-    } else fallbackDurationSeconds
 
+    val fallbackSec = remember(voice?.durationLabel, fallbackDurationSeconds) {
+        if (voice != null) {
+            val parts = voice.durationLabel.split(":")
+            if (parts.size == 2) {
+                (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: fallbackDurationSeconds)
+            } else fallbackDurationSeconds
+        } else fallbackDurationSeconds
+    }
+
+    var actualDurationMs by remember(voice?.uri) { mutableIntStateOf(fallbackSec.coerceAtLeast(1) * 1000) }
     var isPlaying by remember { mutableStateOf(false) }
-    var currentProgress by remember { mutableFloatStateOf(0f) }
-    var trimStartFraction by remember { mutableFloatStateOf(0f) }
-    var trimEndFraction by remember { mutableFloatStateOf(1f) }
+    var currentProgress by remember(voice?.uri) { mutableFloatStateOf(0f) }
+    var trimStartFraction by remember(voice?.uri) { mutableFloatStateOf(0f) }
+    var trimEndFraction by remember(voice?.uri) { mutableFloatStateOf(1f) }
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+
+    LaunchedEffect(voice?.uri) {
+        val path = voice?.uri
+        if (!path.isNullOrBlank()) {
+            val ms = withContext(Dispatchers.IO) {
+                MediaTrimmer.readDurationMs(File(path))
+            }
+            if (ms > 0L) actualDurationMs = ms.toInt()
+        }
+    }
 
     DisposableEffect(voice?.uri) {
         onDispose {
@@ -98,47 +118,72 @@ fun VoiceTrimBar(
         }
     }
 
-    fun seekAndPlay() {
-        if (isPlaying) {
-            mediaPlayer?.pause()
-            isPlaying = false
-        } else {
-            val uriStr = voice?.uri
-            if (!uriStr.isNullOrBlank()) {
-                val file = File(uriStr)
-                if (file.exists()) {
-                    try {
-                        if (mediaPlayer == null) {
-                            val mp = MediaPlayer()
-                            mp.setAudioAttributes(
-                                AudioAttributes.Builder()
-                                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                                    .build()
-                            )
-                            mp.setDataSource(file.absolutePath)
-                            mp.prepare()
-                            mp.setOnCompletionListener {
-                                isPlaying = false
-                                currentProgress = trimStartFraction
-                            }
-                            mediaPlayer = mp
-                        }
-                        val mp = mediaPlayer!!
-                        val targetMs = (trimStartFraction * mp.duration).toInt()
-                        mp.seekTo(targetMs)
-                        mp.start()
-                        isPlaying = true
-                        return
-                    } catch (_: Exception) {
-                    }
+    fun ensurePlayer(): MediaPlayer? {
+        mediaPlayer?.let { return it }
+        val uriStr = voice?.uri ?: return null
+        val file = File(uriStr)
+        if (!file.exists()) return null
+        return try {
+            MediaPlayer().apply {
+                setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
+                        .build()
+                )
+                setDataSource(file.absolutePath)
+                prepare()
+                if (duration > 0) actualDurationMs = duration
+                setOnCompletionListener {
+                    isPlaying = false
+                    currentProgress = trimStartFraction
                 }
+                mediaPlayer = this
             }
-            isPlaying = true
+        } catch (_: Exception) {
+            null
         }
     }
 
-    LaunchedEffect(isPlaying, trimEndFraction) {
+    fun seekToFraction(frac: Float) {
+        val clamped = frac.coerceIn(trimStartFraction, trimEndFraction)
+        currentProgress = clamped
+        val mp = mediaPlayer
+        if (mp != null) {
+            val dur = mp.duration.takeIf { it > 0 } ?: actualDurationMs
+            runCatching { mp.seekTo((clamped * dur).toInt()) }
+        }
+    }
+
+    fun togglePlayPause() {
+        if (isPlaying) {
+            runCatching { mediaPlayer?.pause() }
+            isPlaying = false
+        } else {
+            val mp = ensurePlayer()
+            if (mp != null) {
+                val dur = mp.duration.takeIf { it > 0 } ?: actualDurationMs
+                val startPos = if (currentProgress < trimStartFraction || currentProgress >= trimEndFraction - 0.01f) {
+                    trimStartFraction
+                } else {
+                    currentProgress
+                }
+                currentProgress = startPos
+                runCatching {
+                    mp.seekTo((startPos * dur).toInt())
+                    mp.start()
+                }
+                isPlaying = true
+            } else {
+                if (currentProgress < trimStartFraction || currentProgress >= trimEndFraction) {
+                    currentProgress = trimStartFraction
+                }
+                isPlaying = true
+            }
+        }
+    }
+
+    LaunchedEffect(isPlaying, trimEndFraction, trimStartFraction) {
         while (isActive && isPlaying) {
             delay(50)
             val mp = mediaPlayer
@@ -147,12 +192,13 @@ fun VoiceTrimBar(
                 val prog = (mp.currentPosition.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
                 currentProgress = prog
                 if (prog >= trimEndFraction) {
-                    mp.pause()
+                    runCatching { mp.pause() }
                     isPlaying = false
                     currentProgress = trimStartFraction
                 }
             } else if (mp == null) {
-                currentProgress += (0.05f / totalSeconds.toFloat().coerceAtLeast(1f))
+                val step = 50f / actualDurationMs.toFloat().coerceAtLeast(1000f)
+                currentProgress += step
                 if (currentProgress >= trimEndFraction) {
                     currentProgress = trimStartFraction
                     isPlaying = false
@@ -161,20 +207,26 @@ fun VoiceTrimBar(
         }
     }
 
+    val totalSec = (actualDurationMs / 1000f).coerceAtLeast(1f)
     val displaySeconds = if (isPlaying) {
-        (currentProgress * totalSeconds).toInt()
+        ((currentProgress - trimStartFraction).coerceAtLeast(0f) * totalSec).toInt()
     } else {
-        ((trimEndFraction - trimStartFraction) * totalSeconds).roundToInt().coerceAtLeast(1)
+        ((trimEndFraction - trimStartFraction) * totalSec).roundToInt().coerceAtLeast(1)
     }
     val displayLabel = "%d:%02d".format(displaySeconds / 60, displaySeconds % 60)
 
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
             .padding(horizontal = 6.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Кнопка удаления (белая корзина слева)
+        // Кнопка удаления / сброса слева
         IconButton(
             onClick = {
                 mediaPlayer?.run {
@@ -182,7 +234,6 @@ fun VoiceTrimBar(
                     release()
                 }
                 mediaPlayer = null
-                voice?.uri?.let { runCatching { File(it).delete() } }
                 onDiscard()
             },
             modifier = Modifier.size(42.dp)
@@ -197,86 +248,69 @@ fun VoiceTrimBar(
 
         Spacer(modifier = Modifier.width(4.dp))
 
-        // Фиолетово-сиреневый контейнер с волной и ползунками обрезки
-        BoxWithConstraints(
+        // Фиолетово-сиреневый контейнер с кнопкой Play и перетаскиваемой волной
+        Row(
             modifier = Modifier
                 .weight(1f)
                 .height(48.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .background(scheme.accent.copy(alpha = 0.9f))
+                .background(scheme.accent.copy(alpha = 0.92f))
                 .border(1.dp, scheme.accent, RoundedCornerShape(24.dp))
-                .padding(horizontal = 6.dp),
-            contentAlignment = Alignment.CenterStart
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            val totalWidthPx = constraints.maxWidth.toFloat()
-            val density = LocalDensity.current
-
+            // Кнопка воспроизведения / паузы с таймером [ ▶ 0:04 ]
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(),
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White.copy(alpha = 0.24f))
+                    .clickable { togglePlayPause() }
+                    .padding(horizontal = 8.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Левый ползунок обрезки [ ❙ ]
-                Box(
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "Пауза" else "Слушать",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = displayLabel,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Дорожка аудиоволны с двумя подвижными ползунками обрезки
+            BoxWithConstraints(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(36.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                val handleWidthDp = 14.dp
+                val handleWidthPx = with(density) { handleWidthDp.toPx() }
+                val totalWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(handleWidthPx * 3f)
+                val usableWidthPx = (totalWidthPx - handleWidthPx * 2f).coerceAtLeast(1f)
+                val minSpan = 0.08f
+
+                // Волна по всей ширине дорожки
+                Row(
                     modifier = Modifier
-                        .size(width = 16.dp, height = 36.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(Color.White)
-                        .pointerInput(totalWidthPx) {
-                            detectDragGestures { change, dragAmount ->
-                                change.consume()
-                                val deltaFraction = dragAmount.x / totalWidthPx
-                                trimStartFraction = (trimStartFraction + deltaFraction).coerceIn(0f, trimEndFraction - 0.1f)
-                                if (currentProgress < trimStartFraction) {
-                                    currentProgress = trimStartFraction
-                                }
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .padding(horizontal = handleWidthDp / 2f)
+                        .pointerInput(usableWidthPx, trimStartFraction, trimEndFraction) {
+                            detectTapGestures { offset ->
+                                val frac = ((offset.x - handleWidthPx / 2f) / usableWidthPx).coerceIn(0f, 1f)
+                                seekToFraction(frac)
                             }
                         },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .width(2.dp)
-                            .height(18.dp)
-                            .background(Color(0xFF4A3464))
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Кнопка воспроизведения / паузы с таймером [ ▶ 0:04 ]
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(Color.White.copy(alpha = 0.22f))
-                        .clickable { seekAndPlay() }
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = if (isPlaying) "Пауза" else "Слушать",
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = displayLabel,
-                        color = Color.White,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Аудиоволна
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(28.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -284,39 +318,50 @@ fun VoiceTrimBar(
                     effectiveWaveform.forEachIndexed { index, height ->
                         val barFraction = index.toFloat() / count.toFloat()
                         val isInTrimZone = barFraction in trimStartFraction..trimEndFraction
-                        val isPlayed = barFraction <= currentProgress
+                        val isPlayed = barFraction <= currentProgress && barFraction >= trimStartFraction
 
                         val barColor = when {
                             isPlayed && isInTrimZone -> Color.White
-                            isInTrimZone -> Color.White.copy(alpha = 0.55f)
-                            else -> Color.White.copy(alpha = 0.2f)
+                            isInTrimZone -> Color.White.copy(alpha = 0.60f)
+                            else -> Color.White.copy(alpha = 0.20f)
                         }
 
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height((height * 1.5f).dp.coerceIn(4.dp, 24.dp))
+                                .height((height * 1.45f).dp.coerceIn(4.dp, 24.dp))
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(barColor)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.width(6.dp))
-
-                // Правый ползунок обрезки [ ❙ ]
+                // Рамка активного выделенного фрагмента между левым и правым ползунком
+                val leftXPx = (trimStartFraction * usableWidthPx).roundToInt()
+                val rightXPx = (handleWidthPx + trimEndFraction * usableWidthPx).roundToInt()
+                val activeWidthDp = with(density) { (rightXPx - leftXPx + handleWidthPx.roundToInt()).toDp() }
                 Box(
                     modifier = Modifier
-                        .size(width = 16.dp, height = 36.dp)
+                        .offset { IntOffset(leftXPx, 0) }
+                        .width(activeWidthDp)
+                        .height(34.dp)
+                        .border(1.5.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
+                )
+
+                // Подвижный левый ползунок [ ❙ ]
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(leftXPx, 0) }
+                        .size(width = handleWidthDp, height = 34.dp)
                         .clip(RoundedCornerShape(4.dp))
                         .background(Color.White)
-                        .pointerInput(totalWidthPx) {
+                        .pointerInput(usableWidthPx) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
-                                val deltaFraction = dragAmount.x / totalWidthPx
-                                trimEndFraction = (trimEndFraction + deltaFraction).coerceIn(trimStartFraction + 0.1f, 1f)
-                                if (currentProgress > trimEndFraction) {
-                                    currentProgress = trimEndFraction
+                                val deltaFraction = dragAmount.x / usableWidthPx
+                                trimStartFraction = (trimStartFraction + deltaFraction).coerceIn(0f, trimEndFraction - minSpan)
+                                if (currentProgress < trimStartFraction) {
+                                    seekToFraction(trimStartFraction)
                                 }
                             }
                         },
@@ -325,7 +370,34 @@ fun VoiceTrimBar(
                     Box(
                         modifier = Modifier
                             .width(2.dp)
-                            .height(18.dp)
+                            .height(16.dp)
+                            .background(Color(0xFF4A3464))
+                    )
+                }
+
+                // Подвижный правый ползунок [ ❙ ]
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(rightXPx, 0) }
+                        .size(width = handleWidthDp, height = 34.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.White)
+                        .pointerInput(usableWidthPx) {
+                            detectDragGestures { change, dragAmount ->
+                                change.consume()
+                                val deltaFraction = dragAmount.x / usableWidthPx
+                                trimEndFraction = (trimEndFraction + deltaFraction).coerceIn(trimStartFraction + minSpan, 1f)
+                                if (currentProgress > trimEndFraction) {
+                                    seekToFraction(trimEndFraction)
+                                }
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(2.dp)
+                            .height(16.dp)
                             .background(Color(0xFF4A3464))
                     )
                 }
@@ -334,7 +406,7 @@ fun VoiceTrimBar(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Круглая кнопка отправки с белым самолётиком [ ➤ ]
+        // Круглая кнопка отправки [ ➤ ] или подтверждения правки [ ✓ ]
         Box(
             modifier = Modifier
                 .size(44.dp)
@@ -351,8 +423,8 @@ fun VoiceTrimBar(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.Send,
-                contentDescription = "Отправить",
+                imageVector = if (isEditingMode) Icons.Outlined.Check else Icons.AutoMirrored.Outlined.Send,
+                contentDescription = if (isEditingMode) "Сохранить" else "Отправить",
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )

@@ -70,10 +70,12 @@ data class ChatMessagesUiState(
     val isLoadingOlder: Boolean = false,
     val hasMoreOlder: Boolean = true,
     val expandedVideoCircle: com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle? = null,
-    val voiceReviewDraft: com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice? = null
+    val voiceReviewDraft: com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice? = null,
+    val videoReviewDraft: com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle? = null
 ) {
     val canSend: Boolean
-        get() = input.isNotBlank() || editing?.attachment != null
+        get() = input.isNotBlank() ||
+            (editing?.attachment != null && editing.attachment !is com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice)
 
     val isSelectionMode: Boolean get() = selection.isNotEmpty()
 

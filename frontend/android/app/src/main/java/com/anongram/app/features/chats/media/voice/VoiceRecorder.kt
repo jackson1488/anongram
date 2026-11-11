@@ -13,6 +13,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.TimeUnit
 import kotlin.math.max
 
 /**
@@ -27,7 +30,8 @@ data class VoiceRecordResult(
 
 /**
  * Менеджер реальной записи голосовых сообщений через MediaRecorder.
- * Поддерживает захват микрофона, вычисление живой волны (maxAmplitude),
+ * Поддерживает мгновенный старт на фоновом потоке (без фриза UI),
+ * захват микрофона, вычисление живой волны (maxAmplitude),
  * корректное завершение и очистку временных файлов.
  */
 class VoiceRecorder {
@@ -37,6 +41,11 @@ class VoiceRecorder {
     private var startTimeMs: Long = 0L
     private var amplitudeJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.Default + Job())
+    private val executor = Executors.newSingleThreadExecutor()
+    private val lock = Any()
+    @Volatile
+    private var cancelledPending: Boolean = false
+    private var startFuture: Future<*>? = null
 
     private val _liveWaveform = MutableStateFlow<List<Int>>(emptyList())
     val liveWaveform: StateFlow<List<Int>> = _liveWaveform.asStateFlow()
@@ -47,77 +56,97 @@ class VoiceRecorder {
     fun start(context: Context): Boolean {
         if (_isRecording.value) return false
 
-        return try {
-            val file = File(context.cacheDir, "voice_${System.currentTimeMillis()}.m4a")
-            currentFile = file
+        val appContext = context.applicationContext
+        val file = File(appContext.cacheDir, "voice_${System.currentTimeMillis()}.m4a")
+        cancelledPending = false
+        currentFile = file
+        startTimeMs = System.currentTimeMillis()
+        _isRecording.value = true
+        _liveWaveform.value = emptyList()
 
-            val mr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION")
-                MediaRecorder()
-            }
-
-            mr.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setAudioEncodingBitRate(64000)
-                setAudioSamplingRate(44100)
-                setOutputFile(file.absolutePath)
-                prepare()
-                start()
-            }
-
-            recorder = mr
-            startTimeMs = System.currentTimeMillis()
-            _isRecording.value = true
-            _liveWaveform.value = emptyList()
-
-            // Сбор амплитуд для построения волны в реальном времени
-            amplitudeJob = scope.launch {
-                val samples = mutableListOf<Int>()
-                while (isActive && _isRecording.value) {
-                    delay(100)
-                    val rawAmp = try {
-                        recorder?.maxAmplitude ?: 0
-                    } catch (_: Exception) {
-                        0
+        startFuture = executor.submit {
+            synchronized(lock) {
+                if (cancelledPending || !_isRecording.value) {
+                    file.delete()
+                    return@synchronized
+                }
+                try {
+                    val mr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        MediaRecorder(appContext)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        MediaRecorder()
                     }
-                    // Нормализация амплитуды (0..32767) в шкалу высот волны Telegram (2..15)
-                    val normalized = (rawAmp / 32767f * 13f).toInt().coerceIn(0, 13) + 2
-                    samples.add(normalized)
-                    _liveWaveform.value = samples.toList()
+                    mr.apply {
+                        setAudioSource(MediaRecorder.AudioSource.MIC)
+                        setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                        setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                        setAudioEncodingBitRate(64000)
+                        setAudioSamplingRate(44100)
+                        setOutputFile(file.absolutePath)
+                        prepare()
+                        start()
+                    }
+                    if (cancelledPending) {
+                        runCatching { mr.stop() }
+                        runCatching { mr.release() }
+                        file.delete()
+                    } else {
+                        recorder = mr
+                    }
+                } catch (_: Exception) {
+                    runCatching { recorder?.release() }
+                    recorder = null
+                    file.delete()
                 }
             }
-
-            true
-        } catch (_: Exception) {
-            cancel()
-            false
         }
+
+        // Сбор амплитуд для построения волны в реальном времени
+        amplitudeJob = scope.launch {
+            val samples = mutableListOf<Int>()
+            while (isActive && _isRecording.value) {
+                delay(100)
+                val rawAmp = try {
+                    recorder?.maxAmplitude ?: 0
+                } catch (_: Exception) {
+                    0
+                }
+                val normalized = (rawAmp / 32767f * 13f).toInt().coerceIn(0, 13) + 2
+                samples.add(normalized)
+                _liveWaveform.value = samples.toList()
+            }
+        }
+
+        return true
     }
 
     fun stop(): VoiceRecordResult? {
         if (!_isRecording.value) return null
         _isRecording.value = false
+        cancelledPending = true
         amplitudeJob?.cancel()
         amplitudeJob = null
 
-        val file = currentFile
-        val elapsedMs = max(0L, System.currentTimeMillis() - startTimeMs)
+        runCatching { startFuture?.get(500, TimeUnit.MILLISECONDS) }
+        startFuture = null
 
-        try {
-            recorder?.stop()
-            recorder?.release()
-        } catch (_: Exception) {
-        } finally {
-            recorder = null
+        val file: File?
+        val elapsedMs = max(0L, System.currentTimeMillis() - startTimeMs)
+        synchronized(lock) {
+            file = currentFile
+            currentFile = null
+            try {
+                recorder?.stop()
+                recorder?.release()
+            } catch (_: Exception) {
+            } finally {
+                recorder = null
+            }
         }
 
         if (file == null || !file.exists() || file.length() == 0L || elapsedMs < 300) {
             file?.delete()
-            currentFile = null
             return null
         }
 
@@ -129,7 +158,6 @@ class VoiceRecorder {
             List(20) { 4 }
         }
 
-        currentFile = null
         return VoiceRecordResult(
             file = file,
             durationLabel = durationLabel,
@@ -140,19 +168,26 @@ class VoiceRecorder {
 
     fun cancel() {
         _isRecording.value = false
+        cancelledPending = true
         amplitudeJob?.cancel()
         amplitudeJob = null
 
-        try {
-            recorder?.stop()
-            recorder?.release()
-        } catch (_: Exception) {
-        } finally {
-            recorder = null
+        val pending = startFuture
+        startFuture = null
+        executor.execute {
+            runCatching { pending?.get(500, TimeUnit.MILLISECONDS) }
+            synchronized(lock) {
+                try {
+                    recorder?.stop()
+                    recorder?.release()
+                } catch (_: Exception) {
+                } finally {
+                    recorder = null
+                }
+                currentFile?.delete()
+                currentFile = null
+            }
         }
-
-        currentFile?.delete()
-        currentFile = null
         _liveWaveform.value = emptyList()
     }
 }

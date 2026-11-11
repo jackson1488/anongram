@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,7 +39,7 @@ import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
- * Слитно встроенная плашка редактирования / замены файла.
+ * Слитно встроенная плашка редактирования / замены файла / обрезки и перезаписи ГС.
  */
 @Composable
 fun FusedEditBar(
@@ -52,6 +53,7 @@ fun FusedEditBar(
     val strings = LocalInputStrings.current
     val hasAttachment = editing.attachment != null
     val isPhoto = editing.attachment is MessageAttachment.Photo || editing.attachment is MessageAttachment.MediaAlbum
+    val isVoice = editing.attachment is MessageAttachment.Voice
     val snippet = replyPreviewSnippet(editing)
 
     Row(
@@ -61,7 +63,7 @@ fun FusedEditBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = if (hasAttachment) Icons.Outlined.Autorenew else Icons.Outlined.Edit,
+            imageVector = if (hasAttachment && !isVoice) Icons.Outlined.Autorenew else Icons.Outlined.Edit,
             contentDescription = null,
             tint = scheme.accent,
             modifier = Modifier.size(18.dp)
@@ -89,11 +91,15 @@ fun FusedEditBar(
                 .weight(1f)
                 .clickable(
                     enabled = hasAttachment,
-                    onClick = onReplaceAttachment
+                    onClick = { if (isVoice) onEditAttachment() else onReplaceAttachment() }
                 )
         ) {
             Text(
-                text = if (hasAttachment) strings.replace else strings.editMessage,
+                text = when {
+                    isVoice -> "Редактирование ГС"
+                    hasAttachment -> strings.replace
+                    else -> strings.editMessage
+                },
                 color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
@@ -102,14 +108,31 @@ fun FusedEditBar(
             )
             Spacer(modifier = Modifier.height(1.dp))
             Text(
-                text = if (hasAttachment) snippet else editing.text.ifBlank { strings.message },
+                text = when {
+                    isVoice -> "${(editing.attachment as MessageAttachment.Voice).durationLabel} · обрезать или перезаписать"
+                    hasAttachment -> snippet
+                    else -> editing.text.ifBlank { strings.message }
+                },
                 color = TextPrimary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (isPhoto) {
+        if (isVoice) {
+            IconButton(
+                onClick = onEditAttachment,
+                modifier = Modifier.size(28.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ContentCut,
+                    contentDescription = "Обрезать ГС",
+                    tint = scheme.accent,
+                    modifier = Modifier.size(17.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(2.dp))
+        } else if (isPhoto) {
             IconButton(
                 onClick = onEditAttachment,
                 modifier = Modifier.size(28.dp)

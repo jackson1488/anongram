@@ -82,6 +82,7 @@ fun ChatInputBar(
     recording: RecordingState,
     isCameraMode: Boolean,
     isEmojiOpen: Boolean,
+    isHiddenByTrim: Boolean = false,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onCancelReply: () -> Unit,
@@ -111,18 +112,18 @@ fun ChatInputBar(
 
     var textValue: String by remember(input) { mutableStateOf(input) }
     val scrollState = rememberScrollState()
-    val isMultiline = !isRecording && (textValue.lines().size >= 3 || textValue.length >= 60)
+    val isMultiline = !isRecording && !isHiddenByTrim && (textValue.lines().size >= 3 || textValue.length >= 60)
 
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        // Основной островок ввода всегда в дереве (при isLockedRecording прозрачен, чтобы не терять фокус/клавиатуру)
+        // Основной островок ввода всегда в дереве (при isLockedRecording / isHiddenByTrim прозрачен, чтобы не терять фокус/клавиатуру)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .alpha(if (isLockedRecording) 0f else 1f)
+                .alpha(if (isLockedRecording || isHiddenByTrim) 0f else 1f)
         ) {
             Column(
                 modifier = Modifier
@@ -130,7 +131,7 @@ fun ChatInputBar(
                     .background(IslandBackground, RoundedCornerShape(24.dp))
                     .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
             ) {
-                if (!isRecording && replyTo != null && editing == null) {
+                if (!isRecording && !isHiddenByTrim && replyTo != null && editing == null) {
                     FusedReplyBar(
                         replyTo = replyTo,
                         peerName = peerName,
@@ -138,7 +139,7 @@ fun ChatInputBar(
                         onLongClick = { onReplyLongClick(replyTo) },
                         onClose = onCancelReply
                     )
-                } else if (!isRecording && editing != null) {
+                } else if (!isRecording && !isHiddenByTrim && editing != null) {
                     FusedEditBar(
                         editing = editing,
                         onClose = onCancelEdit,
@@ -147,13 +148,13 @@ fun ChatInputBar(
                     )
                 }
 
-                // Единая нижняя строка: строго 48.dp при записи, без малейшего раздувания
+                // Единая нижняя строка: строго 48.dp при записи/обрезке, без малейшего раздувания
                 Row(
-                    verticalAlignment = if (isRecording) Alignment.CenterVertically else Alignment.Bottom,
+                    verticalAlignment = if (isRecording || isHiddenByTrim) Alignment.CenterVertically else Alignment.Bottom,
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(
-                            if (isRecording) Modifier.height(48.dp)
+                            if (isRecording || isHiddenByTrim) Modifier.height(48.dp)
                             else Modifier.defaultMinSize(minHeight = 48.dp)
                         )
                         .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)

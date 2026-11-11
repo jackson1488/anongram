@@ -86,6 +86,7 @@ import com.anongram.app.features.chats.media.player.ChatMiniPlayer
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.media.player.ChatTrack
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
+import com.anongram.app.features.chats.ui.input.video.VideoCircleTrimBar
 import com.anongram.app.features.chats.ui.input.voice.VoiceLockedTopControls
 import com.anongram.app.features.chats.ui.input.voice.VoiceTrimBar
 import com.anongram.app.features.chats.messages.state.RecordMode
@@ -113,11 +114,15 @@ import android.Manifest
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.features.chats.ui.components.bubble.saveFileToDeviceDownloads
 import com.anongram.app.features.chats.ui.components.bubble.saveMusicToDeviceMusic
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.Locale
 
@@ -147,7 +152,21 @@ fun ChatScreen(
     var isReplaceAttachSheetOpen by remember { mutableStateOf(false) }
     var replaceInitialTab by remember { mutableStateOf(AttachTab.GALLERY) }
     val audioController = remember { ChatAudioController.getInstance(context) }
-    val audioPlayerState by audioController.state.collectAsState()
+    val isVideoCircleExpanded by remember {
+        audioController.state
+            .map { it.currentTrack?.isVideoCircle == true }
+            .distinctUntilChanged()
+    }.collectAsState(initial = false)
+    val isAudioSheetOpen by remember {
+        audioController.state
+            .map { it.isSheetOpen }
+            .distinctUntilChanged()
+    }.collectAsState(initial = false)
+    val isAudioFullScreenOpen by remember {
+        audioController.state
+            .map { it.isFullScreenOpen }
+            .distinctUntilChanged()
+    }.collectAsState(initial = false)
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
@@ -191,6 +210,8 @@ fun ChatScreen(
         when {
             fullTextMessageModal != null -> fullTextMessageModal = null
             isFullEditorOpen -> isFullEditorOpen = false
+            state.videoReviewDraft != null -> viewModel.discardVideoReview()
+            state.voiceReviewDraft != null -> viewModel.discardVoiceReview()
             state.expandedVideoCircle != null -> viewModel.closeExpandedVideoCircle()
             isMusicSheetOpen -> isMusicSheetOpen = false
             isReplaceAttachSheetOpen -> isReplaceAttachSheetOpen = false
@@ -257,7 +278,7 @@ fun ChatScreen(
         }
     }
 
-    val isCircleRecording = state.recording.mode == RecordMode.CIRCLE
+    val isCircleOverlayActive = state.recording.mode == RecordMode.CIRCLE || state.videoReviewDraft != null
 
     Box(
         modifier = modifier
@@ -268,7 +289,7 @@ fun ChatScreen(
             chatId = session.id,
             modifier = Modifier
                 .matchParentSize()
-                .then(if (isCircleRecording || isReplyPreviewOpen) Modifier.blur(22.dp) else Modifier)
+                .then(if (isCircleOverlayActive || isReplyPreviewOpen) Modifier.blur(22.dp) else Modifier)
         )
 
         val density = LocalDensity.current
@@ -336,7 +357,7 @@ fun ChatScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (isCircleRecording) Modifier.blur(22.dp) else Modifier)
+                    .then(if (isCircleOverlayActive) Modifier.blur(22.dp) else Modifier)
                     .padding(bottom = with(density) { chatBottomImePx.toDp() })
             ) {
             if (state.isSearchOpen && isSearchListMode) {
@@ -377,7 +398,7 @@ fun ChatScreen(
                     firstUnreadId = state.firstUnreadId,
                     highlightedMessageId = state.highlightedMessageId,
                     pinnedIds = state.pinnedIds.toSet(),
-                    isVideoCircleExpanded = audioPlayerState.currentTrack?.isVideoCircle == true,
+                    isVideoCircleExpanded = isVideoCircleExpanded,
                     topPadding = topListPadding,
                     bottomPadding = bottomListPadding,
                     onClick = { message, topY ->
@@ -592,16 +613,42 @@ fun ChatScreen(
             }
         }
 
-        // Оверлей записи видео-кружочка (поверх размытого чата и шапки, но под строкой ввода)
-        if (state.recording.mode == RecordMode.CIRCLE) {
+        val videoReviewKey = state.videoReviewDraft?.uri
+        var isVideoReviewPlaying by remember(videoReviewKey) { mutableStateOf(false) }
+        var videoReviewDurationMs by remember(videoReviewKey) { mutableLongStateOf(1000L) }
+        var videoReviewProgress by remember(videoReviewKey) { mutableFloatStateOf(0f) }
+        var videoReviewTrimStart by remember(videoReviewKey) { mutableFloatStateOf(0f) }
+        var videoReviewTrimEnd by remember(videoReviewKey) { mutableFloatStateOf(1f) }
+        var videoReviewSeekCount by remember(videoReviewKey) { mutableIntStateOf(0) }
+        var videoReviewSeekTrigger by remember(videoReviewKey) { mutableStateOf<Pair<Int, Float>?>(null) }
+
+        // Оверлей записи и обрезки видео-кружочка (поверх размытого чата и шапки, но под строкой ввода)
+        if (isCircleOverlayActive) {
             VideoCircleRecordOverlay(
                 recordingState = state.recording,
                 isKeyboardVisible = effectiveKeyboardVisible,
                 bottomInputTopDp = bottomInputTopDp,
-                onCancel = viewModel::cancelRecording,
+                reviewVideo = state.videoReviewDraft,
+                isReviewPlaying = isVideoReviewPlaying,
+                reviewProgress = videoReviewProgress,
+                reviewTrimStart = videoReviewTrimStart,
+                reviewTrimEnd = videoReviewTrimEnd,
+                reviewSeekTrigger = videoReviewSeekTrigger,
+                onToggleReviewPlay = { isVideoReviewPlaying = !isVideoReviewPlaying },
+                onReviewDurationReady = { dur -> videoReviewDurationMs = dur },
+                onReviewProgressChange = { prog -> videoReviewProgress = prog },
+                onReviewPlayingChange = { playing -> isVideoReviewPlaying = playing },
+                onCancel = {
+                    if (state.videoReviewDraft != null) {
+                        viewModel.discardVideoReview()
+                    } else {
+                        viewModel.cancelRecording()
+                    }
+                },
                 onSend = viewModel::stopLockedRecording,
                 onToggleLock = viewModel::lockRecording,
                 onPauseReview = viewModel::pauseVoiceRecordingToDraft,
+                onPauseVideoReview = { uri, dur -> viewModel.pauseVideoRecordingToDraft(uri, dur) },
                 onSendVideo = { uri, dur -> viewModel.sendVideoCircle(uri, dur) },
                 modifier = Modifier.zIndex(2f)
             )
@@ -620,7 +667,7 @@ fun ChatScreen(
             Column(
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Плавающая кнопка паузы и тултип СВЕРХУ над полем ввода при заблокированной записи (Фото 1 и 3)
+                // Плавающая кнопка паузы и тултип СВЕРХУ над полем ввода при заблокированной записи ГС
                 if (state.recording.isLocked && state.recording.mode == RecordMode.VOICE) {
                     VoiceLockedTopControls(
                         onPauseReview = viewModel::pauseVoiceRecordingToDraft,
@@ -656,134 +703,212 @@ fun ChatScreen(
                                 }
                             }
                         )
-                    } else if (state.voiceReviewDraft != null) {
-                        VoiceTrimBar(
-                            voice = state.voiceReviewDraft,
-                            onDiscard = viewModel::discardVoiceReview,
-                            onSend = { startFrac, endFrac -> viewModel.sendVoiceReview(startFrac, endFrac) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp, vertical = 6.dp)
-                        )
                     } else {
-                    ChatInputBar(
-                        input = state.input,
-                        canSend = state.canSend,
-                        replyTo = state.replyTo,
-                        peerName = session.title,
-                        editing = state.editing,
-                        recording = state.recording,
-                        isCameraMode = state.isCameraMode,
-                        isEmojiOpen = state.isEmojiOpen,
-                        onInputChange = viewModel::onInputChange,
-                        onSend = {
-                            viewModel.send()
-                            scope.launch { listState.animateScrollToItem(0) }
-                        },
-                        onCancelReply = viewModel::cancelReply,
-                        onCancelEdit = viewModel::cancelEdit,
-                        onReplaceAttachment = {
-                            val att = state.editing?.attachment
-                            replaceInitialTab = when (att) {
-                                is MessageAttachment.File, is MessageAttachment.FileGroup -> AttachTab.FILE
-                                is MessageAttachment.Music, is MessageAttachment.MusicGroup -> AttachTab.MUSIC
-                                else -> AttachTab.GALLERY
-                            }
-                            isReplaceAttachSheetOpen = true
-                        },
-                        onEditAttachment = {
-                            Toast.makeText(context, "Редактирование фото", Toast.LENGTH_SHORT).show()
-                        },
-                        onReplyClick = { replyMsg ->
-                            viewModel.highlightMessage(replyMsg.id)
-                            val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
-                            if (index >= 0) {
-                                scope.launch {
-                                    runCatching {
-                                        listState.animateScrollAndCenterItem(index)
-                                    }
-                                }
-                            }
-                        },
-                        onReplyLongClick = {
-                            isReplyPreviewOpen = true
-                        },
-                        onToggleEmoji = {
-                            if (state.isEmojiOpen) {
-                                viewModel.closeEmojiPanel()
-                                inputFocusRequester.requestFocus()
-                                keyboardController?.show()
-                            } else {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                viewModel.toggleEmojiPanel()
-                            }
-                        },
-                        onFocusInput = {
-                            if (state.isEmojiOpen) {
-                                viewModel.closeEmojiPanel()
-                            }
-                        },
-                        onOpenAttach = {
-                            if (isKeyboardVisible) {
-                                wasKeyboardOpenWhenAttached = true
-                                frozenKeyboardHeightPx = lastKeyboardHeightPx
-                            } else {
-                                wasKeyboardOpenWhenAttached = false
-                                frozenKeyboardHeightPx = 0
-                            }
-                            viewModel.openAttach()
-                        },
-                        onToggleCameraMode = viewModel::toggleCameraMode,
-                        onStartRecording = { mode ->
-                            when (mode) {
-                                RecordMode.VOICE -> {
-                                    if (PermissionUtils.hasRecordAudioPermission(context)) {
-                                        viewModel.startRecording(mode, context)
+                        val hasTrimOverlay = state.voiceReviewDraft != null || state.videoReviewDraft != null
+                        val isEditingVoice = state.editing?.attachment is MessageAttachment.Voice
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            // ChatInputBar остаётся смонтированным с isHiddenByTrim, чтобы клавиатура НЕ закрывалась при паузе/обрезке ГС
+                            ChatInputBar(
+                                input = state.input,
+                                canSend = state.canSend,
+                                replyTo = state.replyTo,
+                                peerName = session.title,
+                                editing = state.editing,
+                                recording = state.recording,
+                                isCameraMode = state.isCameraMode && !isEditingVoice,
+                                isEmojiOpen = state.isEmojiOpen,
+                                isHiddenByTrim = hasTrimOverlay,
+                                onInputChange = viewModel::onInputChange,
+                                onSend = {
+                                    viewModel.send()
+                                    scope.launch { listState.animateScrollToItem(0) }
+                                },
+                                onCancelReply = viewModel::cancelReply,
+                                onCancelEdit = viewModel::cancelEdit,
+                                onReplaceAttachment = {
+                                    val att = state.editing?.attachment
+                                    if (att is MessageAttachment.Voice) {
+                                        viewModel.openVoiceEditTrim()
                                     } else {
-                                        pendingRecordMode = mode
-                                        recordPermissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
+                                        replaceInitialTab = when (att) {
+                                            is MessageAttachment.File, is MessageAttachment.FileGroup -> AttachTab.FILE
+                                            is MessageAttachment.Music, is MessageAttachment.MusicGroup -> AttachTab.MUSIC
+                                            else -> AttachTab.GALLERY
+                                        }
+                                        isReplaceAttachSheetOpen = true
                                     }
-                                }
-                                RecordMode.CIRCLE -> {
-                                    val hasAudio = PermissionUtils.hasRecordAudioPermission(context)
-                                    val hasCam = PermissionUtils.hasCameraPermission(context)
-                                    if (hasAudio && hasCam) {
-                                        viewModel.startRecording(mode, context)
+                                },
+                                onEditAttachment = {
+                                    if (state.editing?.attachment is MessageAttachment.Voice) {
+                                        viewModel.openVoiceEditTrim()
                                     } else {
-                                        val perms = mutableListOf<String>()
-                                        if (!hasAudio) perms.add(Manifest.permission.RECORD_AUDIO)
-                                        if (!hasCam) perms.add(Manifest.permission.CAMERA)
-                                        pendingRecordMode = mode
-                                        recordPermissionLauncher.launch(perms.toTypedArray())
+                                        Toast.makeText(context, "Редактирование фото", Toast.LENGTH_SHORT).show()
                                     }
-                                }
-                                else -> {}
-                            }
-                        },
-                        onFinishRecording = { viewModel.endPress() },
-                        onLockRecording = viewModel::lockRecording,
-                        onCancelRecording = viewModel::cancelRecording,
-                        onStopLockedRecording = viewModel::stopLockedRecording,
-                        onPauseVoiceRecording = viewModel::pauseVoiceRecordingToDraft,
-                        onOpenFullEditor = { isFullEditorOpen = true },
-                        focusRequester = inputFocusRequester
-                    )
+                                },
+                                onReplyClick = { replyMsg ->
+                                    viewModel.highlightMessage(replyMsg.id)
+                                    val index = state.messages.asReversed().indexOfFirst { it.id == replyMsg.id }
+                                    if (index >= 0) {
+                                        scope.launch {
+                                            runCatching {
+                                                listState.animateScrollAndCenterItem(index)
+                                            }
+                                        }
+                                    }
+                                },
+                                onReplyLongClick = {
+                                    isReplyPreviewOpen = true
+                                },
+                                onToggleEmoji = {
+                                    if (state.isEmojiOpen) {
+                                        viewModel.closeEmojiPanel()
+                                        inputFocusRequester.requestFocus()
+                                        keyboardController?.show()
+                                    } else {
+                                        focusManager.clearFocus()
+                                        keyboardController?.hide()
+                                        viewModel.toggleEmojiPanel()
+                                    }
+                                },
+                                onFocusInput = {
+                                    if (state.isEmojiOpen) {
+                                        viewModel.closeEmojiPanel()
+                                    }
+                                },
+                                onOpenAttach = {
+                                    if (isKeyboardVisible) {
+                                        wasKeyboardOpenWhenAttached = true
+                                        frozenKeyboardHeightPx = lastKeyboardHeightPx
+                                    } else {
+                                        wasKeyboardOpenWhenAttached = false
+                                        frozenKeyboardHeightPx = 0
+                                    }
+                                    viewModel.openAttach()
+                                },
+                                onToggleCameraMode = {
+                                    if (!isEditingVoice) {
+                                        viewModel.toggleCameraMode()
+                                    }
+                                },
+                                onStartRecording = { mode ->
+                                    when (mode) {
+                                        RecordMode.VOICE -> {
+                                            if (PermissionUtils.hasRecordAudioPermission(context)) {
+                                                viewModel.startRecording(mode, context)
+                                            } else {
+                                                pendingRecordMode = mode
+                                                recordPermissionLauncher.launch(arrayOf(Manifest.permission.RECORD_AUDIO))
+                                            }
+                                        }
+                                        RecordMode.CIRCLE -> {
+                                            val hasAudio = PermissionUtils.hasRecordAudioPermission(context)
+                                            val hasCam = PermissionUtils.hasCameraPermission(context)
+                                            if (hasAudio && hasCam) {
+                                                viewModel.startRecording(mode, context)
+                                            } else {
+                                                val perms = mutableListOf<String>()
+                                                if (!hasAudio) perms.add(Manifest.permission.RECORD_AUDIO)
+                                                if (!hasCam) perms.add(Manifest.permission.CAMERA)
+                                                pendingRecordMode = mode
+                                                recordPermissionLauncher.launch(perms.toTypedArray())
+                                            }
+                                        }
+                                        else -> {}
+                                    }
+                                },
+                                onFinishRecording = { viewModel.endPress() },
+                                onLockRecording = viewModel::lockRecording,
+                                onCancelRecording = viewModel::cancelRecording,
+                                onStopLockedRecording = viewModel::stopLockedRecording,
+                                onPauseVoiceRecording = viewModel::pauseVoiceRecordingToDraft,
+                                onOpenFullEditor = { isFullEditorOpen = true },
+                                focusRequester = inputFocusRequester
+                            )
 
-                    // Панель эмодзи/стикеров под полем ввода (высота синхронизирована с клавиатурой)
-                    if (state.isEmojiOpen) {
-                        val stickerHeight = if (lastKeyboardHeightPx > 0) with(density) { lastKeyboardHeightPx.toDp() } else 290.dp
-                        EmojiStickerPanel(
-                            onEmojiClick = viewModel::appendEmoji,
-                            onStickerClick = { symbol, colorSeed ->
-                                viewModel.sendSticker(symbol, colorSeed)
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(stickerHeight)
-                        )
+                            if (state.voiceReviewDraft != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = {}
+                                        )
+                                ) {
+                                    VoiceTrimBar(
+                                        voice = state.voiceReviewDraft,
+                                        isEditingMode = isEditingVoice,
+                                        onDiscard = viewModel::discardVoiceReview,
+                                        onSend = { startFrac, endFrac ->
+                                            viewModel.sendVoiceReview(startFrac, endFrac, context)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            } else if (state.videoReviewDraft != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = {}
+                                        )
+                                ) {
+                                    VideoCircleTrimBar(
+                                        video = state.videoReviewDraft,
+                                        durationMs = videoReviewDurationMs,
+                                        isPlaying = isVideoReviewPlaying,
+                                        currentProgress = videoReviewProgress,
+                                        trimStartFraction = videoReviewTrimStart,
+                                        trimEndFraction = videoReviewTrimEnd,
+                                        onTogglePlay = { isVideoReviewPlaying = !isVideoReviewPlaying },
+                                        onSeekFraction = { frac ->
+                                            val next = videoReviewSeekCount + 1
+                                            videoReviewSeekCount = next
+                                            videoReviewSeekTrigger = next to frac
+                                        },
+                                        onTrimStartChange = { s ->
+                                            videoReviewTrimStart = s
+                                            val next = videoReviewSeekCount + 1
+                                            videoReviewSeekCount = next
+                                            videoReviewSeekTrigger = next to s
+                                        },
+                                        onTrimEndChange = { e ->
+                                            videoReviewTrimEnd = e
+                                            val next = videoReviewSeekCount + 1
+                                            videoReviewSeekCount = next
+                                            videoReviewSeekTrigger = next to e
+                                        },
+                                        onDiscard = viewModel::discardVideoReview,
+                                        onSend = {
+                                            isVideoReviewPlaying = false
+                                            viewModel.sendVideoReview(context, videoReviewTrimStart, videoReviewTrimEnd)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Панель эмодзи/стикеров под полем ввода (высота синхронизирована с клавиатурой)
+                        if (state.isEmojiOpen && !hasTrimOverlay) {
+                            val stickerHeight = if (lastKeyboardHeightPx > 0) with(density) { lastKeyboardHeightPx.toDp() } else 290.dp
+                            EmojiStickerPanel(
+                                onEmojiClick = viewModel::appendEmoji,
+                                onStickerClick = { symbol, colorSeed ->
+                                    viewModel.sendSticker(symbol, colorSeed)
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(stickerHeight)
+                            )
+                        }
                     }
-                }
                 }
             }
         }
@@ -796,7 +921,7 @@ fun ChatScreen(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .height(scrimHeight)
-                .then(if (isCircleRecording) Modifier.blur(22.dp) else Modifier)
+                .then(if (isCircleOverlayActive) Modifier.blur(22.dp) else Modifier)
                 .background(
                     Brush.verticalGradient(
                         0.0f to Color.Black.copy(alpha = headerScrimAlpha),
@@ -812,7 +937,7 @@ fun ChatScreen(
                 .zIndex(1f)
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .then(if (isCircleRecording) Modifier.blur(22.dp) else Modifier)
+                .then(if (isCircleOverlayActive) Modifier.blur(22.dp) else Modifier)
                 .safeStatusBarPadding()
         ) {
             when {
@@ -1569,7 +1694,7 @@ fun ChatScreen(
         }
 
         // 6. Шторка музыкального плеера чата
-        if (isMusicSheetOpen || audioPlayerState.isSheetOpen) {
+        if (isMusicSheetOpen || isAudioSheetOpen) {
             ChatMusicPlayerSheet(
                 controller = audioController,
                 onDismiss = {
@@ -1604,7 +1729,7 @@ fun ChatScreen(
         }
 
         // 7. Полноэкранный плеер для музыки в стиле iOS
-        if (audioPlayerState.isFullScreenOpen) {
+        if (isAudioFullScreenOpen) {
             MusicFullScreenPlayer(
                 controller = audioController,
                 onDismiss = { audioController.closeFullScreen() },

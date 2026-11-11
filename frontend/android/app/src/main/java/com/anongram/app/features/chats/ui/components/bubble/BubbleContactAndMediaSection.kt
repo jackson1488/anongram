@@ -86,8 +86,14 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import android.util.LruCache
+import com.anongram.app.features.chats.media.player.ChatPlayerState
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
+import com.anongram.app.features.chats.ui.components.LocalIsListScrolling
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 
 /**
  * Карточка контакта внутри пузыря сообщения (каждый контакт отдельно, внутри вертикальная полоска слева,
@@ -262,9 +268,16 @@ internal fun ChatVoiceSection(
 ) {
     val context = LocalContext.current
     val audioController = remember { ChatAudioController.getInstance(context) }
-    val playerState = audioController.state.collectAsState().value
-    val isCurrentVoice = playerState.currentTrack?.id == "voice_${message.id}"
-    val isPlaying = isCurrentVoice && playerState.isPlaying
+    val voiceTrackId = "voice_${message.id}"
+    val isCurrentVoice by remember(voiceTrackId) {
+        audioController.state
+            .map { it.currentTrack?.id == voiceTrackId }
+            .distinctUntilChanged()
+    }.collectAsState(initial = false)
+    val playerState: ChatPlayerState? = if (isCurrentVoice) {
+        audioController.state.collectAsState().value
+    } else null
+    val isPlaying = isCurrentVoice && (playerState?.isPlaying == true)
 
     Row(
         modifier = Modifier
@@ -300,7 +313,7 @@ internal fun ChatVoiceSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             val totalBars = attachment.waveform.size.coerceAtLeast(1)
-            val currentProgress = if (isCurrentVoice) playerState.progress else 0f
+            val currentProgress = playerState?.progress ?: 0f
             val activeBars = (currentProgress * totalBars).toInt()
 
             attachment.waveform.forEachIndexed { index, height ->
@@ -315,8 +328,11 @@ internal fun ChatVoiceSection(
             }
         }
         Spacer(modifier = Modifier.width(8.dp))
+        val activePosMs = playerState?.progressMs ?: 0L
         Text(
-            text = if (isCurrentVoice && (isPlaying || playerState.progressMs > 0)) playerState.positionLabel else attachment.durationLabel,
+            text = if (isCurrentVoice && (isPlaying || activePosMs > 0L)) {
+                playerState?.positionLabel ?: attachment.durationLabel
+            } else attachment.durationLabel,
             color = TextMuted,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace
@@ -329,6 +345,38 @@ private data class VideoCircleMeta(
     val width: Int = 0,
     val height: Int = 0
 )
+
+private object VideoCircleMetaCache {
+    private val cache = LruCache<String, VideoCircleMeta>(48)
+
+    fun get(uri: String?): VideoCircleMeta? = uri?.takeIf { it.isNotBlank() }?.let { cache.get(it) }
+
+    fun put(uri: String, meta: VideoCircleMeta) {
+        if (uri.isNotBlank()) {
+            cache.put(uri, meta)
+        }
+    }
+}
+
+private object VideoCirclePreviewPool {
+    private const val MAX_CONCURRENT_PREVIEWS = 2
+    private val activeSlots = ArrayDeque<Pair<String, () -> Unit>>()
+
+    @Synchronized
+    fun acquire(key: String, releaseSelf: () -> Unit) {
+        activeSlots.removeAll { it.first == key }
+        while (activeSlots.size >= MAX_CONCURRENT_PREVIEWS) {
+            val oldest = activeSlots.removeFirst()
+            runCatching { oldest.second() }
+        }
+        activeSlots.addLast(key to releaseSelf)
+    }
+
+    @Synchronized
+    fun release(key: String) {
+        activeSlots.removeAll { it.first == key }
+    }
+}
 
 private fun applyVideoCircleCenterCrop(
     textureView: android.view.TextureView,
@@ -375,12 +423,19 @@ internal fun ChatVideoCircleSection(
     val density = LocalDensity.current
     val scheme = LocalAnonGramScheme.current
     val screenWidth = configuration.screenWidthDp.dp
+    val isListScrolling = LocalIsListScrolling.current
 
     val audioController = remember { ChatAudioController.getInstance(context) }
-    val playerState by audioController.state.collectAsState()
     val circleTrackId = "circle_${message.id}"
-    val isExpanded = playerState.currentTrack?.id == circleTrackId
-    val isPlaying = if (isExpanded) playerState.isPlaying else true
+    val isExpanded by remember(circleTrackId) {
+        audioController.state
+            .map { it.currentTrack?.id == circleTrackId }
+            .distinctUntilChanged()
+    }.collectAsState(initial = false)
+    val playerState: ChatPlayerState? = if (isExpanded) {
+        audioController.state.collectAsState().value
+    } else null
+    val isPlaying = if (isExpanded) (playerState?.isPlaying == true) else true
 
     val normalSize = 220.dp
     val expandedSize = (screenWidth - 16.dp).coerceIn(300.dp, 410.dp)
@@ -404,7 +459,7 @@ internal fun ChatVideoCircleSection(
         } else 14
         (sec * 1000L).coerceAtLeast(1000L)
     }
-    val totalMs = if (isExpanded && playerState.durationMs > 0L) playerState.durationMs else fallbackTotalMs
+    val totalMs = if (isExpanded && (playerState?.durationMs ?: 0L) > 0L) playerState!!.durationMs else fallbackTotalMs
 
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
@@ -413,7 +468,12 @@ internal fun ChatVideoCircleSection(
     var textureViewRef by remember { mutableStateOf<android.view.TextureView?>(null) }
     var mutedPreviewPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
 
-    val videoMeta by produceState(initialValue = VideoCircleMeta(), key1 = attachment.uri) {
+    val cachedMeta = remember(attachment.uri) { VideoCircleMetaCache.get(attachment.uri) }
+    val videoMeta by produceState(initialValue = cachedMeta ?: VideoCircleMeta(), key1 = attachment.uri) {
+        if (cachedMeta != null) {
+            value = cachedMeta
+            return@produceState
+        }
         val file = videoFile
         if (file != null) {
             withContext(Dispatchers.IO) {
@@ -425,7 +485,9 @@ internal fun ChatVideoCircleSection(
                     val rawH = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                     val rot = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
                     val (w, h) = if (rot == 90 || rot == 270) rawH to rawW else rawW to rawH
-                    value = VideoCircleMeta(bmp, w, h)
+                    val meta = VideoCircleMeta(bmp, w, h)
+                    VideoCircleMetaCache.put(file.absolutePath, meta)
+                    value = meta
                 } catch (_: Exception) {
                 } finally {
                     runCatching { mmr.release() }
@@ -441,10 +503,11 @@ internal fun ChatVideoCircleSection(
         }
     }
 
-    // Переключаем Surface между локальным muted-превью и общим ChatAudioController
-    LaunchedEffect(isExpanded, surfaceRef, videoFile?.absolutePath) {
+    // Переключаем Surface между локальным muted-превью (с пулом max 2 и паузой во время скролла) и общим ChatAudioController
+    LaunchedEffect(isExpanded, surfaceRef, videoFile?.absolutePath, isListScrolling) {
         val surface = surfaceRef ?: return@LaunchedEffect
         if (isExpanded) {
+            VideoCirclePreviewPool.release(circleTrackId)
             mutedPreviewPlayer?.run {
                 runCatching { stop() }
                 runCatching { release() }
@@ -454,29 +517,58 @@ internal fun ChatVideoCircleSection(
         } else {
             audioController.detachVideoSurface(surface)
             val file = videoFile
-            if (file != null && mutedPreviewPlayer == null) {
-                try {
-                    val mp = android.media.MediaPlayer().apply {
-                        setSurface(surface)
-                        setDataSource(file.absolutePath)
-                        setVolume(0f, 0f)
-                        isLooping = true
-                        setOnVideoSizeChangedListener { _, vw, vh ->
-                            textureViewRef?.let { applyVideoCircleCenterCrop(it, vw, vh) }
-                        }
-                        setOnPreparedListener { player ->
-                            runCatching { player.start() }
-                        }
-                        prepareAsync()
+            if (isListScrolling) {
+                mutedPreviewPlayer?.let { mp ->
+                    if (runCatching { mp.isPlaying }.getOrDefault(false)) {
+                        runCatching { mp.pause() }
                     }
-                    mutedPreviewPlayer = mp
-                } catch (_: Exception) {}
+                }
+            } else if (file != null) {
+                delay(140)
+                val existing = mutedPreviewPlayer
+                if (existing != null) {
+                    runCatching {
+                        if (!existing.isPlaying) existing.start()
+                    }
+                } else {
+                    try {
+                        val mp = android.media.MediaPlayer()
+                        VideoCirclePreviewPool.acquire(circleTrackId) {
+                            runCatching {
+                                if (mp.isPlaying) mp.stop()
+                            }
+                            runCatching { mp.release() }
+                            if (mutedPreviewPlayer === mp) {
+                                mutedPreviewPlayer = null
+                            }
+                        }
+                        mp.apply {
+                            setSurface(surface)
+                            setDataSource(file.absolutePath)
+                            setVolume(0f, 0f)
+                            isLooping = true
+                            setOnVideoSizeChangedListener { _, vw, vh ->
+                                textureViewRef?.let { applyVideoCircleCenterCrop(it, vw, vh) }
+                            }
+                            setOnPreparedListener { player ->
+                                if (mutedPreviewPlayer === player) {
+                                    runCatching { player.start() }
+                                } else {
+                                    runCatching { player.release() }
+                                }
+                            }
+                            prepareAsync()
+                        }
+                        mutedPreviewPlayer = mp
+                    } catch (_: Exception) {}
+                }
             }
         }
     }
 
     DisposableEffect(videoFile?.absolutePath) {
         onDispose {
+            VideoCirclePreviewPool.release(circleTrackId)
             surfaceRef?.let { s ->
                 audioController.detachVideoSurface(s)
                 runCatching { s.release() }
@@ -493,7 +585,7 @@ internal fun ChatVideoCircleSection(
     val effectivePosMs = if (isDragging) {
         (dragFraction * totalMs).toLong()
     } else if (isExpanded) {
-        playerState.positionMs
+        playerState?.positionMs ?: 0L
     } else {
         0L
     }

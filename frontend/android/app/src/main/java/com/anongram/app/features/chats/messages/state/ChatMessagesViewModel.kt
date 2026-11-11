@@ -16,7 +16,9 @@ import com.anongram.app.features.chats.messages.domain.MessageStatus
 import com.anongram.app.features.drafts.ChatDraft
 import com.anongram.app.features.drafts.ChatDraftsRepository
 import android.content.Context
+import com.anongram.app.features.chats.media.common.MediaTrimmer
 import com.anongram.app.features.chats.media.voice.VoiceRecorder
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -403,8 +405,20 @@ class ChatMessagesViewModel(
         }
     }
 
+    fun openVoiceEditTrim() {
+        val voice = _uiState.value.editing?.attachment as? MessageAttachment.Voice ?: return
+        _uiState.update { it.copy(voiceReviewDraft = voice) }
+    }
+
     fun cancelEdit() {
-        _uiState.update { it.copy(editing = null, editingSubIndex = null, input = "") }
+        _uiState.update {
+            it.copy(
+                editing = null,
+                editingSubIndex = null,
+                input = "",
+                voiceReviewDraft = null
+            )
+        }
     }
 
     private fun editMessage(messageId: String, newText: String) {
@@ -1158,7 +1172,11 @@ class ChatMessagesViewModel(
                     waveform = result.waveform,
                     uri = result.file.absolutePath
                 )
-                sendAttachment(voice)
+                if (_uiState.value.editing?.attachment is MessageAttachment.Voice) {
+                    replaceEditingAttachment(voice)
+                } else {
+                    sendAttachment(voice)
+                }
             }
         }
     }
@@ -1180,10 +1198,17 @@ class ChatMessagesViewModel(
         }
     }
 
-    fun sendVoiceReview(startFraction: Float = 0f, endFraction: Float = 1f) {
+    fun sendVoiceReview(
+        startFraction: Float = 0f,
+        endFraction: Float = 1f,
+        context: Context? = null
+    ) {
         val voice = _uiState.value.voiceReviewDraft ?: return
+        val isEditingSentVoice = _uiState.value.editing?.attachment is MessageAttachment.Voice
         _uiState.update { it.copy(voiceReviewDraft = null) }
-        ChatDraftsRepository.instance.clearDraft(sessionId)
+        if (!isEditingSentVoice) {
+            ChatDraftsRepository.instance.clearDraft(sessionId)
+        }
         val isTrimmed = startFraction > 0.02f || endFraction < 0.98f
         val trimmedWaveform = if (voice.waveform.isNotEmpty() && isTrimmed) {
             val startIdx = (startFraction * voice.waveform.size).toInt().coerceIn(0, voice.waveform.size - 1)
@@ -1202,14 +1227,97 @@ class ChatMessagesViewModel(
         } else {
             voice.durationLabel
         }
-        sendAttachment(voice.copy(waveform = trimmedWaveform, durationLabel = trimmedDurationLabel))
+
+        viewModelScope.launch {
+            val trimmedUri = if (isTrimmed && context != null && !voice.uri.isNullOrBlank()) {
+                MediaTrimmer.trimMediaFile(
+                    context = context,
+                    inputPath = voice.uri,
+                    startFraction = startFraction,
+                    endFraction = endFraction,
+                    isVideo = false
+                )?.absolutePath ?: voice.uri
+            } else {
+                voice.uri
+            }
+            val finalVoice = voice.copy(
+                waveform = trimmedWaveform,
+                durationLabel = trimmedDurationLabel,
+                uri = trimmedUri
+            )
+            if (isEditingSentVoice) {
+                replaceEditingAttachment(finalVoice)
+            } else {
+                sendAttachment(finalVoice)
+            }
+        }
     }
 
     fun discardVoiceReview() {
-        val draft = _uiState.value.voiceReviewDraft
-        draft?.uri?.let { runCatching { java.io.File(it).delete() } }
+        val state = _uiState.value
+        val draft = state.voiceReviewDraft
+        val editingUri = (state.editing?.attachment as? MessageAttachment.Voice)?.uri
+        if (draft?.uri != null && draft.uri != editingUri) {
+            runCatching { java.io.File(draft.uri).delete() }
+        }
         _uiState.update { it.copy(voiceReviewDraft = null) }
-        ChatDraftsRepository.instance.clearDraft(sessionId)
+        if (state.editing == null) {
+            ChatDraftsRepository.instance.clearDraft(sessionId)
+        }
+    }
+
+    fun pauseVideoRecordingToDraft(uri: String?, durationLabel: String) {
+        recordingJob?.cancel()
+        recordingJob = null
+        _uiState.update {
+            it.copy(
+                recording = RecordingState(),
+                videoReviewDraft = MessageAttachment.VideoCircle(
+                    durationLabel = durationLabel,
+                    uri = uri
+                )
+            )
+        }
+    }
+
+    fun sendVideoReview(
+        context: Context,
+        startFraction: Float = 0f,
+        endFraction: Float = 1f
+    ) {
+        val draft = _uiState.value.videoReviewDraft ?: return
+        _uiState.update { it.copy(videoReviewDraft = null) }
+        val isTrimmed = startFraction > 0.02f || endFraction < 0.98f
+        val trimmedDurationLabel = if (isTrimmed) {
+            val parts = draft.durationLabel.split(":")
+            val origSec = if (parts.size == 2) {
+                (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 1)
+            } else 1
+            val newSec = ((endFraction - startFraction) * origSec).toInt().coerceAtLeast(1)
+            "%02d:%02d".format(newSec / 60, newSec % 60)
+        } else {
+            draft.durationLabel
+        }
+        viewModelScope.launch {
+            val trimmedUri = if (isTrimmed && !draft.uri.isNullOrBlank()) {
+                MediaTrimmer.trimMediaFile(
+                    context = context,
+                    inputPath = draft.uri,
+                    startFraction = startFraction,
+                    endFraction = endFraction,
+                    isVideo = true
+                )?.absolutePath ?: draft.uri
+            } else {
+                draft.uri
+            }
+            sendAttachment(draft.copy(uri = trimmedUri, durationLabel = trimmedDurationLabel))
+        }
+    }
+
+    fun discardVideoReview() {
+        val draft = _uiState.value.videoReviewDraft
+        draft?.uri?.let { runCatching { java.io.File(it).delete() } }
+        _uiState.update { it.copy(videoReviewDraft = null) }
     }
 
     fun openExpandedVideoCircle(videoCircle: MessageAttachment.VideoCircle) {
@@ -1252,7 +1360,11 @@ class ChatMessagesViewModel(
                     waveform = result.waveform,
                     uri = result.file.absolutePath
                 )
-                sendAttachment(attachment)
+                if (_uiState.value.editing?.attachment is MessageAttachment.Voice) {
+                    replaceEditingAttachment(attachment)
+                } else {
+                    sendAttachment(attachment)
+                }
             }
         } else {
             if (recording.elapsedTenths >= 2) {
