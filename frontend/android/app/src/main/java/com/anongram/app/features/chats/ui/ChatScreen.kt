@@ -1491,7 +1491,7 @@ fun ChatScreen(
                 onCopy = {
                     val copyText = when (val att = message.attachment) {
                         is MessageAttachment.Contact -> message.text.ifBlank { "${att.name}: ${att.phone}" }
-                        is MessageAttachment.Location -> message.text.ifBlank { "${att.title} (${att.address})" }
+                        is MessageAttachment.Geo -> message.text.ifBlank { att.address }
                         else -> message.text
                     }
                     clipboard.setText(AnnotatedString(copyText))

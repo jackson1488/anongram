@@ -113,7 +113,7 @@ internal fun MessageContextMenu(
         is MessageAttachment.MusicGroup -> message.text.isNotBlank()
         else -> message.text.isNotBlank() ||
             att is MessageAttachment.Contact ||
-            att is MessageAttachment.Location
+            att is MessageAttachment.Geo
     }
 
     val itemCount = 4 +

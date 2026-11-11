@@ -326,7 +326,7 @@ internal class CameraGlRecorder {
             vCodec.start()
             videoEncoder = vCodec
 
-            mediaMuxer = MediaMuxer(file.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_FORMAT_MPEG_4)
+            mediaMuxer = MediaMuxer(file.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
             val minBuf = AudioRecord.getMinBufferSize(
                 AUDIO_SAMPLE_RATE,

@@ -314,7 +314,7 @@ internal object VideoCircleExportHelper {
             val stMatrix = FloatArray(16)
             val mvpMatrix = buildMvpMatrix(videoW, videoH, rotation)
 
-            muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_FORMAT_MPEG_4)
+            muxer = MediaMuxer(dest.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
             var muxerVideoTrack = -1
             var muxerAudioTrack = -1
             var muxerStarted = false
