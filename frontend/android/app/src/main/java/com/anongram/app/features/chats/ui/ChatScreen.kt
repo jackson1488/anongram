@@ -322,150 +322,6 @@ fun ChatScreen(
                 .then(if (isCircleOverlayActive || isReplyPreviewOpen) Modifier.blur(22.dp) else Modifier)
         )
 
-        fun saveMessageMedia(msg: ChatMessage, subPhotoIdx: Int? = null) {
-            scope.launch {
-                val att = msg.attachment
-                var savedOk = false
-                val msgText = when (att) {
-                    is MessageAttachment.VideoCircle -> {
-                        savedOk = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
-                        if (savedOk) "Видео-кружок сохранён в галерею" else "Не удалось сохранить кружок"
-                    }
-                    is MessageAttachment.Voice -> {
-                        savedOk = saveVoiceToDeviceDownloads(context, att)
-                        if (savedOk) "Голосовое сохранено в Загрузки" else "Не удалось сохранить голосовое"
-                    }
-                    is MessageAttachment.Photo -> {
-                        val uri = att.uri
-                        savedOk = when {
-                            uri.isNullOrBlank() -> false
-                            att.isVideo -> saveVideoToDeviceGallery(context, uri)
-                            else -> savePhotoToDeviceGallery(context, uri)
-                        }
-                        if (savedOk) {
-                            if (att.isVideo) "Видео сохранено в галерею" else "Фото сохранено в галерею"
-                        } else "Не удалось сохранить"
-                    }
-                    is MessageAttachment.MediaAlbum -> {
-                        if (subPhotoIdx != null) {
-                            val item = att.items.getOrNull(subPhotoIdx)
-                            savedOk = if (item == null) false else if (item.isVideo) {
-                                saveVideoToDeviceGallery(context, item.uri)
-                            } else {
-                                savePhotoToDeviceGallery(context, item.uri)
-                            }
-                            if (savedOk) "Сохранено в галерею" else "Не удалось сохранить"
-                        } else {
-                            val count = saveMediaAlbumToGallery(context, att)
-                            savedOk = count > 0
-                            if (savedOk) {
-                                if (count == att.items.size) "Скачано $count фото в галерею"
-                                else "Скачано $count из ${att.items.size} в галерею"
-                            } else "Не удалось сохранить альбом"
-                        }
-                    }
-                    is MessageAttachment.File -> {
-                        savedOk = saveFileToDeviceDownloads(context, att)
-                        if (savedOk) "Файл сохранён в Загрузки" else "Не удалось сохранить файл"
-                    }
-                    is MessageAttachment.FileGroup -> {
-                        var saved = 0
-                        for (f in att.items) {
-                            if (saveFileToDeviceDownloads(context, f)) saved++
-                        }
-                        savedOk = saved > 0
-                        if (savedOk) "Скачано файлов: $saved из ${att.items.size} в Загрузки" else "Не удалось сохранить файлы"
-                    }
-                    is MessageAttachment.Music -> {
-                        savedOk = saveMusicToDeviceMusic(context, att)
-                        if (savedOk) "Трек сохранён в Музыку" else "Не удалось сохранить трек"
-                    }
-                    is MessageAttachment.MusicGroup -> {
-                        var saved = 0
-                        for (m in att.items) {
-                            if (saveMusicToDeviceMusic(context, m)) saved++
-                        }
-                        savedOk = saved > 0
-                        if (savedOk) "Сохранено треков: $saved из ${att.items.size}" else "Не удалось сохранить треки"
-                    }
-                    else -> "Нечего сохранять"
-                }
-                showActionBanner(
-                    text = msgText,
-                    icon = if (savedOk) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
-                    isError = !savedOk
-                )
-            }
-        }
-
-        fun shareMessageMedia(msg: ChatMessage, subPhotoIdx: Int? = null) {
-            scope.launch {
-                when (val att = msg.attachment) {
-                    is MessageAttachment.VideoCircle -> {
-                        val ok = VideoCircleExportHelper.shareVideoCircleSystemChooser(context, att.uri)
-                        if (!ok) showActionBanner("Не удалось подготовить видео для отправки", Icons.Outlined.ErrorOutline, isError = true)
-                    }
-                    is MessageAttachment.Voice -> {
-                        val ok = shareMediaUriSystemChooser(
-                            context = context,
-                            uriString = att.uri,
-                            mimeType = "audio/mp4",
-                            chooserTitle = "Поделиться голосовым",
-                            suggestedFileName = "voice_${msg.id}.m4a"
-                        )
-                        if (!ok) showActionBanner("Файл голосового недоступен", Icons.Outlined.ErrorOutline, isError = true)
-                    }
-                    is MessageAttachment.Photo -> {
-                        val ok = shareMediaUriSystemChooser(
-                            context = context,
-                            uriString = att.uri,
-                            mimeType = if (att.isVideo) "video/mp4" else "image/jpeg",
-                            chooserTitle = if (att.isVideo) "Поделиться видео" else "Поделиться фото"
-                        )
-                        if (!ok) showActionBanner("Файл недоступен", Icons.Outlined.ErrorOutline, isError = true)
-                    }
-                    is MessageAttachment.MediaAlbum -> {
-                        val item = subPhotoIdx?.let { att.items.getOrNull(it) } ?: att.items.firstOrNull()
-                        val ok = if (item != null) {
-                            shareMediaUriSystemChooser(
-                                context = context,
-                                uriString = item.uri,
-                                mimeType = if (item.isVideo) "video/mp4" else "image/jpeg",
-                                chooserTitle = "Поделиться"
-                            )
-                        } else false
-                        if (!ok) showActionBanner("Файл недоступен", Icons.Outlined.ErrorOutline, isError = true)
-                    }
-                    is MessageAttachment.File -> {
-                        val ok = shareMediaUriSystemChooser(
-                            context = context,
-                            uriString = att.uri,
-                            mimeType = "*/*",
-                            chooserTitle = att.name,
-                            suggestedFileName = att.name
-                        )
-                        if (!ok) showActionBanner("Файл недоступен", Icons.Outlined.ErrorOutline, isError = true)
-                    }
-                    is MessageAttachment.Music -> {
-                        val ok = shareMediaUriSystemChooser(
-                            context = context,
-                            uriString = att.uri,
-                            mimeType = "audio/*",
-                            chooserTitle = "${att.artist} - ${att.title}"
-                        )
-                        if (!ok) showActionBanner("Аудио недоступно", Icons.Outlined.ErrorOutline, isError = true)
-                    }
-                    else -> {
-                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(android.content.Intent.EXTRA_TEXT, msg.text.ifBlank { "AnonGram" })
-                        }
-                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться"))
-                    }
-                }
-            }
-        }
-
         val density = LocalDensity.current
         val haptic = LocalHapticFeedback.current
         val keyboardController = LocalSoftwareKeyboardController.current
@@ -1119,170 +975,26 @@ fun ChatScreen(
         )
 
         // 3. Плавающая шапка чата поверх сообщений (парящие островки)
-        Column(
+        ChatFloatingTopHeader(
+            session = session,
+            state = state,
+            viewModel = viewModel,
+            listState = listState,
+            audioController = audioController,
+            inputFocusRequester = inputFocusRequester,
+            isCircleOverlayActive = isCircleOverlayActive,
+            onBack = onBack,
+            onCycleWallpaper = { isWallpaperOpen = true },
+            onStartForward = { ids -> forwardingMessageIds = ids },
+            onOpenMusicSheet = {
+                isMusicSheetOpen = true
+                audioController.openSheet()
+            },
+            onShowBanner = { text, icon, isError -> showActionBanner(text, icon, isError) },
             modifier = Modifier
                 .zIndex(1f)
                 .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .then(if (isCircleOverlayActive) Modifier.blur(22.dp) else Modifier)
-                .safeStatusBarPadding()
-        ) {
-            when {
-                state.isSelectionMode -> {
-                    SelectionPanel(
-                        selectedCount = state.selection.size,
-                        isPhoto = state.isSingleSelectedPhoto,
-                        isMediaAlbum = state.isSingleSelectedMediaAlbum,
-                        isFileOrMusic = state.isSingleSelectedFileOrMusic,
-                        isVideoCircle = state.isSingleSelectedVideoCircle,
-                        isVoice = state.isSingleSelectedVoice,
-                        onClose = viewModel::clearSelection,
-                        onCopy = {
-                            val combined = state.selectedMessages.joinToString("\n") { it.text }
-                            clipboard.setText(AnnotatedString(combined))
-                            viewModel.clearSelection()
-                            showActionBanner("Скопировано в буфер обмена", Icons.Outlined.ContentCopy)
-                        },
-                        onBrushEdit = {
-                            val openKeyboard = !state.isSingleSelectedVideoCircle && !state.isSingleSelectedVoice
-                            viewModel.startEditFromSelection()
-                            if (openKeyboard) {
-                                inputFocusRequester.requestFocus()
-                                keyboardController?.show()
-                            }
-                        },
-                        onDownload = {
-                            val selectedKey = state.selection.firstOrNull()
-                            val file = state.getSingleSelectedFile()
-                            val music = state.getSingleSelectedMusic()
-                            val targetMsg = selectedKey?.let { key ->
-                                val msgId = key.substringBefore("#")
-                                state.messages.firstOrNull { it.id == msgId }
-                            }
-                            val subPhotoIdx = selectedKey?.takeIf { "#photo_" in it }?.substringAfter("#photo_")?.toIntOrNull()
-                            viewModel.clearSelection()
-                            when {
-                                file != null -> scope.launch {
-                                    val ok = saveFileToDeviceDownloads(context, file)
-                                    showActionBanner(
-                                        text = if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить",
-                                        icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
-                                        isError = !ok
-                                    )
-                                }
-                                music != null -> scope.launch {
-                                    val ok = saveMusicToDeviceMusic(context, music)
-                                    showActionBanner(
-                                        text = if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить",
-                                        icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
-                                        isError = !ok
-                                    )
-                                }
-                                targetMsg != null -> saveMessageMedia(targetMsg, subPhotoIdx)
-                            }
-                        },
-                        onShare = {
-                            val selectedKey = state.selection.firstOrNull()
-                            val targetMsg = selectedKey?.let { key ->
-                                val msgId = key.substringBefore("#")
-                                state.messages.firstOrNull { it.id == msgId }
-                            }
-                            val subPhotoIdx = selectedKey?.takeIf { "#photo_" in it }?.substringAfter("#photo_")?.toIntOrNull()
-                            viewModel.clearSelection()
-                            if (targetMsg != null) {
-                                shareMessageMedia(targetMsg, subPhotoIdx)
-                            }
-                        },
-                        onForward = {
-                            forwardingMessageIds = state.selection.toList()
-                        },
-                        onDelete = {
-                            viewModel.requestDelete(state.selection.toList())
-                        }
-                    )
-                }
-
-                state.isSearchOpen -> {
-                    ChatSearchTopBar(
-                        query = state.searchQuery,
-                        onQueryChange = viewModel::onSearchQueryChange,
-                        onClose = viewModel::closeSearch
-                    )
-                }
-
-                else -> {
-                    ChatTopBar(
-                        session = session,
-                        isPeerTyping = state.isPeerTyping,
-                        peerActivity = state.peerActivity,
-                        selfDestruct = state.selfDestruct,
-                        onBack = onBack,
-                        onOpenSearch = viewModel::openSearch,
-                        onCycleWallpaper = { isWallpaperOpen = true },
-                        onOpenKeyCheck = viewModel::openKeyCheck,
-                        onSelfDestruct = {
-                            val next = when (state.selfDestruct) {
-                                SelfDestruct.OFF -> SelfDestruct.S5
-                                SelfDestruct.S5 -> SelfDestruct.M1
-                                SelfDestruct.M1 -> SelfDestruct.H1
-                                SelfDestruct.H1 -> SelfDestruct.D1
-                                SelfDestruct.D1 -> SelfDestruct.W1
-                                SelfDestruct.W1 -> SelfDestruct.OFF
-                            }
-                            viewModel.setSelfDestruct(next)
-                        },
-                        onClearHistory = viewModel::clearHistory,
-                        onDeleteChat = {
-                            viewModel.clearHistory()
-                            onBack()
-                        },
-                        onOpenNotifications = viewModel::openNotifications
-                    )
-                }
-            }
-
-            if (!state.isSearchOpen && !state.isSelectionMode) {
-                state.pinnedMessage?.let { pinned ->
-                    PinnedBar(
-                        pinned = pinned,
-                        currentIndex = state.pinnedIndex,
-                        totalCount = state.pinnedIds.size.coerceAtLeast(1),
-                        onNavigateToPinned = {
-                            val targetId = if (state.pinnedIds.size > 1) {
-                                viewModel.cycleNextPinnedMessage()
-                            } else {
-                                pinned.id
-                            }
-                            if (targetId != null) {
-                                viewModel.highlightMessage(targetId)
-                                val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
-                                if (index >= 0) {
-                                    scope.launch {
-                                        runCatching {
-                                            listState.animateScrollAndCenterItem(index)
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        onOpenAllPinned = viewModel::openPinnedMessages
-                    )
-                }
-            }
-
-            if (!state.isSearchOpen && !state.isSelectionMode) {
-                ChatMiniPlayer(
-                    controller = audioController,
-                    onOpenSheet = {
-                        isMusicSheetOpen = true
-                        audioController.openSheet()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                )
-            }
-        }
+        )
     }
 
         // Полноэкранный редактор текста (расширенный ввод)
@@ -1552,11 +1264,19 @@ fun ChatScreen(
                 },
                 onSave = {
                     viewModel.closeActionMenu()
-                    saveMessageMedia(message)
+                    scope.launch {
+                        saveMessageMediaToDevice(context, message) { text, icon, isError ->
+                            showActionBanner(text, icon, isError)
+                        }
+                    }
                 },
                 onShare = {
                     viewModel.closeActionMenu()
-                    shareMessageMedia(message)
+                    scope.launch {
+                        shareMessageMediaSystem(context, message) { errText ->
+                            showActionBanner(errText, Icons.Outlined.ErrorOutline, true)
+                        }
+                    }
                 },
                 onEdit = {
                     viewModel.startEdit(message)
@@ -2091,4 +1811,342 @@ private data class ChatActionBanner(
     val icon: ImageVector,
     val isError: Boolean = false
 )
+
+@Composable
+private fun ChatFloatingTopHeader(
+    session: IChatSession,
+    state: com.anongram.app.features.chats.messages.state.ChatMessagesUiState,
+    viewModel: ChatMessagesViewModel,
+    listState: LazyListState,
+    audioController: ChatAudioController,
+    inputFocusRequester: FocusRequester,
+    isCircleOverlayActive: Boolean,
+    onBack: () -> Unit,
+    onCycleWallpaper: () -> Unit,
+    onStartForward: (List<String>) -> Unit,
+    onOpenMusicSheet: () -> Unit,
+    onShowBanner: (text: String, icon: ImageVector, isError: Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (isCircleOverlayActive) Modifier.blur(22.dp) else Modifier)
+            .safeStatusBarPadding()
+    ) {
+        when {
+            state.isSelectionMode -> {
+                SelectionPanel(
+                    selectedCount = state.selection.size,
+                    isPhoto = state.isSingleSelectedPhoto,
+                    isMediaAlbum = state.isSingleSelectedMediaAlbum,
+                    isFileOrMusic = state.isSingleSelectedFileOrMusic,
+                    isVideoCircle = state.isSingleSelectedVideoCircle,
+                    isVoice = state.isSingleSelectedVoice,
+                    onClose = viewModel::clearSelection,
+                    onCopy = {
+                        val combined = state.selectedMessages.joinToString("\n") { it.text }
+                        clipboard.setText(AnnotatedString(combined))
+                        viewModel.clearSelection()
+                        onShowBanner("Скопировано в буфер обмена", Icons.Outlined.ContentCopy, false)
+                    },
+                    onBrushEdit = {
+                        val openKeyboard = !state.isSingleSelectedVideoCircle && !state.isSingleSelectedVoice
+                        viewModel.startEditFromSelection()
+                        if (openKeyboard) {
+                            inputFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        }
+                    },
+                    onDownload = {
+                        val selectedKey = state.selection.firstOrNull()
+                        val file = state.getSingleSelectedFile()
+                        val music = state.getSingleSelectedMusic()
+                        val targetMsg = selectedKey?.let { key ->
+                            val msgId = key.substringBefore("#")
+                            state.messages.firstOrNull { it.id == msgId }
+                        }
+                        val subPhotoIdx = selectedKey?.takeIf { "#photo_" in it }?.substringAfter("#photo_")?.toIntOrNull()
+                        viewModel.clearSelection()
+                        when {
+                            file != null -> scope.launch {
+                                val ok = saveFileToDeviceDownloads(context, file)
+                                onShowBanner(
+                                    if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить",
+                                    if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                    !ok
+                                )
+                            }
+                            music != null -> scope.launch {
+                                val ok = saveMusicToDeviceMusic(context, music)
+                                onShowBanner(
+                                    if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить",
+                                    if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                    !ok
+                                )
+                            }
+                            targetMsg != null -> scope.launch {
+                                saveMessageMediaToDevice(context, targetMsg, subPhotoIdx, onShowBanner)
+                            }
+                        }
+                    },
+                    onShare = {
+                        val selectedKey = state.selection.firstOrNull()
+                        val targetMsg = selectedKey?.let { key ->
+                            val msgId = key.substringBefore("#")
+                            state.messages.firstOrNull { it.id == msgId }
+                        }
+                        val subPhotoIdx = selectedKey?.takeIf { "#photo_" in it }?.substringAfter("#photo_")?.toIntOrNull()
+                        viewModel.clearSelection()
+                        if (targetMsg != null) {
+                            scope.launch {
+                                shareMessageMediaSystem(context, targetMsg, subPhotoIdx) { errText ->
+                                    onShowBanner(errText, Icons.Outlined.ErrorOutline, true)
+                                }
+                            }
+                        }
+                    },
+                    onForward = {
+                        onStartForward(state.selection.toList())
+                    },
+                    onDelete = {
+                        viewModel.requestDelete(state.selection.toList())
+                    }
+                )
+            }
+
+            state.isSearchOpen -> {
+                ChatSearchTopBar(
+                    query = state.searchQuery,
+                    onQueryChange = viewModel::onSearchQueryChange,
+                    onClose = viewModel::closeSearch
+                )
+            }
+
+            else -> {
+                ChatTopBar(
+                    session = session,
+                    isPeerTyping = state.isPeerTyping,
+                    peerActivity = state.peerActivity,
+                    selfDestruct = state.selfDestruct,
+                    onBack = onBack,
+                    onOpenSearch = viewModel::openSearch,
+                    onCycleWallpaper = onCycleWallpaper,
+                    onOpenKeyCheck = viewModel::openKeyCheck,
+                    onSelfDestruct = {
+                        val next = when (state.selfDestruct) {
+                            SelfDestruct.OFF -> SelfDestruct.S5
+                            SelfDestruct.S5 -> SelfDestruct.M1
+                            SelfDestruct.M1 -> SelfDestruct.H1
+                            SelfDestruct.H1 -> SelfDestruct.D1
+                            SelfDestruct.D1 -> SelfDestruct.W1
+                            SelfDestruct.W1 -> SelfDestruct.OFF
+                        }
+                        viewModel.setSelfDestruct(next)
+                    },
+                    onClearHistory = viewModel::clearHistory,
+                    onDeleteChat = {
+                        viewModel.clearHistory()
+                        onBack()
+                    },
+                    onOpenNotifications = viewModel::openNotifications
+                )
+            }
+        }
+
+        if (!state.isSearchOpen && !state.isSelectionMode) {
+            state.pinnedMessage?.let { pinned ->
+                PinnedBar(
+                    pinned = pinned,
+                    currentIndex = state.pinnedIndex,
+                    totalCount = state.pinnedIds.size.coerceAtLeast(1),
+                    onNavigateToPinned = {
+                        val targetId = if (state.pinnedIds.size > 1) {
+                            viewModel.cycleNextPinnedMessage()
+                        } else {
+                            pinned.id
+                        }
+                        if (targetId != null) {
+                            viewModel.highlightMessage(targetId)
+                            val index = state.messages.asReversed().indexOfFirst { it.id == targetId }
+                            if (index >= 0) {
+                                scope.launch {
+                                    runCatching {
+                                        listState.animateScrollAndCenterItem(index)
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    onOpenAllPinned = viewModel::openPinnedMessages
+                )
+            }
+        }
+
+        if (!state.isSearchOpen && !state.isSelectionMode) {
+            ChatMiniPlayer(
+                controller = audioController,
+                onOpenSheet = onOpenMusicSheet,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 2.dp)
+            )
+        }
+    }
+}
+
+private suspend fun saveMessageMediaToDevice(
+    context: android.content.Context,
+    msg: ChatMessage,
+    subPhotoIdx: Int? = null,
+    onBanner: (text: String, icon: ImageVector, isError: Boolean) -> Unit
+) {
+    val att = msg.attachment
+    var savedOk = false
+    val msgText = when (att) {
+        is MessageAttachment.VideoCircle -> {
+            savedOk = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
+            if (savedOk) "Видео-кружок сохранён в галерею" else "Не удалось сохранить кружок"
+        }
+        is MessageAttachment.Voice -> {
+            savedOk = saveVoiceToDeviceDownloads(context, att)
+            if (savedOk) "Голосовое сохранено в Загрузки" else "Не удалось сохранить голосовое"
+        }
+        is MessageAttachment.Photo -> {
+            val uri = att.uri
+            savedOk = when {
+                uri.isNullOrBlank() -> false
+                att.isVideo -> saveVideoToDeviceGallery(context, uri)
+                else -> savePhotoToDeviceGallery(context, uri)
+            }
+            if (savedOk) {
+                if (att.isVideo) "Видео сохранено в галерею" else "Фото сохранено в галерею"
+            } else "Не удалось сохранить"
+        }
+        is MessageAttachment.MediaAlbum -> {
+            if (subPhotoIdx != null) {
+                val item = att.items.getOrNull(subPhotoIdx)
+                savedOk = if (item == null) false else if (item.isVideo) {
+                    saveVideoToDeviceGallery(context, item.uri)
+                } else {
+                    savePhotoToDeviceGallery(context, item.uri)
+                }
+                if (savedOk) "Сохранено в галерею" else "Не удалось сохранить"
+            } else {
+                val count = saveMediaAlbumToGallery(context, att)
+                savedOk = count > 0
+                if (savedOk) {
+                    if (count == att.items.size) "Скачано $count фото в галерею"
+                    else "Скачано $count из ${att.items.size} в галерею"
+                } else "Не удалось сохранить альбом"
+            }
+        }
+        is MessageAttachment.File -> {
+            savedOk = saveFileToDeviceDownloads(context, att)
+            if (savedOk) "Файл сохранён в Загрузки" else "Не удалось сохранить файл"
+        }
+        is MessageAttachment.FileGroup -> {
+            var saved = 0
+            for (f in att.items) {
+                if (saveFileToDeviceDownloads(context, f)) saved++
+            }
+            savedOk = saved > 0
+            if (savedOk) "Скачано файлов: $saved из ${att.items.size} в Загрузки" else "Не удалось сохранить файлы"
+        }
+        is MessageAttachment.Music -> {
+            savedOk = saveMusicToDeviceMusic(context, att)
+            if (savedOk) "Трек сохранён в Музыку" else "Не удалось сохранить трек"
+        }
+        is MessageAttachment.MusicGroup -> {
+            var saved = 0
+            for (m in att.items) {
+                if (saveMusicToDeviceMusic(context, m)) saved++
+            }
+            savedOk = saved > 0
+            if (savedOk) "Сохранено треков: $saved из ${att.items.size}" else "Не удалось сохранить треки"
+        }
+        else -> "Нечего сохранять"
+    }
+    onBanner(
+        msgText,
+        if (savedOk) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+        !savedOk
+    )
+}
+
+private suspend fun shareMessageMediaSystem(
+    context: android.content.Context,
+    msg: ChatMessage,
+    subPhotoIdx: Int? = null,
+    onError: (String) -> Unit
+) {
+    when (val att = msg.attachment) {
+        is MessageAttachment.VideoCircle -> {
+            val ok = VideoCircleExportHelper.shareVideoCircleSystemChooser(context, att.uri)
+            if (!ok) onError("Не удалось подготовить видео для отправки")
+        }
+        is MessageAttachment.Voice -> {
+            val ok = shareMediaUriSystemChooser(
+                context = context,
+                uriString = att.uri,
+                mimeType = "audio/mp4",
+                chooserTitle = "Поделиться голосовым",
+                suggestedFileName = "voice_${msg.id}.m4a"
+            )
+            if (!ok) onError("Файл голосового недоступен")
+        }
+        is MessageAttachment.Photo -> {
+            val ok = shareMediaUriSystemChooser(
+                context = context,
+                uriString = att.uri,
+                mimeType = if (att.isVideo) "video/mp4" else "image/jpeg",
+                chooserTitle = if (att.isVideo) "Поделиться видео" else "Поделиться фото"
+            )
+            if (!ok) onError("Файл недоступен")
+        }
+        is MessageAttachment.MediaAlbum -> {
+            val item = subPhotoIdx?.let { att.items.getOrNull(it) } ?: att.items.firstOrNull()
+            val ok = if (item != null) {
+                shareMediaUriSystemChooser(
+                    context = context,
+                    uriString = item.uri,
+                    mimeType = if (item.isVideo) "video/mp4" else "image/jpeg",
+                    chooserTitle = "Поделиться"
+                )
+            } else false
+            if (!ok) onError("Файл недоступен")
+        }
+        is MessageAttachment.File -> {
+            val ok = shareMediaUriSystemChooser(
+                context = context,
+                uriString = att.uri,
+                mimeType = "*/*",
+                chooserTitle = att.name,
+                suggestedFileName = att.name
+            )
+            if (!ok) onError("Файл недоступен")
+        }
+        is MessageAttachment.Music -> {
+            val ok = shareMediaUriSystemChooser(
+                context = context,
+                uriString = att.uri,
+                mimeType = "audio/*",
+                chooserTitle = "${att.artist} - ${att.title}"
+            )
+            if (!ok) onError("Аудио недоступно")
+        }
+        else -> {
+            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(android.content.Intent.EXTRA_TEXT, msg.text.ifBlank { "AnonGram" })
+            }
+            context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться"))
+        }
+    }
+}
 
