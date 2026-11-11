@@ -405,7 +405,7 @@ private fun ClearHistoryDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = scheme.cardBg,
+        containerColor = scheme.card,
         title = {
             Text(
                 text = "Очистить историю",
@@ -481,7 +481,7 @@ private fun DeleteChatDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(20.dp),
-        containerColor = scheme.cardBg,
+        containerColor = scheme.card,
         title = {
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,

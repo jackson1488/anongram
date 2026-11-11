@@ -153,7 +153,7 @@ fun AttachInputBar(
                     ) {
                         Icon(
                             imageVector = if (effectiveEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                            contentDescription = strings.emojiAndStickers,
+                            contentDescription = strings.emoji,
                             tint = if (effectiveEmojiOpen) scheme.accent else scheme.textMuted,
                             modifier = Modifier.size(24.dp)
                         )
