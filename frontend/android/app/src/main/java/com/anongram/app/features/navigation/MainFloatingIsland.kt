@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.R
 import com.anongram.app.core.theme.*
 
+import com.anongram.app.core.ui.icons.FluentIcons
+
 /**
  * Ergonomic Floating Navigation Island with prominent central elevated Stealth QR button
  */
@@ -43,6 +45,8 @@ fun MainFloatingIsland(
     onQrClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -67,38 +71,42 @@ fun MainFloatingIsland(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
         ) {
-            // 0. Chats
+            // 0. Chats (FluentUI ChatMultiple)
             NavTabItem(
                 label = "Чаты",
-                icon = Icons.Outlined.ChatBubbleOutline,
+                icon = FluentIcons.ChatMultiple,
                 isSelected = currentTab == 0,
+                activeColor = scheme.accent,
                 onClick = { onTabSelected(0) }
             )
 
-            // 1. Services
+            // 1. Services (FluentUI Shield)
             NavTabItem(
                 label = "Сервисы",
-                icon = Icons.Outlined.Shield,
+                icon = FluentIcons.Shield,
                 isSelected = currentTab == 1,
+                activeColor = scheme.accent,
                 onClick = { onTabSelected(1) }
             )
 
             // Spacer for center elevated stealth button
             Spacer(modifier = Modifier.width(56.dp))
 
-            // 2. Settings
+            // 2. Settings (FluentUI Settings)
             NavTabItem(
                 label = "Настройки",
-                icon = Icons.Outlined.Settings,
+                icon = FluentIcons.Settings,
                 isSelected = currentTab == 2,
+                activeColor = scheme.accent,
                 onClick = { onTabSelected(2) }
             )
 
-            // 3. Profile
+            // 3. Profile (FluentUI Person)
             NavTabItem(
                 label = "Профиль",
-                icon = Icons.Outlined.Person,
+                icon = FluentIcons.Person,
                 isSelected = currentTab == 3,
+                activeColor = scheme.accent,
                 onClick = { onTabSelected(3) }
             )
         }
@@ -110,7 +118,7 @@ fun MainFloatingIsland(
                 .shadow(
                     elevation = 20.dp,
                     shape = RoundedCornerShape(22.dp),
-                    spotColor = CyberCyan.copy(alpha = 0.5f)
+                    spotColor = scheme.accent.copy(alpha = 0.5f)
                 )
                 .size(56.dp)
                 .clip(RoundedCornerShape(22.dp))
@@ -125,7 +133,7 @@ fun MainFloatingIsland(
                 .border(
                     width = 2.dp,
                     brush = Brush.linearGradient(
-                        colors = listOf(CyberCyan, CyberTeal, NeonEmerald)
+                        colors = listOf(scheme.accent, scheme.accentDim)
                     ),
                     shape = RoundedCornerShape(22.dp)
                 )
@@ -152,9 +160,10 @@ private fun RowScope.NavTabItem(
     label: String,
     icon: ImageVector,
     isSelected: Boolean,
+    activeColor: Color,
     onClick: () -> Unit
 ) {
-    val contentColor = if (isSelected) CyberCyan else TextSecondary
+    val contentColor = if (isSelected) activeColor else TextSecondary
     val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
 
     Column(
@@ -172,7 +181,7 @@ private fun RowScope.NavTabItem(
         Box(
             modifier = Modifier
                 .clip(CircleShape)
-                .background(if (isSelected) Color(0xFF1B2B3F) else Color.Transparent)
+                .background(if (isSelected) activeColor.copy(alpha = 0.18f) else Color.Transparent)
                 .padding(horizontal = 14.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {

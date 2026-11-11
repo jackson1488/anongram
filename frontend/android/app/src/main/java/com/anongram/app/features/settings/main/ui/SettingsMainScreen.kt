@@ -58,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.auth.data.crypto.KeystoreVault
 import com.anongram.app.features.settings.main.ui.components.AccountsSectionCard
@@ -110,14 +111,16 @@ fun SettingsMainScreen(
         derivedStateOf { scrollState.value > 60 }
     }
 
+    val scheme = LocalAnonGramScheme.current
+
     // Только текущий активный аккаунт пользователя (без фейковых заглушек)
-    val connectedAccounts = remember(displayName, identity?.publicId) {
+    val connectedAccounts = remember(displayName, identity?.publicId, scheme.accent) {
         listOf(
             ConnectedAccountItem(
                 id = identity?.publicId ?: "current",
                 name = displayName,
-                avatarColorStart = Color(0xFF7E57C2),
-                avatarColorEnd = Color(0xFF5E35B1),
+                avatarColorStart = scheme.accent,
+                avatarColorEnd = scheme.accentDim,
                 unreadCount = 0,
                 isCurrent = true
             )
@@ -263,7 +266,7 @@ fun SettingsMainScreen(
             ) {
                 SettingsItemRow(
                     icon = Icons.Default.Star,
-                    iconBackgroundColor = Color(0xFF7E57C2),
+                    iconBackgroundColor = scheme.accent,
                     title = "AnonGram Quantum Core",
                     subtitle = "Пост-квантовое шифрование ML-DSA-87",
                     onClick = { onNavigate(SettingsRoute.Privacy) }

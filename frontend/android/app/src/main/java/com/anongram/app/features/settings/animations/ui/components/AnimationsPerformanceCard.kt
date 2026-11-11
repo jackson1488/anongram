@@ -24,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.anongram.app.core.theme.LocalAnonGramScheme
+
 /**
  * Карточка настроек производительности и скорости анимаций.
  * Изолированный компонент раздела `features/settings/animations/`.
@@ -36,6 +38,7 @@ fun AnimationsPerformanceCard(
     onAnimationSpeedOptionChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val speedOptions = listOf("0.5x", "1.0x", "1.5x", "2.0x")
 
     Column(
@@ -47,7 +50,7 @@ fun AnimationsPerformanceCard(
     ) {
         Text(
             text = "Производительность",
-            color = Color(0xFFEC407A),
+            color = scheme.accent,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -77,7 +80,7 @@ fun AnimationsPerformanceCard(
                 onCheckedChange = onReduceMotionChange,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFFEC407A),
+                    checkedTrackColor = scheme.accent,
                     uncheckedThumbColor = Color(0xFFB0B0B0),
                     uncheckedTrackColor = Color(0xFF333333)
                 )
@@ -115,7 +118,7 @@ fun AnimationsPerformanceCard(
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isSelected) Color(0xFFEC407A) else Color.White.copy(alpha = 0.08f)
+                            if (isSelected) scheme.accent else Color.White.copy(alpha = 0.08f)
                         )
                         .clickable { onAnimationSpeedOptionChange(opt) }
                         .padding(vertical = 10.dp),

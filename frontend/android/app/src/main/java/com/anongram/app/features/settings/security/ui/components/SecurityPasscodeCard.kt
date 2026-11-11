@@ -25,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.anongram.app.core.theme.LocalAnonGramScheme
+
 /**
  * Карточка настроек блокировки приложения, биометрии и защиты экрана.
  * Изолированный компонент раздела `features/settings/security/`.
@@ -43,7 +45,14 @@ fun SecurityPasscodeCard(
     onTwoFactorChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val autoLockOptions = listOf("Сразу", "1 мин", "5 мин", "1 час")
+    val switchColors = SwitchDefaults.colors(
+        checkedThumbColor = Color.White,
+        checkedTrackColor = scheme.accent,
+        uncheckedThumbColor = Color(0xFFB0B0B0),
+        uncheckedTrackColor = Color(0xFF333333)
+    )
 
     Column(
         modifier = modifier
@@ -73,10 +82,7 @@ fun SecurityPasscodeCard(
             Switch(
                 checked = passcodeEnabled,
                 onCheckedChange = onPasscodeChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF66BB6A)
-                )
+                colors = switchColors
             )
         }
 
@@ -107,10 +113,7 @@ fun SecurityPasscodeCard(
                     Switch(
                         checked = biometricsEnabled,
                         onCheckedChange = onBiometricsChange,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = Color(0xFF66BB6A)
-                        )
+                        colors = switchColors
                     )
                 }
 
@@ -136,7 +139,7 @@ fun SecurityPasscodeCard(
                             modifier = Modifier
                                 .weight(1f)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) Color(0xFF66BB6A) else Color.White.copy(alpha = 0.08f))
+                                .background(if (isSelected) scheme.accent else Color.White.copy(alpha = 0.08f))
                                 .clickable { onAutoLockOptionChange(opt) }
                                 .padding(vertical = 8.dp),
                             contentAlignment = Alignment.Center
@@ -178,10 +181,7 @@ fun SecurityPasscodeCard(
             Switch(
                 checked = screenProtectionEnabled,
                 onCheckedChange = onScreenProtectionChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF66BB6A)
-                )
+                colors = switchColors
             )
         }
 
@@ -210,10 +210,7 @@ fun SecurityPasscodeCard(
             Switch(
                 checked = twoFactorEnabled,
                 onCheckedChange = onTwoFactorChange,
-                colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF66BB6A)
-                )
+                colors = switchColors
             )
         }
     }

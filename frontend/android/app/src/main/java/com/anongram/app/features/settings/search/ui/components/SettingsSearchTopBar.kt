@@ -61,6 +61,8 @@ fun SettingsSearchTopBar(
         } catch (_: Exception) { }
     }
 
+    val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -108,7 +110,7 @@ fun SettingsSearchTopBar(
                     color = Color.White,
                     fontSize = 15.sp
                 ),
-                cursorBrush = SolidColor(Color.White),
+                cursorBrush = SolidColor(scheme.accent),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions = KeyboardActions(onSearch = {

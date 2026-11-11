@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
+import com.anongram.app.core.theme.LocalAnonGramScheme
+
 /**
  * Карточка настройки визуальных эффектов и системных анимаций AnonGram.
  * Изолированный компонент раздела `features/settings/animations/`.
@@ -39,9 +41,10 @@ fun AnimationsEffectsCard(
     onAnimatedBackgroundsChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val switchColors = SwitchDefaults.colors(
         checkedThumbColor = Color.White,
-        checkedTrackColor = Color(0xFFEC407A),
+        checkedTrackColor = scheme.accent,
         uncheckedThumbColor = Color(0xFFB0B0B0),
         uncheckedTrackColor = Color(0xFF333333)
     )
@@ -55,7 +58,7 @@ fun AnimationsEffectsCard(
     ) {
         Text(
             text = "Визуальные эффекты",
-            color = Color(0xFFEC407A),
+            color = scheme.accent,
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
