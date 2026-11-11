@@ -1143,6 +1143,10 @@ class ChatMessagesViewModel(
 
     fun stopLockedRecording() {
         val recording = _uiState.value.recording
+        if (recording.mode == RecordMode.CIRCLE) {
+            _uiState.update { s -> s.copy(recording = s.recording.copy(finishRequested = true)) }
+            return
+        }
         recordingJob?.cancel()
         recordingJob = null
         _uiState.update { it.copy(recording = RecordingState()) }
@@ -1154,24 +1158,7 @@ class ChatMessagesViewModel(
                     waveform = result.waveform,
                     uri = result.file.absolutePath
                 )
-                _uiState.update { it.copy(voiceReviewDraft = voice) }
-                ChatDraftsRepository.instance.saveDraft(
-                    ChatDraft(
-                        chatId = sessionId,
-                        text = _uiState.value.input,
-                        voiceUri = result.file.absolutePath,
-                        voiceDurationLabel = voice.durationLabel,
-                        voiceWaveform = voice.waveform
-                    )
-                )
-            }
-        } else if (recording.mode == RecordMode.CIRCLE) {
-            if (recording.elapsedTenths >= 2) {
-                val attachment = MessageAttachment.VideoCircle(
-                    durationLabel = recording.durationLabel,
-                    colorSeed = Random.nextInt(0, 5)
-                )
-                sendAttachment(attachment)
+                sendAttachment(voice)
             }
         }
     }

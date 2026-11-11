@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.ui.input.recording
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -10,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,7 +33,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,9 +47,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.roundToInt
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.IslandBackground
@@ -132,48 +141,63 @@ fun ActionButton(
     val currentOnLockRecording by rememberUpdatedState(onLockRecording)
     val currentOnCancelRecording by rememberUpdatedState(onCancelRecording)
 
+    val density = LocalDensity.current
+    val lockDistancePx = with(density) { 85.dp.toPx() }
+
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    var isHolding by remember { mutableStateOf(false) }
+
+    val buttonSize by animateDpAsState(
+        targetValue = if (isHolding || isRecording) 52.dp else 42.dp,
+        label = "btnSize"
+    )
+
     Box(
         modifier = modifier,
         contentAlignment = Alignment.BottomCenter
     ) {
-        // Плавающий замочек блокировки над кнопкой при удержании записи
+        // Вертикальный трек с замочком над кнопкой при удержании записи
         AnimatedVisibility(
-            visible = isRecording && !isLockedRecording,
+            visible = (isHolding || isRecording) && !isLockedRecording,
             enter = fadeIn(tween(150)),
             exit = fadeOut(tween(150)),
-            modifier = Modifier.offset(y = (-52).dp)
+            modifier = Modifier.offset(y = (-88).dp)
         ) {
             Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF222227).copy(alpha = 0.92f))
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+                    .width(42.dp)
+                    .height(92.dp)
+                    .clip(RoundedCornerShape(21.dp))
+                    .background(Color(0xFF222227).copy(alpha = 0.94f))
+                    .border(1.dp, CardBorder, RoundedCornerShape(21.dp))
+                    .padding(vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Lock,
                     contentDescription = "Заблокировать",
-                    tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    tint = if (dragOffsetY <= -lockDistancePx + with(density) { 10.dp.toPx() }) FlameOrange else Color.White,
+                    modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.height(2.dp))
                 Icon(
                     imageVector = Icons.Outlined.KeyboardArrowUp,
                     contentDescription = null,
                     tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(14.dp)
+                    modifier = Modifier.size(16.dp)
                 )
             }
         }
 
-        // Основная круглая кнопка
+        // Основная круглая кнопка, физически двигающаяся вверх с пальцем пользователя
         Box(
             modifier = Modifier
-                .size(42.dp)
+                .size(buttonSize)
+                .offset { IntOffset(0, dragOffsetY.roundToInt().coerceIn(-lockDistancePx.toInt(), 0)) }
                 .clip(CircleShape)
                 .background(
-                    if (isRecording) FlameOrange
+                    if (isRecording || isHolding) FlameOrange
                     else if (canSend) scheme.accent
                     else Color(0xFF26262B)
                 )
@@ -205,9 +229,11 @@ fun ActionButton(
                                     continue
                                 }
 
+                                isHolding = true
+                                dragOffsetY = 0f
+                                dragOffsetX = 0f
+
                                 var isRecordingStarted = false
-                                var totalDragX = 0f
-                                var totalDragY = 0f
                                 var isCancelled = false
                                 var isLocked = false
 
@@ -227,15 +253,19 @@ fun ActionButton(
 
                                     if (change.pressed) {
                                         val delta = change.position - change.previousPosition
-                                        totalDragX += delta.x
-                                        totalDragY += delta.y
+                                        dragOffsetX += delta.x
+                                        dragOffsetY = (dragOffsetY + delta.y).coerceIn(-lockDistancePx, 0f)
 
                                         if (isRecordingStarted) {
-                                            if (!isCancelled && totalDragX < -80f) {
+                                            if (!isCancelled && dragOffsetX < -with(density) { 80.dp.toPx() }) {
                                                 isCancelled = true
+                                                isHolding = false
+                                                dragOffsetY = 0f
                                                 currentOnCancelRecording()
-                                            } else if (!isLocked && totalDragY < -70f) {
+                                            } else if (!isLocked && dragOffsetY <= -lockDistancePx + with(density) { 8.dp.toPx() }) {
                                                 isLocked = true
+                                                isHolding = false
+                                                dragOffsetY = 0f
                                                 currentOnLockRecording()
                                             }
                                         }
@@ -246,11 +276,14 @@ fun ActionButton(
                                             // Быстрый одиночный тап — переключение между голосом и видео-кружочком
                                             currentOnToggleCameraMode()
                                         } else if (isRecordingStarted) {
-                                            // Отпустил палец после записи: автоотправка (если не заблокировано и не отменено)
+                                            // Отпустил палец: отправка в чат (Release to Send)
                                             if (!isCancelled && !isLocked) {
                                                 currentOnFinishRecording(true)
                                             }
                                         }
+                                        isHolding = false
+                                        dragOffsetY = 0f
+                                        dragOffsetX = 0f
                                         break
                                     }
                                 }
@@ -272,7 +305,7 @@ fun ActionButton(
                     imageVector = Icons.Outlined.Stop,
                     contentDescription = strings.stop,
                     tint = Color.White,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             } else if (isCameraMode) {
                 TelegramVideoNoteIcon(

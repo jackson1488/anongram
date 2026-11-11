@@ -535,6 +535,17 @@ fun ChatScreen(
             }
         }
 
+        // Оверлей записи видео-кружочка (рендерится под строкой ввода, чтобы поле ввода оставалось сверху)
+        if (state.recording.mode == RecordMode.CIRCLE) {
+            VideoCircleRecordOverlay(
+                recordingState = state.recording,
+                onCancel = viewModel::cancelRecording,
+                onSend = viewModel::stopLockedRecording,
+                onToggleLock = viewModel::lockRecording,
+                onSendVideo = { uri, dur -> viewModel.sendVideoCircle(uri, dur) }
+            )
+        }
+
         // 1b. Парящее поле ввода поверх списка сообщений
         Box(
             modifier = Modifier
@@ -1486,16 +1497,6 @@ fun ChatScreen(
             )
         }
 
-        // 5. Оверлей записи видео-кружочка
-        if (state.recording.mode == RecordMode.CIRCLE) {
-            VideoCircleRecordOverlay(
-                recordingState = state.recording,
-                onCancel = viewModel::cancelRecording,
-                onSend = viewModel::stopLockedRecording,
-                onToggleLock = viewModel::lockRecording,
-                onSendVideo = { uri, dur -> viewModel.sendVideoCircle(uri, dur) }
-            )
-        }
 
         // 6. Шторка музыкального плеера чата
         if (isMusicSheetOpen || audioPlayerState.isSheetOpen) {

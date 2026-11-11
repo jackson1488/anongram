@@ -145,17 +145,19 @@ fun VideoCircleRecordOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.8f)),
+            .background(Color.Black.copy(alpha = 0.35f)),
         contentAlignment = Alignment.Center
     ) {
-        // Центральный круглый видоискатель камеры (диаметр 280.dp)
+        // Компактный круглый видоискатель камеры (диаметр 210.dp)
         Box(
-            modifier = Modifier.size(300.dp),
+            modifier = Modifier
+                .offset(y = (-40).dp)
+                .size(224.dp),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(280.dp)
+                    .size(210.dp)
                     .clip(CircleShape)
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
@@ -182,8 +184,8 @@ fun VideoCircleRecordOverlay(
 
             // Круговой индикатор времени записи
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val radius = (size.minDimension - 14.dp.toPx()) / 2f
-                val strokeWidth = 4.dp.toPx()
+                val radius = (size.minDimension - 10.dp.toPx()) / 2f
+                val strokeWidth = 3.5.dp.toPx()
                 val centerOffset = Offset(size.width / 2f, size.height / 2f)
 
                 drawArc(
@@ -198,9 +200,8 @@ fun VideoCircleRecordOverlay(
             }
         }
 
-        // В заблокированном режиме: панель управления камерой, таймер, отмена и кнопка отправки
+        // В заблокированном режиме: панель управления камерой (смена камеры, фонарик)
         if (isLocked) {
-            // Кнопки управления слева (смена камеры, фонарик)
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -240,65 +241,6 @@ fun VideoCircleRecordOverlay(
                         tint = if (isFlashOn) FlameOrange else Color.White,
                         modifier = Modifier.size(22.dp)
                     )
-                }
-            }
-
-            // Нижняя плашка с таймером и кнопкой отмены / отправки
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(IslandBackground)
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
-                        .padding(horizontal = 16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(Color.Red.copy(alpha = pulseAlpha))
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = timeLabel,
-                        color = Color.White,
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(
-                        text = "ОТМЕНА",
-                        color = scheme.accent,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { cancelAndCleanup() }
-                    )
-                    Spacer(modifier = Modifier.width(16.dp))
-                    // Кнопка остановки и отправки
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(scheme.accent)
-                            .clickable { finishAndSend() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Videocam,
-                            contentDescription = "Отправить кружочек",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
             }
         }

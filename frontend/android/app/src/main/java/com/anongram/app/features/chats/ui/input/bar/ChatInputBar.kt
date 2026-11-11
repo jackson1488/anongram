@@ -1,6 +1,11 @@
 package com.anongram.app.features.chats.ui.input.bar
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -16,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -41,6 +47,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.CardBorder
@@ -106,7 +114,7 @@ fun ChatInputBar(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        if (isRecording) {
+        if (recording.isLocked) {
             RecordingBar(
                 recording = recording,
                 onCancel = onCancelRecording,
@@ -126,8 +134,7 @@ fun ChatInputBar(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(IslandBackground)
+                        .background(IslandBackground, RoundedCornerShape(24.dp))
                         .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
                 ) {
                     // Слитно встроенная плашка ответа или правки на всю ширину
@@ -156,100 +163,138 @@ fun ChatInputBar(
                             .defaultMinSize(minHeight = 48.dp)
                             .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)
                     ) {
-                        // Кнопка эмодзи / клавиатура
-                        IconButton(
-                            onClick = onToggleEmoji,
-                            modifier = Modifier
-                                .padding(bottom = 2.dp)
-                                .size(38.dp)
-                        ) {
-                            Icon(
-                                imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                                contentDescription = strings.emoji,
-                                tint = if (isEmojiOpen) scheme.accent else TextMuted,
-                                modifier = Modifier.size(23.dp)
+                        if (isRecording) {
+                            // Режим удержания записи: скрываем поле ввода, показываем таймер и подсказку свайпа
+                            val infiniteTransition = rememberInfiniteTransition(label = "pulseDot")
+                            val pulseAlpha by infiniteTransition.animateFloat(
+                                initialValue = 0.3f,
+                                targetValue = 1.0f,
+                                animationSpec = infiniteRepeatable(tween(500), repeatMode = RepeatMode.Reverse),
+                                label = "pulseAlpha"
                             )
-                        }
+                            Row(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(10.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Red.copy(alpha = pulseAlpha))
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = recording.timeLabel,
+                                    color = TextPrimary,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.weight(1f))
+                                Text(
+                                    text = strings.slideLeftToCancel,
+                                    color = TextMuted,
+                                    fontSize = 13.sp
+                                )
+                            }
+                        } else {
+                            // Кнопка эмодзи / клавиатура
+                            IconButton(
+                                onClick = onToggleEmoji,
+                                modifier = Modifier
+                                    .padding(bottom = 2.dp)
+                                    .size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
+                                    contentDescription = strings.emoji,
+                                    tint = if (isEmojiOpen) scheme.accent else TextMuted,
+                                    modifier = Modifier.size(23.dp)
+                                )
+                            }
 
-                        // Центральная область ввода: раздувается до 160 dp (~на 2 см выше)
-                        val placeholderText = if (editing?.attachment != null) strings.captionPlaceholder else strings.messagePlaceholder
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 4.dp, vertical = 6.dp)
-                        ) {
+                            // Центральная область ввода: раздувается до 160 dp (~на 2 см выше)
+                            val placeholderText = if (editing?.attachment != null) strings.captionPlaceholder else strings.messagePlaceholder
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(min = 34.dp, max = 160.dp)
-                                    .verticalScroll(scrollState)
-                                    .padding(end = if (isMultiline) 28.dp else 0.dp),
-                                contentAlignment = Alignment.CenterStart
+                                    .weight(1f)
+                                    .padding(horizontal = 4.dp, vertical = 6.dp)
                             ) {
-                                if (textValue.isEmpty()) {
-                                    Text(
-                                        text = placeholderText,
-                                        color = TextMuted,
-                                        fontSize = 15.sp
-                                    )
-                                }
-                                BasicTextField(
-                                    value = textValue,
-                                    onValueChange = { newText ->
-                                        textValue = newText
-                                        onInputChange(newText)
-                                    },
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .onFocusChanged { if (it.isFocused) onFocusInput() }
-                                        .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-                                    textStyle = TextStyle(
-                                        color = TextPrimary,
-                                        fontSize = 15.sp,
-                                        lineHeight = 20.sp
-                                    ),
-                                    cursorBrush = SolidColor(scheme.accent)
-                                )
+                                        .heightIn(min = 34.dp, max = 160.dp)
+                                        .verticalScroll(scrollState)
+                                        .padding(end = if (isMultiline) 28.dp else 0.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (textValue.isEmpty()) {
+                                        Text(
+                                            text = placeholderText,
+                                            color = TextMuted,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                    BasicTextField(
+                                        value = textValue,
+                                        onValueChange = { newText ->
+                                            textValue = newText
+                                            onInputChange(newText)
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .onFocusChanged { if (it.isFocused) onFocusInput() }
+                                            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+                                        textStyle = TextStyle(
+                                            color = TextPrimary,
+                                            fontSize = 15.sp,
+                                            lineHeight = 20.sp
+                                        ),
+                                        cursorBrush = SolidColor(scheme.accent)
+                                    )
+                                }
+                            }
+
+                            // Скрепка (вложения)
+                            if (editing?.attachment == null && !canSend) {
+                                IconButton(
+                                    onClick = onOpenAttach,
+                                    modifier = Modifier
+                                        .padding(bottom = 2.dp)
+                                        .size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AttachFile,
+                                        contentDescription = strings.attach,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
                             }
                         }
 
-                        // Скрепка (вложения)
-                    if (editing?.attachment == null && !canSend) {
-                        IconButton(
-                            onClick = onOpenAttach,
-                            modifier = Modifier
-                                .padding(bottom = 2.dp)
-                                .size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.AttachFile,
-                                contentDescription = strings.attach,
-                                tint = TextMuted,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(2.dp))
+
+                        // Круглая кнопка действия (отправить / микрофон / видео) прямо внутри островка!
+                        ActionButton(
+                            canSend = canSend,
+                            isEditing = editing != null,
+                            isRecording = isRecording,
+                            isLockedRecording = recording.isLocked,
+                            isCameraMode = isCameraMode,
+                            onSend = onSend,
+                            onToggleCameraMode = onToggleCameraMode,
+                            onStartRecording = onStartRecording,
+                            onFinishRecording = onFinishRecording,
+                            onStopLockedRecording = onStopLockedRecording,
+                            onLockRecording = onLockRecording,
+                            onCancelRecording = onCancelRecording,
+                            modifier = Modifier.padding(bottom = 2.dp)
+                        )
                     }
-
-                    Spacer(modifier = Modifier.width(2.dp))
-
-                    // Круглая кнопка действия (отправить / микрофон / видео) прямо внутри островка!
-                    ActionButton(
-                        canSend = canSend,
-                        isEditing = editing != null,
-                        isRecording = isRecording,
-                        isLockedRecording = recording.isLocked,
-                        isCameraMode = isCameraMode,
-                        onSend = onSend,
-                        onToggleCameraMode = onToggleCameraMode,
-                        onStartRecording = onStartRecording,
-                        onFinishRecording = onFinishRecording,
-                        onStopLockedRecording = onStopLockedRecording,
-                        onLockRecording = onLockRecording,
-                        onCancelRecording = onCancelRecording,
-                        modifier = Modifier.padding(bottom = 2.dp)
-                    )
                 }
-            }
 
             // Иконка ⤢ строго в правом верхнем углу всей капсулы
             if (isMultiline) {
