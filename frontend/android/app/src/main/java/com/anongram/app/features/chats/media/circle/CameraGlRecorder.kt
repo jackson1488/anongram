@@ -30,10 +30,10 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.abs
 
 /**
- * Непрерывный OpenGL ES 2.0 + MediaCodec (H.264/AAC) рекордер видео-кружочков в стиле Telegram InstantCameraView:
- * - Кодирует видео в квадрат 480x480 1:1 и пишет звук через AudioRecord без остановки при смене камеры
- * - На время переключения сенсора Front <-> Back на превью и в поток кодирования мягко удерживается последний кадр (0 чёрного экрана)
- * - Один общий EGL-контекст одновременно рисует и в TextureView превью, и в inputSurface видеокодера
+ * Непрерывный OpenGL ES 2.0 + MediaCodec (H.264/AAC) рекордер видео-кружочков в стиле Telegram:
+ * - Кодирует видео в портретный квадрат 480x480 1:1 и пишет звук через AudioRecord без разрыва при смене камеры
+ * - Автоматически определяет, повернула ли уже камера матрицу SurfaceTexture, чтобы итоговое видео никогда не ложилось набок
+ * - Синхронизирует start_time видео и аудио с первого видеокадра (0.000s) и удерживает последний кадр при смене сенсора
  */
 internal class CameraGlRecorder {
 
@@ -122,15 +122,27 @@ internal class CameraGlRecorder {
 
     private val texMatrix = FloatArray(16)
     private val mvpMatrix = FloatArray(16)
+    private val scaleMat = FloatArray(16)
+    private val rotMat = FloatArray(16)
 
+    // Текущие активные параметры (для уже загруженного в OES текстуру кадра)
+    private var activeCamWidth: Int = 640
+    private var activeCamHeight: Int = 480
+    private var activeSensorOrientation: Int = 270
+    private var activeFrontCamera: Boolean = true
+
+    // Ожидающие параметры следующей камеры (фиксируются только на первом новом кадре)
     @Volatile
-    private var camWidth: Int = 640
+    private var pendingCamWidth: Int = 640
     @Volatile
-    private var camHeight: Int = 480
+    private var pendingCamHeight: Int = 480
     @Volatile
-    private var sensorOrientation: Int = 270
+    private var pendingSensorOrientation: Int = 270
     @Volatile
-    private var isFrontCamera: Boolean = true
+    private var pendingFrontCamera: Boolean = true
+    @Volatile
+    private var hasPendingCameraParams: Boolean = false
+
     @Volatile
     private var hasReceivedFirstFrame: Boolean = false
     @Volatile
@@ -162,9 +174,9 @@ internal class CameraGlRecorder {
     @Volatile
     private var audioExpected: Boolean = false
     @Volatile
-    private var recordStartNs: Long = 0L
+    private var muxerEpochNs: Long = 0L
     @Volatile
-    private var lastFrameDrawNs: Long = 0L
+    private var lastEncodedPtsNs: Long = -1L
 
     private val pendingSamples = mutableListOf<PendingSample>()
 
@@ -199,7 +211,7 @@ internal class CameraGlRecorder {
                 Matrix.setIdentityM(texMatrix, 0)
                 oesTextureId = createOesTexture()
                 val st = SurfaceTexture(oesTextureId)
-                st.setDefaultBufferSize(camWidth, camHeight)
+                st.setDefaultBufferSize(activeCamWidth, activeCamHeight)
                 st.setOnFrameAvailableListener({
                     if (!isDestroyed) {
                         isSwitchingCamera = false
@@ -261,12 +273,20 @@ internal class CameraGlRecorder {
     fun configureCameraParams(width: Int, height: Int, sensorOrientationDeg: Int, front: Boolean) {
         val handler = glHandler ?: return
         handler.post {
-            camWidth = width.coerceAtLeast(1)
-            camHeight = height.coerceAtLeast(1)
-            sensorOrientation = sensorOrientationDeg
-            isFrontCamera = front
+            pendingCamWidth = width.coerceAtLeast(1)
+            pendingCamHeight = height.coerceAtLeast(1)
+            pendingSensorOrientation = sensorOrientationDeg
+            pendingFrontCamera = front
+            hasPendingCameraParams = true
+            if (!hasReceivedFirstFrame) {
+                activeCamWidth = pendingCamWidth
+                activeCamHeight = pendingCamHeight
+                activeSensorOrientation = pendingSensorOrientation
+                activeFrontCamera = pendingFrontCamera
+                hasPendingCameraParams = false
+            }
             runCatching {
-                cameraSurfaceTexture?.setDefaultBufferSize(camWidth, camHeight)
+                cameraSurfaceTexture?.setDefaultBufferSize(pendingCamWidth, pendingCamHeight)
             }
         }
     }
@@ -302,9 +322,9 @@ internal class CameraGlRecorder {
             videoTrackIndex = -1
             audioTrackIndex = -1
             muxerStarted = false
+            muxerEpochNs = 0L
+            lastEncodedPtsNs = -1L
             synchronized(muxerLock) { pendingSamples.clear() }
-            recordStartNs = System.nanoTime()
-            lastFrameDrawNs = 0L
 
             val vFormat = MediaFormat.createVideoFormat(VIDEO_MIME, OUTPUT_SIZE, OUTPUT_SIZE).apply {
                 setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface)
@@ -391,13 +411,12 @@ internal class CameraGlRecorder {
         isRecordingActive = false
 
         val vCodec = videoEncoder
-        val aCodec = audioEncoder
         val ar = audioRecord
         val file = outputFile
 
         runCatching { ar?.stop() }
-        runCatching { audioCaptureThread?.join(1200) }
-        runCatching { audioDrainThread?.join(1200) }
+        runCatching { audioCaptureThread?.join(800) }
+        runCatching { audioDrainThread?.join(800) }
 
         val eosLatch = CountDownLatch(1)
         val handler = glHandler
@@ -412,7 +431,7 @@ internal class CameraGlRecorder {
             runCatching { vCodec?.signalEndOfInputStream() }
         }
 
-        runCatching { videoDrainThread?.join(2000) }
+        runCatching { videoDrainThread?.join(1500) }
 
         cleanupRecordingResources()
 
@@ -506,6 +525,13 @@ internal class CameraGlRecorder {
         if (updateTex) {
             runCatching {
                 makePbufferCurrentIfNeeded()
+                if (hasPendingCameraParams) {
+                    activeCamWidth = pendingCamWidth
+                    activeCamHeight = pendingCamHeight
+                    activeSensorOrientation = pendingSensorOrientation
+                    activeFrontCamera = pendingFrontCamera
+                    hasPendingCameraParams = false
+                }
                 st.updateTexImage()
                 st.getTransformMatrix(texMatrix)
                 hasReceivedFirstFrame = true
@@ -524,9 +550,12 @@ internal class CameraGlRecorder {
         }
 
         if (isRecordingActive && encoderEglSurface !== EGL14.EGL_NO_SURFACE) {
-            val ptsNs = (nowNs - recordStartNs).coerceAtLeast(0L)
-            if (ptsNs - lastFrameDrawNs >= 16_000_000L) {
-                lastFrameDrawNs = ptsNs
+            if (muxerEpochNs == 0L) {
+                muxerEpochNs = nowNs
+            }
+            val ptsNs = (nowNs - muxerEpochNs).coerceAtLeast(0L)
+            if (ptsNs > lastEncodedPtsNs) {
+                lastEncodedPtsNs = ptsNs
                 if (EGL14.eglMakeCurrent(eglDisplay, encoderEglSurface, encoderEglSurface, eglContext)) {
                     GLES20.glViewport(0, 0, OUTPUT_SIZE, OUTPUT_SIZE)
                     renderQuad(OUTPUT_SIZE, OUTPUT_SIZE)
@@ -542,24 +571,29 @@ internal class CameraGlRecorder {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT)
         GLES20.glUseProgram(glProgram)
 
-        val rotated90or270 = (sensorOrientation == 90 || sensorOrientation == 270)
-        val rotW = (if (rotated90or270) camHeight else camWidth).toFloat().coerceAtLeast(1f)
-        val rotH = (if (rotated90or270) camWidth else camHeight).toFloat().coerceAtLeast(1f)
+        // Если SurfaceTexture.getTransformMatrix уже повернула кадр из ландшафта сенсора в портрет
+        // (диагональные элементы около 0, внедиагональные ±1), повторно вращать вершины не нужно!
+        val texAlreadyRotated = abs(texMatrix[0]) < 0.5f && abs(texMatrix[5]) < 0.5f
+        val extraRotDeg = if (texAlreadyRotated) 0f else -activeSensorOrientation.toFloat()
+
+        val rotated90or270 = (activeSensorOrientation == 90 || activeSensorOrientation == 270)
+        val rotW = (if (rotated90or270) activeCamHeight else activeCamWidth).toFloat().coerceAtLeast(1f)
+        val rotH = (if (rotated90or270) activeCamWidth else activeCamHeight).toFloat().coerceAtLeast(1f)
         val srcAspect = rotW / rotH
         val dstAspect = surfW.toFloat().coerceAtLeast(1f) / surfH.toFloat().coerceAtLeast(1f)
 
         var scaleX = if (srcAspect > dstAspect) srcAspect / dstAspect else 1f
         val scaleY = if (srcAspect > dstAspect) 1f else dstAspect / srcAspect
-        if (isFrontCamera) {
+        if (activeFrontCamera) {
             scaleX = -scaleX
         }
 
-        val scaleMat = FloatArray(16)
-        val rotMat = FloatArray(16)
         Matrix.setIdentityM(scaleMat, 0)
         Matrix.scaleM(scaleMat, 0, scaleX, scaleY, 1f)
         Matrix.setIdentityM(rotMat, 0)
-        Matrix.rotateM(rotMat, 0, -sensorOrientation.toFloat(), 0f, 0f, 1f)
+        if (extraRotDeg != 0f) {
+            Matrix.rotateM(rotMat, 0, extraRotDeg, 0f, 0f, 1f)
+        }
         Matrix.multiplyMM(mvpMatrix, 0, scaleMat, 0, rotMat, 0)
 
         GLES20.glActiveTexture(GLES20.GL_TEXTURE0)
@@ -606,8 +640,6 @@ internal class CameraGlRecorder {
                 }
                 runCatching { codec.releaseOutputBuffer(idx, false) }
                 if ((info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) break
-            } else if (!isRecordingActive && idx == MediaCodec.INFO_TRY_AGAIN_LATER) {
-                // Allow EOS to drain cleanly; loop breaks once EOS flag arrives
             }
         }
     }
@@ -615,9 +647,13 @@ internal class CameraGlRecorder {
     private fun captureAudioLoop(ar: AudioRecord, codec: MediaCodec, minBuf: Int) {
         val pcmBuf = ByteArray(minBuf.coerceAtLeast(2048))
         runCatching { ar.startRecording() }
+        var lastAudioPtsUs = -1L
         while (isRecordingActive) {
             val read = runCatching { ar.read(pcmBuf, 0, pcmBuf.size) }.getOrDefault(-1)
             if (read <= 0) continue
+            // Не пишем аудио до первого кадра камеры, чтобы start_time видео и аудио был ровно 0.000s
+            val epoch = muxerEpochNs
+            if (epoch == 0L) continue
             val inIdx = try {
                 codec.dequeueInputBuffer(10_000L)
             } catch (_: Exception) {
@@ -628,13 +664,17 @@ internal class CameraGlRecorder {
                 inBuf.clear()
                 val copyLen = read.coerceAtMost(inBuf.remaining())
                 inBuf.put(pcmBuf, 0, copyLen)
-                val ptsUs = ((System.nanoTime() - recordStartNs) / 1000L).coerceAtLeast(0L)
+                val ptsUs = ((System.nanoTime() - epoch) / 1000L).coerceAtLeast(lastAudioPtsUs + 1L)
+                lastAudioPtsUs = ptsUs
                 runCatching { codec.queueInputBuffer(inIdx, 0, copyLen, ptsUs, 0) }
             }
         }
         val eosIdx = runCatching { codec.dequeueInputBuffer(100_000L) }.getOrDefault(-1)
         if (eosIdx >= 0) {
-            val ptsUs = ((System.nanoTime() - recordStartNs) / 1000L).coerceAtLeast(0L)
+            val epoch = muxerEpochNs
+            val ptsUs = if (epoch > 0L) {
+                ((System.nanoTime() - epoch) / 1000L).coerceAtLeast(lastAudioPtsUs + 1L)
+            } else 0L
             runCatching { codec.queueInputBuffer(eosIdx, 0, 0, ptsUs, MediaCodec.BUFFER_FLAG_END_OF_STREAM) }
         }
     }
@@ -724,7 +764,7 @@ internal class CameraGlRecorder {
             EGL14.EGL_BLUE_SIZE, 8,
             EGL14.EGL_ALPHA_SIZE, 8,
             EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
-            0x3142, 1, // EGL_RECORDABLE_ANDROID
+            0x3142, 1,
             EGL14.EGL_NONE
         )
         val configs = arrayOfNulls<EGLConfig>(1)

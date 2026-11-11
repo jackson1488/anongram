@@ -52,18 +52,14 @@ import com.anongram.app.features.chats.messages.domain.MessageDirection
 private val QUICK_REACTIONS = listOf("❤️", "👍", "👎", "🔥", "🥰", "👏", "😁")
 
 /**
- * Контекстное меню сообщения по быстрому тапу (рядом с пузырём или в свободной области строки).
- * Пункты зависят от типа содержимого:
- * - Текст: Копировать, Изменить (свои без лимита времени), Ответить, Переслать, Закрепить, Удалить
- * - ГС: Сохранить в Загрузки, Изменить, Поделиться, Ответить, Переслать, Закрепить, Удалить
- * - Видео-кружок: Сохранить в галерею, Поделиться, Изменить, Ответить, Переслать, Закрепить, Удалить
- * - Фото / видео / альбом: Сохранить в галерею (все N элементов), Поделиться, Копировать (если есть подпись), Изменить, ...
- * - Файл / музыка: Сохранить в Загрузки / Музыку, Поделиться, ...
+ * Компактное контекстное меню сообщения по быстрому тапу в стиле Telegram:
+ * появляется строго рядом с пузырём (снизу или сверху, без лишних пустых отступов).
  */
 @Composable
 internal fun MessageContextMenu(
     message: ChatMessage,
-    anchorYPx: Float = 0f,
+    anchorTopYPx: Float = 0f,
+    anchorBottomYPx: Float = 0f,
     isPinned: Boolean = false,
     onReaction: (String) -> Unit,
     onReply: () -> Unit,
@@ -121,25 +117,35 @@ internal fun MessageContextMenu(
         (if (showCopy) 1 else 0) +
         (if (isEditable) 1 else 0) +
         (if (showShare) 1 else 0)
-    val estimatedMenuDp = (74 + itemCount * 42).dp
+    // Компактная высота: полоска реакций (~40dp) + отступ (6dp) + пункты (~36dp каждый)
+    val estimatedMenuDp = (54 + itemCount * 36).dp
 
     val isIncoming = message.direction == MessageDirection.INCOMING
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
     val menuHeightPx = with(density) { estimatedMenuDp.toPx() }
-    val topBoundPx = with(density) { 64.dp.toPx() }
-    val bottomBoundPx = screenHeightPx - with(density) { 68.dp.toPx() }
+    val gapPx = with(density) { 6.dp.toPx() }
+    val topBoundPx = with(density) { 60.dp.toPx() }
+    val bottomBoundPx = screenHeightPx - with(density) { 74.dp.toPx() }
     val maxTop = (bottomBoundPx - menuHeightPx).coerceAtLeast(topBoundPx)
 
-    val computedYPx = if (anchorYPx > 0f) {
-        if (anchorYPx > screenHeightPx * 0.48f) {
-            (anchorYPx - menuHeightPx - with(density) { 8.dp.toPx() }).coerceIn(topBoundPx, maxTop)
-        } else {
-            (anchorYPx + with(density) { 44.dp.toPx() }).coerceIn(topBoundPx, maxTop)
+    val computedYPx = when {
+        anchorBottomYPx > 0f && (anchorBottomYPx + gapPx + menuHeightPx) <= bottomBoundPx -> {
+            // Помещается прямо ПОД пузырём
+            anchorBottomYPx + gapPx
         }
-    } else {
-        (screenHeightPx - menuHeightPx - with(density) { 80.dp.toPx() }).coerceIn(topBoundPx, maxTop)
+        anchorTopYPx > 0f && (anchorTopYPx - gapPx - menuHeightPx) >= topBoundPx -> {
+            // Помещается прямо НАД пузырём
+            anchorTopYPx - gapPx - menuHeightPx
+        }
+        anchorBottomYPx > 0f -> {
+            // Высокий пузырь — прижимаем к нижнему краю пузыря в пределах экрана
+            (anchorBottomYPx - menuHeightPx).coerceIn(topBoundPx, maxTop)
+        }
+        else -> {
+            (screenHeightPx - menuHeightPx - with(density) { 80.dp.toPx() }).coerceIn(topBoundPx, maxTop)
+        }
     }
 
     val yOffsetDp = with(density) { computedYPx.toDp() }
@@ -157,12 +163,12 @@ internal fun MessageContextMenu(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset(y = yOffsetDp)
-                .padding(horizontal = 16.dp),
+                .padding(horizontal = 12.dp),
             horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
         ) {
             Column(
                 modifier = Modifier
-                    .width(268.dp)
+                    .width(224.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
@@ -173,16 +179,16 @@ internal fun MessageContextMenu(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(26.dp))
+                        .clip(RoundedCornerShape(22.dp))
                         .background(Color(0xFF21252E))
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     QUICK_REACTIONS.forEach { emoji ->
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(24.dp)
                                 .clip(CircleShape)
                                 .clickable {
                                     onReaction(emoji)
@@ -190,12 +196,12 @@ internal fun MessageContextMenu(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = emoji, fontSize = 18.sp)
+                            Text(text = emoji, fontSize = 15.sp)
                         }
                     }
                     Box(
                         modifier = Modifier
-                            .size(26.dp)
+                            .size(22.dp)
                             .clip(CircleShape)
                             .background(Color(0xFF2F3543)),
                         contentAlignment = Alignment.Center
@@ -204,19 +210,19 @@ internal fun MessageContextMenu(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Ещё реакции",
                             tint = TextSecondary,
-                            modifier = Modifier.size(16.dp)
+                            modifier = Modifier.size(14.dp)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
+                        .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFF21252E))
-                        .padding(vertical = 4.dp)
+                        .padding(vertical = 3.dp)
                 ) {
                     ContextMenuRow(
                         icon = Icons.Outlined.Reply,
@@ -265,7 +271,7 @@ internal fun MessageContextMenu(
                     HorizontalDivider(
                         color = CardBorder,
                         thickness = 0.5.dp,
-                        modifier = Modifier.padding(vertical = 2.dp)
+                        modifier = Modifier.padding(vertical = 1.dp)
                     )
                     ContextMenuRow(
                         icon = Icons.Outlined.Delete,
@@ -291,7 +297,7 @@ private fun ContextMenuRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
+            .padding(horizontal = 13.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -299,14 +305,14 @@ private fun ContextMenuRow(
             contentDescription = label,
             tint = color,
             modifier = Modifier
-                .size(20.dp)
+                .size(18.dp)
                 .then(if (flipIcon) Modifier.graphicsLayer { scaleX = -1f } else Modifier)
         )
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = label,
             color = color,
-            fontSize = 15.sp,
+            fontSize = 14.sp,
             fontWeight = FontWeight.Medium
         )
     }

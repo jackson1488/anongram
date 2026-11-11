@@ -401,12 +401,7 @@ fun VideoCircleRecordOverlay(
                                                         setOnPreparedListener { prepared ->
                                                             onReviewDurationReady(prepared.duration.toLong().coerceAtLeast(1000L))
                                                             runCatching {
-                                                                // Прогреваем первый кадр, чтобы на паузе не было чёрного экрана
-                                                                prepared.setVolume(0f, 0f)
-                                                                prepared.start()
-                                                                prepared.pause()
-                                                                prepared.setVolume(1f, 1f)
-                                                                prepared.seekTo(0)
+                                                                prepared.seekTo(1)
                                                             }
                                                         }
                                                         prepareAsync()

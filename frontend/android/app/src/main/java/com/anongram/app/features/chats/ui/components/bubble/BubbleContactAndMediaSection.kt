@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.asImageBitmap
@@ -51,6 +52,7 @@ import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
@@ -674,10 +676,34 @@ internal fun ChatVideoCircleSection(
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(0f) }
 
-    var surfaceRef by remember { mutableStateOf<android.view.Surface?>(null) }
+    var surfaceTextureRef by remember { mutableStateOf<android.graphics.SurfaceTexture?>(null) }
+    var mutedSurfaceRef by remember { mutableStateOf<android.view.Surface?>(null) }
+    var playSurfaceRef by remember { mutableStateOf<android.view.Surface?>(null) }
     var textureViewRef by remember { mutableStateOf<android.view.TextureView?>(null) }
     var mutedPreviewPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
+    val mutedPreparedRef = remember(videoFile?.absolutePath) { AtomicBoolean(false) }
     var hasRenderedVideoFrame by remember(videoFile?.absolutePath) { mutableStateOf(false) }
+    val circleScope = rememberCoroutineScope()
+
+    suspend fun releaseMutedPreviewSync() {
+        VideoCirclePreviewPool.release(circleTrackId)
+        mutedPreparedRef.set(false)
+        val prev = mutedPreviewPlayer
+        mutedPreviewPlayer = null
+        val prevSurf = mutedSurfaceRef
+        mutedSurfaceRef = null
+        if (prev != null || prevSurf != null) {
+            withContext(Dispatchers.IO) {
+                if (prev != null) {
+                    runCatching { if (prev.isPlaying) prev.stop() }
+                    runCatching { prev.release() }
+                }
+                if (prevSurf != null) {
+                    runCatching { prevSurf.release() }
+                }
+            }
+        }
+    }
 
     val cachedMeta = remember(attachment.uri) { VideoCircleMetaCache.get(attachment.uri) }
     val videoMeta by produceState(initialValue = cachedMeta ?: VideoCircleMeta(), key1 = attachment.uri) {
@@ -714,40 +740,52 @@ internal fun ChatVideoCircleSection(
         }
     }
 
-    // Переключаем Surface между локальным muted-превью (IO-поток + пул max 2) и общим ChatAudioController
-    LaunchedEffect(isExpanded, surfaceRef, videoFile?.absolutePath) {
-        val surface = surfaceRef ?: return@LaunchedEffect
+    // Безопасно переключаем SurfaceTexture между muted-превью и воспроизведением со звуком без конфликта BufferQueue
+    LaunchedEffect(isExpanded, surfaceTextureRef, videoFile?.absolutePath) {
+        val st = surfaceTextureRef ?: return@LaunchedEffect
         if (isExpanded) {
-            VideoCirclePreviewPool.release(circleTrackId)
-            val prev = mutedPreviewPlayer
-            mutedPreviewPlayer = null
-            VideoCirclePreviewPool.releasePlayerAsync(prev)
-            audioController.attachVideoSurface(circleTrackId, surface)
+            releaseMutedPreviewSync()
+            if (playSurfaceRef == null) {
+                val pSurf = android.view.Surface(st)
+                playSurfaceRef = pSurf
+                audioController.attachVideoSurface(circleTrackId, pSurf)
+            }
         } else {
-            audioController.detachVideoSurface(surface)
+            val oldPlaySurf = playSurfaceRef
+            playSurfaceRef = null
+            if (oldPlaySurf != null) {
+                audioController.detachVideoSurface(oldPlaySurf)
+                withContext(Dispatchers.IO) { runCatching { oldPlaySurf.release() } }
+            }
             val file = videoFile ?: return@LaunchedEffect
             snapshotFlow { scrollingState.value }
                 .distinctUntilChanged()
                 .collectLatest { isListScrolling ->
                     if (isListScrolling) {
-                        mutedPreviewPlayer?.let { mp ->
-                            withContext(Dispatchers.IO) {
-                                runCatching { if (mp.isPlaying) mp.pause() }
+                        if (mutedPreparedRef.get()) {
+                            mutedPreviewPlayer?.let { mp ->
+                                withContext(Dispatchers.IO) {
+                                    runCatching { if (mp.isPlaying) mp.pause() }
+                                }
                             }
                         }
                     } else {
                         delay(160)
                         val existing = mutedPreviewPlayer
                         if (existing != null) {
-                            withContext(Dispatchers.IO) {
-                                runCatching { if (!existing.isPlaying) existing.start() }
+                            if (mutedPreparedRef.get()) {
+                                withContext(Dispatchers.IO) {
+                                    runCatching { if (!existing.isPlaying) existing.start() }
+                                }
                             }
                         } else {
                             hasRenderedVideoFrame = false
+                            mutedPreparedRef.set(false)
+                            val mSurf = mutedSurfaceRef ?: android.view.Surface(st).also { mutedSurfaceRef = it }
                             val preparedMp = withContext(Dispatchers.IO) {
                                 try {
                                     android.media.MediaPlayer().apply {
-                                        setSurface(surface)
+                                        setSurface(mSurf)
                                         setDataSource(file.absolutePath)
                                         setVolume(0f, 0f)
                                         isLooping = true
@@ -760,9 +798,15 @@ internal fun ChatVideoCircleSection(
                                 VideoCirclePreviewPool.acquire(circleTrackId) {
                                     if (mutedPreviewPlayer === preparedMp) {
                                         mutedPreviewPlayer = null
+                                        mutedPreparedRef.set(false)
                                         hasRenderedVideoFrame = false
                                     }
-                                    VideoCirclePreviewPool.releasePlayerAsync(preparedMp)
+                                    val sToFree = if (mutedPreviewPlayer == null) {
+                                        val s = mutedSurfaceRef
+                                        mutedSurfaceRef = null
+                                        s
+                                    } else null
+                                    VideoCirclePreviewPool.releasePlayerAsync(preparedMp, sToFree)
                                 }
                                 preparedMp.setOnVideoSizeChangedListener { _, vw, vh ->
                                     textureViewRef?.let { applyVideoCircleCenterCrop(it, vw, vh) }
@@ -774,8 +818,11 @@ internal fun ChatVideoCircleSection(
                                     false
                                 }
                                 preparedMp.setOnPreparedListener { player ->
-                                    if (mutedPreviewPlayer === player && !scrollingState.value) {
-                                        runCatching { player.start() }
+                                    if (mutedPreviewPlayer === player) {
+                                        mutedPreparedRef.set(true)
+                                        if (!scrollingState.value) {
+                                            runCatching { player.start() }
+                                        }
                                     }
                                 }
                                 mutedPreviewPlayer = preparedMp
@@ -792,15 +839,21 @@ internal fun ChatVideoCircleSection(
     DisposableEffect(videoFile?.absolutePath) {
         onDispose {
             VideoCirclePreviewPool.release(circleTrackId)
-            val surf = surfaceRef
-            surfaceRef = null
-            if (surf != null) {
-                audioController.detachVideoSurface(surf)
+            mutedPreparedRef.set(false)
+            val pSurf = playSurfaceRef
+            playSurfaceRef = null
+            if (pSurf != null) {
+                audioController.detachVideoSurface(pSurf)
             }
+            val mSurf = mutedSurfaceRef
+            mutedSurfaceRef = null
             val mp = mutedPreviewPlayer
             mutedPreviewPlayer = null
             hasRenderedVideoFrame = false
-            VideoCirclePreviewPool.releasePlayerAsync(mp, surf)
+            VideoCirclePreviewPool.releasePlayerAsync(mp, mSurf)
+            if (pSurf != null) {
+                VideoCirclePreviewPool.releasePlayerAsync(null, pSurf)
+            }
         }
     }
 
@@ -857,7 +910,18 @@ internal fun ChatVideoCircleSection(
                                 currentOnSelect()
                             } else if (insideCircle) {
                                 if (!currentExpanded) {
-                                    currentOnPlay()
+                                    val st = surfaceTextureRef
+                                    if (st != null) {
+                                        circleScope.launch {
+                                            releaseMutedPreviewSync()
+                                            val pSurf = android.view.Surface(st)
+                                            playSurfaceRef = pSurf
+                                            audioController.attachVideoSurface(circleTrackId, pSurf)
+                                            currentOnPlay()
+                                        }
+                                    } else {
+                                        currentOnPlay()
+                                    }
                                 } else if (!currentDragging) {
                                     audioController.togglePlayPause()
                                 }
@@ -931,14 +995,7 @@ internal fun ChatVideoCircleSection(
                                     w: Int,
                                     h: Int
                                 ) {
-                                    val oldSurface = surfaceRef
-                                    if (oldSurface != null) {
-                                        audioController.detachVideoSurface(oldSurface)
-                                    }
-                                    surfaceRef = android.view.Surface(st)
-                                    if (oldSurface != null) {
-                                        VideoCirclePreviewPool.releasePlayerAsync(null, oldSurface)
-                                    }
+                                    surfaceTextureRef = st
                                     applyVideoCircleCenterCrop(this@apply, videoMeta.width, videoMeta.height)
                                 }
 
@@ -951,15 +1008,22 @@ internal fun ChatVideoCircleSection(
                                 }
 
                                 override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
-                                    val surf = surfaceRef
-                                    surfaceRef = null
-                                    if (surf != null) {
-                                        audioController.detachVideoSurface(surf)
+                                    surfaceTextureRef = null
+                                    mutedPreparedRef.set(false)
+                                    val pSurf = playSurfaceRef
+                                    playSurfaceRef = null
+                                    if (pSurf != null) {
+                                        audioController.detachVideoSurface(pSurf)
                                     }
+                                    val mSurf = mutedSurfaceRef
+                                    mutedSurfaceRef = null
                                     val mp = mutedPreviewPlayer
                                     mutedPreviewPlayer = null
                                     hasRenderedVideoFrame = false
-                                    VideoCirclePreviewPool.releasePlayerAsync(mp, surf)
+                                    VideoCirclePreviewPool.releasePlayerAsync(mp, mSurf)
+                                    if (pSurf != null) {
+                                        VideoCirclePreviewPool.releasePlayerAsync(null, pSurf)
+                                    }
                                     return true
                                 }
 

@@ -28,7 +28,8 @@ class VideoCircleCameraManager(private val context: Context) {
     private data class CameraMeta(
         val cameraId: String,
         val size: Size,
-        val sensorOrientation: Int
+        val sensorOrientation: Int,
+        val fpsRange: android.util.Range<Int>?
     )
 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
@@ -108,7 +109,11 @@ class VideoCircleCameraManager(private val context: Context) {
             val chars = cameraManager.getCameraCharacteristics(cameraId)
             val orientation = chars.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: if (front) 270 else 90
             val size = chooseSupportedVideoSize(cameraId)
-            CameraMeta(cameraId, size, orientation).also { cameraCache[front] = it }
+            val fpsRanges = chars.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)
+            val fpsRange = fpsRanges
+                ?.filter { it.upper <= 30 }
+                ?.maxWithOrNull(compareBy<android.util.Range<Int>> { it.upper }.thenBy { it.lower })
+            CameraMeta(cameraId, size, orientation, fpsRange).also { cameraCache[front] = it }
         } catch (_: Exception) {
             null
         }
@@ -200,7 +205,7 @@ class VideoCircleCameraManager(private val context: Context) {
                 }
                 existing != null -> {
                     pendingOpenFront = front
-                    closeSessionOnly()
+                    captureSession = null
                     closeCameraAsync()
                 }
                 isClosingCamera -> {
@@ -268,11 +273,16 @@ class VideoCircleCameraManager(private val context: Context) {
                 override fun onClosed(camera: CameraDevice) {
                     isOpeningCamera = false
                     isClosingCamera = false
+                    captureSession = null
                     if (cameraDevice === camera) cameraDevice = null
                     val nextFront = pendingOpenFront
                     pendingOpenFront = null
                     if (isReleased) {
-                        stopBackgroundThreadSafely()
+                        mainHandler.postDelayed({
+                            if (isReleased && !isClosingCamera) {
+                                stopBackgroundThreadSafely()
+                            }
+                        }, 150L)
                     } else if (nextFront != null) {
                         openCameraOnBackground(nextFront)
                     }
@@ -287,7 +297,6 @@ class VideoCircleCameraManager(private val context: Context) {
         val handler = backgroundHandler ?: return
         val cameraSurface = glRecorder.cameraInputSurface ?: return
         try {
-            closeSessionOnly()
             glRecorder.configureCameraParams(
                 width = meta.size.width,
                 height = meta.size.height,
@@ -297,6 +306,7 @@ class VideoCircleCameraManager(private val context: Context) {
             val requestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
                 addTarget(cameraSurface)
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_VIDEO)
+                meta.fpsRange?.let { set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, it) }
                 if (isFlashOn && !front) {
                     set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
                 } else {
@@ -326,7 +336,7 @@ class VideoCircleCameraManager(private val context: Context) {
     }
 
     /**
-     * Мгновенное переключение камеры без остановки кодера и записи звука:
+     * Быстрое переключение камеры без stopRepeating() и без остановки GL/MediaCodec/AudioRecord:
      * - Всегда сбрасывает вспышку в OFF
      * - Удерживает последний кадр на время переоткрытия сенсора (без чёрного экрана)
      */
@@ -340,7 +350,7 @@ class VideoCircleCameraManager(private val context: Context) {
         handler.post {
             if (isReleased) return@post
             pendingOpenFront = nextFront
-            closeSessionOnly()
+            captureSession = null
             if (cameraDevice != null && !isClosingCamera) {
                 closeCameraAsync()
             } else if (!isClosingCamera && !isOpeningCamera) {

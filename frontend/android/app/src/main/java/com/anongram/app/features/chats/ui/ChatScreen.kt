@@ -52,19 +52,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.FlameOrange
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.ui.safeNavigationBarPadding
@@ -179,6 +185,27 @@ fun ChatScreen(
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
     var inputBarHeightPx by remember { mutableStateOf(0) }
+    var actionBanner by remember { mutableStateOf<ChatActionBanner?>(null) }
+    fun showActionBanner(
+        text: String,
+        icon: ImageVector = Icons.Outlined.CheckCircle,
+        isError: Boolean = false
+    ) {
+        actionBanner = ChatActionBanner(
+            id = System.nanoTime(),
+            text = text,
+            icon = icon,
+            isError = isError
+        )
+    }
+
+    LaunchedEffect(actionBanner?.id) {
+        if (actionBanner != null) {
+            delay(2400L)
+            actionBanner = null
+        }
+    }
+
     var pendingRecordMode by remember { mutableStateOf<RecordMode?>(null) }
     val recordPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
@@ -192,7 +219,7 @@ fun ChatScreen(
         } else if (mode == RecordMode.CIRCLE && audioGranted && cameraGranted) {
             viewModel.startRecording(RecordMode.CIRCLE, context)
         } else {
-            Toast.makeText(context, "Требуется разрешение для записи", Toast.LENGTH_SHORT).show()
+            showActionBanner("Требуется разрешение для записи", Icons.Outlined.ErrorOutline, isError = true)
         }
     }
 
@@ -202,7 +229,8 @@ fun ChatScreen(
         }
     }
 
-    var actionMenuAnchorY by remember { mutableFloatStateOf(0f) }
+    var actionMenuAnchorTopY by remember { mutableFloatStateOf(0f) }
+    var actionMenuAnchorBottomY by remember { mutableFloatStateOf(0f) }
 
     BackHandler {
         when {
@@ -297,63 +325,76 @@ fun ChatScreen(
         fun saveMessageMedia(msg: ChatMessage, subPhotoIdx: Int? = null) {
             scope.launch {
                 val att = msg.attachment
-                val toastMsg = when (att) {
+                var savedOk = false
+                val msgText = when (att) {
                     is MessageAttachment.VideoCircle -> {
-                        val ok = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
-                        if (ok) "Кружок сохранён в галерею" else "Не удалось сохранить кружок"
+                        savedOk = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
+                        if (savedOk) "Видео-кружок сохранён в галерею" else "Не удалось сохранить кружок"
                     }
                     is MessageAttachment.Voice -> {
-                        val ok = saveVoiceToDeviceDownloads(context, att)
-                        if (ok) "Голосовое сохранено в Загрузки" else "Не удалось сохранить голосовое"
+                        savedOk = saveVoiceToDeviceDownloads(context, att)
+                        if (savedOk) "Голосовое сохранено в Загрузки" else "Не удалось сохранить голосовое"
                     }
                     is MessageAttachment.Photo -> {
                         val uri = att.uri
-                        val ok = when {
+                        savedOk = when {
                             uri.isNullOrBlank() -> false
                             att.isVideo -> saveVideoToDeviceGallery(context, uri)
                             else -> savePhotoToDeviceGallery(context, uri)
                         }
-                        if (ok) "Сохранено в галерею" else "Не удалось сохранить"
+                        if (savedOk) {
+                            if (att.isVideo) "Видео сохранено в галерею" else "Фото сохранено в галерею"
+                        } else "Не удалось сохранить"
                     }
                     is MessageAttachment.MediaAlbum -> {
                         if (subPhotoIdx != null) {
                             val item = att.items.getOrNull(subPhotoIdx)
-                            val ok = if (item == null) false else if (item.isVideo) {
+                            savedOk = if (item == null) false else if (item.isVideo) {
                                 saveVideoToDeviceGallery(context, item.uri)
                             } else {
                                 savePhotoToDeviceGallery(context, item.uri)
                             }
-                            if (ok) "Сохранено в галерею" else "Не удалось сохранить"
+                            if (savedOk) "Сохранено в галерею" else "Не удалось сохранить"
                         } else {
                             val count = saveMediaAlbumToGallery(context, att)
-                            if (count > 0) "Сохранено в галерею: $count из ${att.items.size}" else "Не удалось сохранить альбом"
+                            savedOk = count > 0
+                            if (savedOk) {
+                                if (count == att.items.size) "Скачано $count фото в галерею"
+                                else "Скачано $count из ${att.items.size} в галерею"
+                            } else "Не удалось сохранить альбом"
                         }
                     }
                     is MessageAttachment.File -> {
-                        val ok = saveFileToDeviceDownloads(context, att)
-                        if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить файл"
+                        savedOk = saveFileToDeviceDownloads(context, att)
+                        if (savedOk) "Файл сохранён в Загрузки" else "Не удалось сохранить файл"
                     }
                     is MessageAttachment.FileGroup -> {
                         var saved = 0
                         for (f in att.items) {
                             if (saveFileToDeviceDownloads(context, f)) saved++
                         }
-                        if (saved > 0) "Сохранено файлов: $saved из ${att.items.size}" else "Не удалось сохранить файлы"
+                        savedOk = saved > 0
+                        if (savedOk) "Скачано файлов: $saved из ${att.items.size} в Загрузки" else "Не удалось сохранить файлы"
                     }
                     is MessageAttachment.Music -> {
-                        val ok = saveMusicToDeviceMusic(context, att)
-                        if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить трек"
+                        savedOk = saveMusicToDeviceMusic(context, att)
+                        if (savedOk) "Трек сохранён в Музыку" else "Не удалось сохранить трек"
                     }
                     is MessageAttachment.MusicGroup -> {
                         var saved = 0
                         for (m in att.items) {
                             if (saveMusicToDeviceMusic(context, m)) saved++
                         }
-                        if (saved > 0) "Сохранено треков: $saved из ${att.items.size}" else "Не удалось сохранить треки"
+                        savedOk = saved > 0
+                        if (savedOk) "Сохранено треков: $saved из ${att.items.size}" else "Не удалось сохранить треки"
                     }
                     else -> "Нечего сохранять"
                 }
-                Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+                showActionBanner(
+                    text = msgText,
+                    icon = if (savedOk) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                    isError = !savedOk
+                )
             }
         }
 
@@ -362,7 +403,7 @@ fun ChatScreen(
                 when (val att = msg.attachment) {
                     is MessageAttachment.VideoCircle -> {
                         val ok = VideoCircleExportHelper.shareVideoCircleSystemChooser(context, att.uri)
-                        if (!ok) Toast.makeText(context, "Не удалось подготовить видео для отправки", Toast.LENGTH_SHORT).show()
+                        if (!ok) showActionBanner("Не удалось подготовить видео для отправки", Icons.Outlined.ErrorOutline, isError = true)
                     }
                     is MessageAttachment.Voice -> {
                         val ok = shareMediaUriSystemChooser(
@@ -372,7 +413,7 @@ fun ChatScreen(
                             chooserTitle = "Поделиться голосовым",
                             suggestedFileName = "voice_${msg.id}.m4a"
                         )
-                        if (!ok) Toast.makeText(context, "Файл голосового недоступен", Toast.LENGTH_SHORT).show()
+                        if (!ok) showActionBanner("Файл голосового недоступен", Icons.Outlined.ErrorOutline, isError = true)
                     }
                     is MessageAttachment.Photo -> {
                         val ok = shareMediaUriSystemChooser(
@@ -381,7 +422,7 @@ fun ChatScreen(
                             mimeType = if (att.isVideo) "video/mp4" else "image/jpeg",
                             chooserTitle = if (att.isVideo) "Поделиться видео" else "Поделиться фото"
                         )
-                        if (!ok) Toast.makeText(context, "Файл недоступен", Toast.LENGTH_SHORT).show()
+                        if (!ok) showActionBanner("Файл недоступен", Icons.Outlined.ErrorOutline, isError = true)
                     }
                     is MessageAttachment.MediaAlbum -> {
                         val item = subPhotoIdx?.let { att.items.getOrNull(it) } ?: att.items.firstOrNull()
@@ -393,7 +434,7 @@ fun ChatScreen(
                                 chooserTitle = "Поделиться"
                             )
                         } else false
-                        if (!ok) Toast.makeText(context, "Файл недоступен", Toast.LENGTH_SHORT).show()
+                        if (!ok) showActionBanner("Файл недоступен", Icons.Outlined.ErrorOutline, isError = true)
                     }
                     is MessageAttachment.File -> {
                         val ok = shareMediaUriSystemChooser(
@@ -403,7 +444,7 @@ fun ChatScreen(
                             chooserTitle = att.name,
                             suggestedFileName = att.name
                         )
-                        if (!ok) Toast.makeText(context, "Файл недоступен", Toast.LENGTH_SHORT).show()
+                        if (!ok) showActionBanner("Файл недоступен", Icons.Outlined.ErrorOutline, isError = true)
                     }
                     is MessageAttachment.Music -> {
                         val ok = shareMediaUriSystemChooser(
@@ -412,7 +453,7 @@ fun ChatScreen(
                             mimeType = "audio/*",
                             chooserTitle = "${att.artist} - ${att.title}"
                         )
-                        if (!ok) Toast.makeText(context, "Аудио недоступно", Toast.LENGTH_SHORT).show()
+                        if (!ok) showActionBanner("Аудио недоступно", Icons.Outlined.ErrorOutline, isError = true)
                     }
                     else -> {
                         val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -534,11 +575,12 @@ fun ChatScreen(
                     isVideoCircleExpanded = isVideoCircleExpanded,
                     topPadding = topListPadding,
                     bottomPadding = bottomListPadding,
-                    onClick = { message, topY ->
+                    onClick = { message, topY, bottomY ->
                         if (state.isSelectionMode) {
                             viewModel.toggleSelection(message.id)
                         } else {
-                            actionMenuAnchorY = topY
+                            actionMenuAnchorTopY = topY
+                            actionMenuAnchorBottomY = bottomY
                             viewModel.openActionMenu(message)
                         }
                     },
@@ -890,7 +932,7 @@ fun ChatScreen(
                                     when (state.editing?.attachment) {
                                         is MessageAttachment.Voice -> viewModel.openVoiceEditTrim()
                                         is MessageAttachment.VideoCircle -> viewModel.openVideoEditTrim()
-                                        else -> Toast.makeText(context, "Редактирование фото", Toast.LENGTH_SHORT).show()
+                                        else -> showActionBanner("Редактирование фото")
                                     }
                                 },
                                 onReplyClick = { replyMsg ->
@@ -1099,6 +1141,7 @@ fun ChatScreen(
                             val combined = state.selectedMessages.joinToString("\n") { it.text }
                             clipboard.setText(AnnotatedString(combined))
                             viewModel.clearSelection()
+                            showActionBanner("Скопировано в буфер обмена", Icons.Outlined.ContentCopy)
                         },
                         onBrushEdit = {
                             val openKeyboard = !state.isSingleSelectedVideoCircle && !state.isSingleSelectedVoice
@@ -1121,11 +1164,19 @@ fun ChatScreen(
                             when {
                                 file != null -> scope.launch {
                                     val ok = saveFileToDeviceDownloads(context, file)
-                                    Toast.makeText(context, if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить", Toast.LENGTH_SHORT).show()
+                                    showActionBanner(
+                                        text = if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить",
+                                        icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                        isError = !ok
+                                    )
                                 }
                                 music != null -> scope.launch {
                                     val ok = saveMusicToDeviceMusic(context, music)
-                                    Toast.makeText(context, if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить", Toast.LENGTH_SHORT).show()
+                                    showActionBanner(
+                                        text = if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить",
+                                        icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                        isError = !ok
+                                    )
                                 }
                                 targetMsg != null -> saveMessageMedia(targetMsg, subPhotoIdx)
                             }
@@ -1477,7 +1528,8 @@ fun ChatScreen(
         state.actionMenuFor?.let { message ->
             MessageContextMenu(
                 message = message,
-                anchorYPx = actionMenuAnchorY,
+                anchorTopYPx = actionMenuAnchorTopY,
+                anchorBottomYPx = actionMenuAnchorBottomY,
                 isPinned = state.pinnedIds.contains(message.id),
                 onReaction = { emoji ->
                     viewModel.toggleReaction(message.id, emoji)
@@ -1496,6 +1548,7 @@ fun ChatScreen(
                     }
                     clipboard.setText(AnnotatedString(copyText))
                     viewModel.closeActionMenu()
+                    showActionBanner("Скопировано в буфер обмена", Icons.Outlined.ContentCopy)
                 },
                 onSave = {
                     viewModel.closeActionMenu()
@@ -1828,9 +1881,9 @@ fun ChatScreen(
             enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
             exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
             modifier = Modifier
+                .zIndex(4f)
                 .align(Alignment.BottomCenter)
-                .safeNavigationBarPadding()
-                .padding(bottom = if (isKeyboardVisible) 80.dp else 100.dp, start = 20.dp, end = 20.dp)
+                .padding(bottom = bottomInputTopDp + 8.dp, start = 20.dp, end = 20.dp)
         ) {
             state.limitWarning?.let { warningText ->
                 Box(
@@ -1856,6 +1909,55 @@ fun ChatScreen(
                             text = warningText,
                             color = TextPrimary,
                             fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
+
+        // Кастомное уведомление над полем ввода (скопировано, сохранено в галерею/загрузки, скачано N фото)
+        val bannerScheme = LocalAnonGramScheme.current
+        AnimatedVisibility(
+            visible = actionBanner != null,
+            enter = fadeIn(tween(180)) + slideInVertically(
+                animationSpec = tween(200),
+                initialOffsetY = { it / 2 }
+            ),
+            exit = fadeOut(tween(180)) + slideOutVertically(
+                animationSpec = tween(200),
+                targetOffsetY = { it / 2 }
+            ),
+            modifier = Modifier
+                .zIndex(4f)
+                .align(Alignment.BottomCenter)
+                .padding(bottom = bottomInputTopDp + 8.dp, start = 16.dp, end = 16.dp)
+        ) {
+            actionBanner?.let { banner ->
+                val tintColor = if (banner.isError) CrimsonKillSwitch else bannerScheme.accent
+                Box(
+                    modifier = Modifier
+                        .shadow(elevation = 10.dp, shape = RoundedCornerShape(16.dp))
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xF01C1F26))
+                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                        .clickable { actionBanner = null }
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = banner.icon,
+                            contentDescription = null,
+                            tint = tintColor,
+                            modifier = Modifier.size(19.dp)
+                        )
+                        Text(
+                            text = banner.text,
+                            color = TextPrimary,
+                            fontSize = 13.5.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -1982,3 +2084,11 @@ private fun ChatScrollDownOverlay(
         modifier = modifier
     )
 }
+
+private data class ChatActionBanner(
+    val id: Long,
+    val text: String,
+    val icon: ImageVector,
+    val isError: Boolean = false
+)
+

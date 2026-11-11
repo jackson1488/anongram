@@ -71,7 +71,7 @@ internal fun MessagesList(
     isVideoCircleExpanded: Boolean = false,
     topPadding: androidx.compose.ui.unit.Dp = 80.dp,
     bottomPadding: androidx.compose.ui.unit.Dp = 10.dp,
-    onClick: (ChatMessage, Float) -> Unit = { _, _ -> },
+    onClick: (ChatMessage, Float, Float) -> Unit = { _, _, _ -> },
     onLongClick: (ChatMessage) -> Unit = {},
     onSwipeReply: (ChatMessage) -> Unit = {},
     onReplyMessage: (ChatMessage, Int?) -> Unit = { _, _ -> },
@@ -193,7 +193,7 @@ internal fun MessagesList(
                             }
                         }
                     },
-                    onClick = { topY -> onClick(item.message, topY) },
+                    onClick = { topY, bottomY -> onClick(item.message, topY, bottomY) },
                     onLongClick = { onLongClick(item.message) },
                     onSwipeReply = { onSwipeReply(item.message) },
                     onReplySubItem = { subIdx -> onReplyMessage(item.message, subIdx) },

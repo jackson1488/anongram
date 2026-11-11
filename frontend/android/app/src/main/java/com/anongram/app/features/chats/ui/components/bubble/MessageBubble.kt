@@ -125,7 +125,7 @@ internal fun MessageBubble(
     isHighlighted: Boolean = false,
     isPinned: Boolean = false,
     onQuoteClick: (String) -> Unit = {},
-    onClick: (anchorYPx: Float) -> Unit = {},
+    onClick: (anchorTopYPx: Float, anchorBottomYPx: Float) -> Unit = { _, _ -> },
     onLongClick: () -> Unit = {},
     onSwipeReply: () -> Unit = {},
     onReplySubItem: (Int) -> Unit = {},
@@ -172,6 +172,7 @@ internal fun MessageBubble(
 
     var dragOffsetPx by remember { mutableFloatStateOf(0f) }
     val bubbleTopYHolder = remember { FloatArray(1) }
+    val bubbleBottomYHolder = remember { FloatArray(1) }
     val animatedOffsetPx by animateFloatAsState(targetValue = dragOffsetPx, label = "swipeReply")
     val thresholdPx = with(density) { 60.dp.toPx() }
 
@@ -284,7 +285,9 @@ internal fun MessageBubble(
                     } else Modifier
                 )
                 .onGloballyPositioned { coordinates ->
-                    bubbleTopYHolder[0] = coordinates.positionInRoot().y
+                    val y = coordinates.positionInRoot().y
+                    bubbleTopYHolder[0] = y
+                    bubbleBottomYHolder[0] = y + coordinates.size.height
                 }
                 .padding(vertical = 1.dp)
         ) {
@@ -326,7 +329,8 @@ internal fun MessageBubble(
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(0.84f)
+                    .align(if (isIncoming) Alignment.TopStart else Alignment.TopEnd)
                     .offset(x = incomingShiftDp)
                     .combinedClickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
@@ -335,7 +339,7 @@ internal fun MessageBubble(
                             if (isSelectionMode) {
                                 onSelect()
                             } else {
-                                onClick(bubbleTopYHolder[0])
+                                onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                             }
                         },
                         onLongClick = onLongClick
@@ -360,7 +364,7 @@ internal fun MessageBubble(
                                 timeLabel = message.timeLabel(),
                                 status = message.status,
                                 isIncoming = isIncoming,
-                                onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopYHolder[0]) },
+                                onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0]) },
                                 onLongClick = onLongClick
                             )
                         }
@@ -380,7 +384,7 @@ internal fun MessageBubble(
                                 isSelected = isSelected,
                                 onSelect = onSelect,
                                 onLongClick = onLongClick,
-                                onOpenContextMenu = { onClick(bubbleTopYHolder[0]) },
+                                onOpenContextMenu = { onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0]) },
                                 onPlay = { onPlayVideoCircle(message) }
                             )
                         }
@@ -435,7 +439,7 @@ internal fun MessageBubble(
                                         } else if (isEdgeToEdgeMedia) {
                                             onOpenMediaViewer(0)
                                         } else {
-                                            onClick(bubbleTopYHolder[0])
+                                            onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                                         }
                                     },
                                     onLongClick = onLongClick
