@@ -25,11 +25,11 @@ suspend fun saveMessageMediaToDevice(
     val resolveText: (InputI18nStrings) -> String = when (att) {
         is MessageAttachment.VideoCircle -> {
             savedOk = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
-            { s -> if (savedOk) s.bannerVideoCircleSavedToGallery else s.bannerVideoCircleSaveFailed }
+            ({ s -> if (savedOk) s.bannerVideoCircleSavedToGallery else s.bannerVideoCircleSaveFailed })
         }
         is MessageAttachment.Voice -> {
             savedOk = saveVoiceToDeviceDownloads(context, att)
-            { s -> if (savedOk) s.bannerVoiceSavedToDownloads else s.bannerVoiceSaveFailed }
+            ({ s -> if (savedOk) s.bannerVoiceSavedToDownloads else s.bannerVoiceSaveFailed })
         }
         is MessageAttachment.Photo -> {
             val uri = att.uri
@@ -38,11 +38,11 @@ suspend fun saveMessageMediaToDevice(
                 att.isVideo -> saveVideoToDeviceGallery(context, uri)
                 else -> savePhotoToDeviceGallery(context, uri)
             }
-            { s ->
+            ({ s ->
                 if (savedOk) {
                     if (att.isVideo) s.bannerVideoSavedToGallery else s.bannerPhotoSavedToGallery
                 } else s.bannerSaveFailed
-            }
+            })
         }
         is MessageAttachment.MediaAlbum -> {
             if (subPhotoIdx != null) {
@@ -52,22 +52,22 @@ suspend fun saveMessageMediaToDevice(
                 } else {
                     savePhotoToDeviceGallery(context, item.uri)
                 }
-                { s -> if (savedOk) s.bannerSavedToGallery else s.bannerSaveFailed }
+                ({ s -> if (savedOk) s.bannerSavedToGallery else s.bannerSaveFailed })
             } else {
                 val count = saveMediaAlbumToGallery(context, att)
                 savedOk = count > 0
                 val total = att.items.size
-                { s ->
+                ({ s ->
                     if (savedOk) {
                         if (count == total) s.bannerAlbumSavedCount(count)
                         else s.bannerAlbumSavedPartial(count, total)
                     } else s.bannerAlbumSaveFailed
-                }
+                })
             }
         }
         is MessageAttachment.File -> {
             savedOk = saveFileToDeviceDownloads(context, att)
-            { s -> if (savedOk) s.bannerFileSavedToDownloads else s.bannerFileSaveFailed }
+            ({ s -> if (savedOk) s.bannerFileSavedToDownloads else s.bannerFileSaveFailed })
         }
         is MessageAttachment.FileGroup -> {
             var saved = 0
@@ -76,11 +76,11 @@ suspend fun saveMessageMediaToDevice(
             }
             savedOk = saved > 0
             val total = att.items.size
-            { s -> if (savedOk) s.bannerFilesSavedPartial(saved, total) else s.bannerFilesSaveFailed }
+            ({ s -> if (savedOk) s.bannerFilesSavedPartial(saved, total) else s.bannerFilesSaveFailed })
         }
         is MessageAttachment.Music -> {
             savedOk = saveMusicToDeviceMusic(context, att)
-            { s -> if (savedOk) s.bannerTrackSavedToMusic else s.bannerTrackSaveFailed }
+            ({ s -> if (savedOk) s.bannerTrackSavedToMusic else s.bannerTrackSaveFailed })
         }
         is MessageAttachment.MusicGroup -> {
             var saved = 0
@@ -89,10 +89,10 @@ suspend fun saveMessageMediaToDevice(
             }
             savedOk = saved > 0
             val total = att.items.size
-            { s -> if (savedOk) s.bannerTracksSavedPartial(saved, total) else s.bannerTracksSaveFailed }
+            ({ s -> if (savedOk) s.bannerTracksSavedPartial(saved, total) else s.bannerTracksSaveFailed })
         }
         else -> {
-            { s -> s.bannerNothingToSave }
+            ({ s -> s.bannerNothingToSave })
         }
     }
     ChatActionBannerBus.show(
