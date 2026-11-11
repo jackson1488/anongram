@@ -8,7 +8,9 @@ import android.media.MediaPlayer
 import android.view.Surface
 import android.view.TextureView
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
@@ -16,6 +18,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -128,6 +131,16 @@ fun VideoCircleRecordOverlay(
     var camVideoW by remember { mutableIntStateOf(cameraManager.videoSize.width) }
     var camVideoH by remember { mutableIntStateOf(cameraManager.videoSize.height) }
     var liveTextureViewRef by remember { mutableStateOf<TextureView?>(null) }
+    var focusTapState by remember { mutableStateOf<Triple<Float, Float, Long>?>(null) }
+    val focusRingProgress = remember { Animatable(1f) }
+
+    LaunchedEffect(focusTapState?.third) {
+        if (focusTapState != null) {
+            focusRingProgress.snapTo(0f)
+            focusRingProgress.animateTo(1f, animationSpec = tween(durationMillis = 850))
+            focusTapState = null
+        }
+    }
 
     val isSoftwareWhiteFlash = !isReviewMode && isFrontCamera && isFlashOn
 
@@ -336,7 +349,18 @@ fun VideoCircleRecordOverlay(
                                     indication = null,
                                     onClick = onToggleReviewPlay
                                 )
-                            } else Modifier
+                            } else {
+                                Modifier.pointerInput(Unit) {
+                                    detectTapGestures { offset ->
+                                        val w = size.width.toFloat().coerceAtLeast(1f)
+                                        val h = size.height.toFloat().coerceAtLeast(1f)
+                                        val nx = (offset.x / w).coerceIn(0f, 1f)
+                                        val ny = (offset.y / h).coerceIn(0f, 1f)
+                                        focusTapState = Triple(nx, ny, System.nanoTime())
+                                        cameraManager.focusAtNormalizedPoint(nx, ny)
+                                    }
+                                }
+                            }
                         ),
                     contentAlignment = Alignment.Center
                 ) {
@@ -488,6 +512,22 @@ fun VideoCircleRecordOverlay(
                             },
                             modifier = Modifier.fillMaxSize()
                         )
+
+                        focusTapState?.let { (nx, ny, _) ->
+                            val t = focusRingProgress.value.coerceIn(0f, 1f)
+                            val alpha = (1f - t).coerceIn(0f, 1f)
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                val cx = nx * size.width
+                                val cy = ny * size.height
+                                val radius = (34.dp - (12.dp * t)).toPx()
+                                drawCircle(
+                                    color = Color.White.copy(alpha = alpha * 0.92f),
+                                    radius = radius,
+                                    center = Offset(cx, cy),
+                                    style = Stroke(width = 2.dp.toPx())
+                                )
+                            }
+                        }
                     }
                 }
 

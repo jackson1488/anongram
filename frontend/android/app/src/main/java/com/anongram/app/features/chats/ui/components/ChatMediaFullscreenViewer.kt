@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.widget.Toast
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -566,11 +566,11 @@ internal fun ChatMediaFullscreenViewer(
                                         isMenuOpen = false
                                         scope.launch {
                                             val ok = savePhotoToDeviceGallery(context, currentUriString)
-                                            Toast.makeText(
-                                                context,
-                                                if (ok) "Сохранено в галерею" else "Не удалось сохранить фото",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                            ChatActionBannerBus.show(
+                                                text = if (ok) "Сохранено в галерею" else "Не удалось сохранить фото",
+                                                icon = if (ok) androidx.compose.material.icons.Icons.Outlined.FileDownload else androidx.compose.material.icons.Icons.Outlined.ErrorOutline,
+                                                isError = !ok
+                                            )
                                         }
                                     }
                                 )

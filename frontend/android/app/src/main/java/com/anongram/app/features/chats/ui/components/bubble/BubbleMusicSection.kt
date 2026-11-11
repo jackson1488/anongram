@@ -1,6 +1,6 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
-import android.widget.Toast
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,6 +24,8 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Forward
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Pause
@@ -411,11 +413,11 @@ internal fun ChatMusicItemRow(
                             isMenuOpen = false
                             scope.launch {
                                 val ok = saveMusicToDeviceMusic(context, music)
-                                Toast.makeText(
-                                    context,
-                                    if (ok) "Сохранено в музыку: $displayTitle" else "Не удалось сохранить трек",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                ChatActionBannerBus.show(
+                                    text = if (ok) "Трек сохранён в Музыку: $displayTitle" else "Не удалось сохранить трек",
+                                    icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                    isError = !ok
+                                )
                             }
                         }
                     )

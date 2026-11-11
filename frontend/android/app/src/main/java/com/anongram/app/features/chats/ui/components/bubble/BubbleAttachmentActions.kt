@@ -8,7 +8,10 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.webkit.MimeTypeMap
-import android.widget.Toast
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.ErrorOutline
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -67,10 +70,10 @@ internal fun openFileInSystemViewer(context: Context, file: MessageAttachment.Fi
             }
             context.startActivity(chooser)
         } else {
-            Toast.makeText(context, "Открытие файла: ${file.name}", Toast.LENGTH_SHORT).show()
+            ChatActionBannerBus.show("Открытие файла: ${file.name}", Icons.Outlined.Description)
         }
     }.onFailure {
-        Toast.makeText(context, "Нет приложения для открытия ${file.name}", Toast.LENGTH_SHORT).show()
+        ChatActionBannerBus.show("Нет приложения для открытия ${file.name}", Icons.Outlined.ErrorOutline, isError = true)
     }
 }
 

@@ -41,10 +41,10 @@ internal class CameraGlRecorder {
         const val OUTPUT_SIZE = 480
         private const val VIDEO_MIME = MediaFormat.MIMETYPE_VIDEO_AVC
         private const val AUDIO_MIME = MediaFormat.MIMETYPE_AUDIO_AAC
-        private const val VIDEO_BITRATE = 1_600_000
+        private const val VIDEO_BITRATE = 2_000_000
         private const val VIDEO_FPS = 30
         private const val AUDIO_SAMPLE_RATE = 44_100
-        private const val AUDIO_BITRATE = 64_000
+        private const val AUDIO_BITRATE = 96_000
 
         private const val VERTEX_SHADER = """
             attribute vec4 aPosition;
@@ -237,7 +237,7 @@ internal class CameraGlRecorder {
             previewHeight = height.coerceAtLeast(1)
             destroyPreviewEglSurface()
             runCatching {
-                surfaceTexture.setDefaultBufferSize(OUTPUT_SIZE, OUTPUT_SIZE)
+                surfaceTexture.setDefaultBufferSize(previewWidth, previewHeight)
                 previewEglSurface = EGL14.eglCreateWindowSurface(
                     eglDisplay,
                     eglConfig,
@@ -255,8 +255,18 @@ internal class CameraGlRecorder {
     fun updatePreviewSize(width: Int, height: Int) {
         val handler = glHandler ?: return
         handler.post {
-            previewWidth = width.coerceAtLeast(1)
-            previewHeight = height.coerceAtLeast(1)
+            if (isDestroyed) return@post
+            val newW = width.coerceAtLeast(1)
+            val newH = height.coerceAtLeast(1)
+            if (newW == previewWidth && newH == previewHeight) return@post
+            previewWidth = newW
+            previewHeight = newH
+            runCatching {
+                previewSurfaceTexture?.setDefaultBufferSize(newW, newH)
+            }
+            if (hasReceivedFirstFrame) {
+                drawCurrentFrame(updateTex = false)
+            }
         }
     }
 
@@ -331,6 +341,9 @@ internal class CameraGlRecorder {
                 setInteger(MediaFormat.KEY_BIT_RATE, VIDEO_BITRATE)
                 setInteger(MediaFormat.KEY_FRAME_RATE, VIDEO_FPS)
                 setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    setInteger(MediaFormat.KEY_MAX_B_FRAMES, 0)
+                }
             }
             val vCodec = MediaCodec.createEncoderByType(VIDEO_MIME)
             vCodec.configure(vFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -354,15 +367,18 @@ internal class CameraGlRecorder {
                 AudioFormat.ENCODING_PCM_16BIT
             ).coerceAtLeast(2048)
 
-            val ar = runCatching {
-                AudioRecord(
-                    MediaRecorder.AudioSource.MIC,
-                    AUDIO_SAMPLE_RATE,
-                    AudioFormat.CHANNEL_IN_MONO,
-                    AudioFormat.ENCODING_PCM_16BIT,
-                    minBuf * 2
-                ).takeIf { it.state == AudioRecord.STATE_INITIALIZED }
-            }.getOrNull()
+            val ar = listOf(MediaRecorder.AudioSource.CAMCORDER, MediaRecorder.AudioSource.MIC)
+                .firstNotNullOfOrNull { src ->
+                    runCatching {
+                        AudioRecord(
+                            src,
+                            AUDIO_SAMPLE_RATE,
+                            AudioFormat.CHANNEL_IN_MONO,
+                            AudioFormat.ENCODING_PCM_16BIT,
+                            minBuf * 2
+                        ).takeIf { it.state == AudioRecord.STATE_INITIALIZED }
+                    }.getOrNull()
+                }
 
             if (ar != null) {
                 val aCodec = runCatching {
@@ -543,8 +559,14 @@ internal class CameraGlRecorder {
 
         if (previewEglSurface !== EGL14.EGL_NO_SURFACE) {
             if (EGL14.eglMakeCurrent(eglDisplay, previewEglSurface, previewEglSurface, eglContext)) {
-                GLES20.glViewport(0, 0, previewWidth, previewHeight)
-                renderQuad(previewWidth, previewHeight)
+                val wArr = IntArray(1)
+                val hArr = IntArray(1)
+                EGL14.eglQuerySurface(eglDisplay, previewEglSurface, EGL14.EGL_WIDTH, wArr, 0)
+                EGL14.eglQuerySurface(eglDisplay, previewEglSurface, EGL14.EGL_HEIGHT, hArr, 0)
+                val actualW = if (wArr[0] > 0) wArr[0] else previewWidth
+                val actualH = if (hArr[0] > 0) hArr[0] else previewHeight
+                GLES20.glViewport(0, 0, actualW, actualH)
+                renderQuad(actualW, actualH)
                 EGL14.eglSwapBuffers(eglDisplay, previewEglSurface)
             }
         }
@@ -553,15 +575,14 @@ internal class CameraGlRecorder {
             if (muxerEpochNs == 0L) {
                 muxerEpochNs = nowNs
             }
-            val ptsNs = (nowNs - muxerEpochNs).coerceAtLeast(0L)
-            if (ptsNs > lastEncodedPtsNs) {
-                lastEncodedPtsNs = ptsNs
-                if (EGL14.eglMakeCurrent(eglDisplay, encoderEglSurface, encoderEglSurface, eglContext)) {
-                    GLES20.glViewport(0, 0, OUTPUT_SIZE, OUTPUT_SIZE)
-                    renderQuad(OUTPUT_SIZE, OUTPUT_SIZE)
-                    EGLExt.eglPresentationTimeANDROID(eglDisplay, encoderEglSurface, ptsNs)
-                    EGL14.eglSwapBuffers(eglDisplay, encoderEglSurface)
-                }
+            val rawPtsNs = (nowNs - muxerEpochNs).coerceAtLeast(0L)
+            val ptsNs = if (lastEncodedPtsNs < 0L) rawPtsNs else maxOf(rawPtsNs, lastEncodedPtsNs + 1_000_000L)
+            lastEncodedPtsNs = ptsNs
+            if (EGL14.eglMakeCurrent(eglDisplay, encoderEglSurface, encoderEglSurface, eglContext)) {
+                GLES20.glViewport(0, 0, OUTPUT_SIZE, OUTPUT_SIZE)
+                renderQuad(OUTPUT_SIZE, OUTPUT_SIZE)
+                EGLExt.eglPresentationTimeANDROID(eglDisplay, encoderEglSurface, ptsNs)
+                EGL14.eglSwapBuffers(eglDisplay, encoderEglSurface)
             }
         }
     }

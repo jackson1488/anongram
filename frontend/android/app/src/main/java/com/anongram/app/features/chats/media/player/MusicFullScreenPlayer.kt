@@ -2,7 +2,7 @@ package com.anongram.app.features.chats.media.player
 
 import android.content.Context
 import android.content.Intent
-import android.widget.Toast
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -263,7 +263,10 @@ fun MusicFullScreenPlayer(
                             },
                             onClick = {
                                 isMenuOpen = false
-                                Toast.makeText(context, "Трек сохранен: ${currentTrack.title}", Toast.LENGTH_SHORT).show()
+                                ChatActionBannerBus.show(
+                                    "Трек сохранён: ${currentTrack.title}",
+                                    androidx.compose.material.icons.Icons.Outlined.FileDownload
+                                )
                             }
                         )
                         DropdownMenuItem(
@@ -617,7 +620,10 @@ fun MusicFullScreenPlayer(
                                 accent = scheme.accent,
                                 onPlay = { ctrl.play(state.queue, track) },
                                 onSave = {
-                                    Toast.makeText(context, "Сохранено: ${track.title}", Toast.LENGTH_SHORT).show()
+                                    ChatActionBannerBus.show(
+                                        "Сохранено: ${track.title}",
+                                        androidx.compose.material.icons.Icons.Outlined.FileDownload
+                                    )
                                 },
                                 onForward = {
                                     closeAnimated()

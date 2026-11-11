@@ -1,7 +1,7 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
 import android.net.Uri
-import android.widget.Toast
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,6 +27,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Forward
 import androidx.compose.material.icons.outlined.InsertDriveFile
 import androidx.compose.material.icons.outlined.MoreVert
@@ -314,18 +316,18 @@ internal fun ChatFileItemRow(
                             scope.launch {
                                 if (isImageFile && !file.uri.isNullOrBlank()) {
                                     val ok = savePhotoToDeviceGallery(context, file.uri)
-                                    Toast.makeText(
-                                        context,
-                                        if (ok) "Сохранено в галерею: ${file.name}" else "Не удалось сохранить фото",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    ChatActionBannerBus.show(
+                                        text = if (ok) "Сохранено в галерею: ${file.name}" else "Не удалось сохранить фото",
+                                        icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                        isError = !ok
+                                    )
                                 } else {
                                     val ok = saveFileToDeviceDownloads(context, file)
-                                    Toast.makeText(
-                                        context,
-                                        if (ok) "Сохранено в загрузки: ${file.name}" else "Не удалось сохранить файл",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    ChatActionBannerBus.show(
+                                        text = if (ok) "Сохранено в Загрузки: ${file.name}" else "Не удалось сохранить файл",
+                                        icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                        isError = !ok
+                                    )
                                 }
                             }
                         }

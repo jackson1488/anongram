@@ -126,14 +126,13 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.chats.media.circle.VideoCircleExportHelper
 import com.anongram.app.features.chats.ui.components.bubble.saveFileToDeviceDownloads
-import com.anongram.app.features.chats.ui.components.bubble.saveMediaAlbumToGallery
 import com.anongram.app.features.chats.ui.components.bubble.saveMusicToDeviceMusic
-import com.anongram.app.features.chats.ui.components.bubble.saveVideoToDeviceGallery
-import com.anongram.app.features.chats.ui.components.bubble.saveVoiceToDeviceDownloads
-import com.anongram.app.features.chats.ui.components.bubble.shareMediaUriSystemChooser
-import com.anongram.app.features.chats.ui.components.savePhotoToDeviceGallery
+import com.anongram.app.features.chats.ui.components.bubble.saveMessageMediaToDevice
+import com.anongram.app.features.chats.ui.components.bubble.shareMessageMediaSystem
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerHost
+import com.anongram.app.features.chats.ui.input.banner.SelectionLimitBannerHost
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -185,26 +184,6 @@ fun ChatScreen(
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
     var inputBarHeightPx by remember { mutableStateOf(0) }
-    var actionBanner by remember { mutableStateOf<ChatActionBanner?>(null) }
-    fun showActionBanner(
-        text: String,
-        icon: ImageVector = Icons.Outlined.CheckCircle,
-        isError: Boolean = false
-    ) {
-        actionBanner = ChatActionBanner(
-            id = System.nanoTime(),
-            text = text,
-            icon = icon,
-            isError = isError
-        )
-    }
-
-    LaunchedEffect(actionBanner?.id) {
-        if (actionBanner != null) {
-            delay(2400L)
-            actionBanner = null
-        }
-    }
 
     var pendingRecordMode by remember { mutableStateOf<RecordMode?>(null) }
     val recordPermissionLauncher = rememberLauncherForActivityResult(
@@ -219,7 +198,7 @@ fun ChatScreen(
         } else if (mode == RecordMode.CIRCLE && audioGranted && cameraGranted) {
             viewModel.startRecording(RecordMode.CIRCLE, context)
         } else {
-            showActionBanner("Требуется разрешение для записи", Icons.Outlined.ErrorOutline, isError = true)
+            ChatActionBannerBus.show("Требуется разрешение для записи", Icons.Outlined.ErrorOutline, isError = true)
         }
     }
 
@@ -375,7 +354,7 @@ fun ChatScreen(
             inputBarHeightDp + 24.dp + navBottom + 20.dp
         }
         val bottomInputTopDp = with(density) { chatBottomImePx.toDp() } +
-            navBottom.coerceAtMost(48.dp) +
+            navBottom.coerceAtMost(28.dp) +
             (if (effectiveKeyboardVisible) 4.dp else 24.dp) +
             inputBarHeightDp.coerceAtLeast(56.dp)
 
@@ -788,7 +767,7 @@ fun ChatScreen(
                                     when (state.editing?.attachment) {
                                         is MessageAttachment.Voice -> viewModel.openVoiceEditTrim()
                                         is MessageAttachment.VideoCircle -> viewModel.openVideoEditTrim()
-                                        else -> showActionBanner("Редактирование фото")
+                                        else -> ChatActionBannerBus.show("Редактирование фото")
                                     }
                                 },
                                 onReplyClick = { replyMsg ->
@@ -990,7 +969,7 @@ fun ChatScreen(
                 isMusicSheetOpen = true
                 audioController.openSheet()
             },
-            onShowBanner = { text, icon, isError -> showActionBanner(text, icon, isError) },
+            onShowBanner = { text, icon, isError -> ChatActionBannerBus.show(text, icon, isError) },
             modifier = Modifier
                 .zIndex(1f)
                 .align(Alignment.TopCenter)
@@ -1260,22 +1239,18 @@ fun ChatScreen(
                     }
                     clipboard.setText(AnnotatedString(copyText))
                     viewModel.closeActionMenu()
-                    showActionBanner("Скопировано в буфер обмена", Icons.Outlined.ContentCopy)
+                    ChatActionBannerBus.show("Скопировано в буфер обмена", Icons.Outlined.ContentCopy)
                 },
                 onSave = {
                     viewModel.closeActionMenu()
                     scope.launch {
-                        saveMessageMediaToDevice(context, message) { text, icon, isError ->
-                            showActionBanner(text, icon, isError)
-                        }
+                        saveMessageMediaToDevice(context, message)
                     }
                 },
                 onShare = {
                     viewModel.closeActionMenu()
                     scope.launch {
-                        shareMessageMediaSystem(context, message) { errText ->
-                            showActionBanner(errText, Icons.Outlined.ErrorOutline, true)
-                        }
+                        shareMessageMediaSystem(context, message)
                     }
                 },
                 onEdit = {
@@ -1595,95 +1570,13 @@ fun ChatScreen(
             )
         }
 
-        // Предупреждение о превышении лимита 99 сообщений (шаг 12)
-        AnimatedVisibility(
-            visible = state.limitWarning != null,
-            enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-            exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
-            modifier = Modifier
-                .zIndex(4f)
-                .align(Alignment.BottomCenter)
-                .padding(bottom = bottomInputTopDp + 8.dp, start = 20.dp, end = 20.dp)
-        ) {
-            state.limitWarning?.let { warningText ->
-                Box(
-                    modifier = Modifier
-                        .shadow(elevation = 12.dp, shape = RoundedCornerShape(18.dp), spotColor = CrimsonKillSwitch)
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(CardDark)
-                        .border(1.dp, CrimsonKillSwitch.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
-                        .clickable { viewModel.dismissLimitWarning() }
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.ErrorOutline,
-                            contentDescription = null,
-                            tint = CrimsonKillSwitch,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Text(
-                            text = warningText,
-                            color = TextPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
-
-        // Кастомное уведомление над полем ввода (скопировано, сохранено в галерею/загрузки, скачано N фото)
-        val bannerScheme = LocalAnonGramScheme.current
-        AnimatedVisibility(
-            visible = actionBanner != null,
-            enter = fadeIn(tween(180)) + slideInVertically(
-                animationSpec = tween(200),
-                initialOffsetY = { it / 2 }
-            ),
-            exit = fadeOut(tween(180)) + slideOutVertically(
-                animationSpec = tween(200),
-                targetOffsetY = { it / 2 }
-            ),
-            modifier = Modifier
-                .zIndex(4f)
-                .align(Alignment.BottomCenter)
-                .padding(bottom = bottomInputTopDp + 8.dp, start = 16.dp, end = 16.dp)
-        ) {
-            actionBanner?.let { banner ->
-                val tintColor = if (banner.isError) CrimsonKillSwitch else bannerScheme.accent
-                Box(
-                    modifier = Modifier
-                        .shadow(elevation = 10.dp, shape = RoundedCornerShape(16.dp))
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xF01C1F26))
-                        .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
-                        .clickable { actionBanner = null }
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = banner.icon,
-                            contentDescription = null,
-                            tint = tintColor,
-                            modifier = Modifier.size(19.dp)
-                        )
-                        Text(
-                            text = banner.text,
-                            color = TextPrimary,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            }
-        }
+        // Предупреждение о превышении лимита 99 сообщений и кастомный баннер уведомлений над полем ввода/клавиатурой
+        SelectionLimitBannerHost(
+            warningText = state.limitWarning,
+            bottomOffsetDp = bottomInputTopDp,
+            onDismiss = viewModel::dismissLimitWarning
+        )
+        ChatActionBannerHost(bottomOffsetDp = bottomInputTopDp)
 
         // 6. Шторка музыкального плеера чата
         if (isMusicSheetOpen || isAudioSheetOpen) {
@@ -1804,13 +1697,6 @@ private fun ChatScrollDownOverlay(
         modifier = modifier
     )
 }
-
-private data class ChatActionBanner(
-    val id: Long,
-    val text: String,
-    val icon: ImageVector,
-    val isError: Boolean = false
-)
 
 @Composable
 private fun ChatFloatingTopHeader(
@@ -1999,154 +1885,3 @@ private fun ChatFloatingTopHeader(
         }
     }
 }
-
-private suspend fun saveMessageMediaToDevice(
-    context: android.content.Context,
-    msg: ChatMessage,
-    subPhotoIdx: Int? = null,
-    onBanner: (text: String, icon: ImageVector, isError: Boolean) -> Unit
-) {
-    val att = msg.attachment
-    var savedOk = false
-    val msgText = when (att) {
-        is MessageAttachment.VideoCircle -> {
-            savedOk = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
-            if (savedOk) "Видео-кружок сохранён в галерею" else "Не удалось сохранить кружок"
-        }
-        is MessageAttachment.Voice -> {
-            savedOk = saveVoiceToDeviceDownloads(context, att)
-            if (savedOk) "Голосовое сохранено в Загрузки" else "Не удалось сохранить голосовое"
-        }
-        is MessageAttachment.Photo -> {
-            val uri = att.uri
-            savedOk = when {
-                uri.isNullOrBlank() -> false
-                att.isVideo -> saveVideoToDeviceGallery(context, uri)
-                else -> savePhotoToDeviceGallery(context, uri)
-            }
-            if (savedOk) {
-                if (att.isVideo) "Видео сохранено в галерею" else "Фото сохранено в галерею"
-            } else "Не удалось сохранить"
-        }
-        is MessageAttachment.MediaAlbum -> {
-            if (subPhotoIdx != null) {
-                val item = att.items.getOrNull(subPhotoIdx)
-                savedOk = if (item == null) false else if (item.isVideo) {
-                    saveVideoToDeviceGallery(context, item.uri)
-                } else {
-                    savePhotoToDeviceGallery(context, item.uri)
-                }
-                if (savedOk) "Сохранено в галерею" else "Не удалось сохранить"
-            } else {
-                val count = saveMediaAlbumToGallery(context, att)
-                savedOk = count > 0
-                if (savedOk) {
-                    if (count == att.items.size) "Скачано $count фото в галерею"
-                    else "Скачано $count из ${att.items.size} в галерею"
-                } else "Не удалось сохранить альбом"
-            }
-        }
-        is MessageAttachment.File -> {
-            savedOk = saveFileToDeviceDownloads(context, att)
-            if (savedOk) "Файл сохранён в Загрузки" else "Не удалось сохранить файл"
-        }
-        is MessageAttachment.FileGroup -> {
-            var saved = 0
-            for (f in att.items) {
-                if (saveFileToDeviceDownloads(context, f)) saved++
-            }
-            savedOk = saved > 0
-            if (savedOk) "Скачано файлов: $saved из ${att.items.size} в Загрузки" else "Не удалось сохранить файлы"
-        }
-        is MessageAttachment.Music -> {
-            savedOk = saveMusicToDeviceMusic(context, att)
-            if (savedOk) "Трек сохранён в Музыку" else "Не удалось сохранить трек"
-        }
-        is MessageAttachment.MusicGroup -> {
-            var saved = 0
-            for (m in att.items) {
-                if (saveMusicToDeviceMusic(context, m)) saved++
-            }
-            savedOk = saved > 0
-            if (savedOk) "Сохранено треков: $saved из ${att.items.size}" else "Не удалось сохранить треки"
-        }
-        else -> "Нечего сохранять"
-    }
-    onBanner(
-        msgText,
-        if (savedOk) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
-        !savedOk
-    )
-}
-
-private suspend fun shareMessageMediaSystem(
-    context: android.content.Context,
-    msg: ChatMessage,
-    subPhotoIdx: Int? = null,
-    onError: (String) -> Unit
-) {
-    when (val att = msg.attachment) {
-        is MessageAttachment.VideoCircle -> {
-            val ok = VideoCircleExportHelper.shareVideoCircleSystemChooser(context, att.uri)
-            if (!ok) onError("Не удалось подготовить видео для отправки")
-        }
-        is MessageAttachment.Voice -> {
-            val ok = shareMediaUriSystemChooser(
-                context = context,
-                uriString = att.uri,
-                mimeType = "audio/mp4",
-                chooserTitle = "Поделиться голосовым",
-                suggestedFileName = "voice_${msg.id}.m4a"
-            )
-            if (!ok) onError("Файл голосового недоступен")
-        }
-        is MessageAttachment.Photo -> {
-            val ok = shareMediaUriSystemChooser(
-                context = context,
-                uriString = att.uri,
-                mimeType = if (att.isVideo) "video/mp4" else "image/jpeg",
-                chooserTitle = if (att.isVideo) "Поделиться видео" else "Поделиться фото"
-            )
-            if (!ok) onError("Файл недоступен")
-        }
-        is MessageAttachment.MediaAlbum -> {
-            val item = subPhotoIdx?.let { att.items.getOrNull(it) } ?: att.items.firstOrNull()
-            val ok = if (item != null) {
-                shareMediaUriSystemChooser(
-                    context = context,
-                    uriString = item.uri,
-                    mimeType = if (item.isVideo) "video/mp4" else "image/jpeg",
-                    chooserTitle = "Поделиться"
-                )
-            } else false
-            if (!ok) onError("Файл недоступен")
-        }
-        is MessageAttachment.File -> {
-            val ok = shareMediaUriSystemChooser(
-                context = context,
-                uriString = att.uri,
-                mimeType = "*/*",
-                chooserTitle = att.name,
-                suggestedFileName = att.name
-            )
-            if (!ok) onError("Файл недоступен")
-        }
-        is MessageAttachment.Music -> {
-            val ok = shareMediaUriSystemChooser(
-                context = context,
-                uriString = att.uri,
-                mimeType = "audio/*",
-                chooserTitle = "${att.artist} - ${att.title}"
-            )
-            if (!ok) onError("Аудио недоступно")
-        }
-        else -> {
-            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(android.content.Intent.EXTRA_TEXT, msg.text.ifBlank { "AnonGram" })
-            }
-            context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться"))
-        }
-    }
-}
-

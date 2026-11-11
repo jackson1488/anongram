@@ -3,7 +3,7 @@ package com.anongram.app.features.chats.ui.components.bubble
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
+import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -102,7 +102,7 @@ fun BubbleLatexFormula(
                         .clickable {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("LaTeX Formula", formula))
-                            Toast.makeText(context, "Формула скопирована", Toast.LENGTH_SHORT).show()
+                            ChatActionBannerBus.show("Формула скопирована", Icons.Outlined.ContentCopy)
                         }
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
