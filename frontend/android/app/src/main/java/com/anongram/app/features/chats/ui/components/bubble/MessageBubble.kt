@@ -355,7 +355,8 @@ internal fun MessageBubble(
                             ChatVideoCircleSection(
                                 message = message,
                                 attachment = message.attachment as MessageAttachment.VideoCircle,
-                                onClick = { if (isSelectionMode) onSelect() else onOpenVideoCircle(message.attachment as MessageAttachment.VideoCircle) }
+                                isSelectionMode = isSelectionMode,
+                                onSelect = onSelect
                             )
                         }
                     } else {
@@ -807,7 +808,8 @@ private fun AttachmentContent(
             ChatVideoCircleSection(
                 message = message,
                 attachment = attachment,
-                onClick = { if (isSelectionMode) onSelect() else onOpenVideoCircle(attachment) }
+                isSelectionMode = isSelectionMode,
+                onSelect = onSelect
             )
         }
 

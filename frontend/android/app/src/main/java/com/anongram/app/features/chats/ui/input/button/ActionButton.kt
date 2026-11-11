@@ -122,12 +122,115 @@ fun ActionButton(
         label = "haloAlpha"
     )
 
-    // Строго фиксированный слот 42x42dp, чтобы ChatInputBar никогда не раздувался при записи
+    val maxCancelDragPx = with(density) { 240.dp.toPx() }
+
+    // ВАЖНО: pointerInput прикреплен к НЕПОДВИЖНОМУ внешнему слоту 42x42dp!
+    // Его координаты не смещаются при движении кнопки, что полностью исключает дёрганье!
     Box(
-        modifier = modifier.size(42.dp),
+        modifier = modifier
+            .size(42.dp)
+            .pointerInput(Unit) {
+                coroutineScope {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val downTime = System.currentTimeMillis()
+                            val startPos = down.position
+
+                            if (currentCanSend) {
+                                val up = waitForUpOrCancellation()
+                                if (up != null) {
+                                    currentOnSend()
+                                }
+                                continue
+                            }
+
+                            if (currentIsLocked || currentIsRecording) {
+                                val up = waitForUpOrCancellation()
+                                if (up != null) {
+                                    currentOnStopLockedRecording()
+                                }
+                                continue
+                            }
+
+                            isHolding = true
+                            dragOffsetY = 0f
+                            dragOffsetX = 0f
+
+                            var isRecordingStarted = false
+                            var isCancelled = false
+                            var isLocked = false
+
+                            val holdJob = this@coroutineScope.launch {
+                                delay(160)
+                                if (!isCancelled && !isLocked) {
+                                    isRecordingStarted = true
+                                    currentOnStartRecording(
+                                        if (currentIsCameraMode) RecordMode.CIRCLE else RecordMode.VOICE
+                                    )
+                                }
+                            }
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.id == down.id } ?: break
+
+                                if (change.pressed) {
+                                    val totalDx = change.position.x - startPos.x
+                                    val totalDy = change.position.y - startPos.y
+
+                                    // Абсолютно гладкое 1:1 следование за пальцем без дрожания
+                                    dragOffsetX = totalDx.coerceIn(-maxCancelDragPx, 0f)
+                                    dragOffsetY = totalDy.coerceIn(-lockDistancePx, 0f)
+
+                                    if (isRecordingStarted) {
+                                        // Если свайпнули до упора влево (220dp+), сразу отменяем
+                                        if (!isCancelled && dragOffsetX <= -with(density) { 220.dp.toPx() }) {
+                                            isCancelled = true
+                                            isHolding = false
+                                            dragOffsetY = 0f
+                                            dragOffsetX = 0f
+                                            currentOnCancelRecording()
+                                        } else if (!isLocked && dragOffsetY <= -lockDistancePx + with(density) { 10.dp.toPx() }) {
+                                            isLocked = true
+                                            isHolding = false
+                                            dragOffsetY = 0f
+                                            dragOffsetX = 0f
+                                            currentOnLockRecording()
+                                        }
+                                    }
+                                } else {
+                                    holdJob.cancel()
+                                    val duration = System.currentTimeMillis() - downTime
+                                    if (!isRecordingStarted && duration < 200) {
+                                        if (currentIsRecording) {
+                                            currentOnStopLockedRecording()
+                                        } else {
+                                            currentOnToggleCameraMode()
+                                        }
+                                    } else if (isRecordingStarted) {
+                                        if (!isCancelled && !isLocked) {
+                                            // Если палец отпущен после свайпа влево (дальше 90dp) — отмена!
+                                            if (dragOffsetX < -with(density) { 90.dp.toPx() }) {
+                                                currentOnCancelRecording()
+                                            } else {
+                                                currentOnFinishRecording(true)
+                                            }
+                                        }
+                                    }
+                                    isHolding = false
+                                    dragOffsetY = 0f
+                                    dragOffsetX = 0f
+                                    break
+                                }
+                            }
+                        }
+                    }
+                }
+            },
         contentAlignment = Alignment.Center
     ) {
-        // Вертикальный трек с замочком над кнопкой при удержании записи (через requiredSize, без влияния на высоту Row)
+        // Вертикальный трек с замочком над кнопкой при удержании записи
         AnimatedVisibility(
             visible = (isHolding || isRecording) && !isLockedRecording,
             enter = fadeIn(tween(150)),
@@ -161,16 +264,14 @@ fun ActionButton(
             }
         }
 
-        val maxCancelDragPx = with(density) { 160.dp.toPx().toInt() }
-
-        // Физический подъем кнопки и ауры вместе с пальцем пользователя (и вверх к замку, и влево к отмене)
+        // Физический сдвиг кнопки и ауры за пальцем пользователя (вверх к замку, влево к отмене)
         Box(
             modifier = Modifier
                 .requiredSize(78.dp)
                 .offset {
                     IntOffset(
-                        dragOffsetX.roundToInt().coerceIn(-maxCancelDragPx, 0),
-                        dragOffsetY.roundToInt().coerceIn(-lockDistancePx.toInt(), 0)
+                        dragOffsetX.roundToInt(),
+                        dragOffsetY.roundToInt()
                     )
                 },
             contentAlignment = Alignment.Center
@@ -201,90 +302,7 @@ fun ActionButton(
                         1.dp,
                         if (canSend || isRecording || isHolding) scheme.accent else CardBorder,
                         CircleShape
-                    )
-                    .pointerInput(Unit) {
-                        coroutineScope {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val down = awaitFirstDown(requireUnconsumed = false)
-                                    val downTime = System.currentTimeMillis()
-
-                                    if (currentCanSend) {
-                                        val up = waitForUpOrCancellation()
-                                        if (up != null) {
-                                            currentOnSend()
-                                        }
-                                        continue
-                                    }
-
-                                    if (currentIsLocked || currentIsRecording) {
-                                        val up = waitForUpOrCancellation()
-                                        if (up != null) {
-                                            currentOnStopLockedRecording()
-                                        }
-                                        continue
-                                    }
-
-                                    isHolding = true
-                                    dragOffsetY = 0f
-                                    dragOffsetX = 0f
-
-                                    var isRecordingStarted = false
-                                    var isCancelled = false
-                                    var isLocked = false
-
-                                    val holdJob = this@coroutineScope.launch {
-                                        delay(180)
-                                        if (!isCancelled && !isLocked) {
-                                            isRecordingStarted = true
-                                            currentOnStartRecording(
-                                                if (currentIsCameraMode) RecordMode.CIRCLE else RecordMode.VOICE
-                                            )
-                                        }
-                                    }
-
-                                    while (true) {
-                                        val event = awaitPointerEvent()
-                                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-
-                                        if (change.pressed) {
-                                            val delta = change.position - change.previousPosition
-                                            dragOffsetX += delta.x
-                                            dragOffsetY = (dragOffsetY + delta.y).coerceIn(-lockDistancePx, 0f)
-
-                                            if (isRecordingStarted) {
-                                                if (!isCancelled && dragOffsetX < -with(density) { 80.dp.toPx() }) {
-                                                    isCancelled = true
-                                                    isHolding = false
-                                                    dragOffsetY = 0f
-                                                    currentOnCancelRecording()
-                                                } else if (!isLocked && dragOffsetY <= -lockDistancePx + with(density) { 8.dp.toPx() }) {
-                                                    isLocked = true
-                                                    isHolding = false
-                                                    dragOffsetY = 0f
-                                                    currentOnLockRecording()
-                                                }
-                                            }
-                                        } else {
-                                            holdJob.cancel()
-                                            val duration = System.currentTimeMillis() - downTime
-                                            if (!isRecordingStarted && duration < 200) {
-                                                currentOnToggleCameraMode()
-                                            } else if (isRecordingStarted) {
-                                                if (!isCancelled && !isLocked) {
-                                                    currentOnFinishRecording(true)
-                                                }
-                                            }
-                                            isHolding = false
-                                            dragOffsetY = 0f
-                                            dragOffsetX = 0f
-                                            break
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 if (canSend) {
@@ -295,12 +313,19 @@ fun ActionButton(
                         modifier = Modifier.size(20.dp)
                     )
                 } else if (isRecording) {
-                    Icon(
-                        imageVector = Icons.Outlined.Stop,
-                        contentDescription = strings.stop,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
+                    if (isCameraMode) {
+                        TelegramVideoNoteIcon(
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Outlined.Mic,
+                            contentDescription = strings.micDesc,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 } else if (isCameraMode) {
                     TelegramVideoNoteIcon(
                         tint = scheme.accent,

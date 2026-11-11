@@ -91,8 +91,8 @@ fun VideoCircleRecordOverlay(
     val configuration = LocalConfiguration.current
 
     // Круг почти на весь экран по горизонтали (как на Фото 1 и 3 из Telegram)
-    val outerCircleSize = (configuration.screenWidthDp.dp - 10.dp).coerceIn(300.dp, 420.dp)
-    val innerCircleSize = outerCircleSize - 12.dp
+    val outerCircleSize = (configuration.screenWidthDp.dp - 4.dp).coerceIn(310.dp, 440.dp)
+    val innerCircleSize = outerCircleSize - 10.dp
 
     val cameraManager = remember { VideoCircleCameraManager(context) }
 
@@ -101,6 +101,8 @@ fun VideoCircleRecordOverlay(
     var isFlashOn by remember { mutableStateOf(false) }
     var showTooltip by remember { mutableStateOf(true) }
     var hasFinished by remember { mutableStateOf(false) }
+
+    val isSoftwareWhiteFlash = isFrontCamera && isFlashOn
 
     DisposableEffect(Unit) {
         onDispose {
@@ -147,9 +149,27 @@ fun VideoCircleRecordOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.42f)),
+            .background(if (isSoftwareWhiteFlash) Color.White else Color.Black.copy(alpha = 0.52f)),
         contentAlignment = Alignment.Center
     ) {
+        // Мягкий ореол (блюр/аура) вокруг видоискателя в обычном режиме
+        if (!isSoftwareWhiteFlash) {
+            Box(
+                modifier = Modifier
+                    .offset(y = (-44).dp)
+                    .size(outerCircleSize + 22.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.08f))
+            )
+            Box(
+                modifier = Modifier
+                    .offset(y = (-44).dp)
+                    .size(outerCircleSize + 10.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.12f))
+            )
+        }
+
         // Большой круглый видоискатель камеры почти на весь экран по горизонтали (Фото 1 и 3)
         Box(
             modifier = Modifier

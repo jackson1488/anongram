@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -60,6 +61,35 @@ import com.anongram.app.core.theme.SurfaceDark
 import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.offset
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.rounded.FastForward
+import androidx.compose.material.icons.rounded.FastRewind
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlin.math.PI
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.roundToInt
+import kotlin.math.sin
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 
@@ -299,17 +329,53 @@ internal fun ChatVoiceSection(
 }
 
 /**
- * Видео-кружок в пузыре (круг в чате 250dp с живым беззвучным автовоспроизведением как в Telegram — Фото 2 и 4).
+ * Видео-кружок в пузыре с воспроизведением и увеличением прямо в чате (Фото 2 и Фото 4):
+ * - Обычный размер 220.dp с беззвучным автовоспроизведением
+ * - По тапу: плавное увеличение прямо в чате до ширины экрана (in-place) со звуком
+ * - Круговой SeekBar вокруг круга с перетаскиваемой белой точкой-ручкой (●)
+ * - Кнопки полной навигации: Play/Pause, быстрый скип 10 сек, кнопка сворачивания
+ * - Внизу внутри кружочка: слева длительность/время записи [ 00:16 • ], справа время отправки и статус [ 19:29 ✓✓ ]
  */
 @Composable
 internal fun ChatVideoCircleSection(
     message: ChatMessage,
     attachment: MessageAttachment.VideoCircle,
-    onClick: () -> Unit = {}
+    isSelectionMode: Boolean = false,
+    onSelect: () -> Unit = {}
 ) {
+    val configuration = LocalConfiguration.current
+    val density = LocalDensity.current
+    val screenWidth = configuration.screenWidthDp.dp
+
+    var isExpanded by remember { mutableStateOf(false) }
+
+    val normalSize = 220.dp
+    val expandedSize = (screenWidth - 20.dp).coerceIn(280.dp, 360.dp)
+    val currentSize by animateDpAsState(
+        targetValue = if (isExpanded) expandedSize else normalSize,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "circleSize"
+    )
+
+    val currentSizePx = with(density) { currentSize.toPx() }
+    val radiusPx = (currentSizePx / 2f) - with(density) { 5.dp.toPx() }
+
     val videoFile = remember(attachment.uri) {
         attachment.uri?.takeIf { it.isNotBlank() }?.let { File(it) }?.takeIf { it.exists() && it.length() > 0L }
     }
+
+    val durSec = remember(attachment.durationLabel) {
+        val parts = attachment.durationLabel.split(":")
+        if (parts.size == 2) {
+            (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 14)
+        } else 14
+    }
+    val totalMs = (durSec * 1000L).coerceAtLeast(1000L)
+
+    var currentPosMs by remember { mutableLongStateOf(0L) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var isDragging by remember { mutableStateOf(false) }
+    var mediaPlayerRef by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
 
     val thumbnailBitmap by produceState<Bitmap?>(initialValue = null, key1 = attachment.uri) {
         val file = videoFile
@@ -327,13 +393,94 @@ internal fun ChatVideoCircleSection(
         }
     }
 
+    // Синхронизация прогресса воспроизведения
+    LaunchedEffect(isExpanded, isPlaying, isDragging) {
+        while (isActive && isPlaying && !isDragging) {
+            delay(50)
+            val mp = mediaPlayerRef
+            if (mp != null && mp.isPlaying) {
+                currentPosMs = mp.currentPosition.toLong()
+            }
+        }
+    }
+
+    val progress = (currentPosMs.toFloat() / totalMs.toFloat()).coerceIn(0f, 1f)
+    val animatedProgress by animateFloatAsState(targetValue = progress, label = "circleProgress")
+
+    val elapsedSec = (currentPosMs / 1000).toInt()
+    val elapsedLabel = "%02d:%02d".format(elapsedSec / 60, elapsedSec % 60)
+
+    val horizPadding = if (isExpanded) 22.dp else 16.dp
+    val vertPadding = if (isExpanded) 16.dp else 12.dp
+
     Box(
         modifier = Modifier
-            .size(250.dp)
+            .size(currentSize)
             .clip(CircleShape)
             .background(Color(0xFF1B1B22))
             .border(1.5.dp, Color.White.copy(alpha = 0.22f), CircleShape)
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (isSelectionMode) {
+                    onSelect()
+                } else if (!isExpanded) {
+                    // Раскрытие прямо в чате со звуком
+                    isExpanded = true
+                    mediaPlayerRef?.setVolume(1f, 1f)
+                    if (isPlaying) {
+                        mediaPlayerRef?.start()
+                    }
+                } else {
+                    // В раскрытом состоянии тап по видео переключает паузу / воспроизведение
+                    if (!isDragging) {
+                        isPlaying = !isPlaying
+                        val mp = mediaPlayerRef
+                        if (mp != null) {
+                            if (isPlaying) mp.start() else mp.pause()
+                        }
+                    }
+                }
+            }
+            .then(
+                if (isExpanded) {
+                    Modifier.pointerInput(totalMs, currentSizePx) {
+                        detectDragGestures(
+                            onDragStart = { offset ->
+                                isDragging = true
+                                val dx = offset.x - (currentSizePx / 2f)
+                                val dy = offset.y - (currentSizePx / 2f)
+                                val angle = atan2(dy, dx)
+                                var deg = (angle * 180f / PI.toFloat()) + 90f
+                                if (deg < 0f) deg += 360f
+                                val fraction = (deg / 360f).coerceIn(0f, 1f)
+                                currentPosMs = (fraction * totalMs).toLong()
+                                mediaPlayerRef?.seekTo(currentPosMs.toInt())
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                                mediaPlayerRef?.seekTo(currentPosMs.toInt())
+                            },
+                            onDragCancel = {
+                                isDragging = false
+                            },
+                            onDrag = { change, _ ->
+                                change.consume()
+                                val touchPos = change.position
+                                val dx = touchPos.x - (currentSizePx / 2f)
+                                val dy = touchPos.y - (currentSizePx / 2f)
+                                val angle = atan2(dy, dx)
+                                var deg = (angle * 180f / PI.toFloat()) + 90f
+                                if (deg < 0f) deg += 360f
+                                val fraction = (deg / 360f).coerceIn(0f, 1f)
+                                currentPosMs = (fraction * totalMs).toLong()
+                                mediaPlayerRef?.seekTo(currentPosMs.toInt())
+                            }
+                        )
+                    }
+                } else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
         val bmp = thumbnailBitmap
@@ -347,16 +494,13 @@ internal fun ChatVideoCircleSection(
         }
 
         if (videoFile != null) {
-            var loopPlayer by remember(videoFile.absolutePath) {
-                androidx.compose.runtime.mutableStateOf<android.media.MediaPlayer?>(null)
-            }
-            androidx.compose.runtime.DisposableEffect(videoFile.absolutePath) {
+            DisposableEffect(videoFile.absolutePath) {
                 onDispose {
-                    loopPlayer?.run {
+                    mediaPlayerRef?.run {
                         runCatching { stop() }
                         runCatching { release() }
                     }
-                    loopPlayer = null
+                    mediaPlayerRef = null
                 }
             }
             androidx.compose.ui.viewinterop.AndroidView(
@@ -373,7 +517,7 @@ internal fun ChatVideoCircleSection(
                                     val mp = android.media.MediaPlayer().apply {
                                         setSurface(android.view.Surface(st))
                                         setDataSource(videoFile.absolutePath)
-                                        setVolume(0f, 0f)
+                                        setVolume(if (isExpanded) 1f else 0f, if (isExpanded) 1f else 0f)
                                         isLooping = true
                                         setOnVideoSizeChangedListener { _, vw, vh ->
                                             if (vw > 0 && vh > 0 && width > 0 && height > 0) {
@@ -394,11 +538,13 @@ internal fun ChatVideoCircleSection(
                                             }
                                         }
                                         setOnPreparedListener { player ->
-                                            runCatching { player.start() }
+                                            runCatching {
+                                                if (isPlaying) player.start()
+                                            }
                                         }
                                         prepareAsync()
                                     }
-                                    loopPlayer = mp
+                                    mediaPlayerRef = mp
                                 } catch (_: Exception) {}
                             }
 
@@ -409,11 +555,11 @@ internal fun ChatVideoCircleSection(
                             ) {}
 
                             override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
-                                loopPlayer?.run {
+                                mediaPlayerRef?.run {
                                     runCatching { stop() }
                                     runCatching { release() }
                                 }
-                                loopPlayer = null
+                                mediaPlayerRef = null
                                 return true
                             }
 
@@ -425,19 +571,165 @@ internal fun ChatVideoCircleSection(
             )
         }
 
+        // Круговой SeekBar вокруг круга (тонкое кольцо и белая дуга прогресса)
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val radius = radiusPx
+            val strokeWidth = 3.5.dp.toPx()
+            val centerOffset = Offset(size.width / 2f, size.height / 2f)
+
+            // Фоновое кольцо
+            drawCircle(
+                color = Color.White.copy(alpha = if (isExpanded) 0.30f else 0.18f),
+                radius = radius,
+                center = centerOffset,
+                style = Stroke(width = strokeWidth)
+            )
+
+            // Белая дуга прогресса воспроизведения
+            drawArc(
+                color = Color.White,
+                startAngle = -90f,
+                sweepAngle = animatedProgress * 360f,
+                useCenter = false,
+                topLeft = Offset(centerOffset.x - radius, centerOffset.y - radius),
+                size = Size(radius * 2, radius * 2),
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+        }
+
+        // Перетаскиваемая белая точка-ручка (●) на ободе при увеличении (как на Фото пользователя)
+        if (isExpanded) {
+            val angleDeg = -90f + animatedProgress * 360f
+            val angleRad = angleDeg * (PI.toFloat() / 180f)
+            val handleX = (radiusPx * cos(angleRad)).roundToInt()
+            val handleY = (radiusPx * sin(angleRad)).roundToInt()
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .offset { IntOffset(handleX, handleY) }
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(Color.White)
+                    .border(2.dp, Color(0xFF6B4EEA), CircleShape)
+            )
+        }
+
+        // Кнопка Play по центру при паузе
+        if (isExpanded && !isPlaying) {
+            Box(
+                modifier = Modifier
+                    .size(54.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable {
+                        isPlaying = true
+                        mediaPlayerRef?.start()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.PlayArrow,
+                    contentDescription = "Воспроизвести",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+
+        // Кнопка сворачивания в правом верхнем углу при увеличении
+        if (isExpanded) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 16.dp, end = 16.dp)
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.58f))
+                    .clickable {
+                        isExpanded = false
+                        mediaPlayerRef?.setVolume(0f, 0f)
+                        if (!isPlaying) {
+                            isPlaying = true
+                            mediaPlayerRef?.start()
+                        }
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = "Свернуть",
+                    tint = Color.White,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+
+            // Быстрые кнопки перемотки на 10 секунд назад и вперед
+            Row(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // -10 сек
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .clickable {
+                            val newPos = (currentPosMs - 10000L).coerceAtLeast(0L)
+                            currentPosMs = newPos
+                            mediaPlayerRef?.seekTo(newPos.toInt())
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.FastRewind,
+                        contentDescription = "-10с",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                // +10 сек
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .clickable {
+                            val newPos = (currentPosMs + 10000L).coerceAtMost(totalMs)
+                            currentPosMs = newPos
+                            mediaPlayerRef?.seekTo(newPos.toInt())
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.FastForward,
+                        contentDescription = "+10с",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
         // Внизу внутри кружочка (Фото 2 и Фото 4 в стиле Telegram):
         // Слева: Длительность со значком кружочка [ 00:16 • ]
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 18.dp, bottom = 14.dp)
+                .padding(start = horizPadding, bottom = vertPadding)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Color.Black.copy(alpha = 0.58f))
                 .padding(horizontal = 7.dp, vertical = 2.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = attachment.durationLabel,
+                    text = if (isExpanded && (isPlaying || currentPosMs > 0)) elapsedLabel else attachment.durationLabel,
                     color = Color.White,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace,
@@ -457,7 +749,7 @@ internal fun ChatVideoCircleSection(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 18.dp, bottom = 14.dp)
+                .padding(end = horizPadding, bottom = vertPadding)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Color.Black.copy(alpha = 0.58f))
                 .padding(horizontal = 7.dp, vertical = 2.dp)
