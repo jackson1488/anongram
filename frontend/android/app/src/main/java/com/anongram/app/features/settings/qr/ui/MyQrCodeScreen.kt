@@ -1,8 +1,13 @@
 package com.anongram.app.features.settings.qr.ui
 
-import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,25 +16,27 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brush
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,13 +51,23 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.qr.ui.components.QrCodeCard
+import com.anongram.app.features.settings.qr.ui.components.QrColorPaletteSheet
+import com.anongram.app.features.settings.qr.ui.components.QrImageRenderer
+import com.anongram.app.features.settings.qr.ui.components.QrThemeItem
+import com.anongram.app.features.settings.qr.ui.components.QrThemePalette
 
 /**
  * Экран собственного QR-кода пользователя AnonGram (Скриншот 3).
- * Включает:
- * - Верхнюю панель с отступом под системный статус-бар, кнопкой закрытия `(X)` и капсулой «Сканировать QR-код».
- * - Центральную белую карточку с фиолетовым QR-кодом, логотипом самолётика и `@HANDLE`.
- * - Нижнюю панель быстрых действий (Поделиться, Стили темы, Скачать).
+ *
+ * Особенности:
+ * - Стилистика iPhone Glass (матовые полупрозрачные кнопки с тонкими белыми гранями и скруглениями);
+ * - Палитра из 42 цветов (6 колонок × 7 рядов) в стиле Telegram с белым кольцом выделения;
+ * - Нижняя панель с ровно тремя кнопками:
+ *     1. «Поделиться» — отправка реального HD PNG-изображения карточки QR-кода с хэндлом пользователя (@HANDLE)
+ *        и выбранной цветовой темой через FileProvider;
+ *     2. По центру — единая кнопка «кисточка» (Brush), открывающая/скрывающая палитру оформления;
+ *     3. «Скачать» — сохранение HD-изображения в системную Галерею пользователя (MediaStore).
+ * - Верхняя панель: кнопка закрытия `(X)` слева и капсула «Сканировать QR-код» справа в стиле iPhone Glass.
  */
 @Composable
 fun MyQrCodeScreen(
@@ -60,179 +77,202 @@ fun MyQrCodeScreen(
     onOpenScanner: () -> Unit
 ) {
     val context = LocalContext.current
-    var selectedStyleIndex by remember { mutableIntStateOf(0) }
-
-    val stylePalettes = listOf(
-        listOf(Color(0xFF8B3DFF), Color(0xFF9B51E0), Color(0xFF6B21A8)),
-        listOf(Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFF4338CA)),
-        listOf(Color(0xFFA855F7), Color(0xFFD946EF), Color(0xFF7E22CE)),
-        listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6), Color(0xFF1D4ED8))
-    )
-    val currentGradient = stylePalettes[selectedStyleIndex % stylePalettes.size]
-    val qrAccentColor = currentGradient.first()
-
     val cleanHandle = handle.removePrefix("@").uppercase()
-    val qrPayload = "anongram://user?handle=$cleanHandle&pk=${publicKeyHex.take(24)}"
+
+    var selectedTheme by remember { mutableStateOf<QrThemeItem>(QrThemePalette.defaultTheme) }
+    var isPaletteVisible by remember { mutableStateOf(true) }
+
+    val scrollState = rememberScrollState()
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(brush = Brush.verticalGradient(currentGradient))
+            .background(brush = Brush.verticalGradient(selectedTheme.gradient))
     ) {
-        // Верхняя панель с безопасным отступом от статус-бара: Кнопка (X) слева и «Сканировать QR-код» справа
-        Row(
+        // Прокручиваемый контент: Верхний отступ, Карточка QR, Палитра и место под нижнюю панель
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
+                .fillMaxSize()
                 .safeStatusBarPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .verticalScroll(scrollState)
+                .padding(horizontal = 20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.28f),
-                modifier = Modifier.size(44.dp)
+            // Верхняя плашка действий (iPhone Glass стиль)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onClose) {
+                // Кнопка (X) слева (iPhone Glass Circle)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.16f))
+                        .border(1.2.dp, Color.White.copy(alpha = 0.24f), CircleShape)
+                        .clickable(onClick = onClose),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Закрыть",
-                        tint = Color.White
-                    )
-                }
-            }
-
-            Surface(
-                shape = RoundedCornerShape(24.dp),
-                color = Color.Black.copy(alpha = 0.28f),
-                modifier = Modifier
-                    .clip(RoundedCornerShape(24.dp))
-                    .clickable(onClick = onOpenScanner)
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.QrCodeScanner,
-                        contentDescription = "Сканировать QR-код",
                         tint = Color.White,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Сканировать QR-код",
-                        color = Color.White,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            }
-        }
 
-        // Центральная карточка с QR-кодом
-        Column(
-            modifier = Modifier.align(Alignment.Center),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+                // Кнопка «Сканировать QR-код» справа (iPhone Glass Capsule)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Color.White.copy(alpha = 0.16f))
+                        .border(1.2.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(24.dp))
+                        .clickable(onClick = onOpenScanner)
+                        .padding(horizontal = 16.dp, vertical = 11.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.QrCodeScanner,
+                            contentDescription = "Сканировать QR-код",
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Сканировать QR-код",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Центральная белая карточка с QR-кодом и @HANDLE
             QrCodeCard(
                 handleText = "@$cleanHandle",
-                qrColor = qrAccentColor
+                qrColor = selectedTheme.color
             )
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            // Палитра оформления из 42 цветов (плавное появление)
+            AnimatedVisibility(
+                visible = isPaletteVisible,
+                enter = fadeIn() + slideInVertically { it / 4 },
+                exit = fadeOut() + slideOutVertically { it / 4 }
+            ) {
+                QrColorPaletteSheet(
+                    selectedTheme = selectedTheme,
+                    onSelectTheme = { selectedTheme = it }
+                )
+            }
+
+            // Отступ под плавающую нижнюю панель
+            Spacer(modifier = Modifier.height(100.dp))
         }
 
-        // Нижняя панель кнопок: Поделиться, Стилизация, Сохранить
-        Row(
+        // Нижняя панель действий (iPhone Glass): Поделиться, Кисточка (единая кнопка по центру), Скачать
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .safeNavigationBarPadding()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 24.dp, vertical = 14.dp)
         ) {
-            // Кнопка Поделиться
-            Surface(
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.26f),
-                modifier = Modifier.size(48.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(
-                    onClick = {
-                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(
-                                Intent.EXTRA_TEXT,
-                                "Мой анонимный профиль в AnonGram: @$cleanHandle\n$qrPayload"
+                // 1. Кнопка «Поделиться» (HD PNG-изображение со стилем и именем пользователя)
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                        .clickable {
+                            QrImageRenderer.shareQrImage(
+                                context = context,
+                                handle = cleanHandle,
+                                qrColor = selectedTheme.color,
+                                gradientColors = selectedTheme.gradient
                             )
-                        }
-                        context.startActivity(Intent.createChooser(sendIntent, "Поделиться QR-кодом"))
-                    }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Share,
-                        contentDescription = "Поделиться",
-                        tint = Color.White
+                        contentDescription = "Поделиться изображением QR",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-            }
 
-            // Центральные иконки переключения цветовых стилей QR-карточки
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.26f),
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    IconButton(onClick = { selectedStyleIndex = (selectedStyleIndex + 1) % stylePalettes.size }) {
-                        Icon(
-                            imageVector = Icons.Default.Palette,
-                            contentDescription = "Сменить цвет QR",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                // 2. В ЦЕНТРЕ — ЕДИНАЯ КНОПКА «КИСТОЧКА» (переключение палитры оформления)
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isPaletteVisible) Color.White.copy(alpha = 0.32f)
+                            else Color.White.copy(alpha = 0.18f)
                         )
-                    }
+                        .border(
+                            1.2.dp,
+                            if (isPaletteVisible) Color.White else Color.White.copy(alpha = 0.26f),
+                            CircleShape
+                        )
+                        .clickable {
+                            isPaletteVisible = !isPaletteVisible
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Brush,
+                        contentDescription = "Изменить стиль (кисточка)",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
 
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.26f),
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    IconButton(onClick = { selectedStyleIndex = (selectedStyleIndex + 2) % stylePalettes.size }) {
-                        Icon(
-                            imageVector = Icons.Outlined.AutoAwesome,
-                            contentDescription = "Эффект оформления",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // Кнопка Скачать / Сохранить
-            Surface(
-                shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.26f),
-                modifier = Modifier.size(48.dp)
-            ) {
-                IconButton(
-                    onClick = {
-                        Toast.makeText(
-                            context,
-                            "QR-код @$cleanHandle сохранён в галерею",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                // 3. Кнопка «Скачать» (сохранение HD PNG-изображения в Галерею)
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.18f))
+                        .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                        .clickable {
+                            val saved = QrImageRenderer.saveQrImageToGallery(
+                                context = context,
+                                handle = cleanHandle,
+                                qrColor = selectedTheme.color,
+                                gradientColors = selectedTheme.gradient
+                            )
+                            val message = if (saved) {
+                                "QR-код @$cleanHandle сохранён в Галерею"
+                            } else {
+                                "Ошибка при сохранении QR-кода"
+                            }
+                            Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,
-                        contentDescription = "Скачать QR-код",
-                        tint = Color.White
+                        contentDescription = "Скачать QR в галерею",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

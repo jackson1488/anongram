@@ -42,13 +42,15 @@ fun QrCodeCard(
     qrColor: Color = Color(0xFF9353D3),
     modifier: Modifier = Modifier
 ) {
+    val effectiveColor = if (qrColor == Color(0xFF18181B)) Color.Black else qrColor
+
     Column(
         modifier = modifier
             .width(300.dp)
             .shadow(20.dp, RoundedCornerShape(36.dp))
             .clip(RoundedCornerShape(36.dp))
             .background(Color.White)
-            .padding(horizontal = 28.dp, vertical = 28.dp),
+            .padding(horizontal = 28.dp, vertical = 26.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
@@ -67,7 +69,7 @@ fun QrCodeCard(
                     val outerSize = 7 * cellSize
                     // Внешняя рамка
                     drawRoundRect(
-                        color = qrColor,
+                        color = effectiveColor,
                         topLeft = Offset(x + cellSize * 0.4f, y + cellSize * 0.4f),
                         size = Size(outerSize - cellSize * 0.8f, outerSize - cellSize * 0.8f),
                         cornerRadius = CornerRadius(cellSize * 1.8f, cellSize * 1.8f),
@@ -75,7 +77,7 @@ fun QrCodeCard(
                     )
                     // Внутренний квадрат
                     drawRoundRect(
-                        color = qrColor,
+                        color = effectiveColor,
                         topLeft = Offset(x + cellSize * 2f, y + cellSize * 2f),
                         size = Size(cellSize * 3f, cellSize * 3f),
                         cornerRadius = CornerRadius(cellSize * 0.9f, cellSize * 0.9f)
@@ -99,7 +101,7 @@ fun QrCodeCard(
                             val hashVal = abs((row * 31 + col * 17 + seedHash) % 11)
                             if (hashVal < 6) {
                                 drawRoundRect(
-                                    color = qrColor,
+                                    color = effectiveColor,
                                     topLeft = Offset(col * cellSize + 1f, row * cellSize + 1f),
                                     size = Size(cellSize - 2f, cellSize - 2f),
                                     cornerRadius = CornerRadius(cellSize * 0.35f, cellSize * 0.35f)
@@ -112,7 +114,7 @@ fun QrCodeCard(
                 // Центральный круг с белым самолётиком
                 val centerRadius = cellSize * 2.1f
                 drawCircle(
-                    color = qrColor,
+                    color = effectiveColor,
                     radius = centerRadius,
                     center = center
                 )
@@ -135,7 +137,7 @@ fun QrCodeCard(
 
         Text(
             text = handleText,
-            color = qrColor,
+            color = effectiveColor,
             fontSize = 22.sp,
             fontWeight = FontWeight.ExtraBold,
             letterSpacing = 0.5.sp

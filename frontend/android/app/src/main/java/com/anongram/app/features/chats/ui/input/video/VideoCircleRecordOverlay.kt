@@ -90,9 +90,9 @@ fun VideoCircleRecordOverlay(
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
 
-    // Круг почти на весь экран по горизонтали (как на Фото 1 и 3 из Telegram)
-    val outerCircleSize = (configuration.screenWidthDp.dp - 10.dp).coerceIn(300.dp, 420.dp)
-    val innerCircleSize = outerCircleSize - 12.dp
+    // Круг почти во весь экран по горизонтали (ещё чуть больше, как просил пользователь)
+    val outerCircleSize = (configuration.screenWidthDp.dp - 4.dp).coerceIn(320.dp, 440.dp)
+    val innerCircleSize = outerCircleSize - 10.dp
 
     val cameraManager = remember { VideoCircleCameraManager(context) }
 
@@ -143,86 +143,109 @@ fun VideoCircleRecordOverlay(
     }
 
     val progress = (secondsElapsed.toFloat() / 60f).coerceIn(0f, 1f)
+    // Программная белая вспышка экрана для фронтальной камеры (подсветка лица белым фоном вокруг круга)
+    val isSoftwareWhiteFlash = isFrontCamera && isFlashOn
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.42f)),
+            .background(
+                if (isSoftwareWhiteFlash) Color.White.copy(alpha = 0.96f)
+                else Color(0xFF0A0A10).copy(alpha = 0.68f)
+            ),
         contentAlignment = Alignment.Center
     ) {
-        // Большой круглый видоискатель камеры почти на весь экран по горизонтали (Фото 1 и 3)
+        // Мягкий эффект блюра/ореола вокруг круга записи (или белая подсветка при вспышке на фронталке)
         Box(
             modifier = Modifier
-                .offset(y = (-44).dp)
-                .size(outerCircleSize),
+                .offset(y = (-42).dp)
+                .size(outerCircleSize + 24.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isSoftwareWhiteFlash) Color.White
+                    else Color.White.copy(alpha = 0.06f)
+                ),
             contentAlignment = Alignment.Center
         ) {
+            // Большой круглый видоискатель камеры почти на весь экран по горизонтали (Фото 1 и 3)
             Box(
-                modifier = Modifier
-                    .size(innerCircleSize)
-                    .clip(CircleShape)
-                    .background(Color.Black),
+                modifier = Modifier.size(outerCircleSize),
                 contentAlignment = Alignment.Center
             ) {
-                AndroidView(
-                    factory = { ctx ->
-                        TextureView(ctx).apply {
-                            fun applyCenterCropTransform(viewWidth: Int, viewHeight: Int) {
-                                if (viewWidth <= 0 || viewHeight <= 0) return
-                                // После поворота на 90/270 градусов поток имеет соотношение сторон 3:4 (ширина < высоты)
-                                val videoW = cameraManager.videoSize.height.toFloat().coerceAtLeast(1f)
-                                val videoH = cameraManager.videoSize.width.toFloat().coerceAtLeast(1f)
-                                val viewW = viewWidth.toFloat()
-                                val viewH = viewHeight.toFloat()
+                Box(
+                    modifier = Modifier
+                        .size(innerCircleSize)
+                        .clip(CircleShape)
+                        .background(Color.Black),
+                    contentAlignment = Alignment.Center
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            TextureView(ctx).apply {
+                                fun applyCenterCropTransform(viewWidth: Int, viewHeight: Int) {
+                                    if (viewWidth <= 0 || viewHeight <= 0) return
+                                    // После поворота на 90/270 градусов поток имеет соотношение сторон 3:4 (ширина < высоты)
+                                    val videoW = cameraManager.videoSize.height.toFloat().coerceAtLeast(1f)
+                                    val videoH = cameraManager.videoSize.width.toFloat().coerceAtLeast(1f)
+                                    val viewW = viewWidth.toFloat()
+                                    val viewH = viewHeight.toFloat()
 
-                                val scaleX: Float
-                                val scaleY: Float
-                                if (videoW / videoH > viewW / viewH) {
-                                    scaleX = (videoW / videoH) / (viewW / viewH)
-                                    scaleY = 1f
-                                } else {
-                                    scaleX = 1f
-                                    scaleY = (viewW / viewH) / (videoW / videoH)
+                                    val scaleX: Float
+                                    val scaleY: Float
+                                    if (videoW / videoH > viewW / viewH) {
+                                        scaleX = (videoW / videoH) / (viewW / viewH)
+                                        scaleY = 1f
+                                    } else {
+                                        scaleX = 1f
+                                        scaleY = (viewW / viewH) / (videoW / videoH)
+                                    }
+                                    val matrix = Matrix()
+                                    matrix.setScale(scaleX, scaleY, viewW / 2f, viewH / 2f)
+                                    setTransform(matrix)
                                 }
-                                val matrix = Matrix()
-                                matrix.setScale(scaleX, scaleY, viewW / 2f, viewH / 2f)
-                                setTransform(matrix)
+
+                                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                                    override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                                        cameraManager.startPreview(st, front = isFrontCamera, autoStartRecording = true)
+                                        applyCenterCropTransform(w, h)
+                                    }
+
+                                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
+                                        applyCenterCropTransform(w, h)
+                                    }
+
+                                    override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean = true
+                                    override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                                }
                             }
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-                            surfaceTextureListener = object : TextureView.SurfaceTextureListener {
-                                override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                                    cameraManager.startPreview(st, front = isFrontCamera, autoStartRecording = true)
-                                    applyCenterCropTransform(w, h)
-                                }
+                // Круговой индикатор времени записи вокруг кружочка
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    val radius = (size.minDimension - 6.dp.toPx()) / 2f
+                    val strokeWidth = 3.5.dp.toPx()
+                    val centerOffset = Offset(size.width / 2f, size.height / 2f)
 
-                                override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
-                                    applyCenterCropTransform(w, h)
-                                }
+                    drawCircle(
+                        color = if (isSoftwareWhiteFlash) Color.Black.copy(alpha = 0.18f) else Color.White.copy(alpha = 0.18f),
+                        radius = radius,
+                        center = centerOffset,
+                        style = Stroke(width = strokeWidth)
+                    )
 
-                                override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean = true
-                                override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
-                            }
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            // Белый круговой индикатор времени записи
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val radius = (size.minDimension - 8.dp.toPx()) / 2f
-                val strokeWidth = 3.5.dp.toPx()
-                val centerOffset = Offset(size.width / 2f, size.height / 2f)
-
-                drawArc(
-                    color = Color.White,
-                    startAngle = -90f,
-                    sweepAngle = progress * 360f,
-                    useCenter = false,
-                    topLeft = Offset(centerOffset.x - radius, centerOffset.y - radius),
-                    size = Size(radius * 2, radius * 2),
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
+                    drawArc(
+                        color = if (isSoftwareWhiteFlash) scheme.accent else Color.White,
+                        startAngle = -90f,
+                        sweepAngle = progress * 360f,
+                        useCenter = false,
+                        topLeft = Offset(centerOffset.x - radius, centerOffset.y - radius),
+                        size = Size(radius * 2, radius * 2),
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                    )
+                }
             }
         }
 

@@ -293,7 +293,7 @@ fun QrCameraScannerScreen(
                     .background(Color.Black.copy(alpha = 0.38f))
             )
 
-            // 3. Кнопка Назад в левом верхнем углу с отступом под системный статус-бар
+            // 3. Кнопка Назад в левом верхнем углу с отступом под системный статус-бар (iPhone Glass)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -302,18 +302,21 @@ fun QrCameraScannerScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Surface(
-                    shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.42f),
-                    modifier = Modifier.size(44.dp)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.16f))
+                        .border(1.2.dp, Color.White.copy(alpha = 0.24f), CircleShape)
+                        .clickable(onClick = onBack),
+                    contentAlignment = Alignment.Center
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = Color.White
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -342,51 +345,58 @@ fun QrCameraScannerScreen(
 
                 Spacer(modifier = Modifier.height(48.dp))
 
-                // Нижние кнопки управления: Системная шторка Фото (Google Photo Picker) слева, Фонарик справа
+                // Нижние кнопки управления (iPhone Glass): Системная шторка Фото слева, Фонарик справа
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(56.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Кнопка вызова системной нижней панели выбора фото от Google
-                    Surface(
-                        shape = CircleShape,
-                        color = Color.Black.copy(alpha = 0.48f),
-                        modifier = Modifier.size(58.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
+                    Box(
+                        modifier = Modifier
+                            .size(58.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.16f))
+                            .border(1.2.dp, Color.White.copy(alpha = 0.24f), CircleShape)
+                            .clickable {
                                 googlePhotoPickerLauncher.launch(
                                     PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.PhotoLibrary,
-                                contentDescription = "Выбрать фото с QR",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PhotoLibrary,
+                            contentDescription = "Выбрать фото с QR",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
 
                     // Кнопка включения/выключения реального фонарика камеры
-                    Surface(
-                        shape = CircleShape,
-                        color = if (isFlashlightOn) Color(0xFF8B5CF6) else Color.Black.copy(alpha = 0.48f),
-                        modifier = Modifier.size(58.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                isFlashlightOn = !isFlashlightOn
-                            }
-                        ) {
-                            Icon(
-                                imageVector = if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                                contentDescription = "Фонарик",
-                                tint = Color.White,
-                                modifier = Modifier.size(28.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(58.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isFlashlightOn) Color(0xFF8B5CF6).copy(alpha = 0.85f)
+                                else Color.White.copy(alpha = 0.16f)
                             )
-                        }
+                            .border(
+                                1.2.dp,
+                                if (isFlashlightOn) Color(0xFFC084FC) else Color.White.copy(alpha = 0.24f),
+                                CircleShape
+                            )
+                            .clickable {
+                                isFlashlightOn = !isFlashlightOn
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                            contentDescription = "Фонарик",
+                            tint = Color.White,
+                            modifier = Modifier.size(26.dp)
+                        )
                     }
                 }
             }

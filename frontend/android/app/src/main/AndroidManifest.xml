@@ -52,5 +52,16 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- FileProvider для шеринга сгенерированных изображений QR-кодов профиля -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.anongram.app.provider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
     </application>
 </manifest>
