@@ -88,9 +88,9 @@ fun SettingsMainScreen(
     val identity = remember { vault.loadIdentity() }
     val currentLanguage by LanguageSettingsStore.language.collectAsState()
 
-    val displayName = identity?.nickname?.takeIf { it.isNotBlank() } ?: "Кайрат"
+    val displayName = identity?.nickname?.takeIf { it.isNotBlank() } ?: "Пользователь"
     val handleTag = "@${displayName.replace(" ", "").uppercase().take(8)}"
-    val publicShort = identity?.publicId?.take(10)?.let { "0x$it" } ?: "+996 553797515"
+    val publicShort = identity?.publicId?.take(8)?.let { "0x$it" } ?: "Anon"
     val subtitleInfo = "$publicShort • $handleTag"
 
     var overflowExpanded by remember { mutableStateOf(false) }
@@ -105,24 +105,19 @@ fun SettingsMainScreen(
         label = "settingsStickyHeaderAlpha"
     )
     val showCollapsedTitle by remember {
-        derivedStateOf { scrollState.value > 210 }
+        derivedStateOf { scrollState.value > 60 }
     }
 
-    val connectedAccounts = remember {
+    // Только текущий активный аккаунт пользователя (без фейковых заглушек)
+    val connectedAccounts = remember(displayName, identity?.publicId) {
         listOf(
             ConnectedAccountItem(
-                id = "acc_1",
-                name = "Джексон",
-                avatarColorStart = Color(0xFF4A148C),
-                avatarColorEnd = Color(0xFF880E4F),
-                unreadCount = 0
-            ),
-            ConnectedAccountItem(
-                id = "acc_2",
-                name = "siteweb",
+                id = identity?.publicId ?: "current",
+                name = displayName,
                 avatarColorStart = Color(0xFF7E57C2),
                 avatarColorEnd = Color(0xFF5E35B1),
-                unreadCount = 17
+                unreadCount = 0,
+                isCurrent = true
             )
         )
     }
@@ -308,16 +303,16 @@ fun SettingsMainScreen(
                     )
                 }
 
-                // Заголовок в центре шапки, плавно проявляющийся при прокрутке вниз
+                // Заголовок в центре шапки: надпись «Настройки», плавно проявляющаяся при прокрутке вниз
                 AnimatedVisibility(
                     visible = showCollapsedTitle,
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
                     Text(
-                        text = displayName,
+                        text = "Настройки",
                         color = Color.White,
-                        fontSize = 17.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }

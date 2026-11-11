@@ -83,7 +83,10 @@ fun AccountSettingsScreen(
             )
             IconButton(
                 onClick = {
-                    onSaveAccount(displayName.trim().ifBlank { "Джексон" }, handle.trim().ifBlank { "jackson" })
+                    onSaveAccount(
+                        displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
+                        handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
+                    )
                     Toast.makeText(context, "Профиль обновлён", Toast.LENGTH_SHORT).show()
                     onBack()
                 }
@@ -115,7 +118,10 @@ fun AccountSettingsScreen(
 
             Button(
                 onClick = {
-                    onSaveAccount(displayName.trim().ifBlank { "Джексон" }, handle.trim().ifBlank { "jackson" })
+                    onSaveAccount(
+                        displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
+                        handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
+                    )
                     Toast.makeText(context, "Изменения сохранены", Toast.LENGTH_SHORT).show()
                     onBack()
                 },

@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,20 +30,21 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Модель подключённого дополнительного аккаунта в списке «Аккаунты».
+ * Модель активного аккаунта в списке «Аккаунты».
  */
 data class ConnectedAccountItem(
     val id: String,
     val name: String,
     val avatarColorStart: Color,
     val avatarColorEnd: Color,
-    val unreadCount: Int = 0
+    val unreadCount: Int = 0,
+    val isCurrent: Boolean = true
 )
 
 /**
- * Карточка списка подключённых аккаунтов (Макет 1):
+ * Карточка списка аккаунтов (Макет 1):
  * - Фиолетовый заголовок «Аккаунты»;
- * - Список профилей с круглыми аватарами, счётчиком непрочитанных и стрелкой перехода.
+ * - Список профилей (текущий активный аккаунт пользователя с фиолетовой галочкой активности).
  */
 @Composable
 fun AccountsSectionCard(
@@ -107,30 +109,39 @@ fun AccountsSectionCard(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (acc.unreadCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color(0xFFA855F7))
-                                .padding(horizontal = 8.dp, vertical = 2.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = acc.unreadCount.toString(),
-                                color = Color.White,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
+                    if (acc.isCurrent) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Текущий активный аккаунт",
+                            tint = Color(0xFF8B5CF6),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        if (acc.unreadCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFA855F7))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = acc.unreadCount.toString(),
+                                    color = Color.White,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
                         }
-                        Spacer(modifier = Modifier.width(6.dp))
-                    }
 
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = Color(0xFF6E6D76),
-                        modifier = Modifier.size(20.dp)
-                    )
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = Color(0xFF6E6D76),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

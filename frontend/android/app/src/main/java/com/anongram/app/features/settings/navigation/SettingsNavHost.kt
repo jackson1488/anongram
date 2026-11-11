@@ -46,7 +46,7 @@ fun SettingsNavHost(
     val identity = remember { vault.loadIdentity() }
 
     var customDisplayName by remember {
-        mutableStateOf(identity?.nickname?.takeIf { it.isNotBlank() } ?: "Кайрат")
+        mutableStateOf(identity?.nickname?.takeIf { it.isNotBlank() } ?: "Пользователь")
     }
     var customHandle by remember {
         mutableStateOf(customDisplayName.replace(" ", "").uppercase().take(8))
