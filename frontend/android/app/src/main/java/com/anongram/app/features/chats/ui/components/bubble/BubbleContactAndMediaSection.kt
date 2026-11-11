@@ -1,7 +1,9 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -430,12 +432,15 @@ private fun applyVideoCircleCenterCrop(
  * - После окончания или при тапе по пустой области чата кружок сворачивается обратно
  * - Длительность и время отправки с галочками вынесены под круг (снаружи)
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun ChatVideoCircleSection(
     message: ChatMessage,
     attachment: MessageAttachment.VideoCircle,
     isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
     onSelect: () -> Unit = {},
+    onLongClick: () -> Unit = {},
     onPlay: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -642,19 +647,27 @@ internal fun ChatVideoCircleSection(
                 .size(currentSize)
                 .clip(CircleShape)
                 .background(Color(0xFF1B1B22))
-                .border(1.5.dp, Color.White.copy(alpha = 0.22f), CircleShape)
-                .clickable(
+                .border(
+                    width = if (isSelected) 3.dp else 1.5.dp,
+                    color = if (isSelected) scheme.accent else Color.White.copy(alpha = 0.22f),
+                    shape = CircleShape
+                )
+                .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) {
-                    if (isSelectionMode) {
-                        onSelect()
-                    } else if (!isExpanded) {
-                        onPlay()
-                    } else if (!isDragging) {
-                        audioController.togglePlayPause()
+                    indication = null,
+                    onClick = {
+                        if (isSelectionMode) {
+                            onSelect()
+                        } else if (!isExpanded) {
+                            onPlay()
+                        } else if (!isDragging) {
+                            audioController.togglePlayPause()
+                        }
+                    },
+                    onLongClick = {
+                        if (isSelectionMode) onSelect() else onLongClick()
                     }
-                }
+                )
                 .then(
                     // Перемотка точкой-ползунком доступна в раскрытом состоянии на паузе (после тапа на кружок)
                     if (isExpanded && (!isPlaying || isDragging)) {

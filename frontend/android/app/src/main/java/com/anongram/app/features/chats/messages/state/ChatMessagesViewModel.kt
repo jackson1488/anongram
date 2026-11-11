@@ -243,6 +243,8 @@ class ChatMessagesViewModel(
 
     fun startEdit(message: ChatMessage, subIndex: Int? = null) {
         val resolved = message.resolveSubItem(subIndex)
+        val initialVoiceDraft = resolved.attachment as? MessageAttachment.Voice
+        val initialVideoDraft = resolved.attachment as? MessageAttachment.VideoCircle
         _uiState.update {
             it.copy(
                 editing = resolved,
@@ -251,7 +253,9 @@ class ChatMessagesViewModel(
                 replyTo = null,
                 replyToSubIndex = null,
                 actionMenuFor = null,
-                selection = emptySet()
+                selection = emptySet(),
+                voiceReviewDraft = initialVoiceDraft,
+                videoReviewDraft = initialVideoDraft
             )
         }
     }

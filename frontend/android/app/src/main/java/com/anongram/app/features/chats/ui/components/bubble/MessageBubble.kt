@@ -358,7 +358,9 @@ internal fun MessageBubble(
                                 message = message,
                                 attachment = message.attachment as MessageAttachment.VideoCircle,
                                 isSelectionMode = isSelectionMode,
+                                isSelected = isSelected,
                                 onSelect = onSelect,
+                                onLongClick = onLongClick,
                                 onPlay = { onPlayVideoCircle(message) }
                             )
                         }
@@ -812,7 +814,9 @@ private fun AttachmentContent(
                 message = message,
                 attachment = attachment,
                 isSelectionMode = isSelectionMode,
+                isSelected = isSelected,
                 onSelect = onSelect,
+                onLongClick = onLongClick,
                 onPlay = { onPlayVideoCircle(message) }
             )
         }

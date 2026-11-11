@@ -435,8 +435,11 @@ fun ChatScreen(
                     onPinMessage = viewModel::togglePinMessage,
                     onEditMessage = { msg, subIdx ->
                         viewModel.startEdit(msg, subIdx)
-                        inputFocusRequester.requestFocus()
-                        keyboardController?.show()
+                        val att = msg.attachment
+                        if (att !is MessageAttachment.Voice && att !is MessageAttachment.VideoCircle) {
+                            inputFocusRequester.requestFocus()
+                            keyboardController?.show()
+                        }
                     },
                     onRetryMessage = viewModel::retry,
                     onHighlightMessage = viewModel::highlightMessage,
@@ -956,9 +959,12 @@ fun ChatScreen(
                             viewModel.clearSelection()
                         },
                         onBrushEdit = {
+                            val openKeyboard = !state.isSingleSelectedVideoCircle && !state.isSingleSelectedVoice
                             viewModel.startEditFromSelection()
-                            inputFocusRequester.requestFocus()
-                            keyboardController?.show()
+                            if (openKeyboard) {
+                                inputFocusRequester.requestFocus()
+                                keyboardController?.show()
+                            }
                         },
                         onDownload = {
                             val file = state.getSingleSelectedFile()
@@ -1341,8 +1347,11 @@ fun ChatScreen(
                 },
                 onEdit = {
                     viewModel.startEdit(message)
-                    inputFocusRequester.requestFocus()
-                    keyboardController?.show()
+                    val att = message.attachment
+                    if (att !is MessageAttachment.Voice && att !is MessageAttachment.VideoCircle) {
+                        inputFocusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
                 },
                 onForward = {
                     viewModel.closeActionMenu()
