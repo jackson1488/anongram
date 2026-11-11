@@ -48,7 +48,7 @@ import kotlinx.coroutines.launch
 internal val LocalIsListScrollingState = compositionLocalOf<State<Boolean>> { mutableStateOf(false) }
 
 /** Размер текста сообщений, прокинутый один раз на весь список */
-internal val LocalMessageTextSizeSp = compositionLocalOf { 15f }
+internal val LocalMessageTextSizeSp = compositionLocalOf { 16 }
 
 /** Окно между сообщениями одной группы — 2dp, между группами — 8dp. */
 private const val GROUP_GAP_MS = 5 * 60_000L
