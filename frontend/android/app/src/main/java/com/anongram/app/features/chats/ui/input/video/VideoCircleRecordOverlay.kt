@@ -1,7 +1,9 @@
 package com.anongram.app.features.chats.ui.input.video
 
+import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.SurfaceTexture
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.view.Surface
 import android.view.TextureView
@@ -10,6 +12,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,17 +42,21 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -60,8 +67,10 @@ import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.features.chats.media.circle.VideoCircleCameraManager
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.RecordingState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -116,8 +125,18 @@ fun VideoCircleRecordOverlay(
     var isFrontCamera by remember { mutableStateOf(true) }
     var isFlashOn by remember { mutableStateOf(false) }
     var hasFinished by remember { mutableStateOf(false) }
+    var camVideoW by remember { mutableIntStateOf(cameraManager.videoSize.width) }
+    var camVideoH by remember { mutableIntStateOf(cameraManager.videoSize.height) }
+    var liveTextureViewRef by remember { mutableStateOf<TextureView?>(null) }
 
     val isSoftwareWhiteFlash = !isReviewMode && isFrontCamera && isFlashOn
+
+    LaunchedEffect(cameraManager) {
+        cameraManager.onVideoSizeReady = { w, h ->
+            camVideoW = w
+            camVideoH = h
+        }
+    }
 
     // Параллельно начинаем открывать камеру сразу, не дожидаясь создания TextureView
     LaunchedEffect(isReviewMode) {
@@ -135,28 +154,30 @@ fun VideoCircleRecordOverlay(
     fun finishAndSend() {
         if (hasFinished) return
         hasFinished = true
-        val file = cameraManager.stopRecording()
         val effectiveSec = maxOf(secondsElapsed, (recordingState?.elapsedTenths ?: 0) / 10, 1)
         val timeLabel = "%02d:%02d".format(effectiveSec / 60, effectiveSec % 60)
-        if (onSendVideo != null) {
-            onSendVideo(file?.absolutePath ?: "", timeLabel)
-        } else {
-            sendAction()
+        cameraManager.stopRecordingAsync { file ->
+            if (onSendVideo != null) {
+                onSendVideo(file?.absolutePath ?: "", timeLabel)
+            } else {
+                sendAction()
+            }
         }
     }
 
     fun stopToReview() {
         if (hasFinished) return
         hasFinished = true
-        val file = cameraManager.pauseRecordingForReview()
         val effectiveSec = maxOf(secondsElapsed, (recordingState?.elapsedTenths ?: 0) / 10, 1)
         val timeLabel = "%02d:%02d".format(effectiveSec / 60, effectiveSec % 60)
-        if (onPauseVideoReview != null) {
-            onPauseVideoReview(file?.absolutePath ?: "", timeLabel)
-        } else if (onSendVideo != null) {
-            onSendVideo(file?.absolutePath ?: "", timeLabel)
-        } else {
-            sendAction()
+        cameraManager.pauseRecordingForReviewAsync { file ->
+            if (onPauseVideoReview != null) {
+                onPauseVideoReview(file?.absolutePath ?: "", timeLabel)
+            } else if (onSendVideo != null) {
+                onSendVideo(file?.absolutePath ?: "", timeLabel)
+            } else {
+                sendAction()
+            }
         }
     }
 
@@ -180,14 +201,24 @@ fun VideoCircleRecordOverlay(
 
     // Управление плеером в режиме предпросмотра/обрезки
     var reviewPlayer by remember(reviewVideo?.uri) { mutableStateOf<MediaPlayer?>(null) }
+    var reviewSurfaceRef by remember(reviewVideo?.uri) { mutableStateOf<Surface?>(null) }
+    var hasReviewFrame by remember(reviewVideo?.uri) { mutableStateOf(false) }
 
     DisposableEffect(reviewVideo?.uri) {
         onDispose {
-            reviewPlayer?.run {
-                runCatching { stop() }
-                release()
-            }
+            val mp = reviewPlayer
             reviewPlayer = null
+            val s = reviewSurfaceRef
+            reviewSurfaceRef = null
+            if (mp != null) {
+                Thread {
+                    runCatching { mp.stop() }
+                    runCatching { mp.release() }
+                    runCatching { s?.release() }
+                }.start()
+            } else {
+                runCatching { s?.release() }
+            }
         }
     }
 
@@ -308,19 +339,51 @@ fun VideoCircleRecordOverlay(
                 ) {
                     if (isReviewMode) {
                         val reviewFile = remember(reviewVideo?.uri) {
-                            reviewVideo?.uri?.takeIf { it.isNotBlank() }?.let { File(it) }?.takeIf { it.exists() }
+                            reviewVideo?.uri?.takeIf { it.isNotBlank() }?.let { File(it) }?.takeIf { it.exists() && it.length() > 0L }
+                        }
+                        val reviewThumb by produceState<Bitmap?>(initialValue = null, key1 = reviewFile?.absolutePath) {
+                            val file = reviewFile ?: return@produceState
+                            value = withContext(Dispatchers.IO) {
+                                val mmr = MediaMetadataRetriever()
+                                try {
+                                    mmr.setDataSource(file.absolutePath)
+                                    mmr.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                                } catch (_: Exception) {
+                                    null
+                                } finally {
+                                    runCatching { mmr.release() }
+                                }
+                            }
+                        }
+                        if (reviewThumb != null) {
+                            Image(
+                                bitmap = reviewThumb!!.asImageBitmap(),
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
                         }
                         if (reviewFile != null) {
                             AndroidView(
                                 factory = { ctx ->
                                     TextureView(ctx).apply {
+                                        isOpaque = false
                                         surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                                             override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
                                                 try {
+                                                    reviewSurfaceRef?.let { runCatching { it.release() } }
+                                                    val surf = Surface(st)
+                                                    reviewSurfaceRef = surf
                                                     val mp = MediaPlayer().apply {
-                                                        setSurface(Surface(st))
+                                                        setSurface(surf)
                                                         setDataSource(reviewFile.absolutePath)
                                                         setVolume(1f, 1f)
+                                                        setOnInfoListener { _, what, _ ->
+                                                            if (what == MediaPlayer.MEDIA_INFO_VIDEO_RENDERING_START) {
+                                                                hasReviewFrame = true
+                                                            }
+                                                            false
+                                                        }
                                                         setOnVideoSizeChangedListener { _, vw, vh ->
                                                             if (vw > 0 && vh > 0 && width > 0 && height > 0) {
                                                                 val viewW = width.toFloat()
@@ -334,7 +397,14 @@ fun VideoCircleRecordOverlay(
                                                         }
                                                         setOnPreparedListener { prepared ->
                                                             onReviewDurationReady(prepared.duration.toLong().coerceAtLeast(1000L))
-                                                            runCatching { prepared.seekTo(0) }
+                                                            runCatching {
+                                                                // Прогреваем первый кадр, чтобы на паузе не было чёрного экрана
+                                                                prepared.setVolume(0f, 0f)
+                                                                prepared.start()
+                                                                prepared.pause()
+                                                                prepared.setVolume(1f, 1f)
+                                                                prepared.seekTo(0)
+                                                            }
                                                         }
                                                         prepareAsync()
                                                     }
@@ -344,19 +414,32 @@ fun VideoCircleRecordOverlay(
 
                                             override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
                                             override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
-                                                reviewPlayer?.run {
-                                                    runCatching { stop() }
-                                                    runCatching { release() }
-                                                }
+                                                hasReviewFrame = false
+                                                val mp = reviewPlayer
                                                 reviewPlayer = null
+                                                val surf = reviewSurfaceRef
+                                                reviewSurfaceRef = null
+                                                if (mp != null) {
+                                                    Thread {
+                                                        runCatching { mp.stop() }
+                                                        runCatching { mp.release() }
+                                                        runCatching { surf?.release() }
+                                                    }.start()
+                                                } else {
+                                                    runCatching { surf?.release() }
+                                                }
                                                 return true
                                             }
 
-                                            override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                                            override fun onSurfaceTextureUpdated(st: SurfaceTexture) {
+                                                if (!hasReviewFrame) hasReviewFrame = true
+                                            }
                                         }
                                     }
                                 },
-                                modifier = Modifier.fillMaxSize()
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .alpha(if (hasReviewFrame) 1f else 0f)
                             )
                         }
 
@@ -377,41 +460,48 @@ fun VideoCircleRecordOverlay(
                             }
                         }
                     } else {
+                        fun applyLiveCenterCrop(tv: TextureView, viewWidth: Int, viewHeight: Int, vw: Int, vh: Int) {
+                            if (viewWidth <= 0 || viewHeight <= 0) return
+                            val videoW = vh.toFloat().coerceAtLeast(1f)
+                            val videoH = vw.toFloat().coerceAtLeast(1f)
+                            val viewW = viewWidth.toFloat()
+                            val viewH = viewHeight.toFloat()
+                            val scaleX: Float
+                            val scaleY: Float
+                            if (videoW / videoH > viewW / viewH) {
+                                scaleX = (videoW / videoH) / (viewW / viewH)
+                                scaleY = 1f
+                            } else {
+                                scaleX = 1f
+                                scaleY = (viewW / viewH) / (videoW / videoH)
+                            }
+                            tv.setTransform(Matrix().apply { setScale(scaleX, scaleY, viewW / 2f, viewH / 2f) })
+                        }
+
+                        LaunchedEffect(camVideoW, camVideoH) {
+                            liveTextureViewRef?.let { tv ->
+                                applyLiveCenterCrop(tv, tv.width, tv.height, camVideoW, camVideoH)
+                            }
+                        }
+
                         AndroidView(
                             factory = { ctx ->
                                 TextureView(ctx).apply {
-                                    fun applyCenterCropTransform(viewWidth: Int, viewHeight: Int) {
-                                        if (viewWidth <= 0 || viewHeight <= 0) return
-                                        val videoW = cameraManager.videoSize.height.toFloat().coerceAtLeast(1f)
-                                        val videoH = cameraManager.videoSize.width.toFloat().coerceAtLeast(1f)
-                                        val viewW = viewWidth.toFloat()
-                                        val viewH = viewHeight.toFloat()
-
-                                        val scaleX: Float
-                                        val scaleY: Float
-                                        if (videoW / videoH > viewW / viewH) {
-                                            scaleX = (videoW / videoH) / (viewW / viewH)
-                                            scaleY = 1f
-                                        } else {
-                                            scaleX = 1f
-                                            scaleY = (viewW / viewH) / (videoW / videoH)
-                                        }
-                                        val matrix = Matrix()
-                                        matrix.setScale(scaleX, scaleY, viewW / 2f, viewH / 2f)
-                                        setTransform(matrix)
-                                    }
-
+                                    liveTextureViewRef = this
                                     surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                                         override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
                                             cameraManager.startPreview(st, front = isFrontCamera, autoStartRecording = true)
-                                            applyCenterCropTransform(w, h)
+                                            applyLiveCenterCrop(this@apply, w, h, camVideoW, camVideoH)
                                         }
 
                                         override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
-                                            applyCenterCropTransform(w, h)
+                                            applyLiveCenterCrop(this@apply, w, h, camVideoW, camVideoH)
                                         }
 
-                                        override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean = true
+                                        override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
+                                            if (liveTextureViewRef === this@apply) liveTextureViewRef = null
+                                            return true
+                                        }
                                         override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
                                     }
                                 }
@@ -460,6 +550,7 @@ fun VideoCircleRecordOverlay(
                     IconButton(
                         onClick = {
                             isFrontCamera = !isFrontCamera
+                            isFlashOn = false
                             cameraManager.switchCamera()
                         },
                         modifier = Modifier.size(38.dp)

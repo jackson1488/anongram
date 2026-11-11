@@ -75,7 +75,9 @@ data class ChatMessagesUiState(
 ) {
     val canSend: Boolean
         get() = input.isNotBlank() ||
-            (editing?.attachment != null && editing.attachment !is com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice)
+            (editing?.attachment != null &&
+                editing.attachment !is com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice &&
+                editing.attachment !is com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle)
 
     val isSelectionMode: Boolean get() = selection.isNotEmpty()
 

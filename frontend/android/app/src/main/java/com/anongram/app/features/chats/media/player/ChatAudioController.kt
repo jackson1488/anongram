@@ -377,11 +377,14 @@ class ChatAudioController private constructor(
 
     private fun releasePlayer() {
         stopProgressTracker()
-        try {
-            mediaPlayer?.stop()
-            mediaPlayer?.release()
-        } catch (_: Exception) {}
+        val old = mediaPlayer
         mediaPlayer = null
+        if (old != null) {
+            scope.launch(Dispatchers.IO) {
+                runCatching { old.stop() }
+                runCatching { old.release() }
+            }
+        }
     }
 
     companion object {

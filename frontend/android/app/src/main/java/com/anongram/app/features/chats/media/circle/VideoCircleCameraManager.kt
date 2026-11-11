@@ -12,20 +12,27 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
+import android.os.Looper
 import android.util.Size
 import android.view.Surface
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.abs
 
 /**
  * Менеджер камеры Camera2 и записи круглых видеосообщений.
- * Обеспечивает живое превью в круглом видоискателе и запись H.264/AAC в файл MP4 без гонки потоков.
+ * - Дожидается фактического закрытия CameraDevice (onClosed) перед открытием другой камеры при переключении
+ * - Все операции MediaRecorder.stop()/release() выполняются на фоновом потоке (0 лагов UI)
+ * - Освобождает Surface превью без утечек BufferQueue и не возвращает битые пустые MP4-файлы
  */
 class VideoCircleCameraManager(private val context: Context) {
 
     private val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     private var cameraDevice: CameraDevice? = null
     private var captureSession: CameraCaptureSession? = null
+    private var previewSurface: Surface? = null
     private var mediaRecorder: MediaRecorder? = null
     private var currentVideoFile: File? = null
     private var currentCameraId: String? = null
@@ -33,9 +40,11 @@ class VideoCircleCameraManager(private val context: Context) {
     private var backgroundThread: HandlerThread? = null
     private var backgroundHandler: Handler? = null
 
+    @Volatile
     var isFrontCamera: Boolean = true
         private set
 
+    @Volatile
     var isFlashOn: Boolean = false
         private set
 
@@ -44,33 +53,49 @@ class VideoCircleCameraManager(private val context: Context) {
         private set
 
     @Volatile
+    private var hasRecorderActuallyStarted: Boolean = false
+
+    @Volatile
     private var shouldAutoRecord: Boolean = true
 
-    private var surfaceTexture: SurfaceTexture? = null
-    var videoSize: Size = Size(640, 480)
-        private set
+    @Volatile
+    private var isReleased: Boolean = false
 
     @Volatile
     private var isOpeningCamera: Boolean = false
 
+    @Volatile
+    private var isClosingCamera: Boolean = false
+
+    @Volatile
+    private var pendingOpenFront: Boolean? = null
+
+    private var surfaceTexture: SurfaceTexture? = null
+
+    @Volatile
+    var videoSize: Size = Size(640, 480)
+        private set
+
+    var onVideoSizeReady: ((Int, Int) -> Unit)? = null
+
     companion object {
-        private val cameraCache = java.util.concurrent.ConcurrentHashMap<Boolean, Pair<String, Size>>()
+        private val cameraCache = ConcurrentHashMap<Boolean, Pair<String, Size>>()
     }
 
-    private fun startBackgroundThread() {
+    private fun ensureBackgroundThread(): Handler? {
+        if (isReleased) return null
         if (backgroundThread == null) {
             backgroundThread = HandlerThread("VideoCircleCameraThread").apply { start() }
             backgroundHandler = Handler(backgroundThread!!.looper)
         }
+        return backgroundHandler
     }
 
-    private fun stopBackgroundThread() {
-        backgroundThread?.quitSafely()
-        try {
-            backgroundThread?.join(400)
-        } catch (_: Exception) {}
+    private fun stopBackgroundThreadSafely() {
+        val thread = backgroundThread
         backgroundThread = null
         backgroundHandler = null
+        thread?.quitSafely()
     }
 
     private fun resolveCameraInfo(front: Boolean): Pair<String, Size>? {
@@ -111,35 +136,55 @@ class VideoCircleCameraManager(private val context: Context) {
         }
     }
 
+    private fun notifyVideoSize(size: Size) {
+        mainHandler.post {
+            onVideoSizeReady?.invoke(size.width, size.height)
+        }
+    }
+
     /**
      * Запускает открытие камеры параллельно с инфлейтом TextureView для мгновенного старта.
      */
     @SuppressLint("MissingPermission")
     fun preOpenCamera(front: Boolean = true, autoStartRecording: Boolean = true) {
+        isReleased = false
         this.isFrontCamera = front
         this.shouldAutoRecord = autoStartRecording
-        startBackgroundThread()
-        if (autoStartRecording && currentVideoFile == null) {
-            currentVideoFile = File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4")
-        }
-        backgroundHandler?.post {
-            if (cameraDevice == null && !isOpeningCamera) {
+        val handler = ensureBackgroundThread() ?: return
+        handler.post {
+            if (isReleased) return@post
+            if (cameraDevice == null && !isOpeningCamera && !isClosingCamera) {
                 openCameraOnBackground(front)
+            } else if (isClosingCamera) {
+                pendingOpenFront = front
             }
         }
     }
 
     @SuppressLint("MissingPermission")
     private fun openCameraOnBackground(front: Boolean) {
+        if (isReleased) return
+        val handler = backgroundHandler ?: return
         try {
             val (cameraId, size) = resolveCameraInfo(front) ?: return
             currentCameraId = cameraId
             videoSize = size
+            notifyVideoSize(size)
             isOpeningCamera = true
 
             cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
                 override fun onOpened(camera: CameraDevice) {
                     isOpeningCamera = false
+                    if (isReleased) {
+                        isClosingCamera = true
+                        runCatching { camera.close() }
+                        return
+                    }
+                    if (pendingOpenFront != null && pendingOpenFront != front) {
+                        isClosingCamera = true
+                        runCatching { camera.close() }
+                        return
+                    }
                     cameraDevice = camera
                     val st = surfaceTexture
                     if (st != null) {
@@ -155,16 +200,31 @@ class VideoCircleCameraManager(private val context: Context) {
 
                 override fun onDisconnected(camera: CameraDevice) {
                     isOpeningCamera = false
+                    isClosingCamera = true
+                    if (cameraDevice === camera) cameraDevice = null
                     runCatching { camera.close() }
-                    cameraDevice = null
                 }
 
                 override fun onError(camera: CameraDevice, error: Int) {
                     isOpeningCamera = false
+                    isClosingCamera = true
+                    if (cameraDevice === camera) cameraDevice = null
                     runCatching { camera.close() }
-                    cameraDevice = null
                 }
-            }, backgroundHandler)
+
+                override fun onClosed(camera: CameraDevice) {
+                    isOpeningCamera = false
+                    isClosingCamera = false
+                    if (cameraDevice === camera) cameraDevice = null
+                    val nextFront = pendingOpenFront
+                    pendingOpenFront = null
+                    if (isReleased) {
+                        stopBackgroundThreadSafely()
+                    } else if (nextFront != null) {
+                        openCameraOnBackground(nextFront)
+                    }
+                }
+            }, handler)
         } catch (_: Exception) {
             isOpeningCamera = false
         }
@@ -176,43 +236,66 @@ class VideoCircleCameraManager(private val context: Context) {
         front: Boolean = true,
         autoStartRecording: Boolean = true
     ) {
+        isReleased = false
         this.surfaceTexture = surfaceTexture
         this.isFrontCamera = front
         this.shouldAutoRecord = autoStartRecording
-        startBackgroundThread()
+        val handler = ensureBackgroundThread() ?: return
 
-        if (autoStartRecording && currentVideoFile == null) {
-            currentVideoFile = File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4")
-        }
-
-        backgroundHandler?.post {
+        handler.post {
+            if (isReleased) return@post
             val info = resolveCameraInfo(front) ?: return@post
             videoSize = info.second
-            surfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height)
+            notifyVideoSize(videoSize)
+            runCatching { surfaceTexture.setDefaultBufferSize(videoSize.width, videoSize.height) }
 
             val existing = cameraDevice
-            if (existing != null && currentCameraId == info.first) {
-                if (shouldAutoRecord && !isRecording) {
-                    val started = startRecordingInternal(existing)
-                    if (!started) createPreviewSession()
-                } else if (!isRecording) {
-                    createPreviewSession()
+            when {
+                existing != null && currentCameraId == info.first && !isClosingCamera -> {
+                    if (shouldAutoRecord && !isRecording) {
+                        val started = startRecordingInternal(existing)
+                        if (!started) createPreviewSession()
+                    } else if (!isRecording) {
+                        createPreviewSession()
+                    }
                 }
-            } else if (!isOpeningCamera || currentCameraId != info.first) {
-                closeCameraOnly()
-                openCameraOnBackground(front)
+                existing != null -> {
+                    pendingOpenFront = front
+                    closeCameraAsync()
+                }
+                isClosingCamera -> {
+                    pendingOpenFront = front
+                }
+                isOpeningCamera && currentCameraId != info.first -> {
+                    pendingOpenFront = front
+                }
+                !isOpeningCamera -> {
+                    openCameraOnBackground(front)
+                }
             }
         }
+    }
+
+    private fun releasePreviewSurface() {
+        previewSurface?.let { s ->
+            runCatching { s.release() }
+        }
+        previewSurface = null
     }
 
     private fun createPreviewSession() {
         val camera = cameraDevice ?: return
         val st = surfaceTexture ?: return
+        val handler = backgroundHandler ?: return
 
         try {
-            val previewSurface = Surface(st)
+            closeSessionOnly()
+            releasePreviewSurface()
+            st.setDefaultBufferSize(videoSize.width, videoSize.height)
+            val pSurface = Surface(st)
+            previewSurface = pSurface
             val previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
-                addTarget(previewSurface)
+                addTarget(pSurface)
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                 if (isFlashOn && !isFrontCamera) {
                     set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
@@ -220,39 +303,52 @@ class VideoCircleCameraManager(private val context: Context) {
             }
 
             camera.createCaptureSession(
-                listOf(previewSurface),
+                listOf(pSurface),
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(session: CameraCaptureSession) {
+                        if (isReleased || cameraDevice !== camera) {
+                            runCatching { session.close() }
+                            return
+                        }
                         captureSession = session
                         try {
                             session.setRepeatingRequest(
                                 previewRequestBuilder.build(),
                                 null,
-                                backgroundHandler
+                                handler
                             )
                         } catch (_: Exception) {}
                     }
 
                     override fun onConfigureFailed(session: CameraCaptureSession) {}
                 },
-                backgroundHandler
+                handler
             )
         } catch (_: Exception) {}
     }
 
+    /**
+     * Переключение камеры во время превью/записи:
+     * корректно останавливает текущий MediaRecorder на фоновом потоке, ждёт onClosed текущей камеры
+     * и автоматически открывает выбранную камеру с новым файлом записи (без чёрного экрана и Error code 0).
+     */
     fun switchCamera() {
-        val st = surfaceTexture ?: return
-        if (isRecording) {
-            try {
-                mediaRecorder?.stop()
-                mediaRecorder?.release()
-            } catch (_: Exception) {
-            } finally {
-                mediaRecorder = null
-                isRecording = false
+        val nextFront = !isFrontCamera
+        isFrontCamera = nextFront
+        isFlashOn = false
+        val handler = ensureBackgroundThread() ?: return
+        handler.post {
+            if (isReleased) return@post
+            stopRecorderInternal(deleteIfTooShort = true)
+            closeSessionOnly()
+            pendingOpenFront = nextFront
+            if (cameraDevice != null && !isClosingCamera) {
+                closeCameraAsync()
+            } else if (!isClosingCamera && !isOpeningCamera) {
+                pendingOpenFront = null
+                openCameraOnBackground(nextFront)
             }
         }
-        startPreview(st, front = !isFrontCamera, autoStartRecording = true)
     }
 
     fun toggleFlash() {
@@ -261,51 +357,45 @@ class VideoCircleCameraManager(private val context: Context) {
             // Front camera uses software white screen illumination in UI
             return
         }
-        val session = captureSession ?: return
-        val camera = cameraDevice ?: return
-        val st = surfaceTexture ?: return
-        try {
-            val previewSurface = Surface(st)
-            val recorderSurface = mediaRecorder?.surface
-            val template = if (isRecording && recorderSurface != null) {
-                CameraDevice.TEMPLATE_RECORD
-            } else {
-                CameraDevice.TEMPLATE_PREVIEW
-            }
-            val builder = camera.createCaptureRequest(template).apply {
-                addTarget(previewSurface)
-                if (isRecording && recorderSurface != null) {
-                    addTarget(recorderSurface)
+        val handler = backgroundHandler ?: return
+        handler.post {
+            val session = captureSession ?: return@post
+            val camera = cameraDevice ?: return@post
+            val pSurface = previewSurface ?: return@post
+            try {
+                val recorderSurface = mediaRecorder?.surface
+                val template = if (isRecording && recorderSurface != null) {
+                    CameraDevice.TEMPLATE_RECORD
+                } else {
+                    CameraDevice.TEMPLATE_PREVIEW
                 }
-                set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                set(
-                    CaptureRequest.FLASH_MODE,
-                    if (isFlashOn) CaptureRequest.FLASH_MODE_TORCH else CaptureRequest.FLASH_MODE_OFF
-                )
-            }
-            session.setRepeatingRequest(builder.build(), null, backgroundHandler)
-        } catch (_: Exception) {}
-    }
-
-    fun startRecording(): File? {
-        shouldAutoRecord = true
-        if (currentVideoFile == null) {
-            currentVideoFile = File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4")
+                val builder = camera.createCaptureRequest(template).apply {
+                    addTarget(pSurface)
+                    if (isRecording && recorderSurface != null) {
+                        addTarget(recorderSurface)
+                    }
+                    set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                    set(
+                        CaptureRequest.FLASH_MODE,
+                        if (isFlashOn) CaptureRequest.FLASH_MODE_TORCH else CaptureRequest.FLASH_MODE_OFF
+                    )
+                }
+                session.setRepeatingRequest(builder.build(), null, handler)
+            } catch (_: Exception) {}
         }
-        val camera = cameraDevice
-        if (camera != null && !isRecording) {
-            startRecordingInternal(camera)
-        }
-        return currentVideoFile
     }
 
     @SuppressLint("MissingPermission")
     private fun startRecordingInternal(camera: CameraDevice): Boolean {
         val st = surfaceTexture ?: return false
+        val handler = backgroundHandler ?: return false
         try {
-            val file = currentVideoFile ?: File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4").also {
-                currentVideoFile = it
-            }
+            closeSessionOnly()
+            releasePreviewSurface()
+
+            val file = File(context.cacheDir, "video_circle_${System.currentTimeMillis()}.mp4")
+            currentVideoFile = file
+            hasRecorderActuallyStarted = false
 
             val mr = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 MediaRecorder(context)
@@ -336,18 +426,22 @@ class VideoCircleCameraManager(private val context: Context) {
                 mr.prepare()
             } catch (_: Exception) {
                 mr.reset()
+                videoSize = Size(640, 480)
+                notifyVideoSize(videoSize)
                 configureRecorder(mr, 640, 480, 1_200_000)
                 mr.prepare()
             }
 
             mediaRecorder = mr
 
-            val previewSurface = Surface(st)
+            st.setDefaultBufferSize(videoSize.width, videoSize.height)
+            val pSurface = Surface(st)
+            previewSurface = pSurface
             val recorderSurface = mr.surface
 
-            val surfaces = listOf(previewSurface, recorderSurface)
+            val surfaces = listOf(pSurface, recorderSurface)
             val recordRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
-                addTarget(previewSurface)
+                addTarget(pSurface)
                 addTarget(recorderSurface)
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                 if (isFlashOn && !isFrontCamera) {
@@ -359,101 +453,165 @@ class VideoCircleCameraManager(private val context: Context) {
                 surfaces,
                 object : CameraCaptureSession.StateCallback() {
                     override fun onConfigured(session: CameraCaptureSession) {
+                        if (isReleased || cameraDevice !== camera || mediaRecorder !== mr) {
+                            runCatching { session.close() }
+                            return
+                        }
                         captureSession = session
                         try {
                             session.setRepeatingRequest(
                                 recordRequestBuilder.build(),
                                 null,
-                                backgroundHandler
+                                handler
                             )
                             mr.start()
                             isRecording = true
+                            hasRecorderActuallyStarted = true
                         } catch (_: Exception) {
                             isRecording = false
+                            hasRecorderActuallyStarted = false
                         }
                     }
 
                     override fun onConfigureFailed(session: CameraCaptureSession) {
                         isRecording = false
+                        hasRecorderActuallyStarted = false
                     }
                 },
-                backgroundHandler
+                handler
             )
 
             return true
         } catch (_: Exception) {
             isRecording = false
+            hasRecorderActuallyStarted = false
             return false
         }
     }
 
-    fun stopRecording(): File? {
-        shouldAutoRecord = false
+    private fun stopRecorderInternal(deleteIfTooShort: Boolean = false): File? {
         val file = currentVideoFile
         currentVideoFile = null
+        val mr = mediaRecorder
+        mediaRecorder = null
+        val wasStarted = hasRecorderActuallyStarted
+        isRecording = false
+        hasRecorderActuallyStarted = false
 
-        if (isRecording || mediaRecorder != null) {
-            isRecording = false
+        try {
+            captureSession?.stopRepeating()
+        } catch (_: Exception) {}
+
+        var stopOk = false
+        if (mr != null) {
+            if (wasStarted) {
+                try {
+                    mr.stop()
+                    stopOk = true
+                } catch (_: Exception) {
+                    stopOk = false
+                }
+            }
             try {
-                captureSession?.stopRepeating()
+                mr.release()
             } catch (_: Exception) {}
-            try {
-                mediaRecorder?.stop()
-            } catch (_: Exception) {}
-            try {
-                mediaRecorder?.release()
-            } catch (_: Exception) {}
-            mediaRecorder = null
         }
 
-        return if (file != null && file.exists() && file.length() > 0L) file else null
+        if (file == null || !file.exists()) return null
+        val valid = stopOk && file.length() > 4096L
+        if (!valid || (deleteIfTooShort && file.length() < 8192L)) {
+            runCatching { file.delete() }
+            return null
+        }
+        return file
     }
 
-    /** Останавливает запись и освобождает камеру, оставляя файл для предпросмотра и обрезки */
-    fun pauseRecordingForReview(): File? {
-        val file = stopRecording()
-        closeCameraOnly()
-        return file
+    private fun closeSessionOnly() {
+        try {
+            captureSession?.stopRepeating()
+        } catch (_: Exception) {}
+        try {
+            captureSession?.close()
+        } catch (_: Exception) {}
+        captureSession = null
+    }
+
+    private fun closeCameraAsync() {
+        val cam = cameraDevice
+        cameraDevice = null
+        if (cam != null && !isClosingCamera) {
+            isClosingCamera = true
+            try {
+                cam.close()
+            } catch (_: Exception) {
+                isClosingCamera = false
+            }
+        }
+    }
+
+    /** Останавливает запись на фоновом потоке (без блокировки UI) и возвращает готовый MP4-файл */
+    fun stopRecordingAsync(onResult: (File?) -> Unit) {
+        shouldAutoRecord = false
+        val handler = backgroundHandler
+        if (handler == null) {
+            onResult(null)
+            return
+        }
+        handler.post {
+            val file = stopRecorderInternal(deleteIfTooShort = false)
+            mainHandler.post { onResult(file) }
+        }
+    }
+
+    /** Останавливает запись и освобождает камеру для перехода в предпросмотр/обрезку */
+    fun pauseRecordingForReviewAsync(onResult: (File?) -> Unit) {
+        shouldAutoRecord = false
+        val handler = backgroundHandler
+        if (handler == null) {
+            onResult(null)
+            return
+        }
+        handler.post {
+            val file = stopRecorderInternal(deleteIfTooShort = false)
+            closeSessionOnly()
+            closeCameraAsync()
+            mainHandler.post { onResult(file) }
+        }
     }
 
     fun cancelRecording() {
         shouldAutoRecord = false
-        if (isRecording || mediaRecorder != null) {
-            isRecording = false
-            try {
-                mediaRecorder?.stop()
-            } catch (_: Exception) {}
-            try {
-                mediaRecorder?.release()
-            } catch (_: Exception) {}
-            mediaRecorder = null
+        pendingOpenFront = null
+        val handler = backgroundHandler
+        if (handler == null) {
+            currentVideoFile?.let { runCatching { it.delete() } }
+            currentVideoFile = null
+            return
         }
-        currentVideoFile?.delete()
-        currentVideoFile = null
-    }
-
-    private fun closeCameraOnly() {
-        try {
-            captureSession?.close()
-            captureSession = null
-            cameraDevice?.close()
-            cameraDevice = null
-        } catch (_: Exception) {}
+        handler.post {
+            stopRecorderInternal(deleteIfTooShort = false)?.let { runCatching { it.delete() } }
+        }
     }
 
     fun release() {
+        isReleased = true
         shouldAutoRecord = false
-        if (isRecording || mediaRecorder != null) {
-            isRecording = false
-            try {
-                mediaRecorder?.stop()
-            } catch (_: Exception) {}
-            try {
-                mediaRecorder?.release()
-            } catch (_: Exception) {}
-            mediaRecorder = null
+        pendingOpenFront = null
+        val handler = backgroundHandler
+        if (handler == null) {
+            releasePreviewSurface()
+            return
         }
-        closeCameraOnly()
-        stopBackgroundThread()
+        handler.post {
+            stopRecorderInternal(deleteIfTooShort = false)
+            closeSessionOnly()
+            releasePreviewSurface()
+            if (cameraDevice != null) {
+                closeCameraAsync()
+                // Остановка потока произойдёт в StateCallback.onClosed после полного закрытия камеры
+            } else if (!isClosingCamera) {
+                stopBackgroundThreadSafely()
+            }
+        }
     }
 }

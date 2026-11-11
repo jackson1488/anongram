@@ -95,6 +95,7 @@ import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.MessageStatus
 import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.chats.messages.domain.timeLabel
+import com.anongram.app.features.chats.ui.components.LocalMessageTextSizeSp
 import com.anongram.app.features.chats.ui.components.ReactionChips
 import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
 import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
@@ -150,7 +151,7 @@ internal fun MessageBubble(
     val message = item.message
     val isIncoming = message.direction == MessageDirection.INCOMING
     val density = LocalDensity.current
-    val messageTextSizeSp by ChatTextSettingsStore.messageTextSizeSp.collectAsState()
+    val messageTextSizeSp = LocalMessageTextSizeSp.current
     val textScale = remember(messageTextSizeSp) {
         (messageTextSizeSp / 16f).coerceIn(0.35f, 1.5f)
     }
@@ -170,7 +171,7 @@ internal fun MessageBubble(
     val pulseAlpha = pulseAnim.value
 
     var dragOffsetPx by remember { mutableFloatStateOf(0f) }
-    var bubbleTopY by remember { mutableFloatStateOf(0f) }
+    val bubbleTopYHolder = remember { FloatArray(1) }
     val animatedOffsetPx by animateFloatAsState(targetValue = dragOffsetPx, label = "swipeReply")
     val thresholdPx = with(density) { 60.dp.toPx() }
 
@@ -276,7 +277,7 @@ internal fun MessageBubble(
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetPx.roundToInt(), 0) }
                 .onGloballyPositioned { coordinates ->
-                    bubbleTopY = coordinates.positionInRoot().y
+                    bubbleTopYHolder[0] = coordinates.positionInRoot().y
                 }
                 .padding(vertical = 1.dp)
         ) {
@@ -340,7 +341,7 @@ internal fun MessageBubble(
                                 timeLabel = message.timeLabel(),
                                 status = message.status,
                                 isIncoming = isIncoming,
-                                onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopY) },
+                                onClick = { if (isSelectionMode) onSelect() else onClick(bubbleTopYHolder[0]) },
                                 onLongClick = onLongClick
                             )
                         }
@@ -411,7 +412,7 @@ internal fun MessageBubble(
                                         } else if (isEdgeToEdgeMedia) {
                                             onOpenMediaViewer(0)
                                         } else {
-                                            onClick(bubbleTopY)
+                                            onClick(bubbleTopYHolder[0])
                                         }
                                     },
                                     onLongClick = onLongClick

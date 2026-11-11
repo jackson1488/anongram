@@ -119,7 +119,18 @@ internal fun SelectionPanel(
         ) {
             when {
                 selectedCount == 1 && isVideoCircle -> {
-                    // Видео-кружочек: Скачать, Переслать, Поделиться, Удалить
+                    // Видео-кружочек: Редактировать / обрезать, Скачать, Переслать, Поделиться, Удалить
+                    IconButton(
+                        onClick = onBrushEdit,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Brush,
+                            contentDescription = "Редактировать",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                     IconButton(
                         onClick = onDownload,
                         modifier = Modifier.size(40.dp)

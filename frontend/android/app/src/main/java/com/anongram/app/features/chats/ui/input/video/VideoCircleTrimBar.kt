@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,10 +58,10 @@ import java.io.File
 import kotlin.math.roundToInt
 
 /**
- * Панель предпросмотра и обрезки видео-кружочка (после нажатия Стоп/Пауза):
+ * Панель предпросмотра и обрезки видео-кружочка (после нажатия Стоп/Пауза или при редактировании):
  * - Слева: корзина [ 🗑 ] для удаления
  * - По центру: [ ▶ 0:04 ] + лента раскадровки с ДВУМЯ подвижными ползунками обрезки в обе стороны и перемоткой
- * - Справа: кнопка отправки [ ➤ ]
+ * - Справа: кнопка отправки [ ➤ ] (или сохранения [ ✓ ] при редактировании)
  */
 @Composable
 fun VideoCircleTrimBar(
@@ -76,7 +77,8 @@ fun VideoCircleTrimBar(
     onTrimEndChange: (Float) -> Unit,
     onDiscard: () -> Unit,
     onSend: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isEditingMode: Boolean = false
 ) {
     val scheme = LocalAnonGramScheme.current
     val density = LocalDensity.current
@@ -334,8 +336,8 @@ fun VideoCircleTrimBar(
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.AutoMirrored.Outlined.Send,
-                contentDescription = "Отправить",
+                imageVector = if (isEditingMode) Icons.Outlined.Check else Icons.AutoMirrored.Outlined.Send,
+                contentDescription = if (isEditingMode) "Сохранить" else "Отправить",
                 tint = Color.White,
                 modifier = Modifier.size(20.dp)
             )

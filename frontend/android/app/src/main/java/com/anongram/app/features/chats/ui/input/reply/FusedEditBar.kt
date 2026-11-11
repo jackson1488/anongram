@@ -54,6 +54,8 @@ fun FusedEditBar(
     val hasAttachment = editing.attachment != null
     val isPhoto = editing.attachment is MessageAttachment.Photo || editing.attachment is MessageAttachment.MediaAlbum
     val isVoice = editing.attachment is MessageAttachment.Voice
+    val isVideoCircle = editing.attachment is MessageAttachment.VideoCircle
+    val isTrimEditableAudioVideo = isVoice || isVideoCircle
     val snippet = replyPreviewSnippet(editing)
 
     Row(
@@ -63,7 +65,7 @@ fun FusedEditBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            imageVector = if (hasAttachment && !isVoice) Icons.Outlined.Autorenew else Icons.Outlined.Edit,
+            imageVector = if (hasAttachment && !isTrimEditableAudioVideo) Icons.Outlined.Autorenew else Icons.Outlined.Edit,
             contentDescription = null,
             tint = scheme.accent,
             modifier = Modifier.size(18.dp)
@@ -91,12 +93,13 @@ fun FusedEditBar(
                 .weight(1f)
                 .clickable(
                     enabled = hasAttachment,
-                    onClick = { if (isVoice) onEditAttachment() else onReplaceAttachment() }
+                    onClick = { if (isTrimEditableAudioVideo) onEditAttachment() else onReplaceAttachment() }
                 )
         ) {
             Text(
                 text = when {
                     isVoice -> "Редактирование ГС"
+                    isVideoCircle -> "Редактирование кружка"
                     hasAttachment -> strings.replace
                     else -> strings.editMessage
                 },
@@ -110,6 +113,7 @@ fun FusedEditBar(
             Text(
                 text = when {
                     isVoice -> "${(editing.attachment as MessageAttachment.Voice).durationLabel} · обрезать или перезаписать"
+                    isVideoCircle -> "${(editing.attachment as MessageAttachment.VideoCircle).durationLabel} · обрезать или перезаписать"
                     hasAttachment -> snippet
                     else -> editing.text.ifBlank { strings.message }
                 },
@@ -119,14 +123,14 @@ fun FusedEditBar(
                 overflow = TextOverflow.Ellipsis
             )
         }
-        if (isVoice) {
+        if (isTrimEditableAudioVideo) {
             IconButton(
                 onClick = onEditAttachment,
                 modifier = Modifier.size(28.dp)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.ContentCut,
-                    contentDescription = "Обрезать ГС",
+                    contentDescription = if (isVoice) "Обрезать ГС" else "Обрезать кружок",
                     tint = scheme.accent,
                     modifier = Modifier.size(17.dp)
                 )

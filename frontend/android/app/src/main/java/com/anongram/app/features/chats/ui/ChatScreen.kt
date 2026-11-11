@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.LaunchedEffect
@@ -194,16 +196,6 @@ fun ChatScreen(
         }
     }
 
-    val isScrolled by remember {
-        derivedStateOf {
-            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 10
-        }
-    }
-    val headerScrimAlpha by animateFloatAsState(
-        targetValue = if (isScrolled) 0.88f else 0.58f,
-        animationSpec = tween(durationMillis = 220),
-        label = "headerScrimAlpha"
-    )
     var actionMenuAnchorY by remember { mutableFloatStateOf(0f) }
 
     BackHandler {
@@ -272,10 +264,14 @@ fun ChatScreen(
         previousMessagesCount.intValue = state.messages.size
     }
 
-    LaunchedEffect(listState.firstVisibleItemIndex) {
-        if (listState.firstVisibleItemIndex <= 1 && state.unreadBadge > 0) {
-            viewModel.clearUnreadBadge()
-        }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }
+            .distinctUntilChanged()
+            .collect { idx ->
+                if (idx <= 1 && state.unreadBadge > 0) {
+                    viewModel.clearUnreadBadge()
+                }
+            }
     }
 
     val isCircleOverlayActive = state.recording.mode == RecordMode.CIRCLE || state.videoReviewDraft != null
@@ -583,8 +579,9 @@ fun ChatScreen(
                 )
             }
 
-            ScrollDownButton(
-                visible = !state.isSearchOpen && listState.firstVisibleItemIndex > 2,
+            ChatScrollDownOverlay(
+                listState = listState,
+                isSearchOpen = state.isSearchOpen,
                 unreadBadge = state.unreadBadge,
                 onClick = {
                     scope.launch {
@@ -706,6 +703,7 @@ fun ChatScreen(
                     } else {
                         val hasTrimOverlay = state.voiceReviewDraft != null || state.videoReviewDraft != null
                         val isEditingVoice = state.editing?.attachment is MessageAttachment.Voice
+                        val isEditingVideo = state.editing?.attachment is MessageAttachment.VideoCircle
                         Box(modifier = Modifier.fillMaxWidth()) {
                             // ChatInputBar остаётся смонтированным с isHiddenByTrim, чтобы клавиатура НЕ закрывалась при паузе/обрезке ГС
                             ChatInputBar(
@@ -715,7 +713,11 @@ fun ChatScreen(
                                 peerName = session.title,
                                 editing = state.editing,
                                 recording = state.recording,
-                                isCameraMode = state.isCameraMode && !isEditingVoice,
+                                isCameraMode = when {
+                                    isEditingVoice -> false
+                                    isEditingVideo -> true
+                                    else -> state.isCameraMode
+                                },
                                 isEmojiOpen = state.isEmojiOpen,
                                 isHiddenByTrim = hasTrimOverlay,
                                 onInputChange = viewModel::onInputChange,
@@ -727,22 +729,24 @@ fun ChatScreen(
                                 onCancelEdit = viewModel::cancelEdit,
                                 onReplaceAttachment = {
                                     val att = state.editing?.attachment
-                                    if (att is MessageAttachment.Voice) {
-                                        viewModel.openVoiceEditTrim()
-                                    } else {
-                                        replaceInitialTab = when (att) {
-                                            is MessageAttachment.File, is MessageAttachment.FileGroup -> AttachTab.FILE
-                                            is MessageAttachment.Music, is MessageAttachment.MusicGroup -> AttachTab.MUSIC
-                                            else -> AttachTab.GALLERY
+                                    when (att) {
+                                        is MessageAttachment.Voice -> viewModel.openVoiceEditTrim()
+                                        is MessageAttachment.VideoCircle -> viewModel.openVideoEditTrim()
+                                        else -> {
+                                            replaceInitialTab = when (att) {
+                                                is MessageAttachment.File, is MessageAttachment.FileGroup -> AttachTab.FILE
+                                                is MessageAttachment.Music, is MessageAttachment.MusicGroup -> AttachTab.MUSIC
+                                                else -> AttachTab.GALLERY
+                                            }
+                                            isReplaceAttachSheetOpen = true
                                         }
-                                        isReplaceAttachSheetOpen = true
                                     }
                                 },
                                 onEditAttachment = {
-                                    if (state.editing?.attachment is MessageAttachment.Voice) {
-                                        viewModel.openVoiceEditTrim()
-                                    } else {
-                                        Toast.makeText(context, "Редактирование фото", Toast.LENGTH_SHORT).show()
+                                    when (state.editing?.attachment) {
+                                        is MessageAttachment.Voice -> viewModel.openVoiceEditTrim()
+                                        is MessageAttachment.VideoCircle -> viewModel.openVideoEditTrim()
+                                        else -> Toast.makeText(context, "Редактирование фото", Toast.LENGTH_SHORT).show()
                                     }
                                 },
                                 onReplyClick = { replyMsg ->
@@ -786,7 +790,7 @@ fun ChatScreen(
                                     viewModel.openAttach()
                                 },
                                 onToggleCameraMode = {
-                                    if (!isEditingVoice) {
+                                    if (!isEditingVoice && !isEditingVideo) {
                                         viewModel.toggleCameraMode()
                                     }
                                 },
@@ -866,6 +870,7 @@ fun ChatScreen(
                                         currentProgress = videoReviewProgress,
                                         trimStartFraction = videoReviewTrimStart,
                                         trimEndFraction = videoReviewTrimEnd,
+                                        isEditingMode = isEditingVideo,
                                         onTogglePlay = { isVideoReviewPlaying = !isVideoReviewPlaying },
                                         onSeekFraction = { frac ->
                                             val next = videoReviewSeekCount + 1
@@ -918,20 +923,13 @@ fun ChatScreen(
 
         // 2. Мягкая тёмная вуаль-градиент за плавающей шапкой (усиливается при скролле)
         val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 144.dp else 100.dp
-        Box(
+        ChatHeaderScrim(
+            listState = listState,
+            scrimHeight = scrimHeight,
+            isBlurred = isCircleOverlayActive,
             modifier = Modifier
                 .zIndex(1f)
                 .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(scrimHeight)
-                .then(if (isCircleOverlayActive) Modifier.blur(22.dp) else Modifier)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to Color.Black.copy(alpha = headerScrimAlpha),
-                        0.65f to Color.Black.copy(alpha = headerScrimAlpha * 0.65f),
-                        1.0f to Color.Transparent
-                    )
-                )
         )
 
         // 3. Плавающая шапка чата поверх сообщений (парящие островки)
@@ -1761,4 +1759,57 @@ fun ChatScreen(
             )
         }
     }
+}
+
+@Composable
+private fun ChatHeaderScrim(
+    listState: LazyListState,
+    scrimHeight: androidx.compose.ui.unit.Dp,
+    isBlurred: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val isScrolled by remember(listState) {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 10
+        }
+    }
+    val headerScrimAlpha by animateFloatAsState(
+        targetValue = if (isScrolled) 0.88f else 0.58f,
+        animationSpec = tween(durationMillis = 220),
+        label = "headerScrimAlpha"
+    )
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(scrimHeight)
+            .then(if (isBlurred) Modifier.blur(22.dp) else Modifier)
+            .background(
+                Brush.verticalGradient(
+                    0.0f to Color.Black.copy(alpha = headerScrimAlpha),
+                    0.65f to Color.Black.copy(alpha = headerScrimAlpha * 0.65f),
+                    1.0f to Color.Transparent
+                )
+            )
+    )
+}
+
+@Composable
+private fun ChatScrollDownOverlay(
+    listState: LazyListState,
+    isSearchOpen: Boolean,
+    unreadBadge: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val showScrollDown by remember(listState, isSearchOpen) {
+        derivedStateOf {
+            !isSearchOpen && listState.firstVisibleItemIndex > 2
+        }
+    }
+    ScrollDownButton(
+        visible = showScrollDown,
+        unreadBadge = unreadBadge,
+        onClick = onClick,
+        modifier = modifier
+    )
 }

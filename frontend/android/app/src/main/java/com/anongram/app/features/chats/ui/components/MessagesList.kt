@@ -32,6 +32,10 @@ import com.anongram.app.core.theme.CyberTeal
 import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import com.anongram.app.core.theme.ChatTextSettingsStore
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
@@ -40,8 +44,11 @@ import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
 import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
 import kotlinx.coroutines.launch
 
-/** Позволяет медиа-превью в пузырях откладывать старт декодеров на время активного скролла */
-internal val LocalIsListScrolling = compositionLocalOf { false }
+/** Позволяет медиа-превью в пузырях откладывать старт декодеров на время активного скролла без перекомпозиции списка */
+internal val LocalIsListScrollingState = compositionLocalOf<State<Boolean>> { mutableStateOf(false) }
+
+/** Размер текста сообщений, прокинутый один раз на весь список */
+internal val LocalMessageTextSizeSp = compositionLocalOf { 15f }
 
 /** Окно между сообщениями одной группы — 2dp, между группами — 8dp. */
 private const val GROUP_GAP_MS = 5 * 60_000L
@@ -100,9 +107,13 @@ internal fun MessagesList(
     }
     val messageById = remember(messages) { messages.associateBy { it.id } }
     val scope = rememberCoroutineScope()
-    val isScrolling by remember(listState) { derivedStateOf { listState.isScrollInProgress } }
+    val scrollingState = remember(listState) { derivedStateOf { listState.isScrollInProgress } }
+    val messageTextSizeSp by ChatTextSettingsStore.messageTextSizeSp.collectAsState()
 
-    CompositionLocalProvider(LocalIsListScrolling provides isScrolling) {
+    CompositionLocalProvider(
+        LocalIsListScrollingState provides scrollingState,
+        LocalMessageTextSizeSp provides messageTextSizeSp
+    ) {
     LazyColumn(
         state = listState,
         reverseLayout = true,
@@ -119,7 +130,10 @@ internal fun MessagesList(
     ) {
         itemsIndexed(
             renderItems,
-            key = { _, item -> item.message.id }
+            key = { _, item -> item.message.id },
+            contentType = { _, item ->
+                item.message.attachment?.let { it::class.java } ?: String::class.java
+            }
         ) { _, item ->
             Column(modifier = Modifier.padding(top = item.spacingAboveDp.dp)) {
                 if (item.dateChipAbove) {
