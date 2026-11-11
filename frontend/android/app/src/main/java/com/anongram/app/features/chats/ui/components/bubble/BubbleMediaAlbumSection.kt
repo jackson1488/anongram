@@ -383,13 +383,13 @@ internal fun ChatMediaAlbumGrid(
             }
         }
 
-        // Светится ТОЛЬКО когда выбран весь альбом целиком!
+        // Фиолетовое свечение при выделении всего альбома целиком
         if (isFullAlbumSelected) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(accent.copy(alpha = 0.22f))
-                    .border(2.dp, accent, RoundedCornerShape(14.dp))
+                    .background(Color(0xFF8B5CF6).copy(alpha = 0.24f))
+                    .border(2.dp, Color(0xFF8B5CF6), RoundedCornerShape(14.dp))
             )
         }
     }
@@ -486,7 +486,7 @@ internal fun ChatRealPhotoBox(
                     .padding(6.dp)
                     .size(22.dp)
                     .clip(CircleShape)
-                    .background(if (isPhotoSelected) accent else Color.Black.copy(alpha = 0.45f))
+                    .background(if (isPhotoSelected) Color(0xFF8B5CF6) else Color.Black.copy(alpha = 0.45f))
                     .border(1.5.dp, Color.White, CircleShape),
                 contentAlignment = Alignment.Center
             ) {

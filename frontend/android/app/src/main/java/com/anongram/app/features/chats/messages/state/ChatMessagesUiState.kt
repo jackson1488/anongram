@@ -207,6 +207,21 @@ data class ChatMessagesUiState(
         return msg.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice
     }
 
+    val isSingleSelectedMediaAlbum: Boolean
+        get() {
+            if (selection.size != 1) return false
+            val key = selection.first()
+            val msg = messages.firstOrNull { it.id == key } ?: return false
+            return msg.attachment is com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum
+        }
+
+    fun getSingleSelectedMediaAlbum(): com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum? {
+        if (selection.size != 1) return null
+        val key = selection.first()
+        val msg = messages.firstOrNull { it.id == key } ?: return null
+        return msg.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum
+    }
+
     val selectedMessages: List<ChatMessage>
         get() = messages.filter { it.id in selection }
 
@@ -223,12 +238,7 @@ data class ChatMessagesUiState(
     val searchCounter: String
         get() = if (searchMatches.isEmpty() || searchQuery.isBlank()) "" else "${searchIndex + 1} из ${searchMatches.size}"
 
-    /** Редактирование разрешено только своим сообщениям и в пределах 48 часов. */
+    /** Свои сообщения можно редактировать всегда, без ограничения по времени. */
     fun isEditable(message: ChatMessage, nowMs: Long): Boolean =
-        message.direction == com.anongram.app.features.chats.messages.domain.MessageDirection.OUTGOING &&
-            nowMs - message.epochMs <= EDIT_WINDOW_MS
-
-    private companion object {
-        const val EDIT_WINDOW_MS = 48 * 3_600_000L
-    }
+        message.direction == com.anongram.app.features.chats.messages.domain.MessageDirection.OUTGOING
 }

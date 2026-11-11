@@ -625,6 +625,7 @@ internal fun ChatVideoCircleSection(
     isSelected: Boolean = false,
     onSelect: () -> Unit = {},
     onLongClick: () -> Unit = {},
+    onOpenContextMenu: () -> Unit = {},
     onPlay: () -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -823,6 +824,15 @@ internal fun ChatVideoCircleSection(
     val elapsedLabel = "%02d:%02d".format(elapsedSec / 60, elapsedSec % 60)
     val isIncoming = message.direction == MessageDirection.INCOMING
 
+    val currentSelectionMode by rememberUpdatedState(isSelectionMode)
+    val currentExpanded by rememberUpdatedState(isExpanded)
+    val currentDragging by rememberUpdatedState(isDragging)
+    val currentSizePxState by rememberUpdatedState(currentSizePx)
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    val currentOnLongClick by rememberUpdatedState(onLongClick)
+    val currentOnOpenContextMenu by rememberUpdatedState(onOpenContextMenu)
+    val currentOnPlay by rememberUpdatedState(onPlay)
+
     Column(
         horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
     ) {
@@ -833,25 +843,33 @@ internal fun ChatVideoCircleSection(
                 .background(Color(0xFF1B1B22))
                 .border(
                     width = if (isSelected) 3.dp else 1.5.dp,
-                    color = if (isSelected) scheme.accent else Color.White.copy(alpha = 0.22f),
+                    color = if (isSelected) Color(0xFF8B5CF6) else Color.White.copy(alpha = 0.22f),
                     shape = CircleShape
                 )
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {
-                        if (isSelectionMode) {
-                            onSelect()
-                        } else if (!isExpanded) {
-                            onPlay()
-                        } else if (!isDragging) {
-                            audioController.togglePlayPause()
+                .pointerInput(message.id) {
+                    detectTapGestures(
+                        onTap = { offset ->
+                            val r = currentSizePxState / 2f
+                            val dx = offset.x - r
+                            val dy = offset.y - r
+                            val insideCircle = (dx * dx + dy * dy) <= (r * r)
+                            if (currentSelectionMode) {
+                                currentOnSelect()
+                            } else if (insideCircle) {
+                                if (!currentExpanded) {
+                                    currentOnPlay()
+                                } else if (!currentDragging) {
+                                    audioController.togglePlayPause()
+                                }
+                            } else {
+                                currentOnOpenContextMenu()
+                            }
+                        },
+                        onLongPress = {
+                            if (currentSelectionMode) currentOnSelect() else currentOnLongClick()
                         }
-                    },
-                    onLongClick = {
-                        if (isSelectionMode) onSelect() else onLongClick()
-                    }
-                )
+                    )
+                }
                 .then(
                     // Перемотка точкой-ползунком доступна в раскрытом состоянии на паузе (после тапа на кружок)
                     if (isExpanded && (!isPlaying || isDragging)) {

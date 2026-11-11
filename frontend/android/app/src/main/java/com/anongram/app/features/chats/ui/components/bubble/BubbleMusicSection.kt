@@ -228,7 +228,7 @@ internal fun ChatMusicItemRow(
                             .align(Alignment.BottomEnd)
                             .size(18.dp)
                             .clip(CircleShape)
-                            .background(if (isItemSelected) accent else Color.Black.copy(alpha = 0.55f))
+                            .background(if (isItemSelected) Color(0xFF8B5CF6) else Color.Black.copy(alpha = 0.55f))
                             .border(1.5.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {

@@ -120,8 +120,14 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.permissions.PermissionUtils
+import com.anongram.app.features.chats.media.circle.VideoCircleExportHelper
 import com.anongram.app.features.chats.ui.components.bubble.saveFileToDeviceDownloads
+import com.anongram.app.features.chats.ui.components.bubble.saveMediaAlbumToGallery
 import com.anongram.app.features.chats.ui.components.bubble.saveMusicToDeviceMusic
+import com.anongram.app.features.chats.ui.components.bubble.saveVideoToDeviceGallery
+import com.anongram.app.features.chats.ui.components.bubble.saveVoiceToDeviceDownloads
+import com.anongram.app.features.chats.ui.components.bubble.shareMediaUriSystemChooser
+import com.anongram.app.features.chats.ui.components.savePhotoToDeviceGallery
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -287,6 +293,137 @@ fun ChatScreen(
                 .matchParentSize()
                 .then(if (isCircleOverlayActive || isReplyPreviewOpen) Modifier.blur(22.dp) else Modifier)
         )
+
+        fun saveMessageMedia(msg: ChatMessage, subPhotoIdx: Int? = null) {
+            scope.launch {
+                val att = msg.attachment
+                val toastMsg = when (att) {
+                    is MessageAttachment.VideoCircle -> {
+                        val ok = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
+                        if (ok) "Кружок сохранён в галерею" else "Не удалось сохранить кружок"
+                    }
+                    is MessageAttachment.Voice -> {
+                        val ok = saveVoiceToDeviceDownloads(context, att)
+                        if (ok) "Голосовое сохранено в Загрузки" else "Не удалось сохранить голосовое"
+                    }
+                    is MessageAttachment.Photo -> {
+                        val uri = att.uri
+                        val ok = when {
+                            uri.isNullOrBlank() -> false
+                            att.isVideo -> saveVideoToDeviceGallery(context, uri)
+                            else -> savePhotoToDeviceGallery(context, uri)
+                        }
+                        if (ok) "Сохранено в галерею" else "Не удалось сохранить"
+                    }
+                    is MessageAttachment.MediaAlbum -> {
+                        if (subPhotoIdx != null) {
+                            val item = att.items.getOrNull(subPhotoIdx)
+                            val ok = if (item == null) false else if (item.isVideo) {
+                                saveVideoToDeviceGallery(context, item.uri)
+                            } else {
+                                savePhotoToDeviceGallery(context, item.uri)
+                            }
+                            if (ok) "Сохранено в галерею" else "Не удалось сохранить"
+                        } else {
+                            val count = saveMediaAlbumToGallery(context, att)
+                            if (count > 0) "Сохранено в галерею: $count из ${att.items.size}" else "Не удалось сохранить альбом"
+                        }
+                    }
+                    is MessageAttachment.File -> {
+                        val ok = saveFileToDeviceDownloads(context, att)
+                        if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить файл"
+                    }
+                    is MessageAttachment.FileGroup -> {
+                        var saved = 0
+                        for (f in att.items) {
+                            if (saveFileToDeviceDownloads(context, f)) saved++
+                        }
+                        if (saved > 0) "Сохранено файлов: $saved из ${att.items.size}" else "Не удалось сохранить файлы"
+                    }
+                    is MessageAttachment.Music -> {
+                        val ok = saveMusicToDeviceMusic(context, att)
+                        if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить трек"
+                    }
+                    is MessageAttachment.MusicGroup -> {
+                        var saved = 0
+                        for (m in att.items) {
+                            if (saveMusicToDeviceMusic(context, m)) saved++
+                        }
+                        if (saved > 0) "Сохранено треков: $saved из ${att.items.size}" else "Не удалось сохранить треки"
+                    }
+                    else -> "Нечего сохранять"
+                }
+                Toast.makeText(context, toastMsg, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        fun shareMessageMedia(msg: ChatMessage, subPhotoIdx: Int? = null) {
+            scope.launch {
+                when (val att = msg.attachment) {
+                    is MessageAttachment.VideoCircle -> {
+                        val ok = VideoCircleExportHelper.shareVideoCircleSystemChooser(context, att.uri)
+                        if (!ok) Toast.makeText(context, "Не удалось подготовить видео для отправки", Toast.LENGTH_SHORT).show()
+                    }
+                    is MessageAttachment.Voice -> {
+                        val ok = shareMediaUriSystemChooser(
+                            context = context,
+                            uriString = att.uri,
+                            mimeType = "audio/mp4",
+                            chooserTitle = "Поделиться голосовым",
+                            suggestedFileName = "voice_${msg.id}.m4a"
+                        )
+                        if (!ok) Toast.makeText(context, "Файл голосового недоступен", Toast.LENGTH_SHORT).show()
+                    }
+                    is MessageAttachment.Photo -> {
+                        val ok = shareMediaUriSystemChooser(
+                            context = context,
+                            uriString = att.uri,
+                            mimeType = if (att.isVideo) "video/mp4" else "image/jpeg",
+                            chooserTitle = if (att.isVideo) "Поделиться видео" else "Поделиться фото"
+                        )
+                        if (!ok) Toast.makeText(context, "Файл недоступен", Toast.LENGTH_SHORT).show()
+                    }
+                    is MessageAttachment.MediaAlbum -> {
+                        val item = subPhotoIdx?.let { att.items.getOrNull(it) } ?: att.items.firstOrNull()
+                        val ok = if (item != null) {
+                            shareMediaUriSystemChooser(
+                                context = context,
+                                uriString = item.uri,
+                                mimeType = if (item.isVideo) "video/mp4" else "image/jpeg",
+                                chooserTitle = "Поделиться"
+                            )
+                        } else false
+                        if (!ok) Toast.makeText(context, "Файл недоступен", Toast.LENGTH_SHORT).show()
+                    }
+                    is MessageAttachment.File -> {
+                        val ok = shareMediaUriSystemChooser(
+                            context = context,
+                            uriString = att.uri,
+                            mimeType = "*/*",
+                            chooserTitle = att.name,
+                            suggestedFileName = att.name
+                        )
+                        if (!ok) Toast.makeText(context, "Файл недоступен", Toast.LENGTH_SHORT).show()
+                    }
+                    is MessageAttachment.Music -> {
+                        val ok = shareMediaUriSystemChooser(
+                            context = context,
+                            uriString = att.uri,
+                            mimeType = "audio/*",
+                            chooserTitle = "${att.artist} - ${att.title}"
+                        )
+                        if (!ok) Toast.makeText(context, "Аудио недоступно", Toast.LENGTH_SHORT).show()
+                    }
+                    else -> {
+                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(android.content.Intent.EXTRA_TEXT, msg.text.ifBlank { "AnonGram" })
+                        }
+                        context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться"))
+                    }
+                }
+            }
+        }
 
         val density = LocalDensity.current
         val haptic = LocalHapticFeedback.current
@@ -953,6 +1090,7 @@ fun ChatScreen(
                     SelectionPanel(
                         selectedCount = state.selection.size,
                         isPhoto = state.isSingleSelectedPhoto,
+                        isMediaAlbum = state.isSingleSelectedMediaAlbum,
                         isFileOrMusic = state.isSingleSelectedFileOrMusic,
                         isVideoCircle = state.isSingleSelectedVideoCircle,
                         isVoice = state.isSingleSelectedVoice,
@@ -971,33 +1109,38 @@ fun ChatScreen(
                             }
                         },
                         onDownload = {
+                            val selectedKey = state.selection.firstOrNull()
                             val file = state.getSingleSelectedFile()
                             val music = state.getSingleSelectedMusic()
-                            val videoCircle = state.getSingleSelectedVideoCircle()
+                            val targetMsg = selectedKey?.let { key ->
+                                val msgId = key.substringBefore("#")
+                                state.messages.firstOrNull { it.id == msgId }
+                            }
+                            val subPhotoIdx = selectedKey?.takeIf { "#photo_" in it }?.substringAfter("#photo_")?.toIntOrNull()
                             viewModel.clearSelection()
-                            scope.launch {
-                                val ok = when {
-                                    file != null -> saveFileToDeviceDownloads(context, file)
-                                    music != null -> saveMusicToDeviceMusic(context, music)
-                                    videoCircle != null -> true
-                                    else -> false
+                            when {
+                                file != null -> scope.launch {
+                                    val ok = saveFileToDeviceDownloads(context, file)
+                                    Toast.makeText(context, if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить", Toast.LENGTH_SHORT).show()
                                 }
-                                Toast.makeText(
-                                    context,
-                                    if (ok) "Сохранено на устройство" else "Не удалось сохранить",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                music != null -> scope.launch {
+                                    val ok = saveMusicToDeviceMusic(context, music)
+                                    Toast.makeText(context, if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить", Toast.LENGTH_SHORT).show()
+                                }
+                                targetMsg != null -> saveMessageMedia(targetMsg, subPhotoIdx)
                             }
                         },
                         onShare = {
-                            val selectedId = state.selection.firstOrNull()
-                            val msg = state.messages.firstOrNull { it.id == selectedId }
-                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                type = "text/plain"
-                                putExtra(android.content.Intent.EXTRA_TEXT, msg?.text?.ifBlank { "AnonGram Media" } ?: "AnonGram Media")
+                            val selectedKey = state.selection.firstOrNull()
+                            val targetMsg = selectedKey?.let { key ->
+                                val msgId = key.substringBefore("#")
+                                state.messages.firstOrNull { it.id == msgId }
                             }
-                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Поделиться"))
+                            val subPhotoIdx = selectedKey?.takeIf { "#photo_" in it }?.substringAfter("#photo_")?.toIntOrNull()
                             viewModel.clearSelection()
+                            if (targetMsg != null) {
+                                shareMessageMedia(targetMsg, subPhotoIdx)
+                            }
                         },
                         onForward = {
                             forwardingMessageIds = state.selection.toList()
@@ -1330,7 +1473,7 @@ fun ChatScreen(
             )
         }
 
-        // Меню действий по тапу на сообщение прямо рядом с пузырём (Фото 2)
+        // Меню действий по тапу на сообщение прямо рядом с пузырём или по пустой области строки
         state.actionMenuFor?.let { message ->
             MessageContextMenu(
                 message = message,
@@ -1346,8 +1489,21 @@ fun ChatScreen(
                     keyboardController?.show()
                 },
                 onCopy = {
-                    clipboard.setText(AnnotatedString(message.text))
+                    val copyText = when (val att = message.attachment) {
+                        is MessageAttachment.Contact -> message.text.ifBlank { "${att.name}: ${att.phone}" }
+                        is MessageAttachment.Location -> message.text.ifBlank { "${att.title} (${att.address})" }
+                        else -> message.text
+                    }
+                    clipboard.setText(AnnotatedString(copyText))
                     viewModel.closeActionMenu()
+                },
+                onSave = {
+                    viewModel.closeActionMenu()
+                    saveMessageMedia(message)
+                },
+                onShare = {
+                    viewModel.closeActionMenu()
+                    shareMessageMedia(message)
                 },
                 onEdit = {
                     viewModel.startEdit(message)

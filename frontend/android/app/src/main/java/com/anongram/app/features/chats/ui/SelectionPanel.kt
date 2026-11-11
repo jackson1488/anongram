@@ -47,6 +47,7 @@ import com.anongram.app.core.theme.TextPrimary
 internal fun SelectionPanel(
     selectedCount: Int,
     isPhoto: Boolean = false,
+    isMediaAlbum: Boolean = false,
     isFileOrMusic: Boolean = false,
     isVideoCircle: Boolean = false,
     isVoice: Boolean = false,
@@ -119,7 +120,7 @@ internal fun SelectionPanel(
         ) {
             when {
                 selectedCount == 1 && isVideoCircle -> {
-                    // Видео-кружочек: Редактировать / обрезать, Скачать, Переслать, Поделиться, Удалить
+                    // Видео-кружочек: Редактировать / обрезать, Скачать (в галерею 1:1), Переслать, Поделиться, Удалить
                     IconButton(
                         onClick = onBrushEdit,
                         modifier = Modifier.size(40.dp)
@@ -137,7 +138,7 @@ internal fun SelectionPanel(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.FileDownload,
-                            contentDescription = "Скачать",
+                            contentDescription = "Сохранить в галерею",
                             tint = TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -179,7 +180,7 @@ internal fun SelectionPanel(
                     }
                 }
                 selectedCount == 1 && isVoice -> {
-                    // Голосовое: Редактировать / обрезать, Переслать, Поделиться, Удалить
+                    // Голосовое: Редактировать / обрезать, Скачать в Загрузки, Переслать, Поделиться, Удалить
                     IconButton(
                         onClick = onBrushEdit,
                         modifier = Modifier.size(40.dp)
@@ -187,6 +188,17 @@ internal fun SelectionPanel(
                         Icon(
                             imageVector = Icons.Outlined.Brush,
                             contentDescription = "Редактировать",
+                            tint = TextPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    IconButton(
+                        onClick = onDownload,
+                        modifier = Modifier.size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.FileDownload,
+                            contentDescription = "Сохранить в Загрузки",
                             tint = TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -230,7 +242,7 @@ internal fun SelectionPanel(
                 else -> {
                     when {
                         selectedCount == 1 && isPhoto -> {
-                            // Фото: Кисточка
+                            // Одиночное фото/видео: Кисточка, Сохранить в галерею, Поделиться
                             IconButton(
                                 onClick = onBrushEdit,
                                 modifier = Modifier.size(40.dp)
@@ -238,6 +250,42 @@ internal fun SelectionPanel(
                                 Icon(
                                     imageVector = Icons.Outlined.Brush,
                                     contentDescription = "Редактировать / Заменить",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = onDownload,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.FileDownload,
+                                    contentDescription = "Сохранить в галерею",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            IconButton(
+                                onClick = onShare,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Share,
+                                    contentDescription = "Поделиться",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        selectedCount == 1 && isMediaAlbum -> {
+                            // Альбом (например, 4 фото): Сохранить всё в галерею
+                            IconButton(
+                                onClick = onDownload,
+                                modifier = Modifier.size(40.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.FileDownload,
+                                    contentDescription = "Сохранить альбом в галерею",
                                     tint = TextPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )

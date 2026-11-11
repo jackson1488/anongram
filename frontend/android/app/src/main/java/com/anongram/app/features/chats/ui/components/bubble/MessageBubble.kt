@@ -272,10 +272,17 @@ internal fun MessageBubble(
             label = "incomingShiftDp"
         )
 
+        val selectionViolet = Color(0xFF8B5CF6)
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetPx.roundToInt(), 0) }
+                .then(
+                    if (isSelected) {
+                        Modifier.background(selectionViolet.copy(alpha = 0.14f))
+                    } else Modifier
+                )
                 .onGloballyPositioned { coordinates ->
                     bubbleTopYHolder[0] = coordinates.positionInRoot().y
                 }
@@ -297,10 +304,10 @@ internal fun MessageBubble(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) scheme.accent else Color(0x33000000))
+                        .background(if (isSelected) selectionViolet else Color(0x33000000))
                         .border(
                             width = 2.dp,
-                            color = if (isSelected) scheme.accent else Color(0x88FFFFFF),
+                            color = if (isSelected) selectionViolet else Color(0x88FFFFFF),
                             shape = CircleShape
                         )
                         .clickable(onClick = onSelect),
@@ -320,7 +327,19 @@ internal fun MessageBubble(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .offset(x = incomingShiftDp),
+                    .offset(x = incomingShiftDp)
+                    .combinedClickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null,
+                        onClick = {
+                            if (isSelectionMode) {
+                                onSelect()
+                            } else {
+                                onClick(bubbleTopYHolder[0])
+                            }
+                        },
+                        onLongClick = onLongClick
+                    ),
                 contentAlignment = if (isIncoming) Alignment.TopStart else Alignment.TopEnd
             ) {
 
@@ -361,6 +380,7 @@ internal fun MessageBubble(
                                 isSelected = isSelected,
                                 onSelect = onSelect,
                                 onLongClick = onLongClick,
+                                onOpenContextMenu = { onClick(bubbleTopYHolder[0]) },
                                 onPlay = { onPlayVideoCircle(message) }
                             )
                         }
@@ -391,6 +411,7 @@ internal fun MessageBubble(
                         }
                         val bubbleBorder = when {
                             pulseAlpha > 0.005f -> BorderStroke(2.dp, scheme.accent.copy(alpha = pulseAlpha))
+                            isSelected -> BorderStroke(1.4.dp, selectionViolet.copy(alpha = 0.85f))
                             isEdgeToEdgeMedia -> BorderStroke(1.2.dp, scheme.accent.copy(alpha = 0.55f))
                             !isIncoming -> BorderStroke(1.dp, scheme.accent.copy(alpha = 0.4f))
                             else -> null

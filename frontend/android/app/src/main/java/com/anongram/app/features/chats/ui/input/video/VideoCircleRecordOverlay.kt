@@ -463,46 +463,28 @@ fun VideoCircleRecordOverlay(
                             }
                         }
                     } else {
-                        fun applyLiveCenterCrop(tv: TextureView, viewWidth: Int, viewHeight: Int, vw: Int, vh: Int) {
-                            if (viewWidth <= 0 || viewHeight <= 0) return
-                            val videoW = vh.toFloat().coerceAtLeast(1f)
-                            val videoH = vw.toFloat().coerceAtLeast(1f)
-                            val viewW = viewWidth.toFloat()
-                            val viewH = viewHeight.toFloat()
-                            val scaleX: Float
-                            val scaleY: Float
-                            if (videoW / videoH > viewW / viewH) {
-                                scaleX = (videoW / videoH) / (viewW / viewH)
-                                scaleY = 1f
-                            } else {
-                                scaleX = 1f
-                                scaleY = (viewW / viewH) / (videoW / videoH)
-                            }
-                            tv.setTransform(Matrix().apply { setScale(scaleX, scaleY, viewW / 2f, viewH / 2f) })
-                        }
-
-                        LaunchedEffect(camVideoW, camVideoH) {
-                            liveTextureViewRef?.let { tv ->
-                                applyLiveCenterCrop(tv, tv.width, tv.height, camVideoW, camVideoH)
-                            }
-                        }
-
                         AndroidView(
                             factory = { ctx ->
                                 TextureView(ctx).apply {
                                     liveTextureViewRef = this
                                     surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                                         override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                                            cameraManager.startPreview(st, front = isFrontCamera, autoStartRecording = true)
-                                            applyLiveCenterCrop(this@apply, w, h, camVideoW, camVideoH)
+                                            cameraManager.startPreview(
+                                                surfaceTexture = st,
+                                                width = w,
+                                                height = h,
+                                                front = isFrontCamera,
+                                                autoStartRecording = true
+                                            )
                                         }
 
                                         override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
-                                            applyLiveCenterCrop(this@apply, w, h, camVideoW, camVideoH)
+                                            cameraManager.updatePreviewSize(w, h)
                                         }
 
                                         override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
                                             if (liveTextureViewRef === this@apply) liveTextureViewRef = null
+                                            cameraManager.detachPreviewSurface(st)
                                             return true
                                         }
                                         override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
@@ -553,6 +535,7 @@ fun VideoCircleRecordOverlay(
                             .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
                             .clickable {
                                 isFrontCamera = !isFrontCamera
+                                isFlashOn = false
                                 cameraManager.switchCamera()
                             },
                         contentAlignment = Alignment.Center
