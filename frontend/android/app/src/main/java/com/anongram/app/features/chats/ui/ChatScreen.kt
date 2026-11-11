@@ -847,7 +847,9 @@ fun ChatScreen(
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
                                 }
-                            } else if (state.videoReviewDraft != null) {
+                            } else {
+                                val videoDraft = state.videoReviewDraft
+                                if (videoDraft != null) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -858,7 +860,7 @@ fun ChatScreen(
                                         )
                                 ) {
                                     VideoCircleTrimBar(
-                                        video = state.videoReviewDraft,
+                                        video = videoDraft,
                                         durationMs = videoReviewDurationMs,
                                         isPlaying = isVideoReviewPlaying,
                                         currentProgress = videoReviewProgress,
@@ -891,6 +893,7 @@ fun ChatScreen(
                                             .fillMaxWidth()
                                             .padding(horizontal = 8.dp, vertical = 4.dp)
                                     )
+                                }
                                 }
                             }
                         }
