@@ -211,21 +211,12 @@ object QrImageRenderer {
         val textY = qrTop + qrSize + 98f
         canvas.drawText("@$cleanHandle", cx, textY, textPaint)
 
-        // 6. Нижняя подпись бренда под карточкой
-        val brandPaint = Paint().apply {
-            isAntiAlias = true
-            color = android.graphics.Color.argb(215, 255, 255, 255)
-            textSize = 34f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-            textAlign = Paint.Align.CENTER
-        }
-        canvas.drawText("AnonGram • Анонимный мессенджер", width / 2f, height - 70f, brandPaint)
-
         return bitmap
     }
 
     /**
      * Экспорт и шеринг HD-изображения QR-кода через системный диалог Android Share Sheet.
+     * Отправляется ИСКЛЮЧИТЕЛЬНО файл PNG (без сопутствующего текста).
      */
     fun shareQrImage(
         context: Context,
@@ -251,10 +242,6 @@ object QrImageRenderer {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "image/png"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(
-                Intent.EXTRA_TEXT,
-                "Мой анонимный профиль в AnonGram: @${handle.removePrefix("@").uppercase()}"
-            )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, "Поделиться QR-кодом"))

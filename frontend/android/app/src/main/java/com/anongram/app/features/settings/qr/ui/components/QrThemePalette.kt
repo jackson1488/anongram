@@ -92,6 +92,26 @@ object QrThemePalette {
     )
 
     val defaultTheme: QrThemeItem = items[0]
+
+    private const val PREFS_NAME = "anongram_qr_theme_prefs"
+    private const val KEY_THEME_ID = "selected_qr_theme_id"
+
+    /**
+     * Получить сохранённую пользователем тему QR-кода из постоянного хранилища.
+     */
+    fun getSavedTheme(context: android.content.Context): QrThemeItem {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        val savedId = prefs.getInt(KEY_THEME_ID, defaultTheme.id)
+        return items.firstOrNull { it.id == savedId } ?: defaultTheme
+    }
+
+    /**
+     * Сохранить выбранную тему QR-кода в постоянное хранилище (не сбрасывается при перезаходе).
+     */
+    fun saveTheme(context: android.content.Context, theme: QrThemeItem) {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        prefs.edit().putInt(KEY_THEME_ID, theme.id).apply()
+    }
 }
 
 /**
@@ -112,11 +132,11 @@ fun QrColorPaletteSheet(
             .clip(RoundedCornerShape(28.dp))
             .background(Color(0xFF1E1E24).copy(alpha = 0.90f))
             .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(28.dp))
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val chunked = QrThemePalette.items.chunked(6)
             for (row in chunked) {
