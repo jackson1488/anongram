@@ -3,6 +3,7 @@ package com.anongram.app.features.chats.media.player
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import android.view.Surface
 import com.anongram.app.features.player.service.AudioPlayerService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,39 @@ class ChatAudioController private constructor(
     private var originalChronologicalQueue: List<ChatTrack> = emptyList()
     private var userPaused: Boolean = false
     val isUserPaused: Boolean get() = userPaused
+
+    // Поверхность TextureView раскрытого видео-кружочка (видео рисуется прямо в пузыре чата)
+    private var videoSurface: Surface? = null
+    private var videoSurfaceTrackId: String? = null
+
+    /**
+     * Видео-кружок отдаёт свою поверхность плееру: звук, шторка Android и картинка идут из одного MediaPlayer.
+     */
+    fun attachVideoSurface(trackId: String, surface: Surface) {
+        videoSurface = surface
+        videoSurfaceTrackId = trackId
+        if (_state.value.currentTrack?.id == trackId) {
+            runCatching { mediaPlayer?.setSurface(surface) }
+        }
+    }
+
+    fun detachVideoSurface(surface: Surface) {
+        if (videoSurface === surface) {
+            if (_state.value.currentTrack?.id == videoSurfaceTrackId) {
+                runCatching { mediaPlayer?.setSurface(null) }
+            }
+            videoSurface = null
+            videoSurfaceTrackId = null
+        }
+    }
+
+    /** Остановить и свернуть видео-кружок (тап мимо круга / окончание видео) */
+    fun stopVideoCircle() {
+        if (_state.value.currentTrack?.isVideoCircle != true) return
+        userPaused = true
+        releasePlayer()
+        _state.update { it.copy(currentTrack = null, queue = emptyList(), isPlaying = false, isVisible = false, positionMs = 0L) }
+    }
 
     fun play(queue: List<ChatTrack>, track: ChatTrack, autoStart: Boolean = true) {
         if (queue.isEmpty()) return
@@ -92,10 +126,13 @@ class ChatAudioController private constructor(
             mediaPlayer = MediaPlayer().apply {
                 setAudioAttributes(
                     AudioAttributes.Builder()
-                        .setContentType(if (track.isVoice) AudioAttributes.CONTENT_TYPE_SPEECH else AudioAttributes.CONTENT_TYPE_MUSIC)
+                        .setContentType(if (track.isVoice && !track.isVideoCircle) AudioAttributes.CONTENT_TYPE_SPEECH else AudioAttributes.CONTENT_TYPE_MUSIC)
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .build()
                 )
+                if (track.isVideoCircle && videoSurfaceTrackId == track.id) {
+                    videoSurface?.let { runCatching { setSurface(it) } }
+                }
                 if (track.uri.scheme == "content" || track.uri.scheme == "file") {
                     setDataSource(appContext, track.uri)
                 } else if (track.uri.toString().isNotBlank()) {
@@ -256,6 +293,10 @@ class ChatAudioController private constructor(
     }
 
     fun stop() {
+        if (_state.value.currentTrack?.isVideoCircle == true) {
+            stopVideoCircle()
+            return
+        }
         userPaused = true
         releasePlayer()
         _state.update { it.copy(isPlaying = false, isVisible = false, positionMs = 0L) }
@@ -279,6 +320,11 @@ class ChatAudioController private constructor(
 
     private fun handleTrackCompletion() {
         val currentTrack = _state.value.currentTrack
+        if (currentTrack?.isVideoCircle == true) {
+            // Видео-кружок проигрывается один раз и сворачивается обратно
+            stopVideoCircle()
+            return
+        }
         if (currentTrack?.isVoice == true) {
             // Для цепочки ГС: непрерывный автопереход к следующему ГС в очереди
             val queue = _state.value.queue

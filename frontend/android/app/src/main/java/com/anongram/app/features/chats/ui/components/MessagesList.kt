@@ -1,5 +1,6 @@
 package com.anongram.app.features.chats.ui.components
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -52,6 +54,7 @@ internal fun MessagesList(
     firstUnreadId: String? = null,
     highlightedMessageId: String? = null,
     pinnedIds: Set<String> = emptySet(),
+    isVideoCircleExpanded: Boolean = false,
     topPadding: androidx.compose.ui.unit.Dp = 80.dp,
     bottomPadding: androidx.compose.ui.unit.Dp = 10.dp,
     onClick: (ChatMessage, Float) -> Unit = { _, _ -> },
@@ -73,7 +76,8 @@ internal fun MessagesList(
     onOpenContactChat: (String, String) -> Unit = { _, _ -> },
     onForwardSubItem: (String) -> Unit = {},
     onDeleteSubItem: (String) -> Unit = {},
-    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
+    onPlayVideoCircle: (ChatMessage) -> Unit = {},
+    onEmptyAreaTap: () -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
     onPlayMusic: (ChatTrack) -> Unit = {},
     onOpenFullTextMessage: (ChatMessage) -> Unit = {}
@@ -93,7 +97,15 @@ internal fun MessagesList(
     LazyColumn(
         state = listState,
         reverseLayout = true,
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .then(
+                if (isVideoCircleExpanded) {
+                    Modifier.pointerInput(Unit) {
+                        detectTapGestures(onTap = { onEmptyAreaTap() })
+                    }
+                } else Modifier
+            ),
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = topPadding, bottom = bottomPadding)
     ) {
         itemsIndexed(
@@ -188,7 +200,7 @@ internal fun MessagesList(
                     onOpenContactChat = onOpenContactChat,
                     onForwardSubItem = onForwardSubItem,
                     onDeleteSubItem = onDeleteSubItem,
-                    onOpenVideoCircle = onOpenVideoCircle,
+                    onPlayVideoCircle = onPlayVideoCircle,
                     onPlayVoice = onPlayVoice,
                     onPlayMusic = onPlayMusic,
                     onOpenFullTextMessage = onOpenFullTextMessage

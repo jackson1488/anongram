@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.FlameOrange
@@ -79,7 +80,6 @@ import com.anongram.app.features.chats.messages.state.SelfDestruct
 import com.anongram.app.features.attach.api.AttachSheet
 import com.anongram.app.features.attach.api.AttachmentDraft
 import com.anongram.app.features.attach.ui.AttachTab
-import com.anongram.app.features.chats.media.circle.VideoCircleExpandedPlayer
 import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMiniPlayer
@@ -257,6 +257,8 @@ fun ChatScreen(
         }
     }
 
+    val isCircleRecording = state.recording.mode == RecordMode.CIRCLE
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -264,7 +266,9 @@ fun ChatScreen(
     ) {
         WallpaperBackground(
             chatId = session.id,
-            modifier = Modifier.matchParentSize()
+            modifier = Modifier
+                .matchParentSize()
+                .then(if (isCircleRecording || isReplyPreviewOpen) Modifier.blur(22.dp) else Modifier)
         )
 
         val density = LocalDensity.current
@@ -319,6 +323,10 @@ fun ChatScreen(
         } else {
             inputBarHeightDp + 24.dp + navBottom + 20.dp
         }
+        val bottomInputTopDp = with(density) { chatBottomImePx.toDp() } +
+            navBottom.coerceAtMost(48.dp) +
+            (if (effectiveKeyboardVisible) 4.dp else 24.dp) +
+            inputBarHeightDp.coerceAtLeast(56.dp)
 
         Box(
             modifier = Modifier
@@ -328,6 +336,7 @@ fun ChatScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .then(if (isCircleRecording) Modifier.blur(22.dp) else Modifier)
                     .padding(bottom = with(density) { chatBottomImePx.toDp() })
             ) {
             if (state.isSearchOpen && isSearchListMode) {
@@ -368,6 +377,7 @@ fun ChatScreen(
                     firstUnreadId = state.firstUnreadId,
                     highlightedMessageId = state.highlightedMessageId,
                     pinnedIds = state.pinnedIds.toSet(),
+                    isVideoCircleExpanded = audioPlayerState.currentTrack?.isVideoCircle == true,
                     topPadding = topListPadding,
                     bottomPadding = bottomListPadding,
                     onClick = { message, topY ->
@@ -442,7 +452,32 @@ fun ChatScreen(
                     onDeleteSubItem = { subKey ->
                         viewModel.requestDelete(listOf(subKey))
                     },
-                    onOpenVideoCircle = viewModel::openExpandedVideoCircle,
+                    onPlayVideoCircle = { targetMsg ->
+                        val vc = targetMsg.attachment as? MessageAttachment.VideoCircle
+                        val path = vc?.uri
+                        if (vc != null && !path.isNullOrBlank()) {
+                            val f = java.io.File(path)
+                            val isOut = targetMsg.direction == MessageDirection.OUTGOING
+                            val name = if (isOut) "Вы" else session.title
+                            val track = ChatTrack(
+                                id = "circle_${targetMsg.id}",
+                                messageId = targetMsg.id,
+                                chatId = session.id,
+                                uri = if (f.exists()) android.net.Uri.fromFile(f) else android.net.Uri.parse(path),
+                                title = name,
+                                artist = name,
+                                durationLabel = vc.durationLabel,
+                                durationMs = 0L, // реальная длительность берётся из файла, чтобы не обрезать конец
+                                isVoice = true,
+                                isOutgoing = isOut,
+                                chatTitle = session.title,
+                                chatAvatarSeed = session.title.hashCode(),
+                                isVideoCircle = true
+                            )
+                            audioController.play(listOf(track), track, autoStart = true)
+                        }
+                    },
+                    onEmptyAreaTap = { audioController.stopVideoCircle() },
                     onPlayVoice = { targetMsg ->
                         val voiceTracks: List<ChatTrack> = state.messages
                             .filter { it.epochMs >= targetMsg.epochMs && it.attachment is MessageAttachment.Voice }
@@ -557,21 +592,25 @@ fun ChatScreen(
             }
         }
 
-        // Оверлей записи видео-кружочка (рендерится под строкой ввода, чтобы поле ввода оставалось сверху)
+        // Оверлей записи видео-кружочка (поверх размытого чата и шапки, но под строкой ввода)
         if (state.recording.mode == RecordMode.CIRCLE) {
             VideoCircleRecordOverlay(
                 recordingState = state.recording,
+                isKeyboardVisible = effectiveKeyboardVisible,
+                bottomInputTopDp = bottomInputTopDp,
                 onCancel = viewModel::cancelRecording,
                 onSend = viewModel::stopLockedRecording,
                 onToggleLock = viewModel::lockRecording,
                 onPauseReview = viewModel::pauseVoiceRecordingToDraft,
-                onSendVideo = { uri, dur -> viewModel.sendVideoCircle(uri, dur) }
+                onSendVideo = { uri, dur -> viewModel.sendVideoCircle(uri, dur) },
+                modifier = Modifier.zIndex(2f)
             )
         }
 
-        // 1b. Парящее поле ввода поверх списка сообщений
+        // 1b. Парящее поле ввода поверх списка сообщений и оверлея записи
         Box(
             modifier = Modifier
+                .zIndex(3f)
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(bottom = with(density) { chatBottomImePx.toDp() })
@@ -753,9 +792,11 @@ fun ChatScreen(
         val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 144.dp else 100.dp
         Box(
             modifier = Modifier
+                .zIndex(1f)
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .height(scrimHeight)
+                .then(if (isCircleRecording) Modifier.blur(22.dp) else Modifier)
                 .background(
                     Brush.verticalGradient(
                         0.0f to Color.Black.copy(alpha = headerScrimAlpha),
@@ -768,8 +809,10 @@ fun ChatScreen(
         // 3. Плавающая шапка чата поверх сообщений (парящие островки)
         Column(
             modifier = Modifier
+                .zIndex(1f)
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
+                .then(if (isCircleRecording) Modifier.blur(22.dp) else Modifier)
                 .safeStatusBarPadding()
         ) {
             when {
@@ -1524,15 +1567,6 @@ fun ChatScreen(
                 }
             }
         }
-
-        // 4. Полноэкранный плеер видео-кружочка с круговым SeekBar
-        state.expandedVideoCircle?.let { videoCircle ->
-            VideoCircleExpandedPlayer(
-                attachment = videoCircle,
-                onClose = viewModel::closeExpandedVideoCircle
-            )
-        }
-
 
         // 6. Шторка музыкального плеера чата
         if (isMusicSheetOpen || audioPlayerState.isSheetOpen) {

@@ -26,7 +26,9 @@ data class ChatTrack(
     val chatTitle: String = "",
     val chatAvatarSeed: Int = 0,
     val sizeLabel: String = "3.7 MB",
-    val albumArtBitmap: Bitmap? = null
+    val albumArtBitmap: Bitmap? = null,
+    /** Видеосообщение (кружок): звук и картинка идут через общий плеер, видео рисуется в TextureView кружка */
+    val isVideoCircle: Boolean = false
 )
 
 @Immutable

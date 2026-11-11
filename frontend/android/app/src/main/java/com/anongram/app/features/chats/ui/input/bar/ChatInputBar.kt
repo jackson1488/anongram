@@ -41,6 +41,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -67,12 +68,9 @@ import com.anongram.app.features.chats.ui.input.reply.FusedReplyBar
 import com.anongram.app.features.chats.ui.input.voice.VoiceRecordingBar
 
 /**
- * Единый монолитный островок ввода (макет media_1794245430730.png):
- * - Клавиатура, поле ввода, скрепка и кнопка действия объединены в одном скруглённом контейнере.
- * - Поле ввода раздувается ещё на ~2 см (до 160 dp), далее включается вертикальный скролл.
- * - Кнопки эмодзи и отправки зафиксированы внизу (Alignment.Bottom).
- * - При раздувании текста в правом верхнем углу появляется кнопка раскрытия полноценного редактора ⤢.
- * - Плашка ответа слитно встроена сверху на всю ширину поля ввода.
+ * Единый монолитный островок ввода:
+ * - BasicTextField всегда остаётся смонтированным в дереве (скрывается через alpha=0f при записи),
+ *   благодаря чему клавиатура НЕ закрывается при старте и блокировке записи ГС / видео-кружочка.
  */
 @Composable
 fun ChatInputBar(
@@ -109,66 +107,146 @@ fun ChatInputBar(
     val scheme = LocalAnonGramScheme.current
     val strings = LocalInputStrings.current
     val isRecording = recording.mode != RecordMode.NONE
+    val isLockedRecording = recording.isLocked && isRecording
 
-    Row(
+    var textValue: String by remember(input) { mutableStateOf(input) }
+    val scrollState = rememberScrollState()
+    val isMultiline = !isRecording && (textValue.lines().size >= 3 || textValue.length >= 60)
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.Bottom
+            .padding(horizontal = 8.dp, vertical = 4.dp)
     ) {
-        if (recording.isLocked && recording.mode == RecordMode.VOICE) {
-            VoiceRecordingBar(
-                recording = recording,
-                onCancel = onCancelRecording,
-                onSend = onStopLockedRecording,
-                modifier = Modifier.fillMaxWidth()
-            )
-        } else {
-            var textValue: String by remember(input) { mutableStateOf(input) }
-            val scrollState = rememberScrollState()
+        // Основной островок ввода всегда в дереве (при isLockedRecording прозрачен, чтобы не терять фокус/клавиатуру)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .alpha(if (isLockedRecording) 0f else 1f)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(IslandBackground, RoundedCornerShape(24.dp))
+                    .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+            ) {
+                if (!isRecording && replyTo != null && editing == null) {
+                    FusedReplyBar(
+                        replyTo = replyTo,
+                        peerName = peerName,
+                        onClick = { onReplyClick(replyTo) },
+                        onLongClick = { onReplyLongClick(replyTo) },
+                        onClose = onCancelReply
+                    )
+                } else if (!isRecording && editing != null) {
+                    FusedEditBar(
+                        editing = editing,
+                        onClose = onCancelEdit,
+                        onReplaceAttachment = onReplaceAttachment,
+                        onEditAttachment = onEditAttachment
+                    )
+                }
 
-            // Проверяем, нужно ли показывать кнопку раскрытия в углу:
-            // показывается при многострочном тексте (3+ строк или длина от 60 символов)
-            val isMultiline = !isRecording && (textValue.lines().size >= 3 || textValue.length >= 60)
-
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Column(
+                // Единая нижняя строка: строго 48.dp при записи, без малейшего раздувания
+                Row(
+                    verticalAlignment = if (isRecording) Alignment.CenterVertically else Alignment.Bottom,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(IslandBackground, RoundedCornerShape(24.dp))
-                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                        .then(
+                            if (isRecording) Modifier.height(48.dp)
+                            else Modifier.defaultMinSize(minHeight = 48.dp)
+                        )
+                        .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)
                 ) {
-                    // Слитно встроенная плашка ответа или правки на всю ширину
-                    if (!isRecording && replyTo != null && editing == null) {
-                        FusedReplyBar(
-                            replyTo = replyTo,
-                            peerName = peerName,
-                            onClick = { onReplyClick(replyTo) },
-                            onLongClick = { onReplyLongClick(replyTo) },
-                            onClose = onCancelReply
-                        )
-                    } else if (!isRecording && editing != null) {
-                        FusedEditBar(
-                            editing = editing,
-                            onClose = onCancelEdit,
-                            onReplaceAttachment = onReplaceAttachment,
-                            onEditAttachment = onEditAttachment
-                        )
-                    }
-
-                    // Единая нижняя строка: строго 48.dp при записи, без малейшего раздувания
-                    Row(
-                        verticalAlignment = if (isRecording) Alignment.CenterVertically else Alignment.Bottom,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (isRecording) Modifier.height(48.dp)
-                                else Modifier.defaultMinSize(minHeight = 48.dp)
-                            )
-                            .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)
+                    Box(
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.CenterStart
                     ) {
-                        if (isRecording) {
-                            // Режим удержания записи: скрываем поле ввода, показываем таймер и подсказку свайпа
+                        // Обычный ввод (всегда в дереве, во время записи невидим)
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .alpha(if (isRecording) 0f else 1f)
+                        ) {
+                            IconButton(
+                                onClick = { if (!isRecording) onToggleEmoji() },
+                                enabled = !isRecording,
+                                modifier = Modifier
+                                    .padding(bottom = 2.dp)
+                                    .size(38.dp)
+                            ) {
+                                Icon(
+                                    imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
+                                    contentDescription = strings.emoji,
+                                    tint = if (isEmojiOpen) scheme.accent else TextMuted,
+                                    modifier = Modifier.size(23.dp)
+                                )
+                            }
+
+                            val placeholderText = if (editing?.attachment != null) strings.captionPlaceholder else strings.messagePlaceholder
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 4.dp, vertical = 6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(if (isRecording) Modifier.height(34.dp) else Modifier.heightIn(min = 34.dp, max = 160.dp))
+                                        .verticalScroll(scrollState)
+                                        .padding(end = if (isMultiline) 28.dp else 0.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
+                                    if (textValue.isEmpty()) {
+                                        Text(
+                                            text = placeholderText,
+                                            color = TextMuted,
+                                            fontSize = 15.sp
+                                        )
+                                    }
+                                    BasicTextField(
+                                        value = textValue,
+                                        onValueChange = { newText ->
+                                            if (!isRecording) {
+                                                textValue = newText
+                                                onInputChange(newText)
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .onFocusChanged { if (it.isFocused && !isRecording) onFocusInput() }
+                                            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+                                        textStyle = TextStyle(
+                                            color = TextPrimary,
+                                            fontSize = 15.sp,
+                                            lineHeight = 20.sp
+                                        ),
+                                        cursorBrush = SolidColor(scheme.accent)
+                                    )
+                                }
+                            }
+
+                            if (editing?.attachment == null && !canSend) {
+                                IconButton(
+                                    onClick = { if (!isRecording) onOpenAttach() },
+                                    enabled = !isRecording,
+                                    modifier = Modifier
+                                        .padding(bottom = 2.dp)
+                                        .size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.AttachFile,
+                                        contentDescription = strings.attach,
+                                        tint = TextMuted,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        // Строка удержания записи поверх скрытого ввода
+                        if (isRecording && !isLockedRecording) {
                             val infiniteTransition = rememberInfiniteTransition(label = "pulseDot")
                             val pulseAlpha by infiniteTransition.animateFloat(
                                 initialValue = 0.3f,
@@ -178,7 +256,7 @@ fun ChatInputBar(
                             )
                             Row(
                                 modifier = Modifier
-                                    .weight(1f)
+                                    .fillMaxWidth()
                                     .padding(start = 12.dp, end = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -203,104 +281,29 @@ fun ChatInputBar(
                                     fontSize = 13.sp
                                 )
                             }
-                        } else {
-                            // Кнопка эмодзи / клавиатура
-                            IconButton(
-                                onClick = onToggleEmoji,
-                                modifier = Modifier
-                                    .padding(bottom = 2.dp)
-                                    .size(38.dp)
-                            ) {
-                                Icon(
-                                    imageVector = if (isEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
-                                    contentDescription = strings.emoji,
-                                    tint = if (isEmojiOpen) scheme.accent else TextMuted,
-                                    modifier = Modifier.size(23.dp)
-                                )
-                            }
-
-                            // Центральная область ввода: раздувается до 160 dp (~на 2 см выше)
-                            val placeholderText = if (editing?.attachment != null) strings.captionPlaceholder else strings.messagePlaceholder
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .padding(horizontal = 4.dp, vertical = 6.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(min = 34.dp, max = 160.dp)
-                                        .verticalScroll(scrollState)
-                                        .padding(end = if (isMultiline) 28.dp else 0.dp),
-                                    contentAlignment = Alignment.CenterStart
-                                ) {
-                                    if (textValue.isEmpty()) {
-                                        Text(
-                                            text = placeholderText,
-                                            color = TextMuted,
-                                            fontSize = 15.sp
-                                        )
-                                    }
-                                    BasicTextField(
-                                        value = textValue,
-                                        onValueChange = { newText ->
-                                            textValue = newText
-                                            onInputChange(newText)
-                                        },
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .onFocusChanged { if (it.isFocused) onFocusInput() }
-                                            .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-                                        textStyle = TextStyle(
-                                            color = TextPrimary,
-                                            fontSize = 15.sp,
-                                            lineHeight = 20.sp
-                                        ),
-                                        cursorBrush = SolidColor(scheme.accent)
-                                    )
-                                }
-                            }
-
-                            // Скрепка (вложения)
-                            if (editing?.attachment == null && !canSend) {
-                                IconButton(
-                                    onClick = onOpenAttach,
-                                    modifier = Modifier
-                                        .padding(bottom = 2.dp)
-                                        .size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.AttachFile,
-                                        contentDescription = strings.attach,
-                                        tint = TextMuted,
-                                        modifier = Modifier.size(22.dp)
-                                    )
-                                }
-                            }
                         }
-
-                        Spacer(modifier = Modifier.width(2.dp))
-
-                        // Круглая кнопка действия (отправить / микрофон / видео) прямо внутри островка!
-                        ActionButton(
-                            canSend = canSend,
-                            isEditing = editing != null,
-                            isRecording = isRecording,
-                            isLockedRecording = recording.isLocked,
-                            isCameraMode = isCameraMode,
-                            onSend = onSend,
-                            onToggleCameraMode = onToggleCameraMode,
-                            onStartRecording = onStartRecording,
-                            onFinishRecording = onFinishRecording,
-                            onStopLockedRecording = onStopLockedRecording,
-                            onLockRecording = onLockRecording,
-                            onCancelRecording = onCancelRecording,
-                            modifier = Modifier.padding(bottom = 2.dp)
-                        )
                     }
-                }
 
-            // Иконка ⤢ строго в правом верхнем углу всей капсулы
+                    Spacer(modifier = Modifier.width(2.dp))
+
+                    ActionButton(
+                        canSend = canSend,
+                        isEditing = editing != null,
+                        isRecording = isRecording,
+                        isLockedRecording = recording.isLocked,
+                        isCameraMode = isCameraMode,
+                        onSend = onSend,
+                        onToggleCameraMode = onToggleCameraMode,
+                        onStartRecording = onStartRecording,
+                        onFinishRecording = onFinishRecording,
+                        onStopLockedRecording = onStopLockedRecording,
+                        onLockRecording = onLockRecording,
+                        onCancelRecording = onCancelRecording,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+            }
+
             if (isMultiline) {
                 val hasTopBar = (replyTo != null || editing != null)
                 IconButton(
@@ -322,6 +325,15 @@ fun ChatInputBar(
                 }
             }
         }
+
+        // Панель заблокированной записи (и для ГС, и для видео-кружочка): таймер, «ОТМЕНА», кнопка [ ➤ ]
+        if (isLockedRecording) {
+            VoiceRecordingBar(
+                recording = recording,
+                onCancel = onCancelRecording,
+                onSend = onStopLockedRecording,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     }
-}
 }

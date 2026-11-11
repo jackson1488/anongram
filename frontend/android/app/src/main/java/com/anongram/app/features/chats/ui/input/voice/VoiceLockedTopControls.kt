@@ -47,7 +47,7 @@ fun VoiceLockedTopControls(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp),
+            .padding(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 22.dp),
         contentAlignment = Alignment.CenterEnd
     ) {
         Row(

@@ -141,7 +141,7 @@ internal fun MessageBubble(
     onOpenContactChat: (name: String, phone: String) -> Unit = { _, _ -> },
     onForwardSubItem: (subKey: String) -> Unit = {},
     onDeleteSubItem: (subKey: String) -> Unit = {},
-    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
+    onPlayVideoCircle: (ChatMessage) -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
     onPlayMusic: (ChatTrack) -> Unit = {},
     onOpenFullTextMessage: (ChatMessage) -> Unit = {}
@@ -261,6 +261,7 @@ internal fun MessageBubble(
             is MessageAttachment.File -> screenWidth * 0.84f
             is MessageAttachment.FileGroup, is MessageAttachment.MusicGroup -> screenWidth * 0.77f
             is MessageAttachment.Contact -> screenWidth * 0.78f
+            is MessageAttachment.VideoCircle -> screenWidth * 0.96f
             else -> screenWidth * 0.80f
         }
 
@@ -347,7 +348,7 @@ internal fun MessageBubble(
                         Box(
                             modifier = if (pulseAlpha > 0f) {
                                 Modifier
-                                    .clip(CircleShape)
+                                    .clip(RoundedCornerShape(24.dp))
                                     .background(scheme.accent.copy(alpha = pulseAlpha * 0.35f))
                                     .padding(4.dp)
                             } else Modifier.padding(vertical = 2.dp)
@@ -356,7 +357,8 @@ internal fun MessageBubble(
                                 message = message,
                                 attachment = message.attachment as MessageAttachment.VideoCircle,
                                 isSelectionMode = isSelectionMode,
-                                onSelect = onSelect
+                                onSelect = onSelect,
+                                onPlay = { onPlayVideoCircle(message) }
                             )
                         }
                     } else {
@@ -505,7 +507,7 @@ internal fun MessageBubble(
                                                 onOpenContactChat = onOpenContactChat,
                                                 onForwardSubItem = onForwardSubItem,
                                                 onDeleteSubItem = onDeleteSubItem,
-                                                onOpenVideoCircle = onOpenVideoCircle,
+                                                onPlayVideoCircle = onPlayVideoCircle,
                                                 onPlayVoice = onPlayVoice,
                                                 onPlayMusic = onPlayMusic
                                             )
@@ -701,7 +703,7 @@ private fun AttachmentContent(
     onOpenContactChat: (String, String) -> Unit = { _, _ -> },
     onForwardSubItem: (String) -> Unit = {},
     onDeleteSubItem: (String) -> Unit = {},
-    onOpenVideoCircle: (MessageAttachment.VideoCircle) -> Unit = {},
+    onPlayVideoCircle: (ChatMessage) -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
     onPlayMusic: (ChatTrack) -> Unit = {}
 ) {
@@ -809,7 +811,8 @@ private fun AttachmentContent(
                 message = message,
                 attachment = attachment,
                 isSelectionMode = isSelectionMode,
-                onSelect = onSelect
+                onSelect = onSelect,
+                onPlay = { onPlayVideoCircle(message) }
             )
         }
 

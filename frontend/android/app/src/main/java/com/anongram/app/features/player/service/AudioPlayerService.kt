@@ -140,7 +140,9 @@ class AudioPlayerService : Service() {
             track.title.ifBlank { "AnonGram Music" }
         }
 
-        val artist = if (isVoice) {
+        val artist = if (track.isVideoCircle) {
+            "Видеосообщение • ${track.durationLabel}"
+        } else if (isVoice) {
             "Голосовое сообщение • ${track.durationLabel}"
         } else {
             track.artist.ifBlank { "AnonGram Player" }

@@ -33,6 +33,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.remember
 import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -68,6 +70,11 @@ fun VoiceRecordingBar(
             .height(48.dp)
             .background(IslandBackground, RoundedCornerShape(24.dp))
             .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {}
+            )
             .padding(start = 16.dp, end = 4.dp),
         contentAlignment = Alignment.CenterStart
     ) {
