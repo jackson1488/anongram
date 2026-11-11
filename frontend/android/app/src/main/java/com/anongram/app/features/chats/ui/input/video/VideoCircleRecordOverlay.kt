@@ -539,44 +539,49 @@ fun VideoCircleRecordOverlay(
                     .padding(start = 16.dp, end = 16.dp, bottom = controlsBottomPadding)
             ) {
                 Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(Color.Black.copy(alpha = 0.72f))
-                        .border(1.dp, CardBorder.copy(alpha = 0.55f), RoundedCornerShape(22.dp))
-                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    modifier = Modifier.align(Alignment.BottomStart),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(
-                        onClick = {
-                            isFrontCamera = !isFrontCamera
-                            isFlashOn = false
-                            cameraManager.switchCamera()
-                        },
-                        modifier = Modifier.size(38.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.72f))
+                            .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
+                            .clickable {
+                                isFrontCamera = !isFrontCamera
+                                isFlashOn = false
+                                cameraManager.switchCamera()
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Cameraswitch,
                             contentDescription = "Сменить камеру",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(23.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    IconButton(
-                        onClick = {
-                            isFlashOn = !isFlashOn
-                            cameraManager.toggleFlash()
-                        },
-                        modifier = Modifier.size(38.dp)
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.72f))
+                            .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
+                            .clickable {
+                                isFlashOn = !isFlashOn
+                                cameraManager.toggleFlash()
+                            },
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isFlashOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
                             contentDescription = "Вспышка",
                             tint = if (isFlashOn) FlameOrange else Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(23.dp)
                         )
                     }
                 }
