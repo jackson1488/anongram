@@ -41,6 +41,8 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.MessageDirection
+import com.anongram.app.features.chats.messages.domain.timeLabel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -387,7 +389,7 @@ internal fun ChatVideoCircleSection(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.Medium
                 )
-                if (!message.isIncoming) {
+                if (message.direction == MessageDirection.OUTGOING) {
                     Spacer(modifier = Modifier.width(4.dp))
                     DeliveryStatus(
                         status = message.status,

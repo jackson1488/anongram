@@ -86,7 +86,7 @@ import com.anongram.app.features.chats.media.player.ChatMiniPlayer
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.media.player.ChatTrack
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
-import com.anongram.app.features.chats.media.voice.VoiceDraftReviewBar
+import com.anongram.app.features.chats.ui.input.voice.VoiceTrimBar
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
 import com.anongram.app.features.chats.ui.components.ChatInputBar
@@ -542,6 +542,7 @@ fun ChatScreen(
                 onCancel = viewModel::cancelRecording,
                 onSend = viewModel::stopLockedRecording,
                 onToggleLock = viewModel::lockRecording,
+                onPauseReview = viewModel::pauseVoiceRecordingToDraft,
                 onSendVideo = { uri, dur -> viewModel.sendVideoCircle(uri, dur) }
             )
         }
@@ -584,10 +585,10 @@ fun ChatScreen(
                         }
                     )
                 } else if (state.voiceReviewDraft != null) {
-                    VoiceDraftReviewBar(
-                        voice = state.voiceReviewDraft!!,
+                    VoiceTrimBar(
+                        voice = state.voiceReviewDraft,
                         onDiscard = viewModel::discardVoiceReview,
-                        onSend = viewModel::sendVoiceReview,
+                        onSend = { startFrac, endFrac -> viewModel.sendVoiceReview(startFrac, endFrac) },
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp, vertical = 6.dp)
@@ -692,6 +693,7 @@ fun ChatScreen(
                         onLockRecording = viewModel::lockRecording,
                         onCancelRecording = viewModel::cancelRecording,
                         onStopLockedRecording = viewModel::stopLockedRecording,
+                        onPauseVoiceRecording = viewModel::pauseVoiceRecordingToDraft,
                         onOpenFullEditor = { isFullEditorOpen = true },
                         focusRequester = inputFocusRequester
                     )
