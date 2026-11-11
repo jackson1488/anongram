@@ -65,6 +65,7 @@ import com.anongram.app.features.settings.main.ui.components.SettingsItemRow
 import com.anongram.app.features.settings.main.ui.components.SettingsOverflowMenu
 import com.anongram.app.features.settings.main.ui.components.SettingsProfileHeader
 import com.anongram.app.features.settings.navigation.SettingsRoute
+import com.anongram.app.features.settings.qr.i18n.QrI18n
 
 /**
  * Главный экран раздела «Настройки» (Макеты 1 и 2).
@@ -297,7 +298,7 @@ fun SettingsMainScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.QrCode2,
-                        contentDescription = "Мой QR-код",
+                        contentDescription = QrI18n.forLanguage(currentLanguage).myQrCode,
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )

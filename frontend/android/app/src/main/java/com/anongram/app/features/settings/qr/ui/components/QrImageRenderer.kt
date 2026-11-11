@@ -223,7 +223,8 @@ object QrImageRenderer {
         handle: String,
         qrColor: Color,
         gradientColors: List<Color>,
-        qrPayload: String = "anongram://user?handle=${handle.removePrefix("@").uppercase()}"
+        qrPayload: String = "anongram://user?handle=${handle.removePrefix("@").uppercase()}",
+        chooserTitle: String = "Поделиться QR-кодом"
     ) {
         val bitmap = generateQrCardBitmap(context, handle, qrColor, gradientColors, qrPayload)
         val imagesDir = File(context.cacheDir, "shared_qr")
@@ -244,7 +245,7 @@ object QrImageRenderer {
             putExtra(Intent.EXTRA_STREAM, uri)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(intent, "Поделиться QR-кодом"))
+        context.startActivity(Intent.createChooser(intent, chooserTitle))
     }
 
     /**

@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,8 +53,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.settings.qr.i18n.QrI18n
 import com.anongram.app.features.settings.qr.ui.components.QrCodeCard
 import com.anongram.app.features.settings.qr.ui.components.QrColorPaletteSheet
 import com.anongram.app.features.settings.qr.ui.components.QrImageRenderer
@@ -70,7 +73,8 @@ import com.anongram.app.features.settings.qr.ui.components.QrThemePalette
  * - При системном жесте «Назад» — закрывается открытая палитра вместо закрытия экрана;
  * - Кнопка «Поделиться» отправляет ИСКЛЮЧИТЕЛЬНО текущий PNG-файл без текста и водяных знаков;
  * - Реальная генерация QR-кода ZXing со стелс-иконкой приложения (щит + самолётик) в центре;
- * - Премиальный iPhone Glass стиль оформления кнопок.
+ * - Премиальный iPhone Glass стиль оформления кнопок;
+ * - Полная поддержка i18n локализации (русский / английский) через существующий LanguageSettingsStore.
  */
 @Composable
 fun MyQrCodeScreen(
@@ -80,6 +84,9 @@ fun MyQrCodeScreen(
     onOpenScanner: () -> Unit
 ) {
     val context = LocalContext.current
+    val currentLanguage by LanguageSettingsStore.language.collectAsState()
+    val strings = remember(currentLanguage) { QrI18n.forLanguage(currentLanguage) }
+
     val cleanHandle = handle.removePrefix("@").uppercase()
     val qrPayload = "anongram://user?handle=$cleanHandle"
 
@@ -149,7 +156,7 @@ fun MyQrCodeScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Закрыть",
+                        contentDescription = strings.close,
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -170,13 +177,13 @@ fun MyQrCodeScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.QrCodeScanner,
-                            contentDescription = "Сканировать QR-код",
+                            contentDescription = strings.scanQrCode,
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "Сканировать QR-код",
+                            text = strings.scanQrCode,
                             color = Color.White,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
@@ -221,20 +228,21 @@ fun MyQrCodeScreen(
                                 .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.18f))
                                 .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
-                                .clickable {
-                                    QrImageRenderer.shareQrImage(
-                                        context = context,
-                                        handle = cleanHandle,
-                                        qrColor = selectedTheme.color,
-                                        gradientColors = selectedTheme.gradient,
-                                        qrPayload = qrPayload
-                                    )
-                                },
+                            .clickable {
+                                QrImageRenderer.shareQrImage(
+                                    context = context,
+                                    handle = cleanHandle,
+                                    qrColor = selectedTheme.color,
+                                    gradientColors = selectedTheme.gradient,
+                                    qrPayload = qrPayload,
+                                    chooserTitle = strings.shareChooserTitle
+                                )
+                            },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Share,
-                                contentDescription = "Поделиться изображением QR",
+                                contentDescription = strings.shareQrDescription,
                                 tint = Color.White,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -254,7 +262,7 @@ fun MyQrCodeScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Brush,
-                                contentDescription = "Изменить стиль (кисточка)",
+                                contentDescription = strings.changeStyle,
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -267,26 +275,26 @@ fun MyQrCodeScreen(
                                 .clip(CircleShape)
                                 .background(Color.White.copy(alpha = 0.18f))
                                 .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
-                                .clickable {
-                                    val saved = QrImageRenderer.saveQrImageToGallery(
-                                        context = context,
-                                        handle = cleanHandle,
-                                        qrColor = selectedTheme.color,
-                                        gradientColors = selectedTheme.gradient,
-                                        qrPayload = qrPayload
-                                    )
-                                    val message = if (saved) {
-                                        "QR-код @$cleanHandle сохранён в Галерею"
-                                    } else {
-                                        "Ошибка при сохранении QR-кода"
-                                    }
-                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                                },
+                            .clickable {
+                                val saved = QrImageRenderer.saveQrImageToGallery(
+                                    context = context,
+                                    handle = cleanHandle,
+                                    qrColor = selectedTheme.color,
+                                    gradientColors = selectedTheme.gradient,
+                                    qrPayload = qrPayload
+                                )
+                                val message = if (saved) {
+                                    strings.savedToGallery(cleanHandle)
+                                } else {
+                                    strings.saveError
+                                }
+                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                            },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Download,
-                                contentDescription = "Скачать QR в галерею",
+                                contentDescription = strings.downloadQrDescription,
                                 tint = Color.White,
                                 modifier = Modifier.size(22.dp)
                             )

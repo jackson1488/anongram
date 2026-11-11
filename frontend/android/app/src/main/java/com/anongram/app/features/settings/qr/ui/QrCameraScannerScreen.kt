@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -60,8 +61,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.settings.qr.i18n.QrI18n
 import com.anongram.app.features.settings.qr.ui.components.QrPermissionNotice
 import com.anongram.app.features.settings.qr.ui.components.QrScannerViewfinder
 
@@ -71,7 +74,8 @@ import com.anongram.app.features.settings.qr.ui.components.QrScannerViewfinder
  * - Отображает живой видеопоток задней камеры через `Camera2` + `TextureView`;
  * - Управляет реальным фонариком (`CaptureRequest.FLASH_MODE_TORCH`);
  * - По нажатию на иконку галереи вызывает системную нижнюю панель выбора фото от Google (`PickVisualMedia`);
- * - Защищён от пустого чёрного экрана через `QrPermissionNotice` при отсутствии разрешения `CAMERA`.
+ * - Защищён от пустого чёрного экрана через `QrPermissionNotice` при отсутствии разрешения `CAMERA`;
+ * - Полная поддержка i18n локализации (русский / английский) через существующий LanguageSettingsStore.
  */
 @SuppressLint("MissingPermission")
 @Composable
@@ -80,6 +84,9 @@ fun QrCameraScannerScreen(
     onQrDetected: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
+    val currentLanguage by LanguageSettingsStore.language.collectAsState()
+    val strings = remember(currentLanguage) { QrI18n.forLanguage(currentLanguage) }
+
     var hasCameraPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -125,7 +132,7 @@ fun QrCameraScannerScreen(
         if (uri != null) {
             Toast.makeText(
                 context,
-                "QR-код из выбранного фото обработан",
+                strings.photoQrProcessed,
                 Toast.LENGTH_SHORT
             ).show()
             onQrDetected(uri.toString())
@@ -253,7 +260,7 @@ fun QrCameraScannerScreen(
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Назад",
+                                contentDescription = strings.back,
                                 tint = Color.White
                             )
                         }
@@ -261,9 +268,9 @@ fun QrCameraScannerScreen(
                 }
                 QrPermissionNotice(
                     icon = Icons.Outlined.CameraAlt,
-                    title = "Требуется доступ к камере",
-                    description = "Чтобы отсканировать QR-код собеседника или войти на другом устройстве, разрешите AnonGram доступ к камере.",
-                    buttonText = "Разрешить доступ к камере",
+                    title = strings.cameraPermissionRequiredTitle,
+                    description = strings.cameraPermissionRequiredDescription,
+                    buttonText = strings.allowCameraAccess,
                     onRequestPermission = {
                         permissionLauncher.launch(Manifest.permission.CAMERA)
                     }
@@ -316,7 +323,7 @@ fun QrCameraScannerScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
+                        contentDescription = strings.back,
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
@@ -334,7 +341,7 @@ fun QrCameraScannerScreen(
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "Сканировать QR-код",
+                    text = strings.scanQrCode,
                     color = Color.White,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold
@@ -369,7 +376,7 @@ fun QrCameraScannerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.PhotoLibrary,
-                            contentDescription = "Выбрать фото с QR",
+                            contentDescription = strings.pickPhotoDescription,
                             tint = Color.White,
                             modifier = Modifier.size(26.dp)
                         )
@@ -396,7 +403,7 @@ fun QrCameraScannerScreen(
                     ) {
                         Icon(
                             imageVector = if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                            contentDescription = "Фонарик",
+                            contentDescription = strings.flashlightDescription,
                             tint = Color.White,
                             modifier = Modifier.size(26.dp)
                         )
