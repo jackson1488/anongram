@@ -119,7 +119,6 @@ fun ChatInputBar(
             VoiceRecordingBar(
                 recording = recording,
                 onCancel = onCancelRecording,
-                onPauseReview = onPauseVoiceRecording,
                 onSend = onStopLockedRecording,
                 modifier = Modifier.fillMaxWidth()
             )

@@ -16,7 +16,7 @@ object InputStringsRu : InputI18nStrings {
     override val videoRoundDesc: String = "Видео-кружок (тап = микрофон)"
 
     override val cancel: String = "Отмена"
-    override val slideLeftToCancel: String = "« Влево - отмена"
+    override val slideLeftToCancel: String = "‹ Влево — отмена"
     override val lockRecording: String = "Заблокировать"
 
     override val editMessage: String = "Изменение сообщения"

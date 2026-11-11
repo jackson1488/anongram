@@ -86,6 +86,7 @@ import com.anongram.app.features.chats.media.player.ChatMiniPlayer
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.media.player.ChatTrack
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
+import com.anongram.app.features.chats.ui.input.voice.VoiceLockedTopControls
 import com.anongram.app.features.chats.ui.input.voice.VoiceTrimBar
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.ui.components.AttachBottomSheet
@@ -285,8 +286,29 @@ fun ChatScreen(
             frozenKeyboardHeightPx = currentImeBottom
         }
 
-        val isChatImeFrozen = state.isAttachOpen && wasKeyboardOpenWhenAttached
-        val chatBottomImePx = if (isChatImeFrozen) frozenKeyboardHeightPx else currentImeBottom
+        var wasKeyboardOpenWhenRecording by remember { mutableStateOf(false) }
+        var frozenRecordingImePx by remember { mutableIntStateOf(0) }
+        val isRecordingActive = state.recording.mode != RecordMode.NONE
+
+        LaunchedEffect(isRecordingActive) {
+            if (isRecordingActive) {
+                if (currentImeBottom > 0) {
+                    wasKeyboardOpenWhenRecording = true
+                    frozenRecordingImePx = currentImeBottom
+                }
+            } else {
+                wasKeyboardOpenWhenRecording = false
+                frozenRecordingImePx = 0
+            }
+        }
+
+        val isRecordingImeFrozen = isRecordingActive && wasKeyboardOpenWhenRecording
+        val isChatImeFrozen = (state.isAttachOpen && wasKeyboardOpenWhenAttached) || isRecordingImeFrozen
+        val chatBottomImePx = when {
+            isRecordingImeFrozen -> frozenRecordingImePx
+            state.isAttachOpen && wasKeyboardOpenWhenAttached -> frozenKeyboardHeightPx
+            else -> currentImeBottom
+        }
         val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
 
         val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
@@ -563,6 +585,14 @@ fun ChatScreen(
                         inputBarHeightPx = coordinates.size.height
                     }
             ) {
+                // Плавающая кнопка паузы и тултип СВЕРХУ над полем ввода при заблокированной записи (Фото 1 и 3)
+                if (state.recording.isLocked && state.recording.mode == RecordMode.VOICE) {
+                    VoiceLockedTopControls(
+                        onPauseReview = viewModel::pauseVoiceRecordingToDraft,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
                 if (state.isSearchOpen) {
                     val counterText = if (isSearchListMode) {
                         formatResultsCount(state.searchMatches.size)
