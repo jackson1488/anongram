@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -128,7 +129,7 @@ fun ChatInputBar(
 
             // Проверяем, нужно ли показывать кнопку раскрытия в углу:
             // показывается при многострочном тексте (3+ строк или длина от 60 символов)
-            val isMultiline = textValue.lines().size >= 3 || textValue.length >= 60
+            val isMultiline = !isRecording && (textValue.lines().size >= 3 || textValue.length >= 60)
 
             Box(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -138,7 +139,7 @@ fun ChatInputBar(
                         .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
                 ) {
                     // Слитно встроенная плашка ответа или правки на всю ширину
-                    if (replyTo != null && editing == null) {
+                    if (!isRecording && replyTo != null && editing == null) {
                         FusedReplyBar(
                             replyTo = replyTo,
                             peerName = peerName,
@@ -146,7 +147,7 @@ fun ChatInputBar(
                             onLongClick = { onReplyLongClick(replyTo) },
                             onClose = onCancelReply
                         )
-                    } else if (editing != null) {
+                    } else if (!isRecording && editing != null) {
                         FusedEditBar(
                             editing = editing,
                             onClose = onCancelEdit,
@@ -155,12 +156,15 @@ fun ChatInputBar(
                         )
                     }
 
-                    // Единая нижняя строка: эмодзи + раздувающееся поле с кнопкой ⤢ + скрепка + ActionButton
+                    // Единая нижняя строка: строго 48.dp при записи, без малейшего раздувания
                     Row(
-                        verticalAlignment = Alignment.Bottom,
+                        verticalAlignment = if (isRecording) Alignment.CenterVertically else Alignment.Bottom,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .defaultMinSize(minHeight = 48.dp)
+                            .then(
+                                if (isRecording) Modifier.height(48.dp)
+                                else Modifier.defaultMinSize(minHeight = 48.dp)
+                            )
                             .padding(start = 4.dp, end = 4.dp, top = 2.dp, bottom = 4.dp)
                     ) {
                         if (isRecording) {
@@ -175,7 +179,7 @@ fun ChatInputBar(
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .padding(start = 12.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
+                                    .padding(start = 12.dp, end = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Box(

@@ -161,7 +161,11 @@ fun VoiceTrimBar(
         }
     }
 
-    val displaySeconds = (currentProgress * totalSeconds).toInt()
+    val displaySeconds = if (isPlaying) {
+        (currentProgress * totalSeconds).toInt()
+    } else {
+        ((trimEndFraction - trimStartFraction) * totalSeconds).roundToInt().coerceAtLeast(1)
+    }
     val displayLabel = "%d:%02d".format(displaySeconds / 60, displaySeconds % 60)
 
     Row(

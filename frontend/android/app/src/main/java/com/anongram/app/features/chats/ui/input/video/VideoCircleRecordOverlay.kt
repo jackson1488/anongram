@@ -1,5 +1,6 @@
 package com.anongram.app.features.chats.ui.input.video
 
+import android.graphics.Matrix
 import android.graphics.SurfaceTexture
 import android.view.TextureView
 import androidx.compose.animation.AnimatedVisibility
@@ -50,6 +51,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -65,7 +67,7 @@ import kotlinx.coroutines.isActive
 
 /**
  * Оверлей записи круглого видео-сообщения (Фото 1 и Фото 3):
- * - Компактный круглый видоискатель Camera2 (210dp) с белым ободком таймера
+ * - Крупный круглый видоискатель Camera2 почти на всю ширину экрана по горизонтали с белым ободком таймера
  * - Слева внизу над строкой ввода: капсула смены камеры [ 🔄 ] и вспышки [ ⚡ ]
  * - Справа внизу над строкой ввода: круглая кнопка паузы [ ❙❙ ] и всплывающий тултип «Нажмите для обрезки или прослушивания»
  */
@@ -86,6 +88,11 @@ fun VideoCircleRecordOverlay(
     val lockAction = onToggleLock ?: onLock
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+
+    // Круг почти на весь экран по горизонтали (как на Фото 1 и 3 из Telegram)
+    val outerCircleSize = (configuration.screenWidthDp.dp - 10.dp).coerceIn(300.dp, 420.dp)
+    val innerCircleSize = outerCircleSize - 12.dp
 
     val cameraManager = remember { VideoCircleCameraManager(context) }
 
@@ -93,6 +100,7 @@ fun VideoCircleRecordOverlay(
     var isFrontCamera by remember { mutableStateOf(true) }
     var isFlashOn by remember { mutableStateOf(false) }
     var showTooltip by remember { mutableStateOf(true) }
+    var hasFinished by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -101,25 +109,20 @@ fun VideoCircleRecordOverlay(
     }
 
     fun finishAndSend() {
+        if (hasFinished) return
+        hasFinished = true
         val file = cameraManager.stopRecording()
-        val timeLabel = "%02d:%02d".format(secondsElapsed / 60, secondsElapsed % 60)
-        val tenths = recordingState?.elapsedTenths ?: 0
-        if (file != null && file.exists() && file.length() > 0 && (secondsElapsed >= 1 || tenths >= 5) && onSendVideo != null) {
-            onSendVideo(file.absolutePath, timeLabel)
+        val effectiveSec = maxOf(secondsElapsed, (recordingState?.elapsedTenths ?: 0) / 10, 1)
+        val timeLabel = "%02d:%02d".format(effectiveSec / 60, effectiveSec % 60)
+        if (onSendVideo != null) {
+            onSendVideo(file?.absolutePath ?: "", timeLabel)
         } else {
-            file?.delete()
-            onCancel()
+            sendAction()
         }
     }
 
     fun pauseForReview() {
-        val file = cameraManager.stopRecording()
-        val timeLabel = "%02d:%02d".format(secondsElapsed / 60, secondsElapsed % 60)
-        if (file != null && file.exists() && file.length() > 0 && onPauseReview != null) {
-            onPauseReview()
-        } else {
-            finishAndSend()
-        }
+        finishAndSend()
     }
 
     LaunchedEffect(recordingState?.finishRequested) {
@@ -144,19 +147,19 @@ fun VideoCircleRecordOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.35f)),
+            .background(Color.Black.copy(alpha = 0.42f)),
         contentAlignment = Alignment.Center
     ) {
-        // Большой круглый видоискатель камеры (320dp — Фото 1 и 3)
+        // Большой круглый видоискатель камеры почти на весь экран по горизонтали (Фото 1 и 3)
         Box(
             modifier = Modifier
-                .offset(y = (-50).dp)
-                .size(336.dp),
+                .offset(y = (-44).dp)
+                .size(outerCircleSize),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(320.dp)
+                    .size(innerCircleSize)
                     .clip(CircleShape)
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
@@ -164,13 +167,38 @@ fun VideoCircleRecordOverlay(
                 AndroidView(
                     factory = { ctx ->
                         TextureView(ctx).apply {
+                            fun applyCenterCropTransform(viewWidth: Int, viewHeight: Int) {
+                                if (viewWidth <= 0 || viewHeight <= 0) return
+                                // После поворота на 90/270 градусов поток имеет соотношение сторон 3:4 (ширина < высоты)
+                                val videoW = cameraManager.videoSize.height.toFloat().coerceAtLeast(1f)
+                                val videoH = cameraManager.videoSize.width.toFloat().coerceAtLeast(1f)
+                                val viewW = viewWidth.toFloat()
+                                val viewH = viewHeight.toFloat()
+
+                                val scaleX: Float
+                                val scaleY: Float
+                                if (videoW / videoH > viewW / viewH) {
+                                    scaleX = (videoW / videoH) / (viewW / viewH)
+                                    scaleY = 1f
+                                } else {
+                                    scaleX = 1f
+                                    scaleY = (viewW / viewH) / (videoW / videoH)
+                                }
+                                val matrix = Matrix()
+                                matrix.setScale(scaleX, scaleY, viewW / 2f, viewH / 2f)
+                                setTransform(matrix)
+                            }
+
                             surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                                 override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
-                                    cameraManager.startPreview(st, front = isFrontCamera)
-                                    cameraManager.startRecording()
+                                    cameraManager.startPreview(st, front = isFrontCamera, autoStartRecording = true)
+                                    applyCenterCropTransform(w, h)
                                 }
 
-                                override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+                                override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
+                                    applyCenterCropTransform(w, h)
+                                }
+
                                 override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean = true
                                 override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
                             }
@@ -182,7 +210,7 @@ fun VideoCircleRecordOverlay(
 
             // Белый круговой индикатор времени записи
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val radius = (size.minDimension - 10.dp.toPx()) / 2f
+                val radius = (size.minDimension - 8.dp.toPx()) / 2f
                 val strokeWidth = 3.5.dp.toPx()
                 val centerOffset = Offset(size.width / 2f, size.height / 2f)
 
@@ -202,7 +230,7 @@ fun VideoCircleRecordOverlay(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 76.dp, start = 16.dp, end = 16.dp)
+                .padding(bottom = 86.dp, start = 16.dp, end = 16.dp)
                 .fillMaxSize()
         ) {
             // Слева: капсула переключения камеры и вспышки ( 🔄  ⚡ )

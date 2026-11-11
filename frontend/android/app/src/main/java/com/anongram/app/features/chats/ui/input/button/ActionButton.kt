@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -85,6 +86,7 @@ fun ActionButton(
     val strings = LocalInputStrings.current
 
     val currentCanSend by rememberUpdatedState(canSend)
+    val currentIsRecording by rememberUpdatedState(isRecording)
     val currentIsLocked by rememberUpdatedState(isLockedRecording)
     val currentIsCameraMode by rememberUpdatedState(isCameraMode)
     val currentOnSend by rememberUpdatedState(onSend)
@@ -104,7 +106,7 @@ fun ActionButton(
 
     val isElevated = isHolding || isRecording
     val buttonSize by animateDpAsState(
-        targetValue = if (isElevated) 52.dp else 42.dp,
+        targetValue = if (isElevated) 54.dp else 42.dp,
         label = "btnSize"
     )
 
@@ -115,26 +117,28 @@ fun ActionButton(
         label = "haloSize"
     )
     val haloAlpha by animateFloatAsState(
-        targetValue = if (isElevated || isLockedRecording) 0.32f else 0f,
+        targetValue = if (isElevated || isLockedRecording) 0.34f else 0f,
         animationSpec = tween(200),
         label = "haloAlpha"
     )
 
+    // Строго фиксированный слот 42x42dp, чтобы ChatInputBar никогда не раздувался при записи
     Box(
-        modifier = modifier,
-        contentAlignment = Alignment.BottomCenter
+        modifier = modifier.size(42.dp),
+        contentAlignment = Alignment.Center
     ) {
-        // Вертикальный трек с замочком над кнопкой при удержании записи
+        // Вертикальный трек с замочком над кнопкой при удержании записи (через requiredSize, без влияния на высоту Row)
         AnimatedVisibility(
             visible = (isHolding || isRecording) && !isLockedRecording,
             enter = fadeIn(tween(150)),
             exit = fadeOut(tween(150)),
-            modifier = Modifier.offset(y = (-88).dp)
+            modifier = Modifier
+                .requiredSize(width = 42.dp, height = 92.dp)
+                .offset(y = (-76).dp)
         ) {
             Column(
                 modifier = Modifier
-                    .width(42.dp)
-                    .height(92.dp)
+                    .requiredSize(width = 42.dp, height = 92.dp)
                     .clip(RoundedCornerShape(21.dp))
                     .background(Color(0xFF222227).copy(alpha = 0.94f))
                     .border(1.dp, CardBorder, RoundedCornerShape(21.dp))
@@ -162,6 +166,7 @@ fun ActionButton(
         // Физический подъем кнопки и ауры вместе с пальцем пользователя (и вверх к замку, и влево к отмене)
         Box(
             modifier = Modifier
+                .requiredSize(78.dp)
                 .offset {
                     IntOffset(
                         dragOffsetX.roundToInt().coerceIn(-maxCancelDragPx, 0),
@@ -174,7 +179,7 @@ fun ActionButton(
             if (haloSize > 0.dp) {
                 Box(
                     modifier = Modifier
-                        .size(haloSize)
+                        .requiredSize(haloSize)
                         .clip(CircleShape)
                         .background(scheme.accent.copy(alpha = haloAlpha))
                 )
@@ -183,7 +188,7 @@ fun ActionButton(
             // Основная круглая кнопка
             Box(
                 modifier = Modifier
-                    .size(buttonSize)
+                    .requiredSize(buttonSize)
                     .clip(CircleShape)
                     .background(
                         when {
@@ -212,7 +217,7 @@ fun ActionButton(
                                         continue
                                     }
 
-                                    if (currentIsLocked) {
+                                    if (currentIsLocked || currentIsRecording) {
                                         val up = waitForUpOrCancellation()
                                         if (up != null) {
                                             currentOnStopLockedRecording()

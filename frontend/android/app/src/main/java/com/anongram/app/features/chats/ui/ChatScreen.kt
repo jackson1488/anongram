@@ -579,11 +579,7 @@ fun ChatScreen(
                 .padding(bottom = if (effectiveKeyboardVisible) 4.dp else 24.dp)
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onGloballyPositioned { coordinates ->
-                        inputBarHeightPx = coordinates.size.height
-                    }
+                modifier = Modifier.fillMaxWidth()
             ) {
                 // Плавающая кнопка паузы и тултип СВЕРХУ над полем ввода при заблокированной записи (Фото 1 и 3)
                 if (state.recording.isLocked && state.recording.mode == RecordMode.VOICE) {
@@ -593,37 +589,44 @@ fun ChatScreen(
                     )
                 }
 
-                if (state.isSearchOpen) {
-                    val counterText = if (isSearchListMode) {
-                        formatResultsCount(state.searchMatches.size)
-                    } else if (state.searchQuery.isNotBlank() && state.searchMatches.isEmpty()) {
-                        "Ничего не найдено"
-                    } else if (state.searchCounter.isNotBlank()) {
-                        state.searchCounter
-                    } else {
-                        "0 из 0"
-                    }
-                    val canOpenList = state.searchMatches.isNotEmpty() && state.searchQuery.isNotBlank()
-                    ChatSearchBottomBar(
-                        counter = counterText,
-                        isListMode = isSearchListMode,
-                        enabled = canOpenList,
-                        onListClick = {
-                            if (canOpenList) {
-                                isSearchListMode = !isSearchListMode
-                            }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { coordinates ->
+                            inputBarHeightPx = coordinates.size.height
                         }
-                    )
-                } else if (state.voiceReviewDraft != null) {
-                    VoiceTrimBar(
-                        voice = state.voiceReviewDraft,
-                        onDiscard = viewModel::discardVoiceReview,
-                        onSend = { startFrac, endFrac -> viewModel.sendVoiceReview(startFrac, endFrac) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 6.dp)
-                    )
-                } else {
+                ) {
+                    if (state.isSearchOpen) {
+                        val counterText = if (isSearchListMode) {
+                            formatResultsCount(state.searchMatches.size)
+                        } else if (state.searchQuery.isNotBlank() && state.searchMatches.isEmpty()) {
+                            "Ничего не найдено"
+                        } else if (state.searchCounter.isNotBlank()) {
+                            state.searchCounter
+                        } else {
+                            "0 из 0"
+                        }
+                        val canOpenList = state.searchMatches.isNotEmpty() && state.searchQuery.isNotBlank()
+                        ChatSearchBottomBar(
+                            counter = counterText,
+                            isListMode = isSearchListMode,
+                            enabled = canOpenList,
+                            onListClick = {
+                                if (canOpenList) {
+                                    isSearchListMode = !isSearchListMode
+                                }
+                            }
+                        )
+                    } else if (state.voiceReviewDraft != null) {
+                        VoiceTrimBar(
+                            voice = state.voiceReviewDraft,
+                            onDiscard = viewModel::discardVoiceReview,
+                            onSend = { startFrac, endFrac -> viewModel.sendVoiceReview(startFrac, endFrac) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 6.dp)
+                        )
+                    } else {
                     ChatInputBar(
                         input = state.input,
                         canSend = state.canSend,
@@ -741,6 +744,7 @@ fun ChatScreen(
                                 .height(stickerHeight)
                         )
                     }
+                }
                 }
             }
         }

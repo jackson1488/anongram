@@ -1184,14 +1184,25 @@ class ChatMessagesViewModel(
         val voice = _uiState.value.voiceReviewDraft ?: return
         _uiState.update { it.copy(voiceReviewDraft = null) }
         ChatDraftsRepository.instance.clearDraft(sessionId)
-        val trimmedWaveform = if (voice.waveform.isNotEmpty() && (startFraction > 0.02f || endFraction < 0.98f)) {
+        val isTrimmed = startFraction > 0.02f || endFraction < 0.98f
+        val trimmedWaveform = if (voice.waveform.isNotEmpty() && isTrimmed) {
             val startIdx = (startFraction * voice.waveform.size).toInt().coerceIn(0, voice.waveform.size - 1)
             val endIdx = (endFraction * voice.waveform.size).toInt().coerceIn(startIdx + 1, voice.waveform.size)
             voice.waveform.subList(startIdx, endIdx)
         } else {
             voice.waveform
         }
-        sendAttachment(voice.copy(waveform = trimmedWaveform))
+        val trimmedDurationLabel = if (isTrimmed) {
+            val parts = voice.durationLabel.split(":")
+            val origSec = if (parts.size == 2) {
+                (parts[0].toIntOrNull() ?: 0) * 60 + (parts[1].toIntOrNull() ?: 1)
+            } else 1
+            val newSec = ((endFraction - startFraction) * origSec).toInt().coerceAtLeast(1)
+            "%02d:%02d".format(newSec / 60, newSec % 60)
+        } else {
+            voice.durationLabel
+        }
+        sendAttachment(voice.copy(waveform = trimmedWaveform, durationLabel = trimmedDurationLabel))
     }
 
     fun discardVoiceReview() {

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
@@ -42,7 +43,7 @@ import com.anongram.app.features.chats.messages.state.RecordingState
  * Строка заблокированной записи голосового сообщения (Фото 6 в стиле Telegram):
  * - Красная пульсирующая точка + таймер «0:03,4» слева
  * - Текст «ОТМЕНА» по центру (акцентный цвет)
- * - Круглая кнопка отправки [ ➤ ] с аурой Monet справа
+ * - Круглая кнопка отправки [ ➤ ] с аурой Monet справа (выходит за пределы 48dp капсулы через requiredSize)
  */
 @Composable
 fun VoiceRecordingBar(
@@ -64,11 +65,10 @@ fun VoiceRecordingBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(50.dp)
-            .clip(RoundedCornerShape(25.dp))
-            .background(IslandBackground)
-            .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
-            .padding(horizontal = 14.dp, vertical = 4.dp),
+            .height(48.dp)
+            .background(IslandBackground, RoundedCornerShape(24.dp))
+            .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+            .padding(start = 16.dp, end = 4.dp),
         contentAlignment = Alignment.CenterStart
     ) {
         Row(
@@ -111,23 +111,23 @@ fun VoiceRecordingBar(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Круглая кнопка отправки с аурой Monet [ ➤ ] (Фото 6)
+            // Слот 42x42dp для кнопки отправки с аурой Monet [ ➤ ] (выходит за пределы капсулы через requiredSize)
             Box(
-                modifier = Modifier.size(54.dp),
+                modifier = Modifier.size(42.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Аура / Ореол
+                // Аура / Ореол Monet (78dp)
                 Box(
                     modifier = Modifier
-                        .size(54.dp)
+                        .requiredSize(78.dp)
                         .clip(CircleShape)
-                        .background(scheme.accent.copy(alpha = 0.32f))
+                        .background(scheme.accent.copy(alpha = 0.34f))
                 )
 
-                // Внутренняя кнопка
+                // Внутренняя кнопка (54dp)
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .requiredSize(54.dp)
                         .clip(CircleShape)
                         .background(scheme.accent)
                         .clickable(onClick = onSend),
@@ -137,7 +137,7 @@ fun VoiceRecordingBar(
                         imageVector = Icons.AutoMirrored.Outlined.Send,
                         contentDescription = "Отправить",
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
             }

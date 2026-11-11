@@ -298,7 +298,7 @@ internal fun ChatVoiceSection(
 }
 
 /**
- * Видео-кружок в пузыре (маленький круг в чате).
+ * Видео-кружок в пузыре (круг в чате 250dp с живым беззвучным автовоспроизведением как в Telegram — Фото 2 и 4).
  */
 @Composable
 internal fun ChatVideoCircleSection(
@@ -306,20 +306,21 @@ internal fun ChatVideoCircleSection(
     attachment: MessageAttachment.VideoCircle,
     onClick: () -> Unit = {}
 ) {
+    val videoFile = remember(attachment.uri) {
+        attachment.uri?.takeIf { it.isNotBlank() }?.let { File(it) }?.takeIf { it.exists() && it.length() > 0L }
+    }
+
     val thumbnailBitmap by produceState<Bitmap?>(initialValue = null, key1 = attachment.uri) {
-        val uriStr = attachment.uri
-        if (!uriStr.isNullOrBlank()) {
+        val file = videoFile
+        if (file != null) {
             withContext(Dispatchers.IO) {
-                val file = File(uriStr)
-                if (file.exists()) {
-                    val mmr = MediaMetadataRetriever()
-                    try {
-                        mmr.setDataSource(file.absolutePath)
-                        value = mmr.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                    } catch (_: Exception) {
-                    } finally {
-                        mmr.release()
-                    }
+                val mmr = MediaMetadataRetriever()
+                try {
+                    mmr.setDataSource(file.absolutePath)
+                    value = mmr.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                } catch (_: Exception) {
+                } finally {
+                    runCatching { mmr.release() }
                 }
             }
         }
@@ -329,8 +330,8 @@ internal fun ChatVideoCircleSection(
         modifier = Modifier
             .size(250.dp)
             .clip(CircleShape)
-            .background(Color.Black)
-            .border(1.5.dp, Color.White.copy(alpha = 0.2f), CircleShape)
+            .background(Color(0xFF1B1B22))
+            .border(1.5.dp, Color.White.copy(alpha = 0.22f), CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -344,14 +345,93 @@ internal fun ChatVideoCircleSection(
             )
         }
 
+        if (videoFile != null) {
+            var loopPlayer by remember(videoFile.absolutePath) {
+                androidx.compose.runtime.mutableStateOf<android.media.MediaPlayer?>(null)
+            }
+            androidx.compose.runtime.DisposableEffect(videoFile.absolutePath) {
+                onDispose {
+                    loopPlayer?.run {
+                        runCatching { stop() }
+                        runCatching { release() }
+                    }
+                    loopPlayer = null
+                }
+            }
+            androidx.compose.ui.viewinterop.AndroidView(
+                factory = { ctx ->
+                    android.view.TextureView(ctx).apply {
+                        isOpaque = false
+                        surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
+                            override fun onSurfaceTextureAvailable(
+                                st: android.graphics.SurfaceTexture,
+                                w: Int,
+                                h: Int
+                            ) {
+                                try {
+                                    val mp = android.media.MediaPlayer().apply {
+                                        setSurface(android.view.Surface(st))
+                                        setDataSource(videoFile.absolutePath)
+                                        setVolume(0f, 0f)
+                                        isLooping = true
+                                        setOnVideoSizeChangedListener { _, vw, vh ->
+                                            if (vw > 0 && vh > 0 && width > 0 && height > 0) {
+                                                val viewW = width.toFloat()
+                                                val viewH = height.toFloat()
+                                                val scaleX: Float
+                                                val scaleY: Float
+                                                if (vw.toFloat() / vh.toFloat() > viewW / viewH) {
+                                                    scaleX = (vw.toFloat() / vh.toFloat()) / (viewW / viewH)
+                                                    scaleY = 1f
+                                                } else {
+                                                    scaleX = 1f
+                                                    scaleY = (viewW / viewH) / (vw.toFloat() / vh.toFloat())
+                                                }
+                                                val matrix = android.graphics.Matrix()
+                                                matrix.setScale(scaleX, scaleY, viewW / 2f, viewH / 2f)
+                                                setTransform(matrix)
+                                            }
+                                        }
+                                        setOnPreparedListener { player ->
+                                            runCatching { player.start() }
+                                        }
+                                        prepareAsync()
+                                    }
+                                    loopPlayer = mp
+                                } catch (_: Exception) {}
+                            }
+
+                            override fun onSurfaceTextureSizeChanged(
+                                st: android.graphics.SurfaceTexture,
+                                w: Int,
+                                h: Int
+                            ) {}
+
+                            override fun onSurfaceTextureDestroyed(st: android.graphics.SurfaceTexture): Boolean {
+                                loopPlayer?.run {
+                                    runCatching { stop() }
+                                    runCatching { release() }
+                                }
+                                loopPlayer = null
+                                return true
+                            }
+
+                            override fun onSurfaceTextureUpdated(st: android.graphics.SurfaceTexture) {}
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
         // Внизу внутри кружочка (Фото 2 и Фото 4 в стиле Telegram):
-        // Слева: Длительность со значком кружочка [ 00:16 ⚪ ]
+        // Слева: Длительность со значком кружочка [ 00:16 • ]
         Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 16.dp, bottom = 12.dp)
+                .padding(start = 18.dp, bottom = 14.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color.Black.copy(alpha = 0.55f))
+                .background(Color.Black.copy(alpha = 0.58f))
                 .padding(horizontal = 7.dp, vertical = 2.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -362,7 +442,7 @@ internal fun ChatVideoCircleSection(
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.width(3.dp))
+                Spacer(modifier = Modifier.width(4.dp))
                 Box(
                     modifier = Modifier
                         .size(5.dp)
@@ -376,9 +456,9 @@ internal fun ChatVideoCircleSection(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 12.dp)
+                .padding(end = 18.dp, bottom = 14.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(Color.Black.copy(alpha = 0.55f))
+                .background(Color.Black.copy(alpha = 0.58f))
                 .padding(horizontal = 7.dp, vertical = 2.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
