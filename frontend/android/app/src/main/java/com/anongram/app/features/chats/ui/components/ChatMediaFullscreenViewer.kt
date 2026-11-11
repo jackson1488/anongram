@@ -52,6 +52,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Reply
 import androidx.compose.material.icons.outlined.Share
@@ -568,7 +570,7 @@ internal fun ChatMediaFullscreenViewer(
                                             val ok = savePhotoToDeviceGallery(context, currentUriString)
                                             ChatActionBannerBus.show(
                                                 text = if (ok) "Сохранено в галерею" else "Не удалось сохранить фото",
-                                                icon = if (ok) androidx.compose.material.icons.Icons.Outlined.FileDownload else androidx.compose.material.icons.Icons.Outlined.ErrorOutline,
+                                                icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
                                                 isError = !ok
                                             )
                                         }

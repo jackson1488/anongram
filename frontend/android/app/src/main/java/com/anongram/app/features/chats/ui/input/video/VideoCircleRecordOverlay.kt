@@ -395,8 +395,15 @@ fun VideoCircleRecordOverlay(
                                 factory = { ctx ->
                                     TextureView(ctx).apply {
                                         isOpaque = false
+                                        clipToOutline = true
+                                        outlineProvider = object : android.view.ViewOutlineProvider() {
+                                            override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                                                outline.setOval(0, 0, view.width, view.height)
+                                            }
+                                        }
                                         surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                                             override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                                                invalidateOutline()
                                                 try {
                                                     reviewSurfaceRef?.let { runCatching { it.release() } }
                                                     val surf = Surface(st)
@@ -434,7 +441,9 @@ fun VideoCircleRecordOverlay(
                                                 } catch (_: Exception) {}
                                             }
 
-                                            override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+                                            override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
+                                                invalidateOutline()
+                                            }
                                             override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
                                                 hasReviewFrame = false
                                                 val mp = reviewPlayer
@@ -461,6 +470,7 @@ fun VideoCircleRecordOverlay(
                                 },
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .clip(CircleShape)
                                     .alpha(if (hasReviewFrame) 1f else 0f)
                             )
                         }
@@ -485,9 +495,16 @@ fun VideoCircleRecordOverlay(
                         AndroidView(
                             factory = { ctx ->
                                 TextureView(ctx).apply {
+                                    clipToOutline = true
+                                    outlineProvider = object : android.view.ViewOutlineProvider() {
+                                        override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                                            outline.setOval(0, 0, view.width, view.height)
+                                        }
+                                    }
                                     liveTextureViewRef = this
                                     surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                                         override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                                            invalidateOutline()
                                             cameraManager.startPreview(
                                                 surfaceTexture = st,
                                                 width = w,
@@ -498,6 +515,7 @@ fun VideoCircleRecordOverlay(
                                         }
 
                                         override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
+                                            invalidateOutline()
                                             cameraManager.updatePreviewSize(w, h)
                                         }
 
@@ -510,7 +528,9 @@ fun VideoCircleRecordOverlay(
                                     }
                                 }
                             },
-                            modifier = Modifier.fillMaxSize()
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
                         )
 
                         focusTapState?.let { (nx, ny, _) ->

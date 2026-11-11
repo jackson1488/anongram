@@ -988,6 +988,12 @@ internal fun ChatVideoCircleSection(
                     factory = { ctx ->
                         android.view.TextureView(ctx).apply {
                             isOpaque = false
+                            clipToOutline = true
+                            outlineProvider = object : android.view.ViewOutlineProvider() {
+                                override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
+                                    outline.setOval(0, 0, view.width, view.height)
+                                }
+                            }
                             textureViewRef = this
                             surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
                                 override fun onSurfaceTextureAvailable(
@@ -995,6 +1001,7 @@ internal fun ChatVideoCircleSection(
                                     w: Int,
                                     h: Int
                                 ) {
+                                    invalidateOutline()
                                     surfaceTextureRef = st
                                     applyVideoCircleCenterCrop(this@apply, videoMeta.width, videoMeta.height)
                                 }
@@ -1004,6 +1011,7 @@ internal fun ChatVideoCircleSection(
                                     w: Int,
                                     h: Int
                                 ) {
+                                    invalidateOutline()
                                     applyVideoCircleCenterCrop(this@apply, videoMeta.width, videoMeta.height)
                                 }
 
@@ -1035,6 +1043,7 @@ internal fun ChatVideoCircleSection(
                     },
                     modifier = Modifier
                         .fillMaxSize()
+                        .clip(CircleShape)
                         .alpha(if (hasRenderedVideoFrame || isExpanded) 1f else 0f)
                 )
             }
