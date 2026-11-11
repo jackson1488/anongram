@@ -23,12 +23,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Элемент списка главного меню настроек (Макет 1):
  * - Иконка в цветном закруглённом квадрате (34x34dp, радиус 10dp);
- * - Заголовок раздела (белый, полужирный);
- * - Подзаголовок с кратким описанием (серый).
+ * - Заголовок раздела;
+ * - Подзаголовок с кратким описанием.
  *
  * @param icon Иконка раздела.
  * @param iconBackgroundColor Цвет фона подложки иконки.
@@ -43,8 +44,11 @@ fun SettingsItemRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    iconTint: Color = Color.White
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -62,7 +66,7 @@ fun SettingsItemRow(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = Color.White,
+                tint = iconTint,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -72,7 +76,7 @@ fun SettingsItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -81,7 +85,7 @@ fun SettingsItemRow(
 
             Text(
                 text = subtitle,
-                color = Color(0xFF8E8E93),
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Normal
             )

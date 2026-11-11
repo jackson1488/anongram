@@ -63,9 +63,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.border
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.permissions.PermissionUtils
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.api.AttachmentDraft
 import com.anongram.app.features.attach.ui.components.PermissionDeniedView
 import kotlinx.coroutines.Dispatchers
@@ -83,15 +85,13 @@ data class NearbyPlace(
     val category: String
 )
 
-private val PurpleAccent = Color(0xFF8B5CF6)
-private val CardBg = Color(0xFF182238)
-
 @SuppressLint("MissingPermission")
 @Composable
 fun LocationTab(
     onSendLocation: (AttachmentDraft) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -179,21 +179,21 @@ fun LocationTab(
         modifier = modifier
             .fillMaxSize()
     ) {
-        // Dark Map View with Center Pin
+        val mapBg = if (scheme.isDark) Color(0xFF0F172A) else Color(0xFFE2E8F0)
+        val gridColor = if (scheme.isDark) Color(0xFF1E293B) else Color(0xFFCBD5E1)
+        val roadColor = if (scheme.isDark) Color(0xFF334155) else Color(0xFFFFFFFF)
+        val parkColor = if (scheme.isDark) Color(0xFF064E3B).copy(alpha = 0.3f) else Color(0xFF86EFAC).copy(alpha = 0.45f)
+
+        // Stylised Map View with Center Pin
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(240.dp)
-                .background(Color(0xFF0F172A))
+                .background(mapBg)
         ) {
-            // Dark stylised map canvas
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val w = size.width
                 val h = size.height
-
-                // Road grid
-                val gridColor = Color(0xFF1E293B)
-                val roadColor = Color(0xFF334155)
 
                 for (y in 0 until h.toInt() step 60) {
                     drawLine(gridColor, Offset(0f, y.toFloat()), Offset(w, y.toFloat()), strokeWidth = 1.dp.toPx())
@@ -208,7 +208,6 @@ fun LocationTab(
                 drawLine(roadColor, Offset(0f, h * 0.8f), Offset(w, h * 0.2f), strokeWidth = 4.dp.toPx())
 
                 // Water or park accent
-                val parkColor = Color(0xFF064E3B).copy(alpha = 0.3f)
                 drawCircle(parkColor, radius = 90.dp.toPx(), center = Offset(w * 0.8f, h * 0.7f))
             }
 
@@ -223,14 +222,15 @@ fun LocationTab(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xDD182238))
+                        .background(scheme.islandBg.copy(alpha = 0.92f))
+                        .border(1.dp, scheme.islandBorder, CircleShape)
                         .clickable {},
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Layers,
                         contentDescription = "Layers",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -239,7 +239,8 @@ fun LocationTab(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xDD182238))
+                        .background(scheme.islandBg.copy(alpha = 0.92f))
+                        .border(1.dp, scheme.islandBorder, CircleShape)
                         .clickable {
                             val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
                             try {
@@ -256,13 +257,13 @@ fun LocationTab(
                     Icon(
                         imageVector = Icons.Default.MyLocation,
                         contentDescription = "My location",
-                        tint = PurpleAccent,
+                        tint = scheme.accent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            // Center Pin with Purple Glow
+            // Center Pin with Accent Glow
             Box(
                 modifier = Modifier.align(Alignment.Center),
                 contentAlignment = Alignment.Center
@@ -272,12 +273,12 @@ fun LocationTab(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(PurpleAccent.copy(alpha = 0.3f))
+                        .background(scheme.accent.copy(alpha = 0.3f))
                 )
                 Icon(
                     imageVector = Icons.Default.Place,
                     contentDescription = "Location pin",
-                    tint = PurpleAccent,
+                    tint = scheme.accent,
                     modifier = Modifier.size(42.dp)
                 )
             }
@@ -298,7 +299,8 @@ fun LocationTab(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(CardBg)
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
                         .clickable {
                             onSendLocation(
                                 AttachmentDraft.Location(
@@ -315,13 +317,13 @@ fun LocationTab(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(PurpleAccent),
+                            .background(scheme.accent),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.NearMe,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = scheme.onAccent,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -331,14 +333,14 @@ fun LocationTab(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Отправить выбранную геопозицию",
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = currentAddress,
-                            color = Color(0xFF94A3B8),
+                            color = scheme.textSecondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -353,7 +355,8 @@ fun LocationTab(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(CardBg)
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
                         .clickable { showLiveDialog = true }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -378,14 +381,14 @@ fun LocationTab(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = "Транслировать геопозицию",
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "Показывать, где я нахожусь в реальном времени",
-                            color = Color(0xFF94A3B8),
+                            color = scheme.textSecondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -397,7 +400,7 @@ fun LocationTab(
 
                 Text(
                     text = "Или выберите место",
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -409,6 +412,7 @@ fun LocationTab(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
                         .clickable {
                             onSendLocation(
                                 AttachmentDraft.Location(
@@ -425,13 +429,14 @@ fun LocationTab(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1E293B)),
+                            .background(scheme.card)
+                            .border(1.dp, scheme.cardBorder, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Place,
                             contentDescription = null,
-                            tint = Color(0xFF94A3B8),
+                            tint = scheme.textSecondary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -441,13 +446,13 @@ fun LocationTab(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = place.name,
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = place.address,
-                            color = Color(0xFF64748B),
+                            color = scheme.textMuted,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -465,7 +470,7 @@ fun LocationTab(
             title = {
                 Text(
                     text = "Трансляция геопозиции",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -474,7 +479,7 @@ fun LocationTab(
                 Column {
                     Text(
                         text = "Выберите продолжительность трансляции вашего местоположения:",
-                        color = Color(0xFF94A3B8),
+                        color = scheme.textSecondary,
                         fontSize = 13.sp
                     )
                     Spacer(modifier = Modifier.height(12.dp))
@@ -496,10 +501,13 @@ fun LocationTab(
                             RadioButton(
                                 selected = (selectedLiveDuration == mins),
                                 onClick = { selectedLiveDuration = mins },
-                                colors = RadioButtonDefaults.colors(selectedColor = PurpleAccent)
+                                colors = RadioButtonDefaults.colors(
+                                    selectedColor = scheme.accent,
+                                    unselectedColor = scheme.textMuted
+                                )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(text = label, color = Color.White, fontSize = 14.sp)
+                            Text(text = label, color = scheme.textPrimary, fontSize = 14.sp)
                         }
                     }
                 }
@@ -513,17 +521,17 @@ fun LocationTab(
                             AttachmentDraft.LiveLocation(durationMin = selectedLiveDuration)
                         )
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent)
+                    colors = ButtonDefaults.buttonColors(containerColor = scheme.accent)
                 ) {
-                    Text("Начать", color = Color.White)
+                    Text("Начать", color = scheme.onAccent)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLiveDialog = false }) {
-                    Text("Отмена", color = Color(0xFF94A3B8))
+                    Text("Отмена", color = scheme.textSecondary)
                 }
             },
-            containerColor = Color(0xFF182238),
+            containerColor = scheme.card,
             shape = RoundedCornerShape(16.dp)
         )
     }

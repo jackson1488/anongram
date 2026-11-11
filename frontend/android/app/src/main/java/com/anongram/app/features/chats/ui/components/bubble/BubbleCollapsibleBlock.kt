@@ -25,6 +25,7 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,7 +36,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -62,6 +62,7 @@ fun BubbleCollapsibleBlock(
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = LocalInputStrings.current
+    val contentTint = LocalContentColor.current
     var isExpanded by remember { mutableStateOf(initiallyExpanded) }
 
     Box(
@@ -105,7 +106,7 @@ fun BubbleCollapsibleBlock(
 
                 Text(
                     text = title.ifBlank { "Сворачиваемый блок" },
-                    color = Color.White,
+                    color = contentTint,
                     fontSize = (textSizeSp + 1).sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -140,7 +141,7 @@ fun BubbleCollapsibleBlock(
                         } else if (bLine.isNotEmpty()) {
                             Text(
                                 text = buildRichAnnotatedText(bLine, scheme.accent),
-                                color = Color(0xFFE2E8F0),
+                                color = contentTint,
                                 fontSize = textSizeSp.sp,
                                 lineHeight = (textSizeSp * 1.28f).sp
                             )
@@ -158,7 +159,7 @@ fun BubbleCollapsibleBlock(
                 if (!author.isNullOrBlank()) {
                     Text(
                         text = "— $author",
-                        color = Color(0xFFA1A1AA),
+                        color = contentTint.copy(alpha = 0.65f),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
                         fontStyle = FontStyle.Italic,

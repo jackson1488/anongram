@@ -98,7 +98,7 @@ fun HeadingPickerSubmenu(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "H$level",
-                        color = if (isSelected) scheme.accent else Color.White,
+                        color = if (isSelected) scheme.accent else scheme.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.width(28.dp)
@@ -106,7 +106,7 @@ fun HeadingPickerSubmenu(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = label,
-                        color = if (isSelected) scheme.accent else Color.White,
+                        color = if (isSelected) scheme.accent else scheme.textPrimary,
                         fontSize = fontSizeSp,
                         fontWeight = if (level <= 3) FontWeight.Bold else FontWeight.SemiBold
                     )

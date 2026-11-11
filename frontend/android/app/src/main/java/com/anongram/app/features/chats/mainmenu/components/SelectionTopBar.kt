@@ -35,12 +35,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeStatusBarPadding
 
 /**
@@ -69,7 +65,7 @@ internal fun SelectionTopBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(SurfaceDark)
+            .background(scheme.surface)
             .safeStatusBarPadding()
             .padding(horizontal = 4.dp, vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -78,14 +74,14 @@ internal fun SelectionTopBar(
             Icon(
                 imageVector = Icons.Outlined.Close,
                 contentDescription = "Выйти из режима выбора",
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
         }
 
         Text(
             text = selectedCount.toString(),
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(start = 2.dp)
@@ -96,13 +92,13 @@ internal fun SelectionTopBar(
         SelectionIcon(
             icon = Icons.Outlined.PushPin,
             description = if (allPinned) "Открепить" else "Закрепить",
-            tint = if (allPinned) scheme.accent else TextSecondary,
+            tint = if (allPinned) scheme.accent else scheme.textSecondary,
             onClick = onTogglePin
         )
         SelectionIcon(
             icon = if (allMuted) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,
             description = if (allMuted) "Включить звук" else "Без звука",
-            tint = if (allMuted) scheme.accent else TextSecondary,
+            tint = if (allMuted) scheme.accent else scheme.textSecondary,
             onClick = onMute
         )
         SelectionIcon(
@@ -117,14 +113,14 @@ internal fun SelectionTopBar(
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,
                     contentDescription = "Действия выбора",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(22.dp)
                 )
             }
             DropdownMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                containerColor = CardDark
+                containerColor = scheme.card
             ) {
                 MenuAction(
                     icon = if (isArchiveMode) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
@@ -175,15 +171,17 @@ private fun MenuAction(
     label: String,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     DropdownMenuItem(
         text = {
-            Text(text = label, color = TextPrimary, fontSize = 13.sp)
+            Text(text = label, color = scheme.textPrimary, fontSize = 13.sp)
         },
         leadingIcon = {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(17.dp)
             )
         },

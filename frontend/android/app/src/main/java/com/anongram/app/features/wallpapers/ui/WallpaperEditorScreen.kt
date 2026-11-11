@@ -46,13 +46,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.wallpapers.logic.EditorViewModel
 import com.anongram.app.features.wallpapers.ui.components.WallpaperMockChat
-
-private val AccentViolet = Color(0xFF7A4DF3)
 
 /**
  * Экран редактора обоев:
@@ -71,6 +67,7 @@ fun WallpaperEditorScreen(
     onApplied: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val state by viewModel.uiState.collectAsState()
     val screenWidthPx = LocalConfiguration.current.screenWidthDp * 2.5f
     var accumulatedDrag by remember { mutableFloatStateOf(0f) }
@@ -102,7 +99,7 @@ fun WallpaperEditorScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
-                        tint = TextPrimary
+                        tint = scheme.textPrimary
                     )
                 }
 
@@ -110,7 +107,7 @@ fun WallpaperEditorScreen(
 
                 Text(
                     text = "Обои",
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -122,12 +119,12 @@ fun WallpaperEditorScreen(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.4f))
+                        .background(Color.Black.copy(alpha = 0.45f))
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Brush,
                         contentDescription = "Сменить фон",
-                        tint = TextPrimary,
+                        tint = Color.White,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -140,7 +137,7 @@ fun WallpaperEditorScreen(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.4f))
+                        .background(Color.Black.copy(alpha = 0.45f))
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.WbSunny,
@@ -165,7 +162,7 @@ fun WallpaperEditorScreen(
             ) {
                 Text(
                     text = "Затемнение ${state.dim}% (проведите пальцем)",
-                    color = TextPrimary,
+                    color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -198,8 +195,8 @@ fun WallpaperEditorScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
-                    .background(Color(0xFF0F172A).copy(alpha = 0.95f))
-                    .border(1.dp, CardBorder, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+                    .background(scheme.card.copy(alpha = 0.95f))
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
                     .padding(horizontal = 16.dp, vertical = 16.dp)
             ) {
                 // Чипы «Размытие» и «Движение»
@@ -231,7 +228,10 @@ fun WallpaperEditorScreen(
                     onClick = {
                         viewModel.applyWallpaper(onApplied)
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentViolet),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = scheme.accent,
+                        contentColor = scheme.onAccent
+                    ),
                     shape = RoundedCornerShape(12.dp),
                     enabled = !state.isSaving,
                     modifier = Modifier
@@ -240,14 +240,14 @@ fun WallpaperEditorScreen(
                 ) {
                     if (state.isSaving) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = scheme.onAccent,
                             modifier = Modifier.size(20.dp),
                             strokeWidth = 2.dp
                         )
                     } else {
                         Text(
                             text = "Применить у меня",
-                            color = Color.White,
+                            color = scheme.onAccent,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -269,9 +269,10 @@ private fun EditorOptionChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val bg = if (isActive) AccentViolet else Color(0xFF1E293B)
-    val contentColor = if (isActive) Color.White else TextSecondary
-    val borderColor = if (isActive) AccentViolet else CardBorder
+    val scheme = LocalAnonGramScheme.current
+    val bg = if (isActive) scheme.accent else scheme.surface
+    val contentColor = if (isActive) scheme.onAccent else scheme.textSecondary
+    val borderColor = if (isActive) scheme.accent else scheme.cardBorder
 
     Row(
         verticalAlignment = Alignment.CenterVertically,

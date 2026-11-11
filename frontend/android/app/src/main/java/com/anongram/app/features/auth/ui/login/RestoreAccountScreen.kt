@@ -55,8 +55,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.auth.data.crypto.Bip39WordList
 import com.anongram.app.features.auth.domain.model.SeedPhrase
 import com.anongram.app.features.auth.domain.model.UserIdentity
@@ -85,12 +85,7 @@ fun RestoreAccountScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-
-    val obsidianBackground = Color(0xFF0D0B14)
-    val purpleAccent = Color(0xFF8B5CF6)
-    val lilacAccent = Color(0xFFC084FC)
-    val cardBackground = Color(0xFF161224)
-    val cardBorder = Color(0x338B5CF6)
+    val scheme = LocalAnonGramScheme.current
     val errorRed = Color(0xFFEF4444)
 
     val words = remember { mutableStateListOf(*Array(12) { "" }) }
@@ -161,13 +156,7 @@ fun RestoreAccountScreen(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(obsidianBackground)
-            .safeStatusBarPadding()
-            .safeNavigationBarPadding()
-    ) {
+    AnonGramScreenSurface(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -189,12 +178,13 @@ fun RestoreAccountScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1F1A30))
+                            .background(scheme.islandBg)
+                            .border(0.8.dp, scheme.islandBorder, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
-                            tint = Color.White
+                            tint = scheme.textPrimary
                         )
                     }
 
@@ -202,7 +192,7 @@ fun RestoreAccountScreen(
 
                     Text(
                         text = "Вход по Seed-фразе",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -219,8 +209,8 @@ fun RestoreAccountScreen(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF1D1730))
-                            .border(1.dp, Color(0x4D8B5CF6), RoundedCornerShape(14.dp))
+                            .background(scheme.accentSoft)
+                            .border(1.dp, scheme.accent.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
                             .clickable { pasteFromClipboard() }
                             .padding(vertical = 10.dp),
                         horizontalArrangement = Arrangement.Center,
@@ -229,13 +219,13 @@ fun RestoreAccountScreen(
                         Icon(
                             imageVector = Icons.Default.ContentPaste,
                             contentDescription = "Вставить",
-                            tint = lilacAccent,
+                            tint = scheme.accent,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Вставить из буфера",
-                            color = lilacAccent,
+                            color = scheme.accent,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -244,8 +234,8 @@ fun RestoreAccountScreen(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFF1F1524))
-                            .border(1.dp, Color(0x33EF4444), RoundedCornerShape(14.dp))
+                            .background(errorRed.copy(alpha = 0.12f))
+                            .border(1.dp, errorRed.copy(alpha = 0.35f), RoundedCornerShape(14.dp))
                             .clickable {
                                 for (i in 0 until 12) words[i] = ""
                                 errorMessage = null
@@ -257,7 +247,7 @@ fun RestoreAccountScreen(
                         Icon(
                             imageVector = Icons.Default.DeleteOutline,
                             contentDescription = "Очистить",
-                            tint = Color(0xFFEF4444),
+                            tint = errorRed,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -270,8 +260,8 @@ fun RestoreAccountScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(20.dp))
-                        .background(cardBackground)
-                        .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                         .padding(12.dp)
                 ) {
                     for (row in 0 until 4) {
@@ -293,17 +283,17 @@ fun RestoreAccountScreen(
                                         .clip(RoundedCornerShape(12.dp))
                                         .background(
                                             when {
-                                                isSelected -> Color(0xFF2C1F4A)
-                                                wordValue.isNotEmpty() -> Color(0xFF201834)
-                                                else -> Color(0xFF191228)
+                                                isSelected -> scheme.accentSoft
+                                                wordValue.isNotEmpty() -> scheme.inputBg
+                                                else -> scheme.surface
                                             }
                                         )
                                         .border(
                                             width = 1.dp,
                                             color = when {
                                                 !isValid -> errorRed
-                                                isSelected -> lilacAccent
-                                                else -> Color(0x338B5CF6)
+                                                isSelected -> scheme.accent
+                                                else -> scheme.inputBorder
                                             },
                                             shape = RoundedCornerShape(12.dp)
                                         )
@@ -313,7 +303,7 @@ fun RestoreAccountScreen(
                                     Column {
                                         Text(
                                             text = "${slotIndex + 1}.",
-                                            color = Color(0xFF94A3B8),
+                                            color = scheme.textMuted,
                                             fontSize = 10.sp,
                                             fontFamily = FontFamily.Monospace
                                         )
@@ -325,12 +315,12 @@ fun RestoreAccountScreen(
                                                 errorMessage = null
                                             },
                                             textStyle = TextStyle(
-                                                color = Color.White,
+                                                color = scheme.textPrimary,
                                                 fontSize = 13.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 fontFamily = FontFamily.Monospace
                                             ),
-                                            cursorBrush = SolidColor(purpleAccent),
+                                            cursorBrush = SolidColor(scheme.accent),
                                             singleLine = true,
                                             modifier = Modifier.fillMaxWidth()
                                         )
@@ -350,7 +340,7 @@ fun RestoreAccountScreen(
                     ) {
                         Text(
                             text = "Подсказки словаря BIP-39:",
-                            color = lilacAccent,
+                            color = scheme.accent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -364,7 +354,7 @@ fun RestoreAccountScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(purpleAccent)
+                                        .background(scheme.accent)
                                         .clickable {
                                             words[activeSlotIndex] = sugg
                                             if (activeSlotIndex < 11) {
@@ -375,7 +365,7 @@ fun RestoreAccountScreen(
                                 ) {
                                     Text(
                                         text = sugg,
-                                        color = Color.White,
+                                        color = scheme.onAccent,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         fontFamily = FontFamily.Monospace
@@ -408,11 +398,11 @@ fun RestoreAccountScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(16.dp, RoundedCornerShape(28.dp), ambientColor = purpleAccent, spotColor = purpleAccent)
+                        .shadow(16.dp, RoundedCornerShape(28.dp), ambientColor = scheme.accent, spotColor = scheme.accent)
                         .clip(RoundedCornerShape(28.dp))
                         .background(
                             Brush.horizontalGradient(
-                                listOf(Color(0xFF7C3AED), Color(0xFF9333EA), Color(0xFFC084FC))
+                                listOf(scheme.accent, scheme.accentDim)
                             )
                         )
                         .clickable(enabled = !isLoading) { validateAndRestore() },
@@ -420,14 +410,14 @@ fun RestoreAccountScreen(
                 ) {
                     if (isLoading) {
                         CircularProgressIndicator(
-                            color = Color.White,
+                            color = scheme.onAccent,
                             modifier = Modifier.size(24.dp),
                             strokeWidth = 2.dp
                         )
                     } else {
                         Text(
                             text = "Восстановить аккаунт",
-                            color = Color.White,
+                            color = scheme.onAccent,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )

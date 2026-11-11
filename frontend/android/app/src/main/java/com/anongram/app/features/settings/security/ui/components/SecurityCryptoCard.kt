@@ -45,7 +45,8 @@ fun SecurityCryptoCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF141318))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(16.dp)
     ) {
         // Шапка карточки с неоновым щитом в акцентных цветах активной темы
@@ -65,7 +66,7 @@ fun SecurityCryptoCard(
                 Icon(
                     imageVector = Icons.Default.Shield,
                     contentDescription = "Криптографическая защита",
-                    tint = Color.White,
+                    tint = scheme.onAccent,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -73,7 +74,7 @@ fun SecurityCryptoCard(
             Column {
                 Text(
                     text = "AnonGram Quantum Shield",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -87,7 +88,7 @@ fun SecurityCryptoCard(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         // Пункт 1: ML-DSA-87
@@ -124,6 +125,8 @@ private fun CryptoStatusRow(
     accentColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.Top
@@ -148,13 +151,13 @@ private fun CryptoStatusRow(
         Column {
             Text(
                 text = title,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = description,
-                color = Color(0xFF8E99A8),
+                color = scheme.textSecondary,
                 fontSize = 11.sp,
                 lineHeight = 15.sp
             )

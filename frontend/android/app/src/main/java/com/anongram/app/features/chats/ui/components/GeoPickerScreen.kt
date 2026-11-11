@@ -2,8 +2,8 @@ package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,14 +45,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -61,7 +54,7 @@ private data class NearbyPlace(val name: String, val address: String, val distan
 
 /**
  * Экран геопозиции (шаг 5):
- * - тёмная карта со стилизованной сеткой, кнопка назад, заголовок, поиск, слои, моя позиция
+ * - карта со стилизованной сеткой, кнопка назад, заголовок, поиск, слои, моя позиция
  * - карточка «Отправить выбранную геопозицию»
  * - карточка «Транслировать геопозицию»
  * - «Или выберите место»: список мест рядом.
@@ -84,10 +77,14 @@ internal fun GeoPickerScreen(
         )
     }
 
+    val mapBg = if (scheme.isDark) Color(0xFF0F141C) else scheme.surface
+    val mapGridColor = if (scheme.isDark) Color(0xFF1B2330) else scheme.divider
+    val mapRoadColor = if (scheme.isDark) Color(0xFF243042) else scheme.cardBorder
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
             .safeStatusBarPadding()
             .safeNavigationBarPadding()
     ) {
@@ -102,19 +99,19 @@ internal fun GeoPickerScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = "Назад",
-                    tint = TextPrimary
+                    tint = scheme.textPrimary
                 )
             }
             Text(
                 text = "Геопозиция",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 4.dp)
             )
             Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = {}) {
-                Icon(imageVector = Icons.Outlined.Layers, contentDescription = "Слои", tint = TextSecondary)
+                Icon(imageVector = Icons.Outlined.Layers, contentDescription = "Слои", tint = scheme.textSecondary)
             }
             IconButton(onClick = {}) {
                 Icon(imageVector = Icons.Outlined.MyLocation, contentDescription = "Моя позиция", tint = scheme.accent)
@@ -127,21 +124,22 @@ internal fun GeoPickerScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 4.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(CardDark)
+                .background(scheme.inputBg)
+                .border(1.dp, scheme.inputBorder, RoundedCornerShape(16.dp))
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(imageVector = Icons.Outlined.Search, contentDescription = null, tint = TextMuted, modifier = Modifier.size(17.dp))
+                Icon(imageVector = Icons.Outlined.Search, contentDescription = null, tint = scheme.textMuted, modifier = Modifier.size(17.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Box(modifier = Modifier.weight(1f)) {
                     if (query.isEmpty()) {
-                        Text(text = "Поиск мест...", color = TextMuted, fontSize = 13.sp)
+                        Text(text = "Поиск мест...", color = scheme.textMuted, fontSize = 13.sp)
                     }
                     BasicTextField(
                         value = query,
                         onValueChange = { query = it },
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp),
+                        textStyle = TextStyle(color = scheme.textPrimary, fontSize = 13.sp),
                         singleLine = true,
                         cursorBrush = SolidColor(scheme.accent)
                     )
@@ -149,26 +147,25 @@ internal fun GeoPickerScreen(
             }
         }
 
-        // Тёмная карта (Canvas со стилизованными дорогами и маркером)
+        // Карта (Canvas со стилизованными дорогами и маркером)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(200.dp)
-                .background(Color(0xFF0F141C)),
+                .background(mapBg),
             contentAlignment = Alignment.Center
         ) {
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val gridColor = Color(0xFF1B2330)
                 val step = 32.dp.toPx()
                 for (x in 0..(size.width / step).toInt()) {
-                    drawLine(gridColor, Offset(x * step, 0f), Offset(x * step, size.height), 1f)
+                    drawLine(mapGridColor, Offset(x * step, 0f), Offset(x * step, size.height), 1f)
                 }
                 for (y in 0..(size.height / step).toInt()) {
-                    drawLine(gridColor, Offset(0f, y * step), Offset(size.width, y * step), 1f)
+                    drawLine(mapGridColor, Offset(0f, y * step), Offset(size.width, y * step), 1f)
                 }
                 // Стиль дороги
-                drawLine(Color(0xFF243042), Offset(0f, size.height * 0.45f), Offset(size.width, size.height * 0.55f), 6f)
-                drawLine(Color(0xFF243042), Offset(size.width * 0.5f, 0f), Offset(size.width * 0.45f, size.height), 6f)
+                drawLine(mapRoadColor, Offset(0f, size.height * 0.45f), Offset(size.width, size.height * 0.55f), 6f)
+                drawLine(mapRoadColor, Offset(size.width * 0.5f, 0f), Offset(size.width * 0.45f, size.height), 6f)
             }
 
             // Центральный маркер
@@ -180,7 +177,7 @@ internal fun GeoPickerScreen(
                         .background(scheme.accent),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = Icons.Outlined.LocationOn, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+                    Icon(imageVector = Icons.Outlined.LocationOn, contentDescription = null, tint = scheme.onAccent, modifier = Modifier.size(22.dp))
                 }
                 Box(
                     modifier = Modifier
@@ -205,7 +202,8 @@ internal fun GeoPickerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(CardDark)
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(14.dp))
                         .clickable { onSendGeo(MessageAttachment.Geo("ул. Мира, 12, Центральный район")) }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -214,7 +212,7 @@ internal fun GeoPickerScreen(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(scheme.accent.copy(alpha = 0.2f)),
+                            .background(scheme.accentSoft),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(imageVector = Icons.Outlined.Navigation, contentDescription = null, tint = scheme.accent, modifier = Modifier.size(20.dp))
@@ -222,7 +220,7 @@ internal fun GeoPickerScreen(
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "Отправить выбранную геопозицию", color = scheme.accent, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "ул. Мира, 12, Центральный район", color = TextMuted, fontSize = 12.sp)
+                        Text(text = "ул. Мира, 12, Центральный район", color = scheme.textMuted, fontSize = 12.sp)
                     }
                 }
             }
@@ -234,7 +232,8 @@ internal fun GeoPickerScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(CardDark)
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(14.dp))
                         .clickable { onSendGeo(MessageAttachment.Geo("Трансляция геопозиции (в реальном времени)")) }
                         .padding(14.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -243,15 +242,15 @@ internal fun GeoPickerScreen(
                         modifier = Modifier
                             .size(36.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF2E7D32).copy(alpha = 0.2f)),
+                            .background(Color(0xFF10B981).copy(alpha = 0.2f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(imageVector = Icons.Outlined.Radio, contentDescription = null, tint = Color(0xFF66BB6A), modifier = Modifier.size(20.dp))
+                        Icon(imageVector = Icons.Outlined.Radio, contentDescription = null, tint = Color(0xFF10B981), modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Транслировать геопозицию", color = Color(0xFF66BB6A), fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "Обновляется в реальном времени", color = TextMuted, fontSize = 12.sp)
+                        Text(text = "Транслировать геопозицию", color = Color(0xFF10B981), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Обновляется в реальном времени", color = scheme.textMuted, fontSize = 12.sp)
                     }
                 }
             }
@@ -260,7 +259,7 @@ internal fun GeoPickerScreen(
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = "Или выберите место",
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -275,13 +274,13 @@ internal fun GeoPickerScreen(
                         .padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(imageVector = Icons.Outlined.LocationOn, contentDescription = null, tint = TextMuted, modifier = Modifier.size(20.dp))
+                    Icon(imageVector = Icons.Outlined.LocationOn, contentDescription = null, tint = scheme.textMuted, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = place.name, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                        Text(text = place.address, color = TextMuted, fontSize = 12.sp)
+                        Text(text = place.name, color = scheme.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text(text = place.address, color = scheme.textMuted, fontSize = 12.sp)
                     }
-                    Text(text = place.distance, color = TextMuted, fontSize = 11.sp)
+                    Text(text = place.distance, color = scheme.textMuted, fontSize = 11.sp)
                 }
             }
         }

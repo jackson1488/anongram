@@ -160,7 +160,7 @@ fun TextFormattingToolbar(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.Send,
                 contentDescription = strings.send,
-                tint = Color.White,
+                tint = scheme.onAccent,
                 modifier = Modifier.size(20.dp)
             )
         }

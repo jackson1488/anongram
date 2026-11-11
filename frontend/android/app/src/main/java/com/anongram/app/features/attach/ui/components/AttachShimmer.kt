@@ -30,18 +30,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Плавная анимированная шиммер-кисть для плейсхолдеров загрузки.
  */
 @Composable
 fun rememberShimmerBrush(targetValue: Float = 1200f): Brush {
+    val scheme = LocalAnonGramScheme.current
+    val baseColor = scheme.textPrimary
     val shimmerColors = listOf(
-        Color(0x0EFFFFFF),
-        Color(0x28FFFFFF),
-        Color(0x0EFFFFFF)
+        baseColor.copy(alpha = 0.055f),
+        baseColor.copy(alpha = 0.16f),
+        baseColor.copy(alpha = 0.055f)
     )
     val transition = rememberInfiniteTransition(label = "shimmerTransition")
     val translateAnimation by transition.animateFloat(

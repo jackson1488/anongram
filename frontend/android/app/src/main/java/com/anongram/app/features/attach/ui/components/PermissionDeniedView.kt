@@ -1,5 +1,6 @@
 package com.anongram.app.features.attach.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -28,7 +29,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -36,12 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
-import com.anongram.app.features.attach.ui.theme.AttachPurple
-import com.anongram.app.features.attach.ui.theme.AttachTextMuted
-import com.anongram.app.features.attach.ui.theme.AttachTextPrimary
-import com.anongram.app.features.attach.ui.theme.AttachTextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Заглушка при отказе в разрешении (ТЗ, шаг 2):
@@ -57,6 +52,7 @@ fun PermissionDeniedView(
     onOpenSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val effectiveDescription = if (message.isNotBlank()) message else description
     val effectiveOpenSettings = onOpenSettings ?: { PermissionUtils.openAppSettings(context) }
@@ -75,28 +71,28 @@ fun PermissionDeniedView(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(AttachCardDark)
-                    .border(1.dp, AttachBorder, CircleShape),
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = AttachPurple,
+                    tint = scheme.accent,
                     modifier = Modifier.size(32.dp)
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = title,
-                color = AttachTextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = effectiveDescription,
-                color = AttachTextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 13.sp,
                 textAlign = TextAlign.Center,
                 lineHeight = 18.sp,
@@ -106,19 +102,20 @@ fun PermissionDeniedView(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
                     onClick = onRequestPermission,
-                    colors = ButtonDefaults.buttonColors(containerColor = AttachPurple),
+                    colors = ButtonDefaults.buttonColors(containerColor = scheme.accent),
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Text(
                         text = "Предоставить",
-                        color = Color.White,
+                        color = scheme.onAccent,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
                 OutlinedButton(
                     onClick = effectiveOpenSettings,
                     shape = RoundedCornerShape(20.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = AttachTextPrimary)
+                    border = BorderStroke(1.dp, scheme.cardBorder),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = scheme.textPrimary)
                 ) {
                     Text(text = "В настройки")
                 }
@@ -137,14 +134,15 @@ fun PartialAccessBanner(
     onManageAccess: () -> Unit = onSelectMore,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val clickHandler = if (onSelectMore != {}) onSelectMore else onManageAccess
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(AttachCardDark)
-            .border(1.dp, AttachBorder, RoundedCornerShape(14.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(14.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
         Row(
@@ -159,19 +157,19 @@ fun PartialAccessBanner(
                 Icon(
                     imageVector = Icons.Outlined.Security,
                     contentDescription = null,
-                    tint = AttachPurple,
+                    tint = scheme.accent,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Доступ ограничен",
-                    color = AttachTextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 12.sp
                 )
             }
             Text(
                 text = "Выбрать ещё",
-                color = AttachPurple,
+                color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier

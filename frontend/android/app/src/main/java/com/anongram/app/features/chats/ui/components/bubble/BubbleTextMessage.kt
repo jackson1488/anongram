@@ -222,6 +222,7 @@ private fun InteractiveChecklistItem(
     textSizeSp: Int,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     var isChecked by remember { mutableStateOf(initialChecked) }
 
     Row(
@@ -235,10 +236,10 @@ private fun InteractiveChecklistItem(
             modifier = Modifier
                 .size(22.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(if (isChecked) Color(0xFF8B5CF6) else Color(0xFF26262E))
+                .background(if (isChecked) scheme.accent else scheme.surface.copy(alpha = 0.65f))
                 .border(
                     width = if (isChecked) 0.dp else 1.5.dp,
-                    color = if (isChecked) Color.Transparent else Color(0x66FFFFFF),
+                    color = if (isChecked) Color.Transparent else scheme.cardBorder.copy(alpha = 0.7f),
                     shape = RoundedCornerShape(6.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -247,7 +248,7 @@ private fun InteractiveChecklistItem(
                 Icon(
                     imageVector = Icons.Outlined.Check,
                     contentDescription = "Выполнено",
-                    tint = Color.White,
+                    tint = scheme.onAccent,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -377,8 +378,7 @@ fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString 
                     pushStyle(
                         SpanStyle(
                             fontFamily = FontFamily.Monospace,
-                            background = Color(0x33A1A1AA),
-                            color = Color(0xFFF1F5F9)
+                            background = accentColor.copy(alpha = 0.16f)
                         )
                     )
                     append(" $inner ")
@@ -403,8 +403,7 @@ fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString 
                     val inner = m.groupValues[15]
                     pushStyle(
                         SpanStyle(
-                            background = Color(0xFF3F2B66),
-                            color = Color(0xFFE9D5FF)
+                            background = accentColor.copy(alpha = 0.24f)
                         )
                     )
                     append(inner)

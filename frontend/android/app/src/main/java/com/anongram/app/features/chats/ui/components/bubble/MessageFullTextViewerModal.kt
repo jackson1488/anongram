@@ -42,7 +42,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.timeLabel
 
@@ -67,7 +66,7 @@ fun MessageFullTextViewerModal(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
             .padding(top = topPad, bottom = navBottom)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -84,7 +83,7 @@ fun MessageFullTextViewerModal(
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Закрыть",
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -94,13 +93,13 @@ fun MessageFullTextViewerModal(
                     Column {
                         Text(
                             text = if (isCode) "Исходный код" else "Полный текст сообщения",
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "${message.text.length} символов • ${message.timeLabel()}",
-                            color = Color(0xFFA1A1AA),
+                            color = scheme.textMuted,
                             fontSize = 12.sp
                         )
                     }
@@ -131,14 +130,14 @@ fun MessageFullTextViewerModal(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (isCode) Color(0xFF13131A) else Color(0xFF1A1A22))
+                    .background(scheme.surface)
                     .padding(14.dp)
             ) {
                 val scrollState = rememberScrollState()
                 SelectionContainer {
                     Text(
                         text = message.text,
-                        color = Color(0xFFE2E8F0),
+                        color = scheme.textPrimary,
                         fontFamily = if (isCode) FontFamily.Monospace else FontFamily.Default,
                         fontSize = 15.sp,
                         lineHeight = 22.sp,

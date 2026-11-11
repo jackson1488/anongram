@@ -54,8 +54,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.auth.data.crypto.Bip39WordList
 import com.anongram.app.features.auth.domain.model.SeedPhrase
 import com.anongram.app.features.auth.domain.model.UserIdentity
@@ -84,12 +84,8 @@ fun BackupSeedScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val obsidianBackground = Color(0xFF0D0B14)
-    val purpleAccent = Color(0xFF8B5CF6)
-    val lilacAccent = Color(0xFFC084FC)
+    val scheme = LocalAnonGramScheme.current
     val warningRed = Color(0xFFEF4444)
-    val cardBackground = Color(0xFF161224)
-    val cardBorder = Color(0x338B5CF6)
 
     var showQuizDialog by remember { mutableStateOf(false) }
 
@@ -100,13 +96,7 @@ fun BackupSeedScreen(
         Toast.makeText(context, "12 слов скопированы в буфер обмена", Toast.LENGTH_SHORT).show()
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(obsidianBackground)
-            .safeStatusBarPadding()
-            .safeNavigationBarPadding()
-    ) {
+    AnonGramScreenSurface(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -128,12 +118,13 @@ fun BackupSeedScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1F1A30))
+                            .background(scheme.islandBg)
+                            .border(0.8.dp, scheme.islandBorder, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
-                            tint = Color.White
+                            tint = scheme.textPrimary
                         )
                     }
 
@@ -141,7 +132,7 @@ fun BackupSeedScreen(
 
                     Text(
                         text = "Резервная копия ключей",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -154,8 +145,8 @@ fun BackupSeedScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF281320))
-                        .border(1.dp, warningRed.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                        .background(warningRed.copy(alpha = 0.12f))
+                        .border(1.dp, warningRed.copy(alpha = 0.45f), RoundedCornerShape(16.dp))
                         .padding(16.dp),
                     verticalAlignment = Alignment.Top
                 ) {
@@ -178,7 +169,7 @@ fun BackupSeedScreen(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "Запишите эти 12 слов на бумагу и сохраните в надёжном месте. Если вы их потеряете, доступ к аккаунту и переписке восстановить невозможно!",
-                            color = Color(0xFFFCA5A5),
+                            color = scheme.textPrimary,
                             fontSize = 12.sp,
                             lineHeight = 17.sp
                         )
@@ -192,8 +183,8 @@ fun BackupSeedScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(20.dp))
-                        .background(cardBackground)
-                        .border(1.dp, cardBorder, RoundedCornerShape(20.dp))
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                         .padding(14.dp)
                 ) {
                     for (row in 0 until 4) {
@@ -223,8 +214,8 @@ fun BackupSeedScreen(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF1D1730))
-                        .border(1.dp, Color(0x4D8B5CF6), RoundedCornerShape(20.dp))
+                        .background(scheme.accentSoft)
+                        .border(1.dp, scheme.accent.copy(alpha = 0.45f), RoundedCornerShape(20.dp))
                         .clickable { copyToClipboard() }
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -232,13 +223,13 @@ fun BackupSeedScreen(
                     Icon(
                         imageVector = Icons.Default.ContentCopy,
                         contentDescription = "Копировать",
-                        tint = lilacAccent,
+                        tint = scheme.accent,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Скопировать 12 слов",
-                        color = lilacAccent,
+                        color = scheme.accent,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -255,11 +246,11 @@ fun BackupSeedScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .shadow(16.dp, RoundedCornerShape(28.dp), ambientColor = purpleAccent, spotColor = purpleAccent)
+                        .shadow(16.dp, RoundedCornerShape(28.dp), ambientColor = scheme.accent, spotColor = scheme.accent)
                         .clip(RoundedCornerShape(28.dp))
                         .background(
                             Brush.horizontalGradient(
-                                listOf(Color(0xFF7C3AED), Color(0xFF9333EA), Color(0xFFC084FC))
+                                listOf(scheme.accent, scheme.accentDim)
                             )
                         )
                         .clickable { showQuizDialog = true },
@@ -267,7 +258,7 @@ fun BackupSeedScreen(
                 ) {
                     Text(
                         text = "Я сохранил слова (пройти тест)",
-                        color = Color.White,
+                        color = scheme.onAccent,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -295,17 +286,19 @@ private fun SeedWordChip(
     word: String,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF221A38))
-            .border(1.dp, Color(0x338B5CF6), RoundedCornerShape(12.dp))
+            .background(scheme.surface)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(12.dp))
             .padding(horizontal = 8.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = "$number.",
-            color = Color(0xFF94A3B8),
+            color = scheme.textMuted,
             fontSize = 11.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Normal
@@ -313,7 +306,7 @@ private fun SeedWordChip(
         Spacer(modifier = Modifier.width(6.dp))
         Text(
             text = word,
-            color = Color.White,
+            color = scheme.textPrimary,
             fontSize = 13.sp,
             fontFamily = FontFamily.Monospace,
             fontWeight = FontWeight.Bold
@@ -330,6 +323,7 @@ private fun SeedMemoryQuizDialog(
     onDismiss: () -> Unit,
     onSuccess: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val word3 = seedPhrase.wordAt(3)
     val word7 = seedPhrase.wordAt(7)
 
@@ -351,16 +345,13 @@ private fun SeedMemoryQuizDialog(
     var selected7 by remember { mutableStateOf<String?>(null) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
-    val purpleAccent = Color(0xFF8B5CF6)
-    val lilacAccent = Color(0xFFC084FC)
-
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF161224))
-                .border(1.dp, Color(0x4D8B5CF6), RoundedCornerShape(24.dp))
+                .background(scheme.card)
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(24.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -368,7 +359,7 @@ private fun SeedMemoryQuizDialog(
                 text = "Проверка памяти",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = scheme.textPrimary
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -376,7 +367,7 @@ private fun SeedMemoryQuizDialog(
             Text(
                 text = "Выберите 3-е и 7-е слово вашей мнемоники для завершения регистрации:",
                 fontSize = 13.sp,
-                color = Color(0xFF94A3B8),
+                color = scheme.textSecondary,
                 textAlign = TextAlign.Center
             )
 
@@ -387,7 +378,7 @@ private fun SeedMemoryQuizDialog(
                 text = "Какое слово стоит под номером 3?",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = lilacAccent
+                color = scheme.accent
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -402,15 +393,15 @@ private fun SeedMemoryQuizDialog(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) purpleAccent else Color(0xFF221A38))
-                            .border(1.dp, if (isSelected) Color.White else Color(0x338B5CF6), RoundedCornerShape(12.dp))
+                            .background(if (isSelected) scheme.accent else scheme.surface)
+                            .border(1.dp, if (isSelected) scheme.accent else scheme.cardBorder, RoundedCornerShape(12.dp))
                             .clickable { selected3 = opt; errorMessage = null }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = opt,
-                            color = Color.White,
+                            color = if (isSelected) scheme.onAccent else scheme.textPrimary,
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
@@ -425,7 +416,7 @@ private fun SeedMemoryQuizDialog(
                 text = "Какое слово стоит под номером 7?",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = lilacAccent
+                color = scheme.accent
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -440,15 +431,15 @@ private fun SeedMemoryQuizDialog(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(if (isSelected) purpleAccent else Color(0xFF221A38))
-                            .border(1.dp, if (isSelected) Color.White else Color(0x338B5CF6), RoundedCornerShape(12.dp))
+                            .background(if (isSelected) scheme.accent else scheme.surface)
+                            .border(1.dp, if (isSelected) scheme.accent else scheme.cardBorder, RoundedCornerShape(12.dp))
                             .clickable { selected7 = opt; errorMessage = null }
                             .padding(vertical = 10.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = opt,
-                            color = Color.White,
+                            color = if (isSelected) scheme.onAccent else scheme.textPrimary,
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
@@ -469,15 +460,15 @@ private fun SeedMemoryQuizDialog(
             Spacer(modifier = Modifier.height(20.dp))
 
             // Кнопка подтверждения
+            val canConfirm = selected3 != null && selected7 != null
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
                     .clip(RoundedCornerShape(25.dp))
-                    .background(
-                        if (selected3 != null && selected7 != null) purpleAccent else Color(0xFF2B2342)
-                    )
-                    .clickable(enabled = selected3 != null && selected7 != null) {
+                    .background(if (canConfirm) scheme.accent else scheme.surface)
+                    .border(1.dp, if (canConfirm) scheme.accent else scheme.cardBorder, RoundedCornerShape(25.dp))
+                    .clickable(enabled = canConfirm) {
                         if (selected3 == word3 && selected7 == word7) {
                             onSuccess()
                         } else {
@@ -488,7 +479,7 @@ private fun SeedMemoryQuizDialog(
             ) {
                 Text(
                     text = "Подтвердить и войти",
-                    color = Color.White,
+                    color = if (canConfirm) scheme.onAccent else scheme.textMuted,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
                 )

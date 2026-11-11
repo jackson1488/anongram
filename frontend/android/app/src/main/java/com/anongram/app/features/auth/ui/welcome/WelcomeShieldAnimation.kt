@@ -21,13 +21,14 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
- * Анимированный неоновый щит AnonGram с оригами-самолётиком.
+ * Анимированный щит AnonGram с оригами-самолётиком.
  *
- * Отрисовывает на Canvas фирменный герб протокола в неоновом фиолетовом стиле:
- * - Пульсирующий внешний щит с мягким неоновым ореолом (#8B5CF6 / #C084FC);
- * - Самолётик оригами (символ анонимной пересылки сообщений) с сияющим белым и лиловым градиентом;
+ * Отрисовывает на Canvas фирменный герб протокола в цветах активной темы:
+ * - Пульсирующий внешний щит с мягким ореолом (`scheme.accent` / `scheme.accentDim`);
+ * - Самолётик оригами (символ анонимной пересылки сообщений);
  * - Плавная циклическая пульсация свечения и масштаба.
  *
  * @param size Размер компонента в dp.
@@ -38,6 +39,7 @@ fun WelcomeShieldAnimation(
     size: Dp = 140.dp,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val infiniteTransition = rememberInfiniteTransition(label = "shield_pulse")
 
     val pulseScale by infiniteTransition.animateFloat(
@@ -60,11 +62,11 @@ fun WelcomeShieldAnimation(
         label = "glow_alpha"
     )
 
-    val neonPurple = Color(0xFF8B5CF6)
-    val neonLilac = Color(0xFFC084FC)
-    val brightLilac = Color(0xFFE9D5FF)
-    val darkPurple = Color(0xFF261042)
-    val deepShieldBg = Color(0xFF140A24)
+    val accentPrimary = scheme.accent
+    val accentSecondary = scheme.accentDim
+    val shieldTopBg = scheme.card
+    val shieldBottomBg = scheme.surface
+    val planeHighlight = scheme.textPrimary
 
     Box(
         modifier = modifier.size(size),
@@ -105,21 +107,21 @@ fun WelcomeShieldAnimation(
                 path = shieldPath,
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        neonPurple.copy(alpha = glowAlpha * 0.50f),
-                        darkPurple.copy(alpha = glowAlpha * 0.25f),
+                        accentPrimary.copy(alpha = glowAlpha * 0.45f),
+                        accentSecondary.copy(alpha = glowAlpha * 0.22f),
                         Color.Transparent
                     ),
                     radius = width * 0.65f
                 )
             )
 
-            // Основная заливка щита: ультра-тёмный фиолетовый
+            // Основная заливка щита из активной темы
             drawPath(
                 path = shieldPath,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        deepShieldBg,
-                        Color(0xFF0A0514)
+                        shieldTopBg,
+                        shieldBottomBg
                     )
                 )
             )
@@ -151,15 +153,15 @@ fun WelcomeShieldAnimation(
             }
             drawPath(
                 path = innerShieldPath,
-                color = neonLilac.copy(alpha = 0.35f),
+                color = accentPrimary.copy(alpha = 0.35f),
                 style = Stroke(width = 1.5.dp.toPx())
             )
 
-            // Внешний контур с неоновым фиолетовым градиентом
+            // Внешний контур с акцентным градиентом
             drawPath(
                 path = shieldPath,
                 brush = Brush.linearGradient(
-                    colors = listOf(brightLilac, neonLilac, neonPurple, neonLilac)
+                    colors = listOf(accentPrimary, accentSecondary, accentPrimary)
                 ),
                 style = Stroke(
                     width = 4.5.dp.toPx(),
@@ -189,10 +191,10 @@ fun WelcomeShieldAnimation(
             }
             drawPath(
                 path = leftWingPath,
-                color = Color(0xFF9333EA)
+                color = accentSecondary
             )
 
-            // Правое крыло (основное, ярко освещённое белым с лиловым отливом)
+            // Правое крыло (основное, контрастное)
             val rightWingPath = Path().apply {
                 moveTo(noseX, noseY)
                 lineTo(width * 0.71f, height * 0.34f)
@@ -203,7 +205,7 @@ fun WelcomeShieldAnimation(
             drawPath(
                 path = rightWingPath,
                 brush = Brush.linearGradient(
-                    colors = listOf(Color.White, Color(0xFFF3E8FF), Color(0xFFD8B4FE))
+                    colors = listOf(planeHighlight, accentPrimary)
                 )
             )
 
@@ -216,10 +218,10 @@ fun WelcomeShieldAnimation(
             }
             drawPath(
                 path = bottomFoldPath,
-                color = Color(0xFF6B21A8)
+                color = accentSecondary.copy(alpha = 0.75f)
             )
 
-            // Контур самолётика для максимальной чёткости и неонового сияния
+            // Контур самолётика для чёткости
             val planeOutline = Path().apply {
                 moveTo(leftWingX, leftWingY)
                 lineTo(noseX, noseY)
@@ -229,7 +231,7 @@ fun WelcomeShieldAnimation(
             }
             drawPath(
                 path = planeOutline,
-                color = Color.White.copy(alpha = 0.9f),
+                color = planeHighlight.copy(alpha = 0.85f),
                 style = Stroke(
                     width = 1.5.dp.toPx(),
                     cap = StrokeCap.Round,

@@ -82,6 +82,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.api.MediaTtl
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.mediaeditor.api.EditedMedia
@@ -91,8 +92,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
-private val PurpleAccent = Color(0xFF8B5CF6)
-private val DarkBg = Color(0xFF0A0F1D)
+private val EditorCanvasBg = Color(0xFF0A0F1D)
 
 @Composable
 fun MediaEditorContent(
@@ -108,6 +108,7 @@ fun MediaEditorContent(
         return
     }
 
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -136,7 +137,7 @@ fun MediaEditorContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(DarkBg)
+            .background(EditorCanvasBg)
     ) {
         // Main Horizontal Pager for Media
         HorizontalPager(
@@ -181,7 +182,7 @@ fun MediaEditorContent(
                 for (path in brushPaths) {
                     for (i in 0 until path.size - 1) {
                         drawLine(
-                            color = PurpleAccent,
+                            color = scheme.accent,
                             start = path[i],
                             end = path[i + 1],
                             strokeWidth = 6.dp.toPx(),
@@ -191,7 +192,7 @@ fun MediaEditorContent(
                 }
                 for (i in 0 until currentPath.size - 1) {
                     drawLine(
-                        color = PurpleAccent,
+                        color = scheme.accent,
                         start = currentPath[i],
                         end = currentPath[i + 1],
                         strokeWidth = 6.dp.toPx(),
@@ -215,12 +216,13 @@ fun MediaEditorContent(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color(0x66000000))
+                    .background(scheme.islandBg.copy(alpha = 0.90f))
+                    .border(1.dp, scheme.islandBorder, CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.White
+                    tint = scheme.textPrimary
                 )
             }
 
@@ -229,13 +231,14 @@ fun MediaEditorContent(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0x66000000))
+                    .background(scheme.islandBg.copy(alpha = 0.90f))
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
                     .clickable { showThumbnailsStrip = !showThumbnailsStrip }
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = if (recipientName.isNotBlank()) recipientName else "Предпросмотр",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -246,19 +249,19 @@ fun MediaEditorContent(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(PurpleAccent),
+                        .background(scheme.accent),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "${currentIndex + 1}/${currentItems.size}",
-                        color = Color.White,
+                        color = scheme.onAccent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
                 }
             }
 
-            // Purple checkmark button
+            // Accent checkmark button
             IconButton(
                 onClick = {
                     scope.launch {
@@ -268,12 +271,12 @@ fun MediaEditorContent(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(PurpleAccent)
+                    .background(scheme.accent)
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Confirm",
-                    tint = Color.White
+                    tint = scheme.onAccent
                 )
             }
         }
@@ -289,7 +292,7 @@ fun MediaEditorContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xDD0F1626))
+                    .background(scheme.surface.copy(alpha = 0.92f))
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -301,7 +304,7 @@ fun MediaEditorContent(
                             .clip(RoundedCornerShape(8.dp))
                             .border(
                                 width = if (idx == currentIndex) 2.dp else 0.dp,
-                                color = if (idx == currentIndex) PurpleAccent else Color.Transparent,
+                                color = if (idx == currentIndex) scheme.accent else Color.Transparent,
                                 shape = RoundedCornerShape(8.dp)
                             )
                             .clickable {
@@ -332,14 +335,14 @@ fun MediaEditorContent(
                         updateCurrentItem { it.copy(caption = newCap) }
                     },
                     placeholder = {
-                        Text("Добавить подпись...", color = Color(0xFF94A3B8), fontSize = 14.sp)
+                        Text("Добавить подпись...", color = scheme.textMuted, fontSize = 14.sp)
                     },
                     leadingIcon = {
                         IconButton(onClick = onAddMore) {
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Add more",
-                                tint = Color.White
+                                tint = scheme.textPrimary
                             )
                         }
                     },
@@ -349,7 +352,7 @@ fun MediaEditorContent(
                                 Icon(
                                     imageVector = Icons.Default.Schedule,
                                     contentDescription = "Timer",
-                                    tint = if (activeItem.ttl != MediaTtl.Never) PurpleAccent else Color(0xFF94A3B8)
+                                    tint = if (activeItem.ttl != MediaTtl.Never) scheme.accent else scheme.textMuted
                                 )
                             }
 
@@ -358,12 +361,13 @@ fun MediaEditorContent(
                                 expanded = showTtlMenu,
                                 onDismissRequest = { showTtlMenu = false },
                                 modifier = Modifier
-                                    .background(Color(0xFF182238))
+                                    .background(scheme.card)
+                                    .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(12.dp))
                                     .padding(8.dp)
                             ) {
                                 Text(
                                     text = "Выберите, через какое время после открытия медиафайл исчезнет:",
-                                    color = Color.White,
+                                    color = scheme.textPrimary,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     modifier = Modifier.padding(8.dp)
@@ -384,10 +388,13 @@ fun MediaEditorContent(
                                                 RadioButton(
                                                     selected = (activeItem.ttl == ttlVal),
                                                     onClick = null,
-                                                    colors = RadioButtonDefaults.colors(selectedColor = PurpleAccent)
+                                                    colors = RadioButtonDefaults.colors(
+                                                        selectedColor = scheme.accent,
+                                                        unselectedColor = scheme.textMuted
+                                                    )
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                Text(text = title, color = Color.White, fontSize = 14.sp)
+                                                Text(text = title, color = scheme.textPrimary, fontSize = 14.sp)
                                             }
                                         },
                                         onClick = {
@@ -399,7 +406,7 @@ fun MediaEditorContent(
 
                                 Text(
                                     text = "Получатель всё равно может сфотографировать экран",
-                                    color = Color(0xFF64748B),
+                                    color = scheme.textMuted,
                                     fontSize = 10.sp,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
@@ -408,12 +415,13 @@ fun MediaEditorContent(
                     },
                     shape = RoundedCornerShape(24.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color(0xCC131D31),
-                        unfocusedContainerColor = Color(0xCC131D31),
-                        focusedBorderColor = PurpleAccent,
-                        unfocusedBorderColor = Color(0x33FFFFFF),
-                        focusedTextColor = Color.White,
-                        unfocusedTextColor = Color.White
+                        focusedContainerColor = scheme.inputBg.copy(alpha = 0.94f),
+                        unfocusedContainerColor = scheme.inputBg.copy(alpha = 0.94f),
+                        focusedBorderColor = scheme.accent,
+                        unfocusedBorderColor = scheme.inputBorder,
+                        focusedTextColor = scheme.textPrimary,
+                        unfocusedTextColor = scheme.textPrimary,
+                        cursorColor = scheme.accent
                     ),
                     modifier = Modifier
                         .weight(1f)
@@ -422,12 +430,12 @@ fun MediaEditorContent(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // Purple Send Button
+                // Accent Send Button
                 Box(
                     modifier = Modifier
                         .size(52.dp)
                         .clip(CircleShape)
-                        .background(PurpleAccent)
+                        .background(scheme.accent)
                         .clickable {
                             scope.launch {
                                 exportAndSend(context, currentItems, onSend)
@@ -438,7 +446,7 @@ fun MediaEditorContent(
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.Send,
                         contentDescription = "Send",
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -451,7 +459,8 @@ fun MediaEditorContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xCC131D31))
+                    .background(scheme.islandBg.copy(alpha = 0.92f))
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
@@ -466,7 +475,7 @@ fun MediaEditorContent(
                     Icon(
                         imageVector = Icons.Default.CropRotate,
                         contentDescription = "Rotate",
-                        tint = if (activeItem.rotationDegrees != 0) PurpleAccent else Color.White
+                        tint = if (activeItem.rotationDegrees != 0) scheme.accent else scheme.textPrimary
                     )
                 }
 
@@ -477,7 +486,7 @@ fun MediaEditorContent(
                     Icon(
                         imageVector = Icons.Rounded.Brush,
                         contentDescription = "Brush",
-                        tint = if (isBrushMode) PurpleAccent else Color.White
+                        tint = if (isBrushMode) scheme.accent else scheme.textPrimary
                     )
                 }
 
@@ -494,13 +503,13 @@ fun MediaEditorContent(
                     Icon(
                         imageVector = Icons.Default.HighQuality,
                         contentDescription = "Quality",
-                        tint = if (activeItem.hd) PurpleAccent else Color(0xFF94A3B8),
+                        tint = if (activeItem.hd) scheme.accent else scheme.textSecondary,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = if (activeItem.hd) "HD" else "SD",
-                        color = if (activeItem.hd) PurpleAccent else Color(0xFF94A3B8),
+                        color = if (activeItem.hd) scheme.accent else scheme.textSecondary,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -512,8 +521,8 @@ fun MediaEditorContent(
                         imageVector = Icons.Default.Tune,
                         contentDescription = "Tune",
                         tint = if (activeItem.brightness != 0f || activeItem.contrast != 1f || activeItem.saturation != 1f) {
-                            PurpleAccent
-                        } else Color.White
+                            scheme.accent
+                        } else scheme.textPrimary
                     )
                 }
             }
@@ -525,46 +534,58 @@ fun MediaEditorContent(
         AlertDialog(
             onDismissRequest = { showTuneDialog = false },
             title = {
-                Text("Настройки изображения", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text("Настройки изображения", color = scheme.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             },
             text = {
                 Column {
-                    Text("Яркость: ${String.format("%.1f", activeItem.brightness)}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    Text("Яркость: ${String.format("%.1f", activeItem.brightness)}", color = scheme.textSecondary, fontSize = 12.sp)
                     Slider(
                         value = activeItem.brightness,
                         onValueChange = { b -> updateCurrentItem { it.copy(brightness = b) } },
                         valueRange = -50f..50f,
-                        colors = SliderDefaults.colors(thumbColor = PurpleAccent, activeTrackColor = PurpleAccent)
+                        colors = SliderDefaults.colors(
+                            thumbColor = scheme.accent,
+                            activeTrackColor = scheme.accent,
+                            inactiveTrackColor = scheme.textMuted.copy(alpha = 0.3f)
+                        )
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Контраст: ${String.format("%.1f", activeItem.contrast)}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    Text("Контраст: ${String.format("%.1f", activeItem.contrast)}", color = scheme.textSecondary, fontSize = 12.sp)
                     Slider(
                         value = activeItem.contrast,
                         onValueChange = { c -> updateCurrentItem { it.copy(contrast = c) } },
                         valueRange = 0.5f..2.0f,
-                        colors = SliderDefaults.colors(thumbColor = PurpleAccent, activeTrackColor = PurpleAccent)
+                        colors = SliderDefaults.colors(
+                            thumbColor = scheme.accent,
+                            activeTrackColor = scheme.accent,
+                            inactiveTrackColor = scheme.textMuted.copy(alpha = 0.3f)
+                        )
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Насыщенность: ${String.format("%.1f", activeItem.saturation)}", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                    Text("Насыщенность: ${String.format("%.1f", activeItem.saturation)}", color = scheme.textSecondary, fontSize = 12.sp)
                     Slider(
                         value = activeItem.saturation,
                         onValueChange = { s -> updateCurrentItem { it.copy(saturation = s) } },
                         valueRange = 0f..2.0f,
-                        colors = SliderDefaults.colors(thumbColor = PurpleAccent, activeTrackColor = PurpleAccent)
+                        colors = SliderDefaults.colors(
+                            thumbColor = scheme.accent,
+                            activeTrackColor = scheme.accent,
+                            inactiveTrackColor = scheme.textMuted.copy(alpha = 0.3f)
+                        )
                     )
                 }
             },
             confirmButton = {
                 Button(
                     onClick = { showTuneDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent)
+                    colors = ButtonDefaults.buttonColors(containerColor = scheme.accent)
                 ) {
-                    Text("Готово", color = Color.White)
+                    Text("Готово", color = scheme.onAccent)
                 }
             },
-            containerColor = Color(0xFF182238),
+            containerColor = scheme.card,
             shape = RoundedCornerShape(16.dp)
         )
     }
@@ -575,6 +596,7 @@ private fun EditorMediaPreview(
     item: EditableMediaItem,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var imageBitmap by remember(item.uri) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -622,7 +644,7 @@ private fun EditorMediaPreview(
                 Icon(
                     imageVector = if (item.isVideo) Icons.Rounded.Videocam else Icons.Default.HighQuality,
                     contentDescription = null,
-                    tint = PurpleAccent,
+                    tint = scheme.accent,
                     modifier = Modifier.size(64.dp)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -638,6 +660,7 @@ private fun EditorMediaPreview(
 
 @Composable
 private fun EditorThumbnail(item: EditableMediaItem) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var thumbBitmap by remember(item.uri) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -662,13 +685,13 @@ private fun EditorThumbnail(item: EditableMediaItem) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF1E293B)),
+                .background(scheme.card),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (item.isVideo) Icons.Rounded.Videocam else Icons.Default.HighQuality,
                 contentDescription = null,
-                tint = Color(0xFF94A3B8),
+                tint = scheme.textMuted,
                 modifier = Modifier.size(24.dp)
             )
         }

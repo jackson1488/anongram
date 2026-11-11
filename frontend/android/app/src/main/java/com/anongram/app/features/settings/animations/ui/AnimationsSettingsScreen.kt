@@ -2,7 +2,6 @@ package com.anongram.app.features.settings.animations.ui
 
 import android.content.Context
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,11 +16,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.settings.animations.ui.components.AnimationsEffectsCard
 import com.anongram.app.features.settings.animations.ui.components.AnimationsPerformanceCard
 import com.anongram.app.features.settings.animations.ui.components.AnimationsTopBar
@@ -61,18 +58,13 @@ fun AnimationsSettingsScreen(
     // Обработка системного жеста «Назад»
     BackHandler(onBack = onBack)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFF050508))
-            .safeStatusBarPadding()
-            .safeNavigationBarPadding()
-    ) {
-        // Верхняя панель в стиле Telegram
-        AnimationsTopBar(
-            title = "Анимации",
-            onBack = onBack
-        )
+    AnonGramScreenSurface(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Верхняя панель в стиле Telegram
+            AnimationsTopBar(
+                title = "Анимации",
+                onBack = onBack
+            )
 
         Column(
             modifier = Modifier
@@ -126,6 +118,7 @@ fun AnimationsSettingsScreen(
             )
 
             Spacer(modifier = Modifier.height(24.dp))
+        }
         }
     }
 }

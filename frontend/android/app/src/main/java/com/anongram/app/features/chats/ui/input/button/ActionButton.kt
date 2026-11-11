@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.roundToInt
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.state.RecordMode

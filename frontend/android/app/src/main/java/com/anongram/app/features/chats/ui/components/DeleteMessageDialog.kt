@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -28,10 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 
 /**
  * Диалог удаления сообщений (Telegram-style):
@@ -55,12 +53,13 @@ internal fun DeleteMessageDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(CardDark)
+                .background(scheme.card)
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                 .padding(20.dp)
         ) {
             Text(
                 text = if (count > 1) "Удалить $count сообщений" else "Удалить сообщение",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -69,7 +68,7 @@ internal fun DeleteMessageDialog(
 
             Text(
                 text = if (count > 1) "Вы точно хотите удалить эти сообщения?" else "Вы точно хотите удалить это сообщение?",
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 14.sp
             )
 
@@ -88,13 +87,14 @@ internal fun DeleteMessageDialog(
                     onCheckedChange = { forEveryone = it },
                     colors = CheckboxDefaults.colors(
                         checkedColor = scheme.accent,
-                        uncheckedColor = TextSecondary
+                        checkmarkColor = scheme.onAccent,
+                        uncheckedColor = scheme.textSecondary
                     )
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = checkboxLabel,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 14.sp
                 )
             }
@@ -106,7 +106,7 @@ internal fun DeleteMessageDialog(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text(text = "Отмена", color = TextSecondary, fontSize = 14.sp)
+                    Text(text = "Отмена", color = scheme.textSecondary, fontSize = 14.sp)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = { onConfirm(forEveryone) }) {

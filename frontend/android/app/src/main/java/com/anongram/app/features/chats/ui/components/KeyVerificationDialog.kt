@@ -2,7 +2,7 @@ package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,12 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 
 /**
  * Экран проверки сквозного шифрования (шаг 18):
@@ -55,7 +50,8 @@ internal fun KeyVerificationDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(22.dp))
-                .background(SurfaceDark)
+                .background(scheme.surface)
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(22.dp))
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -71,13 +67,13 @@ internal fun KeyVerificationDialog(
                 )
                 Text(
                     text = "Ключи шифрования",
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(start = 8.dp).weight(1f)
                 )
                 IconButton(onClick = onDismiss, modifier = Modifier.size(24.dp)) {
-                    Icon(imageVector = Icons.Outlined.Close, contentDescription = "Закрыть", tint = TextMuted)
+                    Icon(imageVector = Icons.Outlined.Close, contentDescription = "Закрыть", tint = scheme.textMuted)
                 }
             }
 
@@ -85,19 +81,20 @@ internal fun KeyVerificationDialog(
 
             Text(
                 text = "Сравните этот QR-код или отпечаток с $peerName. Если они совпадают — ваш сквозной чат защищён от MITM-атак.",
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Canvas QR-код
+            // Canvas QR-код (всегда чёрный на белом для надёжного сканирования)
             Box(
                 modifier = Modifier
                     .size(160.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.White)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(12.dp))
                     .padding(12.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -127,7 +124,8 @@ internal fun KeyVerificationDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(CardDark)
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(12.dp))
                     .padding(12.dp),
                 contentAlignment = Alignment.Center
             ) {

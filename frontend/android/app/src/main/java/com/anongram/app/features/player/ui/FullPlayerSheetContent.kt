@@ -1,11 +1,14 @@
 package com.anongram.app.features.player.ui
 
+import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
@@ -28,6 +31,9 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.FastForward
 import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.GraphicEq
@@ -37,6 +43,8 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Shuffle
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,15 +72,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.player.api.RepeatMode
 import com.anongram.app.features.player.api.Track
 import com.anongram.app.features.player.logic.AudioPlayerController
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
-
-private val PurpleAccent = Color(0xFF8B5CF6)
-private val DarkBg = Color(0xFF0F1626)
-private val CardBg = Color(0xFF182238)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,6 +89,7 @@ fun FullPlayerSheetContent(
     val controller = remember { AudioPlayerController.getInstance(context) }
     val state by controller.state.collectAsState()
     val scope = rememberCoroutineScope()
+    val scheme = LocalAnonGramScheme.current
 
     val density = LocalDensity.current
     val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
@@ -125,7 +131,8 @@ fun FullPlayerSheetContent(
                 .align(Alignment.BottomCenter)
                 .offset { IntOffset(0, sheetOffsetAnim.value.roundToInt()) }
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(DarkBg)
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .clickable(enabled = false) {}
                 .draggable(
                     state = rememberDraggableState { delta ->
@@ -155,12 +162,12 @@ fun FullPlayerSheetContent(
                     .width(40.dp)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(Color(0x40FFFFFF))
+                    .background(scheme.textMuted.copy(alpha = 0.35f))
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Список очереди воспроизведения сверху (без меню "⋮", ТЗ шаг 7)
+            // Список очереди воспроизведения сверху
             if (state.queue.size > 1) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -169,7 +176,7 @@ fun FullPlayerSheetContent(
                 ) {
                     Text(
                         text = "Очередь треков (${state.queue.size})",
-                        color = Color(0xFF94A3B8),
+                        color = scheme.textSecondary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -198,13 +205,16 @@ fun FullPlayerSheetContent(
                 Spacer(modifier = Modifier.weight(0.1f))
             }
 
-            // Большая карточка трека с обложкой и метаданными
+            // Большая карточка трека с обложкой, метаданными и меню ⋮
             val current = state.currentTrack
+            var isCardMenuOpen by remember { mutableStateOf(false) }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(CardBg)
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -212,13 +222,13 @@ fun FullPlayerSheetContent(
                     modifier = Modifier
                         .size(68.dp)
                         .clip(RoundedCornerShape(14.dp))
-                        .background(PurpleAccent.copy(alpha = 0.2f)),
+                        .background(scheme.accentSoft),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (state.isPlaying) Icons.Rounded.GraphicEq else Icons.Rounded.MusicNote,
                         contentDescription = null,
-                        tint = PurpleAccent,
+                        tint = scheme.accent,
                         modifier = Modifier.size(36.dp)
                     )
                 }
@@ -228,7 +238,7 @@ fun FullPlayerSheetContent(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = current?.title ?: "AnonGram Audio",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -237,11 +247,80 @@ fun FullPlayerSheetContent(
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = current?.artist ?: "Unknown Artist",
-                        color = Color(0xFF94A3B8),
+                        color = scheme.textSecondary,
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                Box {
+                    IconButton(
+                        onClick = { isCardMenuOpen = true },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(scheme.accentSoft)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.MoreVert,
+                            contentDescription = "Опции",
+                            tint = scheme.textPrimary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = isCardMenuOpen,
+                        onDismissRequest = { isCardMenuOpen = false },
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = scheme.card,
+                        border = BorderStroke(1.dp, scheme.islandBorder),
+                        modifier = Modifier.width(210.dp)
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Поделиться", color = scheme.textPrimary, fontSize = 14.sp) },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Share, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
+                            },
+                            onClick = {
+                                isCardMenuOpen = false
+                                try {
+                                    val title = current?.title ?: "AnonGram Audio"
+                                    val artist = current?.artist ?: "AnonGram"
+                                    val sendIntent = Intent().apply {
+                                        action = Intent.ACTION_SEND
+                                        putExtra(Intent.EXTRA_TEXT, "$artist — $title")
+                                        type = "text/plain"
+                                    }
+                                    context.startActivity(Intent.createChooser(sendIntent, "Поделиться треком"))
+                                } catch (_: Throwable) {}
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("С начала", color = scheme.textPrimary, fontSize = 14.sp) },
+                            leadingIcon = {
+                                Icon(Icons.Rounded.FastRewind, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
+                            },
+                            onClick = {
+                                isCardMenuOpen = false
+                                controller.seek(0L)
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Остановить плеер", color = scheme.textPrimary, fontSize = 14.sp) },
+                            leadingIcon = {
+                                Icon(Icons.Outlined.Close, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
+                            },
+                            onClick = {
+                                isCardMenuOpen = false
+                                controller.stop()
+                                dismissAnimated()
+                            }
+                        )
+                    }
                 }
             }
 
@@ -265,9 +344,9 @@ fun FullPlayerSheetContent(
                 },
                 valueRange = 0f..maxPos,
                 colors = SliderDefaults.colors(
-                    thumbColor = PurpleAccent,
-                    activeTrackColor = PurpleAccent,
-                    inactiveTrackColor = Color(0x33FFFFFF)
+                    thumbColor = scheme.accent,
+                    activeTrackColor = scheme.accent,
+                    inactiveTrackColor = scheme.divider
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -279,12 +358,12 @@ fun FullPlayerSheetContent(
                 val displayPos = if (isUserSeeking) seekSliderValue.toLong() else state.positionMs
                 Text(
                     text = formatMs(displayPos),
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 12.sp
                 )
                 Text(
                     text = formatMs(state.durationMs),
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -308,7 +387,7 @@ fun FullPlayerSheetContent(
                     Icon(
                         imageVector = Icons.Rounded.Shuffle,
                         contentDescription = "Перемешать",
-                        tint = if (state.isShuffle) PurpleAccent else Color(0xFF64748B),
+                        tint = if (state.isShuffle) scheme.accent else scheme.textMuted,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -321,7 +400,7 @@ fun FullPlayerSheetContent(
                     Icon(
                         imageVector = Icons.Rounded.FastRewind,
                         contentDescription = "Предыдущий",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -331,14 +410,14 @@ fun FullPlayerSheetContent(
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
-                        .background(PurpleAccent)
+                        .background(scheme.accent)
                         .clickable { controller.toggle() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = if (state.isPlaying) "Пауза" else "Воспроизведение",
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(38.dp)
                     )
                 }
@@ -351,7 +430,7 @@ fun FullPlayerSheetContent(
                     Icon(
                         imageVector = Icons.Rounded.FastForward,
                         contentDescription = "Следующий",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -369,7 +448,7 @@ fun FullPlayerSheetContent(
                     modifier = Modifier.size(44.dp)
                 ) {
                     val icon = if (state.repeatMode == RepeatMode.ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat
-                    val tint = if (state.repeatMode == RepeatMode.OFF) Color(0xFF64748B) else PurpleAccent
+                    val tint = if (state.repeatMode == RepeatMode.OFF) scheme.textMuted else scheme.accent
                     Icon(
                         imageVector = icon,
                         contentDescription = "Зациклить",
@@ -389,11 +468,13 @@ private fun QueueTrackItem(
     isPlaying: Boolean,
     onPlay: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isCurrent) PurpleAccent.copy(alpha = 0.15f) else Color.Transparent)
+            .background(if (isCurrent) scheme.accentSoft else Color.Transparent)
             .clickable { onPlay() }
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -402,13 +483,13 @@ private fun QueueTrackItem(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(if (isCurrent) PurpleAccent else Color(0x22FFFFFF)),
+                .background(if (isCurrent) scheme.accent else scheme.accentSoft),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 contentDescription = null,
-                tint = Color.White,
+                tint = if (isCurrent) scheme.onAccent else scheme.textPrimary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -418,7 +499,7 @@ private fun QueueTrackItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                color = if (isCurrent) PurpleAccent else Color.White,
+                color = if (isCurrent) scheme.accent else scheme.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                 maxLines = 1,
@@ -427,7 +508,7 @@ private fun QueueTrackItem(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${track.artist} • ${formatMs(track.durationMs)}",
-                color = Color(0xFF94A3B8),
+                color = scheme.textSecondary,
                 fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

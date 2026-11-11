@@ -15,6 +15,7 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -88,6 +89,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
@@ -150,6 +152,7 @@ internal fun ChatMediaFullscreenViewer(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val scheme = LocalAnonGramScheme.current
 
     val isUncompressedMode = remember(message.id, message.attachment, overrideSingleUri) {
         !overrideSingleUri.isNullOrBlank() ||
@@ -448,7 +451,7 @@ internal fun ChatMediaFullscreenViewer(
             }
         }
 
-        // 2. Полупрозрачная сплошная верхняя шапка + сразу под ней по центру общий счётчик сжатых медиа «45 из 100»
+        // 2. Тематизированная верхняя шапка + сразу под ней по центру общий счётчик сжатых медиа «45 из 100»
         AnimatedVisibility(
             visible = showControls,
             enter = fadeIn(tween(180)),
@@ -464,7 +467,7 @@ internal fun ChatMediaFullscreenViewer(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.Black.copy(alpha = 0.62f))
+                        .background(scheme.islandBg.copy(alpha = 0.88f))
                         .safeStatusBarPadding()
                 ) {
                     Row(
@@ -479,7 +482,7 @@ internal fun ChatMediaFullscreenViewer(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Назад",
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -493,7 +496,7 @@ internal fun ChatMediaFullscreenViewer(
                         ) {
                             Text(
                                 text = senderTitle,
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -501,7 +504,7 @@ internal fun ChatMediaFullscreenViewer(
                             )
                             Text(
                                 text = dateSubTitle,
-                                color = Color.White.copy(alpha = 0.75f),
+                                color = scheme.textSecondary,
                                 fontSize = 12.5.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -513,28 +516,28 @@ internal fun ChatMediaFullscreenViewer(
                             Icon(
                                 imageVector = Icons.Outlined.Brush,
                                 contentDescription = "Редактировать",
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
 
-                        // Кнопка поделиться в шапке (оставлена иконкой)
-                        IconButton(onClick = { /* будет реализовано позже */ }) {
+                        // Кнопка поделиться в шапке
+                        IconButton(onClick = { sharePhotoSystemChooser(context, currentUriString) }) {
                             Icon(
                                 imageVector = Icons.Outlined.Share,
                                 contentDescription = "Поделиться",
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
 
-                        // Кнопка «⋮» (три точки) с чёрным скруглённым меню
+                        // Кнопка «⋮» (три точки) с тематизированным скруглённым меню
                         Box {
                             IconButton(onClick = { isMenuOpen = true }) {
                                 Icon(
                                     imageVector = Icons.Outlined.MoreVert,
                                     contentDescription = "Меню",
-                                    tint = Color.White,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -542,17 +545,17 @@ internal fun ChatMediaFullscreenViewer(
                             DropdownMenu(
                                 expanded = isMenuOpen,
                                 onDismissRequest = { isMenuOpen = false },
-                                modifier = Modifier
-                                    .width(235.dp)
-                                    .background(Color(0xFF101014), RoundedCornerShape(18.dp))
-                                    .border(0.5.dp, Color(0x28FFFFFF), RoundedCornerShape(18.dp))
+                                shape = RoundedCornerShape(18.dp),
+                                containerColor = scheme.card,
+                                border = BorderStroke(1.dp, scheme.islandBorder),
+                                modifier = Modifier.width(235.dp)
                             ) {
                                 // 1. Сохранить в галерею
                                 DropdownMenuItem(
                                     text = {
                                         Text(
                                             text = "Сохранить в галерею",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 15.sp
                                         )
                                     },
@@ -560,7 +563,7 @@ internal fun ChatMediaFullscreenViewer(
                                         Icon(
                                             imageVector = Icons.Outlined.Download,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = scheme.accent,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     },
@@ -583,7 +586,7 @@ internal fun ChatMediaFullscreenViewer(
                                     text = {
                                         Text(
                                             text = "Показать в чате",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 15.sp
                                         )
                                     },
@@ -591,7 +594,7 @@ internal fun ChatMediaFullscreenViewer(
                                         Icon(
                                             imageVector = Icons.Outlined.Visibility,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = scheme.accent,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     },
@@ -606,7 +609,7 @@ internal fun ChatMediaFullscreenViewer(
                                     text = {
                                         Text(
                                             text = "Ответить",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 15.sp
                                         )
                                     },
@@ -614,7 +617,7 @@ internal fun ChatMediaFullscreenViewer(
                                         Icon(
                                             imageVector = Icons.Outlined.Reply,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = scheme.accent,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     },
@@ -629,7 +632,7 @@ internal fun ChatMediaFullscreenViewer(
                                     text = {
                                         Text(
                                             text = "Поделиться",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 15.sp
                                         )
                                     },
@@ -637,7 +640,7 @@ internal fun ChatMediaFullscreenViewer(
                                         Icon(
                                             imageVector = Icons.Outlined.Share,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = scheme.accent,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     },
@@ -680,13 +683,14 @@ internal fun ChatMediaFullscreenViewer(
                         modifier = Modifier
                             .padding(top = 6.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color.Black.copy(alpha = 0.62f))
+                            .background(scheme.islandBg.copy(alpha = 0.88f))
+                            .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(14.dp))
                             .padding(horizontal = 12.dp, vertical = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = globalMediaCounterText,
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )
@@ -711,7 +715,7 @@ internal fun ChatMediaFullscreenViewer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
-                        Color.Black.copy(alpha = if (isCaptionExpanded) 0.85f else 0.62f),
+                        scheme.islandBg.copy(alpha = if (isCaptionExpanded) 0.96f else 0.88f),
                         if (isCaptionExpanded) RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp) else RoundedCornerShape(0.dp)
                     )
                     .safeNavigationBarPadding()
@@ -737,7 +741,7 @@ internal fun ChatMediaFullscreenViewer(
                                     modifier = Modifier
                                         .size(width = 36.dp, height = 4.dp)
                                         .clip(RoundedCornerShape(2.dp))
-                                        .background(Color.White.copy(alpha = 0.45f))
+                                        .background(scheme.textMuted.copy(alpha = 0.45f))
                                 )
                             }
                         }
@@ -759,7 +763,7 @@ internal fun ChatMediaFullscreenViewer(
                         ) {
                             Text(
                                 text = activeMessage.text,
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = 14.5.sp,
                                 lineHeight = 19.sp,
                                 maxLines = if (isCaptionExpanded) Int.MAX_VALUE else 3,
@@ -770,7 +774,7 @@ internal fun ChatMediaFullscreenViewer(
                         if (!isCaptionExpanded && isLongCaption) {
                             Text(
                                 text = "показать полностью...",
-                                color = Color(0xFFC084FC),
+                                color = scheme.accent,
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier
@@ -780,7 +784,7 @@ internal fun ChatMediaFullscreenViewer(
                         } else if (isCaptionExpanded && isLongCaption) {
                             Text(
                                 text = "свернуть",
-                                color = Color(0xFFC084FC),
+                                color = scheme.accent,
                                 fontSize = 12.5.sp,
                                 fontWeight = FontWeight.Medium,
                                 modifier = Modifier
@@ -846,6 +850,7 @@ private fun ViewerMiniThumbnail(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
     var thumbBitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -860,10 +865,10 @@ private fun ViewerMiniThumbnail(
     Box(
         modifier = modifier
             .clip(shape)
-            .background(Color(0xFF222228))
+            .background(scheme.card)
             .then(
                 if (isSelected) {
-                    Modifier.border(2.dp, Color.White, shape)
+                    Modifier.border(2.dp, scheme.accent, shape)
                 } else {
                     Modifier
                 }

@@ -8,6 +8,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,12 +79,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -155,8 +151,8 @@ fun ChatMusicPlayerSheet(
                 .align(Alignment.BottomCenter)
                 .offset { IntOffset(0, sheetOffsetAnim.value.roundToInt()) }
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -205,7 +201,7 @@ fun ChatMusicPlayerSheet(
                             .width(38.dp)
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
-                            .background(Color.White.copy(alpha = 0.25f))
+                            .background(scheme.textMuted.copy(alpha = 0.35f))
                     )
                 }
 
@@ -242,14 +238,18 @@ fun ChatMusicPlayerSheet(
                                     onForwardTrack(track)
                                 },
                                 onShare = {
-                                    try {
-                                        val sendIntent = Intent().apply {
-                                            action = Intent.ACTION_SEND
-                                            putExtra(Intent.EXTRA_TEXT, "${track.artist} — ${track.title}")
-                                            type = "text/plain"
-                                        }
-                                        context.startActivity(Intent.createChooser(sendIntent, "Поделиться треком"))
-                                    } catch (_: Throwable) {}
+                                    if (onShareTrack != null) {
+                                        onShareTrack(track)
+                                    } else {
+                                        try {
+                                            val sendIntent = Intent().apply {
+                                                action = Intent.ACTION_SEND
+                                                putExtra(Intent.EXTRA_TEXT, "${track.artist} — ${track.title}")
+                                                type = "text/plain"
+                                            }
+                                            context.startActivity(Intent.createChooser(sendIntent, "Поделиться треком"))
+                                        } catch (_: Throwable) {}
+                                    }
                                 },
                                 onShowInChat = {
                                     dismissAnimated()
@@ -269,7 +269,7 @@ fun ChatMusicPlayerSheet(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(1.dp)
-                            .background(Color.White.copy(alpha = 0.08f))
+                            .background(scheme.divider)
                     )
                 }
 
@@ -279,13 +279,14 @@ fun ChatMusicPlayerSheet(
                     val artBitmap = currentTrack.albumArtBitmap
                         ?: AudioMetadataHelper.getCachedArt(currentTrack.uri.toString())
                         ?: AudioMetadataHelper.generateFallbackArt(currentTrack.title, currentTrack.artist)
+                    var isHeaderMenuOpen by remember { mutableStateOf(false) }
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp, vertical = 8.dp)
                     ) {
-                        // Обложка + Название + Кнопка FullScreen
+                        // Обложка + Название + Кнопка FullScreen + Меню ⋮
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically
@@ -294,7 +295,7 @@ fun ChatMusicPlayerSheet(
                                 modifier = Modifier
                                     .size(52.dp)
                                     .clip(RoundedCornerShape(12.dp))
-                                    .background(Color(0xFF1E2130))
+                                    .background(scheme.card)
                                     .clickable {
                                         ctrl.openFullScreen()
                                     },
@@ -326,7 +327,7 @@ fun ChatMusicPlayerSheet(
                             ) {
                                 MarqueeText(
                                     text = currentTrack.title,
-                                    color = TextPrimary,
+                                    color = scheme.textPrimary,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.fillMaxWidth()
@@ -334,7 +335,7 @@ fun ChatMusicPlayerSheet(
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = currentTrack.artist.ifBlank { "AnonGram" },
-                                    color = TextSecondary,
+                                    color = scheme.textSecondary,
                                     fontSize = 13.sp,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -349,14 +350,101 @@ fun ChatMusicPlayerSheet(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .background(scheme.accentSoft)
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Fullscreen,
                                     contentDescription = "Полный экран",
-                                    tint = Color.White,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.width(6.dp))
+
+                            // Кнопка трёх точек ⋮ текущего трека
+                            Box {
+                                IconButton(
+                                    onClick = { isHeaderMenuOpen = true },
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(CircleShape)
+                                        .background(scheme.accentSoft)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.MoreVert,
+                                        contentDescription = "Опции",
+                                        tint = scheme.textPrimary,
+                                        modifier = Modifier.size(19.dp)
+                                    )
+                                }
+
+                                DropdownMenu(
+                                    expanded = isHeaderMenuOpen,
+                                    onDismissRequest = { isHeaderMenuOpen = false },
+                                    shape = RoundedCornerShape(16.dp),
+                                    containerColor = scheme.card,
+                                    border = BorderStroke(1.dp, scheme.islandBorder),
+                                    modifier = Modifier.width(220.dp)
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Сохранить в загрузки", color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.FileDownload, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
+                                        },
+                                        onClick = {
+                                            isHeaderMenuOpen = false
+                                            ChatActionBannerBus.show(Icons.Outlined.FileDownload) { it.bannerSavedNamed(currentTrack.title) }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Переслать", color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
+                                        },
+                                        onClick = {
+                                            isHeaderMenuOpen = false
+                                            dismissAnimated()
+                                            onForwardTrack(currentTrack)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Поделиться", color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.Share, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
+                                        },
+                                        onClick = {
+                                            isHeaderMenuOpen = false
+                                            if (onShareTrack != null) {
+                                                onShareTrack(currentTrack)
+                                            } else {
+                                                try {
+                                                    val sendIntent = Intent().apply {
+                                                        action = Intent.ACTION_SEND
+                                                        putExtra(Intent.EXTRA_TEXT, "${currentTrack.artist} — ${currentTrack.title}")
+                                                        type = "text/plain"
+                                                    }
+                                                    context.startActivity(Intent.createChooser(sendIntent, "Поделиться треком"))
+                                                } catch (_: Throwable) {}
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Показать в чате", color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.Visibility, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
+                                        },
+                                        onClick = {
+                                            isHeaderMenuOpen = false
+                                            dismissAnimated()
+                                            if (onShowInChat != null) {
+                                                onShowInChat(currentTrack)
+                                            } else {
+                                                onJumpToMessage?.invoke(currentTrack.messageId)
+                                            }
+                                        }
+                                    )
+                                }
                             }
                         }
 
@@ -401,21 +489,21 @@ fun ChatMusicPlayerSheet(
                                     .fillMaxWidth()
                                     .height(3.5.dp)
                                     .clip(RoundedCornerShape(2.dp))
-                                    .background(Color.White.copy(alpha = 0.18f))
+                                    .background(scheme.textMuted.copy(alpha = 0.25f))
                             )
                             Box(
                                 modifier = Modifier
                                     .width(with(density) { thumbXPx.toDp() })
                                     .height(3.5.dp)
                                     .clip(RoundedCornerShape(2.dp))
-                                    .background(Color.White)
+                                    .background(scheme.accent)
                             )
                             Box(
                                 modifier = Modifier
                                     .offset { IntOffset((thumbXPx - if (isDragging) 7.dp.toPx() else 5.dp.toPx()).roundToInt(), 0) }
                                     .size(if (isDragging) 14.dp else 10.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
+                                    .background(scheme.accent)
                             )
                         }
 
@@ -425,13 +513,13 @@ fun ChatMusicPlayerSheet(
                         ) {
                             Text(
                                 text = state.positionLabel,
-                                color = TextMuted,
+                                color = scheme.textMuted,
                                 fontSize = 11.5.sp,
                                 fontFamily = FontFamily.Monospace
                             )
                             Text(
                                 text = state.remainingLabel,
-                                color = TextMuted,
+                                color = scheme.textMuted,
                                 fontSize = 11.5.sp,
                                 fontFamily = FontFamily.Monospace
                             )
@@ -453,7 +541,7 @@ fun ChatMusicPlayerSheet(
                                 Icon(
                                     imageVector = Icons.Rounded.Shuffle,
                                     contentDescription = "Shuffle",
-                                    tint = if (state.isShuffleEnabled) scheme.accent else Color.White.copy(alpha = 0.6f),
+                                    tint = if (state.isShuffleEnabled) scheme.accent else scheme.textMuted,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -464,12 +552,12 @@ fun ChatMusicPlayerSheet(
                                 modifier = Modifier
                                     .size(46.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .background(scheme.accentSoft)
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.SkipPrevious,
                                     contentDescription = "Предыдущий",
-                                    tint = Color.White,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
@@ -486,7 +574,7 @@ fun ChatMusicPlayerSheet(
                                 Icon(
                                     imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                     contentDescription = if (state.isPlaying) "Пауза" else "Играть",
-                                    tint = Color.White,
+                                    tint = scheme.onAccent,
                                     modifier = Modifier.size(32.dp)
                                 )
                             }
@@ -497,12 +585,12 @@ fun ChatMusicPlayerSheet(
                                 modifier = Modifier
                                     .size(46.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.08f))
+                                    .background(scheme.accentSoft)
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.SkipNext,
                                     contentDescription = "Следующий",
-                                    tint = Color.White,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(28.dp)
                                 )
                             }
@@ -516,7 +604,7 @@ fun ChatMusicPlayerSheet(
                                     ChatRepeatMode.ONE -> Icons.Rounded.RepeatOne
                                     else -> Icons.Rounded.Repeat
                                 }
-                                val repeatTint = if (state.repeatMode != ChatRepeatMode.OFF) scheme.accent else Color.White.copy(alpha = 0.6f)
+                                val repeatTint = if (state.repeatMode != ChatRepeatMode.OFF) scheme.accent else scheme.textMuted
                                 Icon(
                                     imageVector = repeatIcon,
                                     contentDescription = "Repeat",
@@ -548,6 +636,7 @@ internal fun ChatQueueTrackRow(
     onShowInChat: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     var isMenuOpen by remember { mutableStateOf(false) }
 
     Row(
@@ -563,13 +652,13 @@ internal fun ChatQueueTrackRow(
             modifier = Modifier
                 .size(36.dp)
                 .clip(CircleShape)
-                .background(if (isCurrent) accent else Color.White.copy(alpha = 0.15f)),
+                .background(if (isCurrent) accent else scheme.accentSoft),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                 contentDescription = null,
-                tint = Color.White,
+                tint = if (isCurrent) scheme.onAccent else scheme.textPrimary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -579,7 +668,7 @@ internal fun ChatQueueTrackRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                color = if (isCurrent) accent else TextPrimary,
+                color = if (isCurrent) accent else scheme.textPrimary,
                 fontSize = 14.5.sp,
                 fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Medium,
                 maxLines = 1,
@@ -587,7 +676,7 @@ internal fun ChatQueueTrackRow(
             )
             Text(
                 text = "${track.artist.ifBlank { "AnonGram" }} • ${track.durationLabel}",
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -602,7 +691,7 @@ internal fun ChatQueueTrackRow(
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,
                     contentDescription = "Опции",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -611,13 +700,13 @@ internal fun ChatQueueTrackRow(
             DropdownMenu(
                 expanded = isMenuOpen,
                 onDismissRequest = { isMenuOpen = false },
-                modifier = Modifier
-                    .width(220.dp)
-                    .background(Color(0xFF161926), RoundedCornerShape(16.dp))
-                    .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                shape = RoundedCornerShape(16.dp),
+                containerColor = scheme.card,
+                border = BorderStroke(1.dp, scheme.islandBorder),
+                modifier = Modifier.width(220.dp)
             ) {
                 DropdownMenuItem(
-                    text = { Text("Сохранить в загрузки", color = Color.White, fontSize = 14.sp) },
+                    text = { Text("Сохранить в загрузки", color = scheme.textPrimary, fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(Icons.Outlined.FileDownload, null, tint = accent, modifier = Modifier.size(20.dp))
                     },
@@ -627,7 +716,7 @@ internal fun ChatQueueTrackRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Переслать", color = Color.White, fontSize = 14.sp) },
+                    text = { Text("Переслать", color = scheme.textPrimary, fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = accent, modifier = Modifier.size(20.dp))
                     },
@@ -637,7 +726,7 @@ internal fun ChatQueueTrackRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Поделиться", color = Color.White, fontSize = 14.sp) },
+                    text = { Text("Поделиться", color = scheme.textPrimary, fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(Icons.Outlined.Share, null, tint = accent, modifier = Modifier.size(20.dp))
                     },
@@ -647,7 +736,7 @@ internal fun ChatQueueTrackRow(
                     }
                 )
                 DropdownMenuItem(
-                    text = { Text("Показать в чате", color = Color.White, fontSize = 14.sp) },
+                    text = { Text("Показать в чате", color = scheme.textPrimary, fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(Icons.Outlined.Visibility, null, tint = accent, modifier = Modifier.size(20.dp))
                     },

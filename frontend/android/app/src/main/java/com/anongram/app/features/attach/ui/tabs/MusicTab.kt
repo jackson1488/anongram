@@ -85,13 +85,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.filled.Check
 
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
-import com.anongram.app.features.attach.ui.theme.AttachPillDark
-import com.anongram.app.features.attach.ui.theme.AttachSheetBackground
-import com.anongram.app.features.attach.ui.theme.AttachSurfaceDark
-
-private val PurpleAccent = Color(0xFF8B5CF6)
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 @Composable
 fun MusicTab(
@@ -104,6 +98,7 @@ fun MusicTab(
     onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val controller = remember { AudioPlayerController.getInstance(context) }
     val playerState by controller.state.collectAsState()
@@ -186,8 +181,8 @@ fun MusicTab(
                 .zIndex(5f)
                 .background(
                     Brush.verticalGradient(
-                        0.0f to AttachSheetBackground,
-                        0.8f to AttachSheetBackground.copy(alpha = 0.95f),
+                        0.0f to scheme.surface,
+                        0.8f to scheme.surface.copy(alpha = 0.95f),
                         1.0f to Color.Transparent
                     )
                 )
@@ -211,15 +206,15 @@ fun MusicTab(
                     .fillMaxWidth()
                     .height(44.dp)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(AttachCardDark)
-                    .border(1.dp, if (isFocused) PurpleAccent else AttachBorder, RoundedCornerShape(22.dp))
+                    .background(scheme.inputBg)
+                    .border(1.dp, if (isFocused) scheme.accent else scheme.inputBorder, RoundedCornerShape(22.dp))
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Search",
-                    tint = Color(0xFF8E8E93),
+                    tint = scheme.textMuted,
                     modifier = Modifier.size(19.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -230,7 +225,7 @@ fun MusicTab(
                     if (searchQuery.isEmpty()) {
                         Text(
                             text = "Поиск музыки",
-                            color = Color(0xFF8E8E93),
+                            color = scheme.textMuted,
                             fontSize = 15.sp
                         )
                     }
@@ -240,11 +235,11 @@ fun MusicTab(
                         singleLine = true,
                         interactionSource = searchInteractionSource,
                         textStyle = TextStyle(
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 14.sp,
                             lineHeight = 20.sp
                         ),
-                        cursorBrush = SolidColor(PurpleAccent),
+                        cursorBrush = SolidColor(scheme.accent),
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
@@ -263,7 +258,7 @@ fun MusicTab(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Clear",
-                            tint = Color(0xFF94A3B8),
+                            tint = scheme.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -298,7 +293,7 @@ fun MusicTab(
             ) {
                 Text(
                     text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 14.sp
                 )
             }
@@ -347,6 +342,7 @@ private fun MusicTrackRow(
     onPlayClick: () -> Unit,
     onToggleSelect: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var albumArt by remember(track.id) {
         mutableStateOf(AudioMetadataHelper.getCachedArt(track.uri.toString()))
@@ -366,7 +362,7 @@ private fun MusicTrackRow(
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Кнопка воспроизведения с обложкой и белой круглой кнопкой Play/Pause
+        // Кнопка воспроизведения с обложкой и круглой кнопкой Play/Pause
         Box(
             modifier = Modifier.size(44.dp),
             contentAlignment = Alignment.Center
@@ -375,7 +371,7 @@ private fun MusicTrackRow(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(CircleShape)
-                    .background(AttachSurfaceDark)
+                    .background(scheme.card)
                     .clickable { onPlayClick() },
                 contentAlignment = Alignment.Center
             ) {
@@ -389,13 +385,13 @@ private fun MusicTrackRow(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(if (isPlaying) PurpleAccent.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.40f)),
+                            .background(if (isPlaying) scheme.accent.copy(alpha = 0.55f) else Color.Black.copy(alpha = 0.40f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = "Play/Pause",
-                            tint = Color.White,
+                            tint = if (isPlaying) scheme.onAccent else Color.White,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -403,13 +399,14 @@ private fun MusicTrackRow(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(if (isPlaying) PurpleAccent else AttachSurfaceDark),
+                            .background(if (isPlaying) scheme.accent else scheme.card)
+                            .border(1.dp, if (isPlaying) scheme.accent else scheme.cardBorder, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                             contentDescription = "Play/Pause",
-                            tint = Color.White,
+                            tint = if (isPlaying) scheme.onAccent else scheme.textPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -424,7 +421,7 @@ private fun MusicTrackRow(
                         .size(16.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF22C55E))
-                        .border(1.5.dp, AttachSheetBackground, CircleShape),
+                        .border(1.5.dp, scheme.surface, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -442,7 +439,7 @@ private fun MusicTrackRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = track.title,
-                color = if (isPlaying) PurpleAccent else Color.White,
+                color = if (isPlaying) scheme.accent else scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -451,7 +448,7 @@ private fun MusicTrackRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${track.artist} • ${track.durationLabel}",
-                color = Color(0xFF94A3B8),
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

@@ -62,6 +62,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.qr.i18n.QrI18n
@@ -234,18 +236,12 @@ fun QrCameraScannerScreen(
         }
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-    ) {
-        if (!hasCameraPermission) {
-            // Защита от пустого чёрного экрана при отсутствии разрешения на камеру
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeStatusBarPadding()
-            ) {
+    val scheme = LocalAnonGramScheme.current
+
+    if (!hasCameraPermission) {
+        // Защита от пустого экрана при отсутствии разрешения на камеру — в активной теме приложения
+        AnonGramScreenSurface {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -254,14 +250,16 @@ fun QrCameraScannerScreen(
                 ) {
                     Surface(
                         shape = CircleShape,
-                        color = Color.White.copy(alpha = 0.12f),
-                        modifier = Modifier.size(44.dp)
+                        color = scheme.islandBg,
+                        modifier = Modifier
+                            .size(44.dp)
+                            .border(0.8.dp, scheme.islandBorder, CircleShape)
                     ) {
                         IconButton(onClick = onBack) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = strings.back,
-                                tint = Color.White
+                                tint = scheme.textPrimary
                             )
                         }
                     }
@@ -276,7 +274,13 @@ fun QrCameraScannerScreen(
                     }
                 )
             }
-        } else {
+        }
+    } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
             // 1. Живое видео с камеры на весь экран
             AndroidView(
                 factory = { ctx ->
@@ -388,12 +392,12 @@ fun QrCameraScannerScreen(
                             .size(58.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isFlashlightOn) Color(0xFF8B5CF6).copy(alpha = 0.85f)
+                                if (isFlashlightOn) scheme.accent.copy(alpha = 0.90f)
                                 else Color.White.copy(alpha = 0.16f)
                             )
                             .border(
                                 1.2.dp,
-                                if (isFlashlightOn) Color(0xFFC084FC) else Color.White.copy(alpha = 0.24f),
+                                if (isFlashlightOn) scheme.accent else Color.White.copy(alpha = 0.24f),
                                 CircleShape
                             )
                             .clickable {
@@ -404,7 +408,7 @@ fun QrCameraScannerScreen(
                         Icon(
                             imageVector = if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
                             contentDescription = strings.flashlightDescription,
-                            tint = Color.White,
+                            tint = if (isFlashlightOn) scheme.onAccent else Color.White,
                             modifier = Modifier.size(26.dp)
                         )
                     }

@@ -310,7 +310,7 @@ fun ReplyAttachmentMiniThumb(
                 modifier = modifier
                     .size(size)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color.White.copy(alpha = 0.08f)),
+                    .background(accent.copy(alpha = 0.14f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(

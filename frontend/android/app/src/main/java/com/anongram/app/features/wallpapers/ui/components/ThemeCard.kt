@@ -30,10 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CyberCyan
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.wallpapers.model.ThemePreset
 import com.anongram.app.features.wallpapers.ui.ThemePatternCanvas
 
@@ -47,8 +44,9 @@ fun ThemeCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val shape = RoundedCornerShape(16.dp)
-    val borderColor = if (isSelected) CyberCyan else Color(0xFF222C3D)
+    val borderColor = if (isSelected) scheme.accent else scheme.cardBorder
     val borderWidth = if (isSelected) 2.dp else 1.dp
 
     Column(
@@ -62,7 +60,7 @@ fun ThemeCard(
                 .width(88.dp)
                 .height(124.dp)
                 .clip(shape)
-                .background(Color(0xFF131822))
+                .background(scheme.surface)
                 .border(borderWidth, borderColor, shape)
         ) {
             if (preset == null) {
@@ -76,7 +74,7 @@ fun ThemeCard(
                         modifier = Modifier
                             .size(38.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF2D161A)),
+                            .background(if (scheme.isDark) Color(0xFF2D161A) else Color(0xFFFEE2E2)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -107,7 +105,7 @@ fun ThemeCard(
                             .width(46.dp)
                             .height(14.dp)
                             .clip(RoundedCornerShape(6.dp))
-                            .background(Color(0xFF1F293D).copy(alpha = 0.85f))
+                            .background(scheme.incomingBubbleBg.copy(alpha = 0.85f))
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     // Исходящий пузырь с акцентным цветом темы
@@ -150,7 +148,7 @@ fun ThemeCard(
                     .height(28.dp)
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f))
+                            listOf(Color.Transparent, Color.Black.copy(alpha = 0.72f))
                         )
                     )
             )
@@ -160,7 +158,7 @@ fun ThemeCard(
 
         Text(
             text = preset?.title ?: "Без темы",
-            color = if (isSelected) TextPrimary else TextSecondary,
+            color = if (isSelected) scheme.textPrimary else scheme.textSecondary,
             fontSize = 11.sp,
             fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
             maxLines = 1,

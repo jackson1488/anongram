@@ -37,11 +37,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import kotlinx.coroutines.delay

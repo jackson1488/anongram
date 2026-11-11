@@ -16,15 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.NeonEmerald
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.SessionGlyph
 
@@ -41,6 +40,9 @@ internal fun ChatAvatar(
     showSelectionBadge: Boolean = false,
     isSelected: Boolean = false
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val checkTint = if (accent.luminance() > 0.45f) Color(0xFF0A0C10) else Color.White
+
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
@@ -55,7 +57,7 @@ internal fun ChatAvatar(
                 SessionGlyph.MONOGRAM -> Text(
                     text = session.avatarMonogram ?: "··",
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp
                 )
 
@@ -81,8 +83,8 @@ internal fun ChatAvatar(
                     .align(Alignment.BottomEnd)
                     .size(11.dp)
                     .clip(CircleShape)
-                    .background(NeonEmerald)
-                    .border(2.dp, SurfaceDark, CircleShape)
+                    .background(if (scheme.isDark) NeonEmerald else Color(0xFF059669))
+                    .border(2.dp, scheme.surface, CircleShape)
             )
         }
 
@@ -92,15 +94,15 @@ internal fun ChatAvatar(
                     .align(Alignment.BottomEnd)
                     .size(18.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) accent else ObsidianBlack)
-                    .border(2.dp, ObsidianBlack, CircleShape),
+                    .background(if (isSelected) accent else scheme.background)
+                    .border(2.dp, scheme.background, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Outlined.Check,
                         contentDescription = "Выбрано",
-                        tint = TextPrimary,
+                        tint = checkTint,
                         modifier = Modifier.size(11.dp)
                     )
                 }

@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,7 +59,8 @@ fun BubbleQuoteBlock(
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = LocalInputStrings.current
-    val blockAccent = if (isCallout) Color(0xFFC084FC) else scheme.accent
+    val contentTint = LocalContentColor.current
+    val blockAccent = scheme.accent
     val canCollapse = isCollapsible || isCallout || text.lines().size > 2 || text.length > 120
     var isExpanded by remember { mutableStateOf(if (canCollapse) initiallyExpanded else true) }
 
@@ -116,7 +117,7 @@ fun BubbleQuoteBlock(
                             } else {
                                 Text(
                                     text = buildRichAnnotatedText(ql, blockAccent),
-                                    color = Color.White,
+                                    color = contentTint,
                                     fontSize = textSizeSp.sp,
                                     lineHeight = (textSizeSp * 1.28f).sp
                                 )
@@ -126,7 +127,7 @@ fun BubbleQuoteBlock(
                 } else {
                     Text(
                         text = buildRichAnnotatedText(text, blockAccent),
-                        color = Color.White,
+                        color = contentTint,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.28f).sp,
                         maxLines = 3,
@@ -142,7 +143,7 @@ fun BubbleQuoteBlock(
                             } else {
                                 Text(
                                     text = buildRichAnnotatedText(ql, blockAccent),
-                                    color = Color.White,
+                                    color = contentTint,
                                     fontSize = textSizeSp.sp,
                                     lineHeight = (textSizeSp * 1.28f).sp
                                 )
@@ -152,7 +153,7 @@ fun BubbleQuoteBlock(
                 } else {
                     Text(
                         text = buildRichAnnotatedText(text, blockAccent),
-                        color = Color.White,
+                        color = contentTint,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.28f).sp
                     )
@@ -169,7 +170,7 @@ fun BubbleQuoteBlock(
                     if (!author.isNullOrBlank()) {
                         Text(
                             text = "— $author",
-                            color = Color(0xFFA1A1AA),
+                            color = contentTint.copy(alpha = 0.65f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             fontStyle = FontStyle.Italic,

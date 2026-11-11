@@ -2,6 +2,7 @@ package com.anongram.app.features.settings.search.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -28,14 +29,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.LanguageSettingsStore
-import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.settings.navigation.SettingsRoute
 import com.anongram.app.features.settings.search.domain.SettingsSearchEngine
 import com.anongram.app.features.settings.search.i18n.SearchI18n
@@ -52,6 +52,7 @@ fun SettingsSearchScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val language by LanguageSettingsStore.language.collectAsState()
     val strings = remember(language) { SearchI18n.forLanguage(language) }
 
@@ -68,83 +69,111 @@ fun SettingsSearchScreen(
 
     BackHandler(onBack = onBack)
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color(0xFF050508))
-            .safeStatusBarPadding()
-            .safeNavigationBarPadding()
-    ) {
-        // Верхняя панель поиска (по скриншоту)
-        SettingsSearchTopBar(
-            query = query,
-            onQueryChange = { query = it },
-            placeholder = strings.searchPlaceholder,
-            onBack = onBack
-        )
+    AnonGramScreenSurface(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Верхняя панель поиска (по скриншоту)
+            SettingsSearchTopBar(
+                query = query,
+                onQueryChange = { query = it },
+                placeholder = strings.searchPlaceholder,
+                onBack = onBack
+            )
 
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 8.dp)
-        ) {
-            if (query.isNotBlank()) {
-                if (searchResults.isEmpty()) {
-                    // Пустое состояние
-                    Spacer(modifier = Modifier.height(60.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(72.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.05f))
-                            .align(Alignment.CenterHorizontally),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.SearchOff,
-                            contentDescription = null,
-                            tint = Color(0xFF8E99A8),
-                            modifier = Modifier.size(36.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                if (query.isNotBlank()) {
+                    if (searchResults.isEmpty()) {
+                        // Пустое состояние
+                        Spacer(modifier = Modifier.height(60.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .background(scheme.card)
+                                .border(1.dp, scheme.cardBorder, CircleShape)
+                                .align(Alignment.CenterHorizontally),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SearchOff,
+                                contentDescription = null,
+                                tint = scheme.textSecondary,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = strings.emptyTitle,
+                            color = scheme.textPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
                         )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = strings.emptySubtitle,
+                            color = scheme.textSecondary,
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        // Список найденных результатов
+                        Text(
+                            text = strings.settingsCategory,
+                            color = scheme.textSecondary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+                        )
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(scheme.card)
+                                .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
+                        ) {
+                            searchResults.forEachIndexed { index, item ->
+                                if (index > 0) {
+                                    HorizontalDivider(
+                                        color = scheme.divider,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                }
+                                SettingsSearchResultRow(
+                                    item = item,
+                                    onClick = { onNavigate(item.targetRoute) }
+                                )
+                            }
+                        }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = strings.emptyTitle,
-                        color = Color.White,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = strings.emptySubtitle,
-                        color = Color(0xFF8E99A8),
-                        fontSize = 13.sp,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 } else {
-                    // Список найденных результатов
+                    // Список всех разделов при пустом вводе
                     Text(
-                        text = strings.settingsCategory,
-                        color = Color(0xFF8E99A8),
+                        text = strings.recentOrPopular,
+                        color = scheme.textSecondary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
+                        modifier = Modifier.padding(start = 6.dp, bottom = 8.dp, top = 4.dp)
                     )
 
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color(0xFF141318))
+                            .background(scheme.card)
+                            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                     ) {
-                        searchResults.forEachIndexed { index, item ->
+                        allItems.forEachIndexed { index, item ->
                             if (index > 0) {
                                 HorizontalDivider(
-                                    color = Color.White.copy(alpha = 0.06f),
+                                    color = scheme.divider,
                                     modifier = Modifier.padding(horizontal = 16.dp)
                                 )
                             }
@@ -155,38 +184,9 @@ fun SettingsSearchScreen(
                         }
                     }
                 }
-            } else {
-                // Список всех разделов при пустом вводе
-                Text(
-                    text = strings.recentOrPopular,
-                    color = Color(0xFF8E99A8),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 6.dp, bottom = 8.dp, top = 4.dp)
-                )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF141318))
-                ) {
-                    allItems.forEachIndexed { index, item ->
-                        if (index > 0) {
-                            HorizontalDivider(
-                                color = Color.White.copy(alpha = 0.06f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                        }
-                        SettingsSearchResultRow(
-                            item = item,
-                            onClick = { onNavigate(item.targetRoute) }
-                        )
-                    }
-                }
+                Spacer(modifier = Modifier.height(24.dp))
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

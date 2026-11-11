@@ -1,19 +1,15 @@
 package com.anongram.app.features.settings.language.ui
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -29,16 +25,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
-import com.anongram.app.core.theme.CardDark
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.settings.language.i18n.LanguageI18n
 import com.anongram.app.features.settings.language.model.LanguageCatalog
 import com.anongram.app.features.settings.language.ui.components.LanguageListCard
@@ -58,6 +52,7 @@ fun LanguageSettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
     val currentLanguage by LanguageSettingsStore.language.collectAsState()
     val showTranslateButton by LanguageSettingsStore.showTranslateButton.collectAsState()
     val translateEntireChats by LanguageSettingsStore.translateEntireChats.collectAsState()
@@ -70,13 +65,7 @@ fun LanguageSettingsScreen(
     // Обработка системного «Назад»
     BackHandler(onBack = onBack)
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(ObsidianBlack)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
+    AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Верхняя панель в стиле Telegram
             LanguageTopBar(
@@ -131,11 +120,11 @@ fun LanguageSettingsScreen(
             val options = LanguageCatalog.languages.map { it.nativeName }
             AlertDialog(
                 onDismissRequest = { showDoNotTranslateDialog = false },
-                containerColor = CardDark,
+                containerColor = scheme.card,
                 title = {
                     Text(
                         text = strings.doNotTranslateTitle,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
                     )
@@ -157,11 +146,12 @@ fun LanguageSettingsScreen(
                             ) {
                                 TelegramRadioButton(
                                     selected = isSelected,
-                                    activeColor = Color(0xFFB388FF)
+                                    activeColor = scheme.accent,
+                                    inactiveColor = scheme.textMuted
                                 )
                                 Text(
                                     text = opt,
-                                    color = TextPrimary,
+                                    color = scheme.textPrimary,
                                     fontSize = 16.sp,
                                     modifier = Modifier.padding(start = 14.dp)
                                 )
@@ -171,7 +161,7 @@ fun LanguageSettingsScreen(
                 },
                 confirmButton = {
                     TextButton(onClick = { showDoNotTranslateDialog = false }) {
-                        Text(text = strings.close, color = Color(0xFFB388FF))
+                        Text(text = strings.close, color = scheme.accent)
                     }
                 }
             )

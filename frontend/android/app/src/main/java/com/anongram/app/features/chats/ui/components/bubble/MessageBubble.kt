@@ -79,14 +79,9 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.ChatTextSettingsStore
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.LinkPreview
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -101,9 +96,6 @@ import com.anongram.app.features.chats.ui.input.reply.ReplyAttachmentMiniThumb
 import com.anongram.app.features.chats.ui.input.reply.replyPreviewSnippet
 import kotlin.math.ceil
 import kotlin.math.roundToInt
-
-private val ReplyStripIncoming = Color(0xFF0B121E)
-private val ReplyStripOutgoing = Color(0xFF081A2C)
 
 /**
  * Модульный пузырь сообщения:
@@ -307,10 +299,10 @@ internal fun MessageBubble(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(if (isSelected) selectionViolet else Color(0x33000000))
+                        .background(if (isSelected) selectionViolet else scheme.surface.copy(alpha = 0.45f))
                         .border(
                             width = 2.dp,
-                            color = if (isSelected) selectionViolet else Color(0x88FFFFFF),
+                            color = if (isSelected) selectionViolet else scheme.cardBorder.copy(alpha = 0.75f),
                             shape = CircleShape
                         )
                         .clickable(onClick = onSelect),
@@ -320,7 +312,7 @@ internal fun MessageBubble(
                         Icon(
                             imageVector = Icons.Outlined.Check,
                             contentDescription = "Выбрано",
-                            tint = Color.White,
+                            tint = scheme.onAccent,
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -580,7 +572,11 @@ internal fun MessageBubble(
                                                     )
                                                     if (!isIncoming) {
                                                         Spacer(modifier = Modifier.width(4.dp))
-                                                        DeliveryStatus(status = message.status, onRetry = onRetry)
+                                                        DeliveryStatus(
+                                                            status = message.status,
+                                                            onRetry = onRetry,
+                                                            mutedTint = Color.White.copy(alpha = 0.85f)
+                                                        )
                                                     }
                                                 }
                                             }
@@ -665,6 +661,7 @@ private fun StickerContent(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     Column(
         modifier = Modifier
             .combinedClickable(onClick = onClick, onLongClick = onLongClick)
@@ -675,19 +672,23 @@ private fun StickerContent(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(8.dp))
-                .background(CardDark.copy(alpha = 0.7f))
+                .background(scheme.card.copy(alpha = 0.88f))
                 .padding(horizontal = 6.dp, vertical = 2.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = timeLabel,
-                    color = TextMuted,
+                    color = scheme.textMuted,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
                 if (!isIncoming) {
                     Spacer(modifier = Modifier.width(4.dp))
-                    DeliveryStatus(status = status, onRetry = {})
+                    DeliveryStatus(
+                        status = status,
+                        onRetry = {},
+                        mutedTint = scheme.textMuted
+                    )
                 }
             }
         }
@@ -700,17 +701,18 @@ private fun ForwardedBlock(
     author: String,
     textScale: Float = 1f
 ) {
+    val scheme = LocalAnonGramScheme.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             imageVector = Icons.Outlined.Share,
             contentDescription = null,
-            tint = TextMuted,
+            tint = scheme.textMuted,
             modifier = Modifier.size((12f * textScale).coerceIn(7f, 16f).dp)
         )
         Spacer(modifier = Modifier.width((4f * textScale).coerceIn(2f, 6f).dp))
         Text(
             text = "Переслано от $author",
-            color = TextMuted,
+            color = scheme.textMuted,
             fontSize = (11f * textScale).coerceIn(6f, 15f).sp,
             fontStyle = FontStyle.Italic
         )
@@ -950,11 +952,12 @@ private fun LinkPreviewBlock(
     accent: Color,
     searchQuery: String = ""
 ) {
+    val scheme = LocalAnonGramScheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(SurfaceDark)
+            .background(scheme.surface)
             .padding(8.dp)
     ) {
         Box(
@@ -978,7 +981,7 @@ private fun LinkPreviewBlock(
                 } else {
                     AnnotatedString(preview.title)
                 },
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -990,7 +993,7 @@ private fun LinkPreviewBlock(
                 } else {
                     AnnotatedString(preview.description)
                 },
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 11.sp,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis

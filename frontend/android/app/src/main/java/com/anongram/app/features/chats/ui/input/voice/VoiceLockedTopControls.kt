@@ -31,7 +31,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
 
 /**
  * Плавающая верхняя плашка над строкой ввода при заблокированной записи голосового (Фото 1 и 3 в стиле Telegram):

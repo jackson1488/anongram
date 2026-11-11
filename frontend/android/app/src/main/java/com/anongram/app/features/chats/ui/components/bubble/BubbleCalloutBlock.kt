@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FormatQuote
 import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,8 +41,9 @@ fun BubbleCalloutBlock(
 ) {
     val scheme = LocalAnonGramScheme.current
 
-    val containerBg = if (isQuote) scheme.accent.copy(alpha = 0.12f) else Color(0xFFC084FC).copy(alpha = 0.12f)
-    val accentColor = if (isQuote) scheme.accent else Color(0xFFC084FC)
+    val containerBg = scheme.accent.copy(alpha = 0.12f)
+    val accentColor = scheme.accent
+    val contentTint = LocalContentColor.current
 
     Box(
         modifier = modifier
@@ -81,7 +83,7 @@ fun BubbleCalloutBlock(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = text,
-                            color = Color.White,
+                            color = contentTint,
                             fontSize = 14.5.sp,
                             fontStyle = if (isQuote) FontStyle.Italic else FontStyle.Normal,
                             lineHeight = 21.sp
@@ -92,7 +94,7 @@ fun BubbleCalloutBlock(
                             val cleanAuthor = author.trim().removePrefix("—").removePrefix("-").trim()
                             Text(
                                 text = "— $cleanAuthor",
-                                color = Color(0xFFA1A1AA),
+                                color = contentTint.copy(alpha = 0.65f),
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Medium,
                                 fontStyle = FontStyle.Italic,

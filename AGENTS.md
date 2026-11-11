@@ -17,8 +17,8 @@
 - Пересылка сообщений ВСЕГДА на 100% анонимна (`forwardedFrom = null`).
 - Никаких плашек «Переслано от ...».
 
-## 4. Темы, палитры и локализация для всех новых экранов
-- **Запрещено** хардкодить цвета (`Color(0xFF...)`, `Color.White`, `ObsidianBlack`, `CardDark`, `TextPrimary`) в новых UI-компонентах.
-- Для новых экранов всегда использовать [`AnonGramScreenSurface`](file:///home/jackson/anongram/frontend/android/app/src/main/java/com/anongram/app/core/ui/AnonGramScreenSurface.kt), токены `LocalAnonGramScheme.current.*` (или `MaterialTheme.colorScheme.*`) — тема тогда применяется автоматически к любым тёмным, светлым, Ч/Б и цветным палитрам из единой точки (`core/theme/`).
-- Текстовые строки модуля ввода и сопутствующих панелей подключаются через `LocalInputStrings.current` / `InputI18n.current`.
+## 4. Темы, палитры и обязательная локализация (i18n)
+- **Запрещено** хардкодить цвета (`Color(0xFF...)`, `Color.White`, `ObsidianBlack`, `CardDark`, `TextPrimary`, `TextSecondary`, `IslandBackground`, `SurfaceDark`, `Attach*`) в UI-компонентах.
+- Для всех экранов, оверлеев, меню (`⋮`), диалогов, плеера и меню вложений всегда использовать [`AnonGramScreenSurface`](file:///home/jackson/anongram/frontend/android/app/src/main/java/com/anongram/app/core/ui/AnonGramScreenSurface.kt) и токены `LocalAnonGramScheme.current.*` (`scheme.background`, `scheme.surface`, `scheme.card`, `scheme.islandBg`, `scheme.islandBorder`, `scheme.textPrimary`, `scheme.textSecondary`, `scheme.textMuted`, `scheme.accent`, `scheme.onAccent`, `scheme.outgoingText`, `scheme.incomingText`, `scheme.divider`), чтобы тема автоматически применялась ко всем тёмным, светлым, Ч/Б и кастомным палитрам.
+- **Правило i18n (строго обязательно)**: при **каждом** изменении или добавлении пользовательского текста в интерфейсе (кнопки, заголовки, пункты меню, диалоги, тосты, плейсхолдеры) обязательно сразу обновлять соответствующие словари локализации (RU + EN через `core/i18n/` и модульные `i18n/`-контракты, например `LocalInputStrings.current` / `InputI18n.current`), не оставляя захардкоженных строк в UI.
 

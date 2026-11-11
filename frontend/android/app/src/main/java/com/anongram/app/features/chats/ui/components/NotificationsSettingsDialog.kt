@@ -2,6 +2,7 @@ package com.anongram.app.features.chats.ui.components
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,14 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
-import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 
@@ -76,7 +70,7 @@ internal fun NotificationsSettingsDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
             .safeStatusBarPadding()
             .safeNavigationBarPadding()
     ) {
@@ -94,7 +88,7 @@ internal fun NotificationsSettingsDialog(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
-                        tint = TextPrimary,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -105,7 +99,7 @@ internal fun NotificationsSettingsDialog(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(scheme.accent.copy(alpha = 0.22f)),
+                        .background(scheme.accentSoft),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -121,13 +115,13 @@ internal fun NotificationsSettingsDialog(
                 Column {
                     Text(
                         text = peerName,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         text = "Особые уведомления",
-                        color = TextSecondary,
+                        color = scheme.textSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -200,7 +194,7 @@ internal fun NotificationsSettingsDialog(
                     ) {
                         Text(
                             text = "Цвет",
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 15.sp,
                             modifier = Modifier.weight(1f)
                         )
@@ -261,7 +255,7 @@ private fun SectionHeader(title: String) {
 private fun SectionFooter(text: String) {
     Text(
         text = text,
-        color = TextMuted,
+        color = LocalAnonGramScheme.current.textMuted,
         fontSize = 12.sp,
         lineHeight = 16.sp,
         modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 6.dp)
@@ -272,11 +266,13 @@ private fun SectionFooter(text: String) {
 private fun TelegramSettingsCard(
     content: @Composable () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(CardDark)
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
     ) {
         content()
     }
@@ -285,7 +281,7 @@ private fun TelegramSettingsCard(
 @Composable
 private fun SettingsDivider() {
     HorizontalDivider(
-        color = CardBorder,
+        color = LocalAnonGramScheme.current.divider,
         thickness = 0.5.dp,
         modifier = Modifier.padding(start = 16.dp)
     )
@@ -307,7 +303,7 @@ private fun SettingsSwitchItem(
     ) {
         Text(
             text = title,
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = 15.sp,
             modifier = Modifier.weight(1f)
         )
@@ -315,10 +311,11 @@ private fun SettingsSwitchItem(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
+                checkedThumbColor = scheme.onAccent,
                 checkedTrackColor = scheme.accent,
-                uncheckedThumbColor = Color(0xFF888888),
-                uncheckedTrackColor = Color(0xFF2C3240)
+                uncheckedThumbColor = scheme.textMuted,
+                uncheckedTrackColor = scheme.surface,
+                uncheckedBorderColor = scheme.cardBorder
             )
         )
     }
@@ -340,7 +337,7 @@ private fun SettingsValueItem(
     ) {
         Text(
             text = title,
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = 15.sp,
             modifier = Modifier.weight(1f)
         )
@@ -368,7 +365,7 @@ private fun SettingsRadioItem(
     ) {
         Text(
             text = title,
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = 15.sp,
             modifier = Modifier.weight(1f)
         )
@@ -377,7 +374,7 @@ private fun SettingsRadioItem(
             onClick = onClick,
             colors = RadioButtonDefaults.colors(
                 selectedColor = scheme.accent,
-                unselectedColor = TextSecondary
+                unselectedColor = scheme.textSecondary
             )
         )
     }

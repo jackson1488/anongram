@@ -60,9 +60,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
@@ -75,19 +73,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Строка файла или фотографии без сжатия внутри пузыря (одиночной или в группе до 10 шт.):
- * - Для фото без сжатия (FileKind.IMAGE): квадратная миниатюра 62.dp вплотную слева без вертикальных зазоров
- * - Для документов/APK/архивов: круглая иконка 44.dp слева
- * - Справа сверху (только у первого элемента в группе): иконка «⋮» со строгим порядком 7 пунктов меню:
- *   1. Ответить
- *   2. Сохранить в загрузки / в галерею
- *   3. Поделиться
- *   4. Переслать
- *   5. Закрепить / Открепить
- *   6. Изменить
- *   7. Удалить
- * - Тап по фото без сжатия открывает полноэкранный просмотр с перелистыванием внутри своей группы (FileGroup) и лентой миниатюр снизу без счётчика
- * - В режиме выбора при выборе одного файла горит только галочка (без подсветки строки), а при выборе всей группы светится вся группа
+ * Строка файла или фотографии без сжатия внутри пузыря (одиночной или в группе до 10 шт.)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -113,6 +99,9 @@ internal fun ChatFileItemRow(
     onRetry: () -> Unit,
     onOpenPhotoAt: (Int) -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val bubbleText = if (isIncoming) scheme.incomingText else scheme.outgoingText
+    val bubbleSubtext = bubbleText.copy(alpha = 0.70f)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var isMenuOpen by remember { mutableStateOf(false) }
@@ -162,7 +151,7 @@ internal fun ChatFileItemRow(
                         modifier = Modifier
                             .size(62.dp)
                             .clip(RoundedCornerShape(4.dp))
-                            .background(Color(0xFF1E222D)),
+                            .background(scheme.surface),
                         contentAlignment = Alignment.Center
                     ) {
                         if (thumbBitmap != null) {
@@ -186,7 +175,7 @@ internal fun ChatFileItemRow(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(if (isIncoming) accent.copy(alpha = 0.24f) else Color.White.copy(alpha = 0.22f)),
+                            .background(if (isIncoming) accent else bubbleText),
                         contentAlignment = Alignment.Center
                     ) {
                         val icon = when {
@@ -197,7 +186,7 @@ internal fun ChatFileItemRow(
                         Icon(
                             imageVector = icon,
                             contentDescription = null,
-                            tint = Color.White,
+                            tint = if (isIncoming) scheme.onAccent else scheme.outgoingBubbleStart,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -210,7 +199,7 @@ internal fun ChatFileItemRow(
                             .align(Alignment.BottomEnd)
                             .size(20.dp)
                             .clip(CircleShape)
-                            .background(if (isItemSelected) Color(0xFF8B5CF6) else Color.Black.copy(alpha = 0.55f))
+                            .background(if (isItemSelected) scheme.accent else Color.Black.copy(alpha = 0.55f))
                             .border(1.5.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -218,7 +207,7 @@ internal fun ChatFileItemRow(
                             Icon(
                                 imageVector = Icons.Outlined.Check,
                                 contentDescription = "Выбрано",
-                                tint = Color.White,
+                                tint = scheme.onAccent,
                                 modifier = Modifier.size(13.dp)
                             )
                         }
@@ -228,7 +217,7 @@ internal fun ChatFileItemRow(
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            // Центральная часть: имя файла и снизу размер + расширение (например «212,0 KB JPG» или «28,2 KB PDF»)
+            // Центральная часть: имя файла и снизу размер + расширение
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -240,7 +229,7 @@ internal fun ChatFileItemRow(
                     } else {
                         AnnotatedString(file.name)
                     },
-                    color = TextPrimary,
+                    color = bubbleText,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -249,7 +238,7 @@ internal fun ChatFileItemRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "${file.sizeLabel} $extLabel",
-                    color = TextSecondary,
+                    color = bubbleSubtext,
                     fontSize = 12.5.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -257,7 +246,7 @@ internal fun ChatFileItemRow(
             }
         }
 
-        // Кнопка «⋮» в правом верхнем углу (только одна у первого файла в группе или у одиночного файла)
+        // Кнопка «⋮» в правом верхнем углу
         if (showThreeDots) {
             Box(
                 modifier = Modifier.align(Alignment.TopEnd)
@@ -269,7 +258,7 @@ internal fun ChatFileItemRow(
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,
                         contentDescription = "Меню файла",
-                        tint = TextSecondary,
+                        tint = bubbleSubtext,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -277,16 +266,16 @@ internal fun ChatFileItemRow(
                 DropdownMenu(
                     expanded = isMenuOpen,
                     onDismissRequest = { isMenuOpen = false },
+                    containerColor = scheme.card,
                     modifier = Modifier
                         .width(235.dp)
-                        .background(Color(0xFF14151B), RoundedCornerShape(16.dp))
-                        .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+                        .background(scheme.card, RoundedCornerShape(16.dp))
+                        .border(0.5.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
                 ) {
-                    // 1. Ответить (первый пункт со стрелкой влево)
                     DropdownMenuItem(
-                        text = { Text("Ответить", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Ответить", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -294,12 +283,11 @@ internal fun ChatFileItemRow(
                         }
                     )
 
-                    // 2. Сохранить в загрузки / в галерею
                     DropdownMenuItem(
                         text = {
                             Text(
                                 text = if (isImageFile) "Сохранить в галерею" else "Сохранить в загрузки",
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = 14.5.sp
                             )
                         },
@@ -307,7 +295,7 @@ internal fun ChatFileItemRow(
                             Icon(
                                 imageVector = Icons.Outlined.Download,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         },
@@ -335,11 +323,10 @@ internal fun ChatFileItemRow(
                         }
                     )
 
-                    // 3. Поделиться (системное меню Android)
                     DropdownMenuItem(
-                        text = { Text("Поделиться", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Поделиться", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.Share, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.Share, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -351,11 +338,10 @@ internal fun ChatFileItemRow(
                         }
                     )
 
-                    // 4. Переслать
                     DropdownMenuItem(
-                        text = { Text("Переслать", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Переслать", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.Forward, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.Forward, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -363,11 +349,10 @@ internal fun ChatFileItemRow(
                         }
                     )
 
-                    // 5. Закрепить / Открепить
                     DropdownMenuItem(
-                        text = { Text(if (isPinned) "Открепить" else "Закрепить", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text(if (isPinned) "Открепить" else "Закрепить", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.PushPin, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.PushPin, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -375,11 +360,10 @@ internal fun ChatFileItemRow(
                         }
                     )
 
-                    // 6. Изменить (замена файла и редактирование подписи)
                     DropdownMenuItem(
-                        text = { Text("Изменить", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Изменить", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.Edit, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.Edit, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -387,7 +371,6 @@ internal fun ChatFileItemRow(
                         }
                     )
 
-                    // 7. Удалить
                     DropdownMenuItem(
                         text = { Text("Удалить", color = Color(0xFFFF5252), fontSize = 14.5.sp) },
                         leadingIcon = {
@@ -412,13 +395,17 @@ internal fun ChatFileItemRow(
             ) {
                 Text(
                     text = message.timeLabel(),
-                    color = TextMuted,
+                    color = bubbleSubtext,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
                 if (!isIncoming) {
                     Spacer(modifier = Modifier.width(3.dp))
-                    DeliveryStatus(status = message.status, onRetry = onRetry)
+                    DeliveryStatus(
+                        status = message.status,
+                        onRetry = onRetry,
+                        mutedTint = bubbleSubtext
+                    )
                 }
             }
         }

@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.animations.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,7 +20,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,7 +45,8 @@ fun AnimationsPerformanceCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF141318))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(16.dp)
     ) {
         Text(
@@ -64,13 +65,13 @@ fun AnimationsPerformanceCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Уменьшение движения",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     text = "Отключить сложные эффекты для экономии энергии и быстродействия",
-                    color = Color(0xFF8E99A8),
+                    color = scheme.textSecondary,
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
@@ -79,29 +80,30 @@ fun AnimationsPerformanceCard(
                 checked = reduceMotionEnabled,
                 onCheckedChange = onReduceMotionChange,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
+                    checkedThumbColor = scheme.onAccent,
                     checkedTrackColor = scheme.accent,
-                    uncheckedThumbColor = Color(0xFFB0B0B0),
-                    uncheckedTrackColor = Color(0xFF333333)
+                    uncheckedThumbColor = scheme.textSecondary,
+                    uncheckedTrackColor = scheme.surface,
+                    uncheckedBorderColor = scheme.cardBorder
                 )
             )
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         // 2. Скорость анимаций интерфейса
         Text(
             text = "Скорость анимаций интерфейса",
-            color = Color.White,
+            color = scheme.textPrimary,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = "Множитель длительности переходов между окнами и меню",
-            color = Color(0xFF8E99A8),
+            color = scheme.textSecondary,
             fontSize = 12.sp
         )
 
@@ -118,7 +120,12 @@ fun AnimationsPerformanceCard(
                         .weight(1f)
                         .clip(RoundedCornerShape(12.dp))
                         .background(
-                            if (isSelected) scheme.accent else Color.White.copy(alpha = 0.08f)
+                            if (isSelected) scheme.accent else scheme.surface
+                        )
+                        .border(
+                            1.dp,
+                            if (isSelected) scheme.accent else scheme.cardBorder,
+                            RoundedCornerShape(12.dp)
                         )
                         .clickable { onAnimationSpeedOptionChange(opt) }
                         .padding(vertical = 10.dp),
@@ -126,7 +133,7 @@ fun AnimationsPerformanceCard(
                 ) {
                     Text(
                         text = opt,
-                        color = if (isSelected) Color.White else Color.White.copy(alpha = 0.8f),
+                        color = if (isSelected) scheme.onAccent else scheme.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                     )

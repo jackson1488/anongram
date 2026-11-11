@@ -120,7 +120,7 @@ fun LatexFormulaInputPanel(
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = scheme.accent,
-                    contentColor = Color.White
+                    contentColor = scheme.onAccent
                 )
             ) {
                 Text(

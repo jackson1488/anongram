@@ -39,10 +39,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.timeLabel
@@ -64,6 +61,7 @@ fun ArchiveScreen(
     onChatOpen: (IChatSession) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val state by viewModel.uiState.collectAsState()
     val haptic = LocalHapticFeedback.current
     var query by remember { mutableStateOf("") }
@@ -84,7 +82,7 @@ fun ArchiveScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
     ) {
         if (state.isSelection) {
             SelectionTopBar(
@@ -112,7 +110,7 @@ fun ArchiveScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
-                        tint = TextSecondary,
+                        tint = scheme.textSecondary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -120,7 +118,7 @@ fun ArchiveScreen(
                 Text(
                     text = "Архив",
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 16.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -144,13 +142,13 @@ fun ArchiveScreen(
                     Icon(
                         imageVector = Icons.Outlined.Inventory2,
                         contentDescription = null,
-                        tint = TextSecondary.copy(alpha = 0.6f),
+                        tint = scheme.textSecondary.copy(alpha = 0.6f),
                         modifier = Modifier.size(52.dp)
                     )
                     Spacer(modifier = Modifier.padding(top = 12.dp))
                     Text(
                         text = if (query.isBlank()) "Архив пуст" else "Ничего не найдено",
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp
                     )
@@ -161,7 +159,7 @@ fun ArchiveScreen(
                         } else {
                             "Попробуйте другое имя или отпечаток"
                         },
-                        color = TextSecondary,
+                        color = scheme.textSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -207,30 +205,31 @@ fun ArchiveScreen(
 /** Три точки экрана архива: выбор всех архивных чатов. */
 @Composable
 private fun ArchiveMenu(onSelectAll: () -> Unit) {
+    val scheme = LocalAnonGramScheme.current
     var menuOpen by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { menuOpen = true }) {
             Icon(
                 imageVector = Icons.Outlined.MoreVert,
                 contentDescription = "Меню архива",
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
         }
         DropdownMenu(
             expanded = menuOpen,
             onDismissRequest = { menuOpen = false },
-            containerColor = CardDark
+            containerColor = scheme.card
         ) {
             DropdownMenuItem(
                 text = {
-                    Text(text = "Выбрать чаты", color = TextPrimary, fontSize = 13.sp)
+                    Text(text = "Выбрать чаты", color = scheme.textPrimary, fontSize = 13.sp)
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Outlined.SelectAll,
                         contentDescription = null,
-                        tint = TextSecondary,
+                        tint = scheme.textSecondary,
                         modifier = Modifier.size(17.dp)
                     )
                 },

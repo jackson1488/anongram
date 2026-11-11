@@ -31,14 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.settings.language.i18n.LanguageI18nStrings
 
 /**
  * Карточка «Перевод сообщений» в стиле Telegram:
- * - Заголовок фиолетовым цветом: «Перевод сообщений»
+ * - Заголовок акцентным цветом: «Перевод сообщений»
  * - Тумблер «Показывать кнопку «Перевести»»
  * - Анимированная строка «Не переводить» (появляется только если тумблер включён)
  * - Тумблер «Переводить чаты целиком» с иконкой замка
@@ -55,17 +53,15 @@ fun LanguageTranslationCard(
     onDoNotTranslateClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentPurple = Color(0xFFB388FF)
-    val cardBackground = Color(0xFF141318)
-    val dividerColor = Color(0x1AFFFFFF)
+    val scheme = LocalAnonGramScheme.current
 
     val switchColors = SwitchDefaults.colors(
-        checkedThumbColor = Color.White,
-        checkedTrackColor = accentPurple,
-        uncheckedThumbColor = Color(0xFF888890),
-        uncheckedTrackColor = Color(0xFF333338),
+        checkedThumbColor = scheme.onAccent,
+        checkedTrackColor = scheme.accent,
+        uncheckedThumbColor = scheme.textSecondary,
+        uncheckedTrackColor = scheme.surface,
         checkedBorderColor = Color.Transparent,
-        uncheckedBorderColor = Color.Transparent
+        uncheckedBorderColor = scheme.cardBorder
     )
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -73,14 +69,14 @@ fun LanguageTranslationCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(cardBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+                .background(scheme.card)
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                 .padding(vertical = 12.dp)
         ) {
-            // Фиолетовый заголовок секции
+            // Акцентный заголовок секции
             Text(
                 text = strings.translationSectionTitle,
-                color = accentPurple,
+                color = scheme.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -98,7 +94,7 @@ fun LanguageTranslationCard(
             ) {
                 Text(
                     text = strings.showTranslateButtonTitle,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 16.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -118,7 +114,7 @@ fun LanguageTranslationCard(
             ) {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     HorizontalDivider(
-                        color = dividerColor,
+                        color = scheme.divider,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
@@ -132,14 +128,14 @@ fun LanguageTranslationCard(
                     ) {
                         Text(
                             text = strings.doNotTranslateTitle,
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 16.sp,
                             modifier = Modifier.weight(1f)
                         )
 
                         Text(
                             text = doNotTranslateLanguage,
-                            color = accentPurple,
+                            color = scheme.accent,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Normal
                         )
@@ -148,7 +144,7 @@ fun LanguageTranslationCard(
             }
 
             HorizontalDivider(
-                color = dividerColor,
+                color = scheme.divider,
                 thickness = 0.5.dp,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
@@ -163,7 +159,7 @@ fun LanguageTranslationCard(
             ) {
                 Text(
                     text = strings.translateEntireChatsTitle,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 16.sp,
                     modifier = Modifier.weight(1f)
                 )
@@ -175,7 +171,7 @@ fun LanguageTranslationCard(
                         Icon(
                             imageVector = Icons.Outlined.Lock,
                             contentDescription = null,
-                            tint = if (translateEntireChats) accentPurple else Color(0xFF44444A),
+                            tint = if (translateEntireChats) scheme.accent else scheme.surface,
                             modifier = Modifier.size(12.dp)
                         )
                     },
@@ -187,7 +183,7 @@ fun LanguageTranslationCard(
         // Подпись под карточкой (снаружи)
         Text(
             text = strings.translationFootnote,
-            color = TextMuted,
+            color = scheme.textMuted,
             fontSize = 13.sp,
             lineHeight = 17.sp,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)

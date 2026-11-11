@@ -128,6 +128,7 @@ import com.anongram.app.features.attach.ui.components.AttachInputBar
 import com.anongram.app.features.attach.ui.components.AttachTabBar
 import com.anongram.app.features.attach.ui.components.AttachTopBar
 import com.anongram.app.features.attach.ui.tabs.ContactQuickCardSheet
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.ui.tabs.ContactsTab
 import com.anongram.app.features.attach.ui.tabs.DeviceContact
 import com.anongram.app.features.attach.ui.tabs.DeviceFileItem
@@ -137,8 +138,6 @@ import com.anongram.app.features.attach.ui.tabs.GalleryMedia
 import com.anongram.app.features.attach.ui.tabs.GalleryTab
 import com.anongram.app.features.attach.ui.tabs.LocationTab
 import com.anongram.app.features.attach.ui.tabs.MusicTab
-import com.anongram.app.features.attach.ui.theme.AttachPurple
-import com.anongram.app.features.attach.ui.theme.AttachSheetBackground
 import com.anongram.app.features.camera.api.CameraScreen
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.mediaeditor.api.MediaEditorScreen
@@ -147,8 +146,6 @@ import com.anongram.app.features.player.api.Track
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import com.anongram.app.features.player.logic.AudioPlayerController
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -174,6 +171,7 @@ fun AttachSheetContent(
     onRestoreKeyboard: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -619,7 +617,7 @@ fun AttachSheetContent(
             Column(
                 Modifier.fillMaxSize()
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(AttachSheetBackground)
+                    .background(scheme.surface)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -642,7 +640,7 @@ fun AttachSheetContent(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(handleHeight)
-                        .background(AttachSheetBackground)
+                        .background(scheme.surface)
                         .draggable(
                             orientation = Orientation.Vertical,
                             state = rememberDraggableState { d ->
@@ -695,7 +693,7 @@ fun AttachSheetContent(
                                 .width(if (isThinHandle) 24.dp else 28.dp)
                                 .height(if (isThinHandle) 1.5.dp else 2.5.dp)
                                 .clip(CircleShape)
-                                .background(if (isThinHandle) Color(0x33FFFFFF) else Color(0x4DFFFFFF))
+                                .background(scheme.textMuted.copy(alpha = if (isThinHandle) 0.25f else 0.35f))
                         )
                     }
                 }
@@ -886,14 +884,14 @@ fun AttachSheetContent(
                     {
                         var isTopBarMenuOpen by remember { mutableStateOf(false) }
                         IconButton(onClick = { isTopBarMenuOpen = true }) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = "Меню", tint = Color.White)
+                            Icon(Icons.Outlined.MoreVert, contentDescription = "Меню", tint = scheme.textPrimary)
                         }
                         DropdownMenu(
                             expanded = isTopBarMenuOpen,
                             onDismissRequest = { isTopBarMenuOpen = false },
                             modifier = Modifier
-                                .background(Color(0xFF222226), RoundedCornerShape(16.dp))
-                                .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+                                .background(scheme.card, RoundedCornerShape(16.dp))
+                                .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
                         ) {
 
                             if (selectedMedia.isNotEmpty()) {
@@ -903,12 +901,12 @@ fun AttachSheetContent(
                                             modifier = Modifier.fillMaxWidth(),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text("Просмотреть сообщение", color = Color.White, fontSize = 14.5.sp)
+                                            Text("Просмотреть сообщение", color = scheme.textPrimary, fontSize = 14.5.sp)
                                             Spacer(modifier = Modifier.weight(1f))
                                             Icon(
                                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                                                 contentDescription = null,
-                                                tint = Color(0xFF8E8E93),
+                                                tint = scheme.textSecondary,
                                                 modifier = Modifier.size(16.dp)
                                             )
                                         }
@@ -918,12 +916,12 @@ fun AttachSheetContent(
                                         isPreviewOrderOpen = true
                                     },
                                     leadingIcon = {
-                                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                                     }
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Открыть в...", color = Color.White, fontSize = 14.5.sp) },
+                                text = { Text("Открыть в...", color = scheme.textPrimary, fontSize = 14.5.sp) },
                                 onClick = {
                                     isTopBarMenuOpen = false
                                     val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
@@ -934,7 +932,7 @@ fun AttachSheetContent(
                                     systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Outlined.Folder, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Outlined.Folder, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                                 }
                             )
                             if (selectedMedia.isNotEmpty()) {
@@ -942,7 +940,7 @@ fun AttachSheetContent(
                                     text = {
                                         Text(
                                             text = if (selectedMedia.all { it.hasSpoiler }) "Отменить спойлер" else "Скрыть под спойлер",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
                                     },
@@ -954,20 +952,20 @@ fun AttachSheetContent(
                                         Icon(
                                             imageVector = if (selectedMedia.all { it.hasSpoiler }) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = scheme.textPrimary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Отправить в HD-качестве", color = Color.White, fontSize = 14.5.sp) },
+                                text = { Text("Отправить в HD-качестве", color = scheme.textPrimary, fontSize = 14.5.sp) },
                                 onClick = {
                                     isTopBarMenuOpen = false
                                     sendAsHd()
                                 },
                                 leadingIcon = {
-                                    Icon(Icons.Default.HighQuality, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.HighQuality, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                                 }
                             )
                         }
@@ -985,7 +983,7 @@ fun AttachSheetContent(
                         ) {
                             Text(
                                 text = displayAlbumTitle,
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -994,7 +992,7 @@ fun AttachSheetContent(
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
                                 contentDescription = "Альбомы",
-                                tint = AttachPurple,
+                                tint = scheme.accent,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -1080,8 +1078,8 @@ fun AttachSheetContent(
                         .wrapContentHeight()
                         .heightIn(max = 380.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFF212121))
-                        .border(0.5.dp, Color(0x22FFFFFF), RoundedCornerShape(20.dp))
+                        .background(scheme.card)
+                        .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
@@ -1335,8 +1333,8 @@ fun AttachSheetContent(
                     modifier = Modifier
                         .fillMaxWidth(0.88f)
                         .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF242424))
-                        .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(22.dp))
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(22.dp))
                         .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -1346,14 +1344,14 @@ fun AttachSheetContent(
                     ) {
                         Text(
                             text = "Сбросить выбор?",
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 19.sp,
                             fontWeight = FontWeight.Bold,
                             textAlign = TextAlign.Center
                         )
                         Text(
                             text = "Выбранные элементы не будут отправлены.",
-                            color = Color(0xFFB0B0B0),
+                            color = scheme.textSecondary,
                             fontSize = 15.sp,
                             textAlign = TextAlign.Center
                         )
@@ -1369,13 +1367,13 @@ fun AttachSheetContent(
                                     .weight(1f)
                                     .height(46.dp)
                                     .clip(RoundedCornerShape(23.dp))
-                                    .background(Color(0x1AFFFFFF))
+                                    .background(scheme.textMuted.copy(alpha = 0.14f))
                                     .clickable { showDiscardDialog = false },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = "Отмена",
-                                    color = Color.White,
+                                    color = scheme.textPrimary,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -1505,6 +1503,8 @@ private fun GallerySelectionBar(
     onBack: (() -> Unit)? = null,
     menuContent: (@Composable () -> Unit)? = null
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -1520,7 +1520,7 @@ private fun GallerySelectionBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Назад",
-                    tint = Color.White,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1537,7 +1537,7 @@ private fun GallerySelectionBar(
         ) {
             Text(
                 text = title,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -1549,13 +1549,13 @@ private fun GallerySelectionBar(
                     modifier = Modifier
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFC084FC)),
+                        .background(scheme.accent),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Предпросмотр",
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -1573,7 +1573,7 @@ private fun GallerySelectionBar(
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,
                     contentDescription = "Опции",
-                    tint = Color.White,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1595,12 +1595,14 @@ private fun GallerySelectionOptionsMenu(
     onSendHd: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     DropdownMenu(
         expanded = expanded,
         onDismissRequest = onDismissRequest,
         modifier = modifier
-            .background(Color(0xFF222226), RoundedCornerShape(16.dp))
-            .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(16.dp))
+            .background(scheme.card, RoundedCornerShape(16.dp))
+            .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
     ) {
         // 1. Просмотреть сообщение > (доступно всегда при выборе >= 1 фото)
         DropdownMenuItem(
@@ -1609,12 +1611,12 @@ private fun GallerySelectionOptionsMenu(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Просмотреть сообщение", color = Color.White, fontSize = 14.5.sp)
+                    Text("Просмотреть сообщение", color = scheme.textPrimary, fontSize = 14.5.sp)
                     Spacer(modifier = Modifier.weight(1f))
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = null,
-                        tint = Color(0xFF8E8E93),
+                        tint = scheme.textSecondary,
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -1627,7 +1629,7 @@ private fun GallerySelectionOptionsMenu(
                 Icon(
                     imageVector = Icons.Outlined.Visibility,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1635,7 +1637,7 @@ private fun GallerySelectionOptionsMenu(
 
         // 2. Отправить без сжатия
         DropdownMenuItem(
-            text = { Text("Отправить без сжатия", color = Color.White, fontSize = 14.5.sp) },
+            text = { Text("Отправить без сжатия", color = scheme.textPrimary, fontSize = 14.5.sp) },
             onClick = {
                 onDismissRequest()
                 onSendUncompressed()
@@ -1644,7 +1646,7 @@ private fun GallerySelectionOptionsMenu(
                 Icon(
                     imageVector = Icons.Outlined.InsertDriveFile,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1653,7 +1655,7 @@ private fun GallerySelectionOptionsMenu(
         if (canUngroup) {
             // 3. Отправить без группировки
             DropdownMenuItem(
-                text = { Text("Отправить без группировки", color = Color.White, fontSize = 14.5.sp) },
+                text = { Text("Отправить без группировки", color = scheme.textPrimary, fontSize = 14.5.sp) },
                 onClick = {
                     onDismissRequest()
                     onSendUngrouped()
@@ -1662,7 +1664,7 @@ private fun GallerySelectionOptionsMenu(
                     Icon(
                         imageVector = Icons.Outlined.GridOff,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -1674,7 +1676,7 @@ private fun GallerySelectionOptionsMenu(
             text = {
                 Text(
                     text = if (allHaveSpoiler) "Отменить спойлер" else "Скрыть под спойлер",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 14.5.sp
                 )
             },
@@ -1686,7 +1688,7 @@ private fun GallerySelectionOptionsMenu(
                 Icon(
                     imageVector = if (allHaveSpoiler) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = if (allHaveSpoiler) scheme.accent else scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1694,7 +1696,7 @@ private fun GallerySelectionOptionsMenu(
 
         // 5. Отправить в HD-качестве
         DropdownMenuItem(
-            text = { Text("Отправить в HD-качестве", color = Color.White, fontSize = 14.5.sp) },
+            text = { Text("Отправить в HD-качестве", color = scheme.textPrimary, fontSize = 14.5.sp) },
             onClick = {
                 onDismissRequest()
                 onSendHd()
@@ -1703,7 +1705,7 @@ private fun GallerySelectionOptionsMenu(
                 Icon(
                     imageVector = Icons.Default.HighQuality,
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }

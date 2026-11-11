@@ -34,7 +34,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.anongram.app.core.navigation.AnonGramTransitionScreen
 import com.anongram.app.core.navigation.NavigationTransitionConfig
 import com.anongram.app.core.navigation.PhysicsSprings
-import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.core.theme.ThemeController
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
@@ -192,7 +191,7 @@ fun MainAppShell(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
             Column(
@@ -240,7 +239,7 @@ fun MainAppShell(
                     modifier = Modifier
                         .weight(0.58f)
                         .fillMaxHeight()
-                        .background(ObsidianBlack)
+                        .background(scheme.background)
                         .safeStatusBarPadding()
                 ) {
                     selectedSession?.let { session ->

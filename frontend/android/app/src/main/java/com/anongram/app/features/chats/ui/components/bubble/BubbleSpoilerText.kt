@@ -26,11 +26,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import kotlin.math.sin
 
 /**
  * Интерактивный анимированный спойлер с живыми плавающими частицами (Telegram Stardust Spoiler).
- * Миллионы плавающих искорок дрейфуют по поверхности фиолетовой вуали.
  * По тапу плавно растворяется и открывает скрытый текст, по повторному — скрывает обратно.
  */
 @Composable
@@ -39,6 +39,7 @@ fun BubbleSpoilerText(
     style: TextStyle,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     var isRevealed by remember { mutableStateOf(false) }
 
     val veilAlpha by animateFloatAsState(
@@ -72,54 +73,44 @@ fun BubbleSpoilerText(
                 .padding(horizontal = 4.dp, vertical = 1.dp)
         )
 
-        // Живая вуаль с динамическими дрейфующими и мерцающими частицами Telegram
+        // Живая вуаль с динамическими дрейфующими и мерцающими частицами
         if (veilAlpha > 0.01f) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .alpha(veilAlpha)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0xFF2C194D).copy(alpha = 0.94f))
+                    .background(scheme.accentSoft.copy(alpha = 0.92f))
             ) {
                 Canvas(modifier = Modifier.matchParentSize()) {
                     val width = size.width
                     val height = size.height
                     if (width <= 0 || height <= 0) return@Canvas
 
-                    // Высокая плотность плавающих мерцающих частиц
                     val numDots = ((width * height) / 45f).toInt().coerceIn(60, 240)
 
                     for (i in 0 until numDots) {
-                        // Равномерные псевдослучайные начальные координаты
                         val seedX = ((i * 0.1732f + 0.037f) % 1.0f)
                         val seedY = ((i * 0.2819f + 0.083f) % 1.0f)
 
-                        // Скорости дрейфа (в стороны и вверх, создавая эффект искрящегося дыма)
                         val driftSpeedX = 0.22f + (i % 7) * 0.08f
                         val driftSpeedY = -0.18f - (i % 5) * 0.07f
 
-                        // Плавный циклический бесшовный перенос частиц
                         val curXNorm = ((seedX + animTime * driftSpeedX + sin(animTime * 1.6f + i) * 0.035f) % 1.0f + 1.0f) % 1.0f
                         val curYNorm = ((seedY + animTime * driftSpeedY + sin(animTime * 1.9f + i * 2) * 0.035f) % 1.0f + 1.0f) % 1.0f
 
                         val px = curXNorm * width
                         val py = curYNorm * height
 
-                        // Быстрое искрящееся мерцание (10-15 Hz)
                         val twinkle = sin(animTime * 9f + i * 19.3f)
                         val dotAlpha = ((twinkle + 1f) * 0.5f).coerceIn(0.20f, 1.0f)
-
-                        // Радиус частицы от тончайшей пылинки до яркой искры
                         val radius = (0.75f + (i % 4) * 0.42f).dp.toPx()
 
-                        // Звёздная палитра Telegram Stardust: белый, неоновый фиолет, лаванда, аквамарин
-                        val color = when (i % 6) {
-                            0 -> Color(0xFFFFFFFF).copy(alpha = dotAlpha)             // Яркая белая искра
-                            1 -> Color(0xFFE9D5FF).copy(alpha = dotAlpha)             // Лавандовая пыль
-                            2 -> Color(0xFFC084FC).copy(alpha = dotAlpha * 0.95f)      // Фиолетовый неон
-                            3 -> Color(0xFFA855F7).copy(alpha = dotAlpha * 0.90f)      // Пурпурный
-                            4 -> Color(0xFF67E8F9).copy(alpha = dotAlpha * 0.85f)      // Кристальный аквамарин
-                            else -> Color(0xFFF3E8FF).copy(alpha = dotAlpha)          // Розово-белый кристалл
+                        val color = when (i % 4) {
+                            0 -> scheme.textPrimary.copy(alpha = dotAlpha)
+                            1 -> scheme.accent.copy(alpha = dotAlpha)
+                            2 -> scheme.textSecondary.copy(alpha = dotAlpha * 0.9f)
+                            else -> scheme.accent.copy(alpha = dotAlpha * 0.75f)
                         }
 
                         drawCircle(

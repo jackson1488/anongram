@@ -24,11 +24,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
 
 /** Плоская строка поиска (как на экране архива в Telegram): пилюля, лупа, сброс. */
 @Composable
@@ -45,15 +41,15 @@ internal fun SearchRow(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+            .background(scheme.inputBg)
+            .border(1.dp, scheme.inputBorder, RoundedCornerShape(20.dp))
             .padding(horizontal = 14.dp, vertical = 11.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Outlined.Search,
                 contentDescription = null,
-                tint = TextMuted,
+                tint = scheme.textMuted,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.size(10.dp))
@@ -62,7 +58,7 @@ internal fun SearchRow(
                 if (query.isEmpty()) {
                     Text(
                         text = placeholder,
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 13.sp
                     )
                 }
@@ -70,7 +66,7 @@ internal fun SearchRow(
                     value = query,
                     onValueChange = onQueryChange,
                     modifier = Modifier.fillMaxWidth(),
-                    textStyle = TextStyle(color = TextPrimary, fontSize = 13.sp),
+                    textStyle = TextStyle(color = scheme.textPrimary, fontSize = 13.sp),
                     singleLine = true,
                     cursorBrush = SolidColor(scheme.accent)
                 )
@@ -80,7 +76,7 @@ internal fun SearchRow(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Очистить",
-                    tint = TextMuted,
+                    tint = scheme.textMuted,
                     modifier = Modifier
                         .padding(start = 8.dp)
                         .size(16.dp)

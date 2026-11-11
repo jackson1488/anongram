@@ -1,13 +1,14 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Модульный компонент отображения чистого заголовка H1..H6 без символов решетки (#).
@@ -19,6 +20,8 @@ fun BubbleHeadingBlock(
     text: String,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val contentTint = LocalContentColor.current
     val (fontSizeSp, fontWeight) = when (level.coerceIn(1, 6)) {
         1 -> 24.sp to FontWeight.Bold
         2 -> 21.sp to FontWeight.Bold
@@ -32,13 +35,13 @@ fun BubbleHeadingBlock(
         InlineSpoilerLine(
             line = text,
             textSizeSp = fontSizeSp.value.toInt(),
-            accent = Color(0xFFC084FC),
+            accent = scheme.accent,
             modifier = modifier.padding(vertical = 2.dp)
         )
     } else {
         Text(
-            text = buildRichAnnotatedText(text, Color.White),
-            color = Color.White,
+            text = buildRichAnnotatedText(text, scheme.accent),
+            color = contentTint,
             fontSize = fontSizeSp,
             fontWeight = fontWeight,
             lineHeight = (fontSizeSp.value * 1.25f).sp,

@@ -55,12 +55,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
@@ -109,8 +104,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .widthIn(min = 220.dp, max = 280.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(6.dp)
             ) {
                 Box(
@@ -177,7 +172,7 @@ internal fun InteractiveReplyBubble(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = message.text,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -193,8 +188,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .clickable(onClick = onJumpToMessage)
                     .padding(8.dp)
             ) {
@@ -208,7 +203,7 @@ internal fun InteractiveReplyBubble(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = message.text,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.padding(horizontal = 4.dp)
                     )
@@ -217,7 +212,7 @@ internal fun InteractiveReplyBubble(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = message.timeLabel(),
-                    color = TextMuted,
+                    color = scheme.textMuted,
                     fontSize = 11.sp,
                     modifier = Modifier.align(Alignment.End)
                 )
@@ -229,8 +224,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(12.dp)
             ) {
                 ReplyFileRowContent(
@@ -245,13 +240,13 @@ internal fun InteractiveReplyBubble(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = message.text,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.clickable(onClick = onJumpToMessage)
                     )
                     Text(
                         text = message.timeLabel(),
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.align(Alignment.End)
                     )
@@ -265,8 +260,8 @@ internal fun InteractiveReplyBubble(
                     .fillMaxWidth(0.92f)
                     .heightIn(max = 320.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(10.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -284,13 +279,13 @@ internal fun InteractiveReplyBubble(
                 if (message.text.isNotBlank()) {
                     Text(
                         text = message.text,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.clickable(onClick = onJumpToMessage)
                     )
                     Text(
                         text = message.timeLabel(),
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.align(Alignment.End)
                     )
@@ -303,8 +298,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(14.dp)
             ) {
                 ReplyMusicRowContent(
@@ -317,12 +312,12 @@ internal fun InteractiveReplyBubble(
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = message.text,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp
                     )
                     Text(
                         text = message.timeLabel(),
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.align(Alignment.End)
                     )
@@ -336,8 +331,8 @@ internal fun InteractiveReplyBubble(
                     .fillMaxWidth(0.92f)
                     .heightIn(max = 320.dp)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .padding(12.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -353,12 +348,12 @@ internal fun InteractiveReplyBubble(
                 if (message.text.isNotBlank()) {
                     Text(
                         text = message.text,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp
                     )
                     Text(
                         text = message.timeLabel(),
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp,
                         modifier = Modifier.align(Alignment.End)
                     )
@@ -371,8 +366,8 @@ internal fun InteractiveReplyBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.92f)
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .clickable(onClick = onJumpToMessage)
                     .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
@@ -420,13 +415,13 @@ internal fun InteractiveReplyBubble(
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = attachment.durationLabel,
-                            color = TextMuted,
+                            color = scheme.textMuted,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = message.timeLabel(),
-                            color = TextMuted,
+                            color = scheme.textMuted,
                             fontSize = 10.sp
                         )
                     }
@@ -438,8 +433,8 @@ internal fun InteractiveReplyBubble(
             Column(
                 modifier = Modifier
                     .clip(RoundedCornerShape(18.dp))
-                    .background(CardDark)
-                    .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                     .clickable(onClick = onJumpToMessage)
                     .padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
@@ -449,7 +444,7 @@ internal fun InteractiveReplyBubble(
                         .size(160.dp)
                         .clip(CircleShape)
                         .background(attachmentColor(attachment.colorSeed))
-                        .border(2.dp, CardBorder, CircleShape),
+                        .border(2.dp, scheme.cardBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(
@@ -557,19 +552,19 @@ internal fun InteractiveReplyBubble(
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = attachment.name,
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                         Text(
                             text = attachment.phone,
-                            color = TextMuted,
+                            color = scheme.textMuted,
                             fontSize = 12.sp
                         )
                     }
                     Text(
                         text = message.timeLabel(),
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp
                     )
                 }
@@ -590,7 +585,7 @@ internal fun InteractiveReplyBubble(
                 )
                 Text(
                     text = message.timeLabel(),
-                    color = TextMuted,
+                    color = scheme.textMuted,
                     fontSize = 11.sp
                 )
             }
@@ -635,6 +630,7 @@ private fun ReplyAlbumCellThumb(
     extraCount: Int,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var bmp by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(uriString) {
@@ -646,7 +642,7 @@ private fun ReplyAlbumCellThumb(
     }
 
     Box(
-        modifier = modifier.background(Color(0xFF1E222D)),
+        modifier = modifier.background(scheme.surface),
         contentAlignment = Alignment.Center
     ) {
         if (bmp != null) {
@@ -660,7 +656,7 @@ private fun ReplyAlbumCellThumb(
             Icon(
                 imageVector = if (isVideo) Icons.Outlined.Videocam else Icons.Outlined.Image,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.7f),
+                tint = scheme.textMuted,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -691,6 +687,7 @@ private fun ReplyFileRowContent(
     onToggleDownload: () -> Unit,
     onJumpToMessage: () -> Unit
 ) {
+    val rowScheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val isImageFile = file.kind == FileKind.IMAGE ||
         file.name.substringAfterLast('.', "").lowercase() in setOf("jpg", "jpeg", "png", "webp", "heic", "gif", "bmp")
@@ -713,7 +710,7 @@ private fun ReplyFileRowContent(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(6.dp))
-                    .background(Color(0xFF1E222D))
+                    .background(rowScheme.surface)
                     .clickable(onClick = onJumpToMessage)
             ) {
                 Image(
@@ -741,13 +738,12 @@ private fun ReplyFileRowContent(
                 Icon(
                     imageVector = icon,
                     contentDescription = LocalInputStrings.current.file,
-                    tint = Color.White,
+                    tint = if (isFileDownloaded) Color.White else rowScheme.onAccent,
                     modifier = Modifier.size(22.dp)
                 )
             }
         }
         Spacer(modifier = Modifier.width(12.dp))
-        val rowScheme = LocalAnonGramScheme.current
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -825,7 +821,7 @@ private fun ReplyMusicRowContent(
         ) {
             Text(
                 text = music.title,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -833,7 +829,7 @@ private fun ReplyMusicRowContent(
             )
             Text(
                 text = "${music.artist} • ${music.durationLabel}",
-                color = TextMuted,
+                color = scheme.textMuted,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -842,7 +838,7 @@ private fun ReplyMusicRowContent(
         if (timeLabel != null) {
             Text(
                 text = timeLabel,
-                color = TextMuted,
+                color = scheme.textMuted,
                 fontSize = 11.sp
             )
         }

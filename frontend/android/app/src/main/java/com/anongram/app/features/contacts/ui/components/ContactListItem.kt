@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -29,10 +30,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.NeonEmerald
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.contacts.common.Contact
 
 /** Строка контакта: монограмма, имя, отпечаток, бейдж SAS-верификации. */
@@ -48,8 +45,8 @@ internal fun ContactListItem(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -65,7 +62,7 @@ internal fun ContactListItem(
             Text(
                 text = contact.monogram,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 15.sp
             )
         }
@@ -77,7 +74,7 @@ internal fun ContactListItem(
                 Text(
                     text = contact.name,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 14.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -87,7 +84,7 @@ internal fun ContactListItem(
                     Icon(
                         imageVector = Icons.Outlined.Verified,
                         contentDescription = "SAS-верифицирован",
-                        tint = NeonEmerald,
+                        tint = if (scheme.isDark) NeonEmerald else Color(0xFF059669),
                         modifier = Modifier.size(15.dp)
                     )
                 }
@@ -95,7 +92,7 @@ internal fun ContactListItem(
             Spacer(modifier = Modifier.size(3.dp))
             Text(
                 text = contact.fingerprint,
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
             )

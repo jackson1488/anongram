@@ -11,20 +11,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Кастомная радиокнопка в стиле Telegram.
  *
- * Неактивное состояние: серый круглый контур.
- * Активное состояние: фиолетовый контур + плавно масштабируемая фиолетовая точка в центре.
+ * Неактивное состояние: приглушённый круглый контур.
+ * Активное состояние: акцентный контур + плавно масштабируемая акцентная точка в центре.
  */
 @Composable
 fun TelegramRadioButton(
     selected: Boolean,
     modifier: Modifier = Modifier,
     size: Dp = 22.dp,
-    activeColor: Color = Color(0xFFB388FF),
-    inactiveColor: Color = Color(0xFF666666)
+    activeColor: Color = LocalAnonGramScheme.current.accent,
+    inactiveColor: Color = LocalAnonGramScheme.current.textMuted
 ) {
     val scaleAnim by animateFloatAsState(
         targetValue = if (selected) 1f else 0f,

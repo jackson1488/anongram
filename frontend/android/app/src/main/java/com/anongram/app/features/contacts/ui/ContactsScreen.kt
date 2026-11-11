@@ -27,10 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.contacts.common.Contact
 import com.anongram.app.features.contacts.state.ContactsViewModel
 import com.anongram.app.features.contacts.ui.components.AddContactCard
@@ -49,12 +47,13 @@ fun ContactsScreen(
     onOpenSearch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val contacts by viewModel.contacts.collectAsState()
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
             .safeStatusBarPadding()
     ) {
         Row(
@@ -66,7 +65,7 @@ fun ContactsScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Назад",
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier
                     .size(24.dp)
                     .clickable(onClick = onBack)
@@ -75,7 +74,7 @@ fun ContactsScreen(
             Text(
                 text = "Контакты",
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 16.sp
             )
         }

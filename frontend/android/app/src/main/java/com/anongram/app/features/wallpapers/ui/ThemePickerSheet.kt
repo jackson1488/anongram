@@ -47,14 +47,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CyberCyan
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.wallpapers.logic.ThemePickerViewModel
 import com.anongram.app.features.wallpapers.model.WallpaperSource
 import com.anongram.app.features.wallpapers.ui.components.ThemeCard
-
-private val AccentViolet = Color(0xFF7A4DF3)
 
 /**
  * Нижнее модальное окно выбора темы оформления чата в стиле Telegram.
@@ -67,14 +63,15 @@ fun ThemePickerSheet(
     onNavigateToPhotos: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val state by viewModel.uiState.collectAsState()
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-            .background(Color(0xF0101520))
-            .border(1.dp, Color(0xFF222C3E), RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .background(scheme.card.copy(alpha = 0.96f))
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
             .clickable(
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
@@ -88,7 +85,7 @@ fun ThemePickerSheet(
                 .width(36.dp)
                 .height(4.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF333E54))
+                .background(scheme.textMuted.copy(alpha = 0.45f))
         )
 
         Spacer(modifier = Modifier.height(10.dp))
@@ -110,7 +107,7 @@ fun ThemePickerSheet(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Назад",
-                    tint = TextPrimary,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -119,7 +116,7 @@ fun ThemePickerSheet(
 
             Text(
                 text = "Выбрать тему",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
@@ -131,12 +128,16 @@ fun ThemePickerSheet(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF1B2332))
+                    .background(scheme.surface)
             ) {
                 Icon(
                     imageVector = if (state.isDarkVariant) Icons.Outlined.WbSunny else Icons.Outlined.DarkMode,
                     contentDescription = "Светлая/тёмная тема",
-                    tint = if (state.isDarkVariant) Color(0xFFFFD54F) else CyberCyan,
+                    tint = if (state.isDarkVariant) {
+                        if (scheme.isDark) Color(0xFFFFD54F) else Color(0xFFD97706)
+                    } else {
+                        scheme.accent
+                    },
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -151,12 +152,12 @@ fun ThemePickerSheet(
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF1B2332))
+                    .background(scheme.surface)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.RestartAlt,
                     contentDescription = "Сбросить обои",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -171,7 +172,7 @@ fun ThemePickerSheet(
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF161E2D))
+                .background(scheme.surface)
                 .clickable(onClick = onNavigateToPhotos)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
@@ -179,13 +180,13 @@ fun ThemePickerSheet(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(AccentViolet.copy(alpha = 0.2f)),
+                    .background(scheme.accentSoft),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_gallery_horizontal_end),
                     contentDescription = null,
-                    tint = AccentViolet,
+                    tint = scheme.accent,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -195,13 +196,13 @@ fun ThemePickerSheet(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Выбрать фон из галереи",
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = "Фото, обои или абстракция",
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -209,7 +210,7 @@ fun ThemePickerSheet(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(14.dp)
             )
         }
@@ -251,8 +252,8 @@ fun ThemePickerSheet(
             },
             enabled = !state.isApplying,
             colors = ButtonDefaults.buttonColors(
-                containerColor = AccentViolet,
-                contentColor = Color.White
+                containerColor = scheme.accent,
+                contentColor = scheme.onAccent
             ),
             shape = RoundedCornerShape(14.dp),
             modifier = Modifier

@@ -19,9 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.common.MuteDuration
 
 /**
@@ -39,13 +37,13 @@ internal fun MuteDurationSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = CardDark
+        containerColor = scheme.card
     ) {
         Column(modifier = Modifier.padding(bottom = 24.dp)) {
             Text(
                 text = "Отключить уведомления",
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp)
             )
@@ -60,7 +58,7 @@ internal fun MuteDurationSheet(
                 ) {
                     Text(
                         text = duration.label,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         modifier = Modifier.weight(1f)
                     )

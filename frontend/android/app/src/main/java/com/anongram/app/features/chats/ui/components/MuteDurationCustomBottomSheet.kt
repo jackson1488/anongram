@@ -32,26 +32,20 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import kotlinx.coroutines.launch
 import kotlin.math.abs
-
-private val AccentViolet = Color(0xFF7A4DF3)
-private val SheetBackground = Color(0xFF161E2D) // 100% непрозрачный темный фон
 
 /**
  * Bottom-sheet выбора длительности отключения уведомлений (барабан):
  * - Заголовок: «Выключить уведомления на…»
  * - Без полоски в центре окон (dragHandle = null)
  * - Непрозрачный контейнер
- * - Плавный барабан с физикой скролла и snap-доводкой между двумя фиолетовыми линиями
+ * - Плавный барабан с физикой скролла и snap-доводкой между двумя акцентными линиями
  * - Кнопка «Подтвердить» внизу
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,6 +56,7 @@ internal fun MuteDurationCustomBottomSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
+    val scheme = LocalAnonGramScheme.current
 
     val durations = remember {
         listOf(
@@ -115,19 +110,19 @@ internal fun MuteDurationCustomBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
         dragHandle = null, // Без полоски в центре окна
-        containerColor = SheetBackground,
+        containerColor = scheme.islandBg,
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(SheetBackground)
+                .background(scheme.islandBg)
                 .padding(top = 22.dp, bottom = 28.dp)
         ) {
             // Заголовок
             Text(
                 text = "Выключить уведомления на…",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 20.dp)
@@ -135,22 +130,22 @@ internal fun MuteDurationCustomBottomSheet(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // Колёсико-барабан с физикой скролла между двумя фиолетовыми линиями
+            // Колёсико-барабан с физикой скролла между двумя акцентными линиями
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(132.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Две горизонтальные фиолетовые линии (центральный слот 44.dp)
+                // Две горизонтальные акцентные линии (центральный слот 44.dp)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
                     verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    HorizontalDivider(color = AccentViolet, thickness = 1.dp)
-                    HorizontalDivider(color = AccentViolet, thickness = 1.dp)
+                    HorizontalDivider(color = scheme.accent, thickness = 1.dp)
+                    HorizontalDivider(color = scheme.accent, thickness = 1.dp)
                 }
 
                 LazyColumn(
@@ -174,7 +169,7 @@ internal fun MuteDurationCustomBottomSheet(
                         ) {
                             Text(
                                 text = label,
-                                color = if (isSelected) TextPrimary else TextMuted.copy(alpha = 0.45f),
+                                color = if (isSelected) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.45f),
                                 fontSize = if (isSelected) 17.sp else 14.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                                 textAlign = TextAlign.Center
@@ -186,7 +181,7 @@ internal fun MuteDurationCustomBottomSheet(
 
             Spacer(modifier = Modifier.height(22.dp))
 
-            // Фиолетовая кнопка «Подтвердить»
+            // Кнопка «Подтвердить»
             Button(
                 onClick = {
                     onConfirm(durations[selectedIndex])
@@ -196,12 +191,15 @@ internal fun MuteDurationCustomBottomSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp)
                     .height(48.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentViolet),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = scheme.accent,
+                    contentColor = scheme.onAccent
+                ),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Text(
                     text = "Подтвердить",
-                    color = Color.White,
+                    color = scheme.onAccent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )

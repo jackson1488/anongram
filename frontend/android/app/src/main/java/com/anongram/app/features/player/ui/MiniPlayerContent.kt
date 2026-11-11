@@ -32,17 +32,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
-import com.anongram.app.features.attach.ui.theme.AttachPurple
-import com.anongram.app.features.attach.ui.theme.AttachTextMuted
-import com.anongram.app.features.attach.ui.theme.AttachTextPrimary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.player.logic.AudioPlayerController
 
 /**
@@ -61,6 +56,7 @@ fun MiniPlayerContent(
     val context = LocalContext.current
     val controller = AudioPlayerController.getInstance(context)
     val state by controller.state.collectAsState()
+    val scheme = LocalAnonGramScheme.current
 
     AnimatedVisibility(
         visible = state.isVisible && state.currentTrack != null,
@@ -76,8 +72,8 @@ fun MiniPlayerContent(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp, vertical = 4.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(AttachCardDark)
-                .border(1.dp, AttachBorder, RoundedCornerShape(20.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
                 .clickable(onClick = onExpand)
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
@@ -96,13 +92,13 @@ fun MiniPlayerContent(
                             modifier = Modifier
                                 .size(30.dp)
                                 .clip(CircleShape)
-                                .background(AttachPurple.copy(alpha = 0.2f)),
+                                .background(scheme.accentSoft),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                                 contentDescription = if (state.isPlaying) "Пауза" else "Воспроизведение",
-                                tint = AttachPurple,
+                                tint = scheme.accent,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -113,7 +109,7 @@ fun MiniPlayerContent(
                     // Название трека и артист в одну строку
                     Text(
                         text = label,
-                        color = AttachTextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
@@ -131,24 +127,24 @@ fun MiniPlayerContent(
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Остановить и скрыть",
-                            tint = AttachTextMuted,
+                            tint = scheme.textMuted,
                             modifier = Modifier.size(17.dp)
                         )
                     }
                 }
 
-                // Фиолетовая линия прогресса по нижнему краю таблетки
+                // Линия прогресса по нижнему краю таблетки
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(2.5.dp)
-                        .background(Color.White.copy(alpha = 0.08f))
+                        .background(scheme.divider)
                 ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(state.progress)
                             .height(2.5.dp)
-                            .background(AttachPurple)
+                            .background(scheme.accent)
                     )
                 }
             }

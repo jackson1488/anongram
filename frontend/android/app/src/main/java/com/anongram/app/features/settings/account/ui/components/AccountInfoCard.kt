@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.account.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -23,10 +24,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Карточка редактирования данных аккаунта AnonGram (Никнейм, @handle, О себе).
@@ -42,16 +43,28 @@ fun AccountInfoCard(
     onBioChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = scheme.textPrimary,
+        unfocusedTextColor = scheme.textPrimary,
+        cursorColor = scheme.accent,
+        focusedBorderColor = scheme.accent,
+        unfocusedBorderColor = scheme.inputBorder,
+        focusedLabelColor = scheme.accent,
+        unfocusedLabelColor = scheme.textSecondary
+    )
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF1B2331))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Text(
             text = "Информация профиля",
-            color = Color(0xFF8B5CF6),
+            color = scheme.accent,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -61,7 +74,7 @@ fun AccountInfoCard(
             Icon(
                 imageVector = Icons.Outlined.Badge,
                 contentDescription = null,
-                tint = Color(0xFF8E99A8),
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -70,27 +83,20 @@ fun AccountInfoCard(
                 onValueChange = onDisplayNameChange,
                 label = { Text("Отображаемое имя") },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF8B5CF6),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
-                    focusedLabelColor = Color(0xFF8B5CF6),
-                    unfocusedLabelColor = Color(0xFF8E99A8)
-                ),
+                colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Outlined.AlternateEmail,
                 contentDescription = null,
-                tint = Color(0xFF8E99A8),
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -99,27 +105,20 @@ fun AccountInfoCard(
                 onValueChange = onHandleChange,
                 label = { Text("Публичный @handle") },
                 singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF8B5CF6),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
-                    focusedLabelColor = Color(0xFF8B5CF6),
-                    unfocusedLabelColor = Color(0xFF8E99A8)
-                ),
+                colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Outlined.Info,
                 contentDescription = null,
-                tint = Color(0xFF8E99A8),
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -128,14 +127,7 @@ fun AccountInfoCard(
                 onValueChange = onBioChange,
                 label = { Text("О себе") },
                 maxLines = 3,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.White,
-                    unfocusedTextColor = Color.White,
-                    focusedBorderColor = Color(0xFF8B5CF6),
-                    unfocusedBorderColor = Color.White.copy(alpha = 0.16f),
-                    focusedLabelColor = Color(0xFF8B5CF6),
-                    unfocusedLabelColor = Color(0xFF8E99A8)
-                ),
+                colors = fieldColors,
                 modifier = Modifier.fillMaxWidth()
             )
         }

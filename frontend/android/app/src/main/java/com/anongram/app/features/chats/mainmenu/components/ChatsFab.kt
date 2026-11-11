@@ -21,11 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimary
 
 /**
  * Плавающая кнопка «Новое сообщение» (карандаш, Telegram-style).
@@ -57,8 +54,8 @@ internal fun ChatsFab(
                 .background(
                     Brush.linearGradient(
                         colors = listOf(
-                            Color(0xFF09111E),
-                            Color(0xFF0F1E33)
+                            scheme.card,
+                            scheme.surface
                         )
                     )
                 )
@@ -75,7 +72,7 @@ internal fun ChatsFab(
             Icon(
                 imageVector = Icons.Outlined.Edit,
                 contentDescription = "Новое сообщение",
-                tint = TextPrimary,
+                tint = scheme.textPrimary,
                 modifier = Modifier.size(24.dp)
             )
         }

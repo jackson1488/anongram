@@ -130,7 +130,7 @@ fun SettingsMainScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF050508))
+            .background(scheme.background)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -170,7 +170,8 @@ fun SettingsMainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF141318))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                     .padding(vertical = 6.dp)
             ) {
                 SettingsItemRow(
@@ -261,12 +262,14 @@ fun SettingsMainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color(0xFF141318))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                     .padding(vertical = 6.dp)
             ) {
                 SettingsItemRow(
                     icon = Icons.Default.Star,
                     iconBackgroundColor = scheme.accent,
+                    iconTint = scheme.onAccent,
                     title = "AnonGram Quantum Core",
                     subtitle = "Пост-квантовое шифрование ML-DSA-87",
                     onClick = { onNavigate(SettingsRoute.Privacy) }
@@ -283,9 +286,9 @@ fun SettingsMainScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFF0E0D14).copy(alpha = 0.72f + 0.22f * animatedHeaderAlpha),
-                            Color(0xFF151320).copy(alpha = 0.55f + 0.34f * animatedHeaderAlpha),
-                            Color(0xFF050508).copy(alpha = 0.15f * (1f - animatedHeaderAlpha) + 0.82f * animatedHeaderAlpha)
+                            scheme.surface.copy(alpha = 0.84f + 0.14f * animatedHeaderAlpha),
+                            scheme.background.copy(alpha = 0.65f + 0.30f * animatedHeaderAlpha),
+                            scheme.background.copy(alpha = 0.15f * (1f - animatedHeaderAlpha) + 0.88f * animatedHeaderAlpha)
                         )
                     )
                 )
@@ -303,15 +306,15 @@ fun SettingsMainScreen(
                     modifier = Modifier
                         .size(38.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF1E1C29).copy(alpha = 0.82f))
-                        .border(0.8.dp, Color.White.copy(alpha = 0.10f), CircleShape)
+                        .background(scheme.islandBg.copy(alpha = 0.90f))
+                        .border(0.8.dp, scheme.islandBorder, CircleShape)
                         .clickable { onNavigate(SettingsRoute.MyQr) },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.QrCode2,
                         contentDescription = QrI18n.forLanguage(currentLanguage).myQrCode,
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -319,7 +322,7 @@ fun SettingsMainScreen(
                 // Заголовок в центре шапки: по дефолту надпись «Настройки», всегда остаётся сверху
                 Text(
                     text = "Настройки",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -328,8 +331,8 @@ fun SettingsMainScreen(
                 Row(
                     modifier = Modifier
                         .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF1E1C29).copy(alpha = 0.82f))
-                        .border(0.8.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(22.dp))
+                        .background(scheme.islandBg.copy(alpha = 0.90f))
+                        .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -343,7 +346,7 @@ fun SettingsMainScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Поиск настроек",
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
@@ -360,7 +363,7 @@ fun SettingsMainScreen(
                         Icon(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Меню",
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
@@ -369,7 +372,7 @@ fun SettingsMainScreen(
 
             if (animatedHeaderAlpha > 0.08f) {
                 HorizontalDivider(
-                    color = Color.White.copy(alpha = 0.08f * animatedHeaderAlpha),
+                    color = scheme.divider.copy(alpha = animatedHeaderAlpha),
                     thickness = 0.5.dp
                 )
             }

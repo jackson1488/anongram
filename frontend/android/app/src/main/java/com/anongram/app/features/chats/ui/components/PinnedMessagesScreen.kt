@@ -42,15 +42,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.ui.draw.shadow
 import com.anongram.app.core.theme.CrimsonKillSwitch
-import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.messages.domain.ChatMessage
@@ -94,7 +87,7 @@ internal fun PinnedMessagesScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
     ) {
         // Обои чата как фон
         WallpaperBackground(
@@ -122,8 +115,8 @@ internal fun PinnedMessagesScreen(
                         .align(Alignment.CenterStart)
                         .size(48.dp)
                         .clip(CircleShape)
-                        .background(IslandBackground)
-                        .border(1.dp, CardBorder, CircleShape),
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(
@@ -133,7 +126,7 @@ internal fun PinnedMessagesScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
-                            tint = TextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -146,14 +139,14 @@ internal fun PinnedMessagesScreen(
                         .wrapContentWidth()
                         .height(48.dp)
                         .clip(RoundedCornerShape(24.dp))
-                        .background(IslandBackground)
-                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = titleText,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -173,7 +166,7 @@ internal fun PinnedMessagesScreen(
                     ) {
                         Text(
                             text = "Нет закреплённых сообщений",
-                            color = TextSecondary,
+                            color = scheme.textSecondary,
                             fontSize = 14.sp
                         )
                     }
@@ -234,15 +227,15 @@ internal fun PinnedMessagesScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .clip(RoundedCornerShape(24.dp))
-                        .background(IslandBackground)
-                        .border(1.dp, CardBorder, RoundedCornerShape(24.dp))
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
                         .clickable(onClick = onUnpinAll)
                         .padding(vertical = 14.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Открепить все сообщения",
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -265,7 +258,7 @@ internal fun PinnedMessagesScreen(
                     modifier = Modifier
                         .shadow(elevation = 12.dp, shape = RoundedCornerShape(18.dp), spotColor = CrimsonKillSwitch)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(CardDark)
+                        .background(scheme.card)
                         .border(1.dp, CrimsonKillSwitch.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
                         .clickable(onClick = onDismissLimitWarning)
                         .padding(horizontal = 16.dp, vertical = 10.dp)
@@ -282,7 +275,7 @@ internal fun PinnedMessagesScreen(
                         )
                         Text(
                             text = warningText,
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium
                         )

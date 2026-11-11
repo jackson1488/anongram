@@ -20,15 +20,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Компактная шапка профиля главного меню настроек (Макет 1):
  * - Круглый аватар по центру;
- * - Фиолетовый бейдж с иконкой фотоаппарата;
+ * - Акцентный бейдж с иконкой фотоаппарата;
  * - Имя пользователя;
  * - Публичный криптографический ID и @handle.
  */
@@ -39,6 +39,8 @@ fun SettingsProfileHeader(
     onAvatarClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -56,35 +58,36 @@ fun SettingsProfileHeader(
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
-                            colors = listOf(Color(0xFFFFFFFF), Color(0xFFE2E8F0))
+                            colors = listOf(scheme.islandBg, scheme.card)
                         )
                     )
+                    .border(1.5.dp, scheme.islandBorder, CircleShape)
                     .clickable { onAvatarClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = displayName.take(1).uppercase(),
-                    color = Color(0xFF4C1D95),
+                    color = scheme.accent,
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            // Фиолетовый бейдж камеры в правом нижнем углу
+            // Акцентный бейдж камеры в правом нижнем углу
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFA855F7))
-                    .border(2.dp, Color(0xFF0A0A0E), CircleShape)
+                    .background(scheme.accent)
+                    .border(2.dp, scheme.background, CircleShape)
                     .clickable { onAvatarClick() },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.CameraAlt,
                     contentDescription = "Изменить фото",
-                    tint = Color.White,
+                    tint = scheme.onAccent,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -94,7 +97,7 @@ fun SettingsProfileHeader(
 
         Text(
             text = displayName,
-            color = Color.White,
+            color = scheme.textPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
@@ -103,7 +106,7 @@ fun SettingsProfileHeader(
 
         Text(
             text = subtitleText,
-            color = Color(0xFF8E8E93),
+            color = scheme.textSecondary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Normal
         )

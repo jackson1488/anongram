@@ -50,10 +50,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
@@ -87,7 +83,7 @@ private val DEFAULT_GLOBAL_SERVER_DIRECTORY = listOf(
  * Полноэкранный выбор чата «Переслать...» (по референсу Telegram / AnonGram):
  * - Шапка: кнопка Назад (←) и заголовок «Переслать...»
  * - Поле поиска «Поиск чатов» (работает и по активным чатам, и глобально по всему серверу)
- * - Первая строка по умолчанию: «Избранное» («Сохранить на память») с фиолетовой иконкой закладки
+ * - Первая строка по умолчанию: «Избранное» («Сохранить на память») с акцентной иконкой закладки
  * - Ниже: список всех актуальных чатов, с которыми сейчас ведётся переписка
  * - При вводе текста в поиск: найденные актуальные чаты + секция «Глобальный поиск по серверу»
  */
@@ -170,14 +166,14 @@ internal fun ForwardTargetPickerScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
             .zIndex(310f)
     ) {
         // Верхняя шапка «Переслать...»
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background( Color(0xFF14151B))
+                .background(scheme.surface)
                 .safeStatusBarPadding()
                 .height(56.dp)
                 .padding(horizontal = 6.dp),
@@ -187,14 +183,14 @@ internal fun ForwardTargetPickerScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Назад",
-                    tint = TextPrimary,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = "Переслать...",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -204,7 +200,7 @@ internal fun ForwardTargetPickerScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF14151B))
+                .background(scheme.surface)
                 .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Row(
@@ -212,14 +208,15 @@ internal fun ForwardTargetPickerScreen(
                     .fillMaxWidth()
                     .height(42.dp)
                     .clip(RoundedCornerShape(21.dp))
-                    .background(Color(0xFF22242E))
+                    .background(scheme.inputBg)
+                    .border(1.dp, scheme.inputBorder, RoundedCornerShape(21.dp))
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Search,
                     contentDescription = null,
-                    tint = TextMuted,
+                    tint = scheme.textMuted,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -230,7 +227,7 @@ internal fun ForwardTargetPickerScreen(
                     if (query.isEmpty()) {
                         Text(
                             text = "Поиск чатов",
-                            color = TextMuted,
+                            color = scheme.textMuted,
                             fontSize = 15.sp
                         )
                     }
@@ -239,7 +236,7 @@ internal fun ForwardTargetPickerScreen(
                         onValueChange = { query = it },
                         singleLine = true,
                         textStyle = TextStyle(
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 15.sp
                         ),
                         cursorBrush = SolidColor(scheme.accent),
@@ -254,7 +251,7 @@ internal fun ForwardTargetPickerScreen(
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Очистить",
-                            tint = TextMuted,
+                            tint = scheme.textMuted,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -262,7 +259,7 @@ internal fun ForwardTargetPickerScreen(
             }
         }
 
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f), thickness = 0.5.dp)
+        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
         LazyColumn(
             modifier = Modifier
@@ -284,13 +281,13 @@ internal fun ForwardTargetPickerScreen(
                             modifier = Modifier
                                 .size(50.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFF8B78E6)),
+                                .background(scheme.accent),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.BookmarkBorder,
                                 contentDescription = "Избранное",
-                                tint = Color.White,
+                                tint = scheme.onAccent,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -298,7 +295,7 @@ internal fun ForwardTargetPickerScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Избранное",
-                                color = TextPrimary,
+                                color = scheme.textPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
@@ -307,7 +304,7 @@ internal fun ForwardTargetPickerScreen(
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Сохранить на память",
-                                color = TextSecondary,
+                                color = scheme.textSecondary,
                                 fontSize = 14.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -336,7 +333,7 @@ internal fun ForwardTargetPickerScreen(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFF171922))
+                                .background(scheme.surface)
                                 .padding(horizontal = 16.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -349,7 +346,7 @@ internal fun ForwardTargetPickerScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = "Глобальный поиск по серверу",
-                                color = TextSecondary,
+                                color = scheme.textSecondary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -376,6 +373,7 @@ private fun ForwardActiveSessionRow(
     session: IChatSession,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val accent = session.accentColor
     val monogram = session.avatarMonogram
         ?: session.title.trim().take(2).uppercase()
@@ -411,7 +409,7 @@ private fun ForwardActiveSessionRow(
                     else -> {
                         Text(
                             text = monogram,
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -425,7 +423,7 @@ private fun ForwardActiveSessionRow(
                         .align(Alignment.BottomEnd)
                         .clip(CircleShape)
                         .background(Color(0xFF34C759))
-                        .border(2.dp, ObsidianBlack, CircleShape)
+                        .border(2.dp, scheme.background, CircleShape)
                 )
             }
         }
@@ -438,7 +436,7 @@ private fun ForwardActiveSessionRow(
         ) {
             Text(
                 text = session.title,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -447,7 +445,7 @@ private fun ForwardActiveSessionRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = session.lastMessagePreview.ifBlank { session.securityLabel },
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 14.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -498,7 +496,7 @@ private fun ForwardGlobalServerRow(
                 )
                 else -> Text(
                     text = item.title.take(2).uppercase(),
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -511,7 +509,7 @@ private fun ForwardGlobalServerRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = item.title,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -529,7 +527,7 @@ private fun ForwardGlobalServerRow(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = item.subtitle,
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 13.5.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

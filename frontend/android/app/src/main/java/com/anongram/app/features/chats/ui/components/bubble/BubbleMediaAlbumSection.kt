@@ -44,6 +44,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.ui.components.SpoilerOverlay
 import com.anongram.app.features.attach.ui.components.calculateAlbumRows
 import com.anongram.app.features.attach.ui.components.getRowHeightDp
@@ -383,13 +384,14 @@ internal fun ChatMediaAlbumGrid(
             }
         }
 
-        // Фиолетовое свечение при выделении всего альбома целиком
+        // Свечение при выделении всего альбома целиком
         if (isFullAlbumSelected) {
+            val scheme = LocalAnonGramScheme.current
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .background(Color(0xFF8B5CF6).copy(alpha = 0.24f))
-                    .border(2.dp, Color(0xFF8B5CF6), RoundedCornerShape(14.dp))
+                    .background(scheme.accent.copy(alpha = 0.24f))
+                    .border(2.dp, scheme.accent, RoundedCornerShape(14.dp))
             )
         }
     }
@@ -407,11 +409,12 @@ internal fun ChatRealPhotoBox(
     hasSpoiler: Boolean,
     showSelectionBadge: Boolean = false,
     isPhotoSelected: Boolean = false,
-    accent: Color = Color(0xFF00E5FF),
+    accent: Color = LocalAnonGramScheme.current.accent,
     onPhotoClick: () -> Unit = {},
     onPhotoLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
     var bitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
@@ -429,7 +432,7 @@ internal fun ChatRealPhotoBox(
 
     Box(
         modifier = modifier
-            .background(Color(0xFF1A1A20))
+            .background(scheme.surface)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -486,7 +489,7 @@ internal fun ChatRealPhotoBox(
                     .padding(6.dp)
                     .size(22.dp)
                     .clip(CircleShape)
-                    .background(if (isPhotoSelected) Color(0xFF8B5CF6) else Color.Black.copy(alpha = 0.45f))
+                    .background(if (isPhotoSelected) scheme.accent else Color.Black.copy(alpha = 0.45f))
                     .border(1.5.dp, Color.White, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
@@ -494,7 +497,7 @@ internal fun ChatRealPhotoBox(
                     Icon(
                         imageVector = Icons.Outlined.Check,
                         contentDescription = "Выбрано",
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(14.dp)
                     )
                 }

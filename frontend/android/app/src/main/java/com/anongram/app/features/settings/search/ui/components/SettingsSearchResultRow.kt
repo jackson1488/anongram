@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.settings.search.model.SettingsSearchItem
 
 /**
@@ -34,6 +35,8 @@ fun SettingsSearchResultRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -63,13 +66,13 @@ fun SettingsSearchResultRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = item.title,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = item.subtitle,
-                color = Color(0xFF8E99A8),
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 lineHeight = 15.sp
             )
@@ -81,7 +84,7 @@ fun SettingsSearchResultRow(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = Color.White.copy(alpha = 0.35f),
+            tint = scheme.textMuted,
             modifier = Modifier.size(20.dp)
         )
     }

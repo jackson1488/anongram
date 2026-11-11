@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,7 +13,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.NotificationsOff
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Tune
@@ -29,11 +29,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 
 /**
  * Мини-диалог управления уведомлениями чата (Telegram-style):
@@ -55,12 +51,13 @@ internal fun NotificationsMuteDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(CardDark)
+                .background(scheme.card)
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                 .padding(vertical = 16.dp)
         ) {
             Text(
                 text = "Уведомления",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
@@ -105,7 +102,7 @@ internal fun NotificationsMuteDialog(
             )
 
             HorizontalDivider(
-                color = CardBorder,
+                color = scheme.divider,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
 
@@ -127,7 +124,7 @@ internal fun NotificationsMuteDialog(
                 horizontalArrangement = androidx.compose.foundation.layout.Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text(text = "Отмена", color = TextSecondary, fontSize = 14.sp)
+                    Text(text = "Отмена", color = scheme.textSecondary, fontSize = 14.sp)
                 }
             }
         }
@@ -141,6 +138,7 @@ private fun MuteOptionRow(
     subtitle: String? = null,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -151,21 +149,21 @@ private fun MuteOptionRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = LocalAnonGramScheme.current.accent,
+            tint = scheme.accent,
             modifier = Modifier.size(20.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 11.sp
                 )
             }

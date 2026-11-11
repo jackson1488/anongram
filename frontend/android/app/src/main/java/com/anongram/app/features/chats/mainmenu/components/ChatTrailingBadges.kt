@@ -20,15 +20,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CyberCyan
 import com.anongram.app.core.theme.FlameOrange
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextMuted
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.common.IChatSession
 
 /** Хвостовые бейджи карточки: остаток страниц OTP-пада, мьют, непрочитанные. */
 @Composable
 internal fun ChatTrailingBadges(session: IChatSession, modifier: Modifier = Modifier) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -58,7 +58,7 @@ internal fun ChatTrailingBadges(session: IChatSession, modifier: Modifier = Modi
             Icon(
                 imageVector = Icons.Outlined.NotificationsOff,
                 contentDescription = "Уведомления отключены",
-                tint = TextMuted,
+                tint = scheme.textMuted,
                 modifier = Modifier.size(14.dp)
             )
         }
@@ -68,12 +68,12 @@ internal fun ChatTrailingBadges(session: IChatSession, modifier: Modifier = Modi
                 modifier = Modifier
                     .size(20.dp)
                     .clip(CircleShape)
-                    .background(CyberCyan),
+                    .background(scheme.accent),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = if (session.unreadCount > 99) "99+" else session.unreadCount.toString(),
-                    color = ObsidianBlack,
+                    color = scheme.onAccent,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Black
                 )

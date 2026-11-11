@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -42,9 +43,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
@@ -73,6 +72,7 @@ internal fun MessageContextMenu(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val isMyMessage = message.direction == MessageDirection.OUTGOING
     val att = message.attachment
     val isEditable = isMyMessage && att !is MessageAttachment.Sticker
@@ -180,7 +180,8 @@ internal fun MessageContextMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF21252E))
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -203,13 +204,13 @@ internal fun MessageContextMenu(
                         modifier = Modifier
                             .size(22.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF2F3543)),
+                            .background(scheme.card),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
                             contentDescription = "Ещё реакции",
-                            tint = TextSecondary,
+                            tint = scheme.textSecondary,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -221,7 +222,8 @@ internal fun MessageContextMenu(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFF21252E))
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
                         .padding(vertical = 3.dp)
                 ) {
                     ContextMenuRow(
@@ -269,7 +271,7 @@ internal fun MessageContextMenu(
                         onClick = { onPin(); onDismiss() }
                     )
                     HorizontalDivider(
-                        color = CardBorder,
+                        color = scheme.divider,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(vertical = 1.dp)
                     )
@@ -290,7 +292,7 @@ private fun ContextMenuRow(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
-    color: Color = TextPrimary,
+    color: Color = LocalAnonGramScheme.current.textPrimary,
     flipIcon: Boolean = false
 ) {
     Row(

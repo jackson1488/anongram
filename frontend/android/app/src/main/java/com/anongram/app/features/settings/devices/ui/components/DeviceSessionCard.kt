@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.devices.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Карточка активного устройства и привязки по QR-коду.
@@ -37,16 +39,20 @@ fun DeviceSessionCard(
     onLinkDesktopQr: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val onlineColor = if (scheme.isDark) Color(0xFF4ADE80) else Color(0xFF059669)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF1B2331))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Text(
             text = "Это устройство",
-            color = Color(0xFF8B5CF6),
+            color = scheme.accent,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold
         )
@@ -56,20 +62,20 @@ fun DeviceSessionCard(
             Icon(
                 imageVector = Icons.Outlined.PhoneAndroid,
                 contentDescription = null,
-                tint = Color(0xFF4ADE80),
+                tint = onlineColor,
                 modifier = Modifier.size(28.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = deviceModel,
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
                     text = "$appVersion • В сети (Hardware Keystore)",
-                    color = Color(0xFF4ADE80),
+                    color = onlineColor,
                     fontSize = 12.sp
                 )
             }
@@ -80,8 +86,8 @@ fun DeviceSessionCard(
         Button(
             onClick = onLinkDesktopQr,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF8B5CF6),
-                contentColor = Color.White
+                containerColor = scheme.accent,
+                contentColor = scheme.onAccent
             ),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()

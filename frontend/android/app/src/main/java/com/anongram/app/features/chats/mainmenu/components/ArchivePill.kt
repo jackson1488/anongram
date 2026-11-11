@@ -24,10 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Строка архива в главном списке: выглядит как обычный чат (плоский ряд,
@@ -41,6 +38,8 @@ internal fun ArchivePill(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -53,13 +52,13 @@ internal fun ArchivePill(
             modifier = Modifier
                 .size(46.dp)
                 .clip(CircleShape)
-                .background(TextSecondary.copy(alpha = 0.14f)),
+                .background(scheme.textSecondary.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.Outlined.Inventory2,
                 contentDescription = null,
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -70,13 +69,13 @@ internal fun ArchivePill(
             Text(
                 text = "Архив",
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 14.sp
             )
             Spacer(modifier = Modifier.padding(top = 3.dp))
             Text(
                 text = preview,
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -88,12 +87,12 @@ internal fun ArchivePill(
                 modifier = Modifier
                     .size(20.dp)
                     .clip(CircleShape)
-                    .background(TextMuted.copy(alpha = 0.4f)),
+                    .background(scheme.textMuted.copy(alpha = 0.28f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = chatCount.toString(),
-                    color = ObsidianBlack,
+                    color = scheme.textPrimary,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Black
                 )

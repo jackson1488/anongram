@@ -51,8 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.auth.data.crypto.Bip39WordList
 import com.anongram.app.features.auth.data.crypto.KeyGenerator
 import com.anongram.app.features.auth.domain.model.SeedPhrase
@@ -79,11 +79,7 @@ fun CreateIdentityScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val obsidianBackground = Color(0xFF0D0B14)
-    val purpleAccent = Color(0xFF8B5CF6)
-    val lilacAccent = Color(0xFFC084FC)
-    val cardBackground = Color(0xFF161224)
-    val cardBorder = Color(0x338B5CF6)
+    val scheme = LocalAnonGramScheme.current
 
     var nickname by remember { mutableStateOf("GhostWalker") }
     var selectedAvatarIndex by remember { mutableIntStateOf(0) }
@@ -129,13 +125,7 @@ fun CreateIdentityScreen(
         startKeyGeneration()
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(obsidianBackground)
-            .safeStatusBarPadding()
-            .safeNavigationBarPadding()
-    ) {
+    AnonGramScreenSurface(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -157,12 +147,13 @@ fun CreateIdentityScreen(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFF1F1A30))
+                            .background(scheme.islandBg)
+                            .border(0.8.dp, scheme.islandBorder, CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Назад",
-                            tint = Color.White
+                            tint = scheme.textPrimary
                         )
                     }
 
@@ -170,7 +161,7 @@ fun CreateIdentityScreen(
 
                     Text(
                         text = "Создание личности",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -186,7 +177,7 @@ fun CreateIdentityScreen(
                         .shadow(20.dp, CircleShape, ambientColor = currentColors[0], spotColor = currentColors[1])
                         .clip(CircleShape)
                         .background(Brush.linearGradient(currentColors))
-                        .border(2.dp, Color.White.copy(alpha = 0.8f), CircleShape),
+                        .border(2.dp, scheme.cardBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -211,8 +202,8 @@ fun CreateIdentityScreen(
                                 .clip(CircleShape)
                                 .background(Brush.linearGradient(colors))
                                 .border(
-                                    width = if (selectedAvatarIndex == index) 2.dp else 1.dp,
-                                    color = if (selectedAvatarIndex == index) Color.White else Color.Transparent,
+                                    width = if (selectedAvatarIndex == index) 2.5.dp else 1.dp,
+                                    color = if (selectedAvatarIndex == index) scheme.textPrimary else Color.Transparent,
                                     shape = CircleShape
                                 )
                                 .clickable { selectedAvatarIndex = index },
@@ -236,7 +227,7 @@ fun CreateIdentityScreen(
                 Column(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = "ПСЕВДОНИМ (NICKNAME)",
-                        color = lilacAccent,
+                        color = scheme.accent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 1.sp
@@ -248,8 +239,8 @@ fun CreateIdentityScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(cardBackground)
-                            .border(1.dp, cardBorder, RoundedCornerShape(16.dp))
+                            .background(scheme.inputBg)
+                            .border(1.dp, scheme.inputBorder, RoundedCornerShape(16.dp))
                             .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -259,11 +250,11 @@ fun CreateIdentityScreen(
                                 if (it.length <= 24) nickname = it
                             },
                             textStyle = TextStyle(
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Medium
                             ),
-                            cursorBrush = SolidColor(purpleAccent),
+                            cursorBrush = SolidColor(scheme.accent),
                             singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
@@ -279,7 +270,7 @@ fun CreateIdentityScreen(
                             Icon(
                                 imageVector = Icons.Default.Refresh,
                                 contentDescription = "Случайный ник",
-                                tint = lilacAccent,
+                                tint = scheme.accent,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -289,7 +280,7 @@ fun CreateIdentityScreen(
 
                     Text(
                         text = "Псевдоним виден только вашим контактам и может быть изменён позже",
-                        color = Color(0xFF64748B),
+                        color = scheme.textMuted,
                         fontSize = 11.sp
                     )
                 }
@@ -301,13 +292,13 @@ fun CreateIdentityScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(18.dp))
-                        .background(cardBackground)
-                        .border(1.dp, cardBorder, RoundedCornerShape(18.dp))
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                         .padding(16.dp)
                 ) {
                     Text(
                         text = "Криптографический конвейер",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -365,18 +356,22 @@ fun CreateIdentityScreen(
                         .shadow(
                             elevation = if (isReady) 16.dp else 0.dp,
                             shape = RoundedCornerShape(28.dp),
-                            ambientColor = purpleAccent,
-                            spotColor = purpleAccent
+                            ambientColor = scheme.accent,
+                            spotColor = scheme.accent
                         )
                         .clip(RoundedCornerShape(28.dp))
                         .background(
                             if (isReady) {
                                 Brush.horizontalGradient(
-                                    listOf(Color(0xFF7C3AED), Color(0xFF9333EA), Color(0xFFC084FC))
+                                    listOf(scheme.accent, scheme.accentDim)
                                 )
                             } else {
-                                SolidColor(Color(0xFF261D3B))
+                                SolidColor(scheme.card)
                             }
+                        )
+                        .then(
+                            if (!isReady) Modifier.border(1.dp, scheme.cardBorder, RoundedCornerShape(28.dp))
+                            else Modifier
                         )
                         .clickable(enabled = isReady) {
                             val id = generatedIdentity ?: return@clickable
@@ -389,13 +384,13 @@ fun CreateIdentityScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(20.dp),
-                                color = Color.White,
+                                color = scheme.accent,
                                 strokeWidth = 2.dp
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Text(
                                 text = "Деривация ключей...",
-                                color = Color.White,
+                                color = scheme.textSecondary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -403,7 +398,7 @@ fun CreateIdentityScreen(
                     } else {
                         Text(
                             text = "Продолжить к сохранению Seed-фразы",
-                            color = Color.White,
+                            color = if (isReady) scheme.onAccent else scheme.textMuted,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -421,7 +416,7 @@ private fun CryptoStepRow(
     isActive: Boolean,
     isDone: Boolean
 ) {
-    val lilacAccent = Color(0xFFC084FC)
+    val scheme = LocalAnonGramScheme.current
     val emeraldAccent = Color(0xFF10B981)
 
     Row(
@@ -435,8 +430,8 @@ private fun CryptoStepRow(
                 .background(
                     when {
                         isDone -> emeraldAccent
-                        isActive -> lilacAccent.copy(alpha = 0.3f)
-                        else -> Color(0xFF231C38)
+                        isActive -> scheme.accentSoft
+                        else -> scheme.surface
                     }
                 ),
             contentAlignment = Alignment.Center
@@ -445,13 +440,13 @@ private fun CryptoStepRow(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = null,
-                    tint = Color.Black,
+                    tint = Color.White,
                     modifier = Modifier.size(14.dp)
                 )
             } else {
                 Text(
                     text = "$step",
-                    color = if (isActive) lilacAccent else Color(0xFF64748B),
+                    color = if (isActive) scheme.accent else scheme.textMuted,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -462,7 +457,7 @@ private fun CryptoStepRow(
 
         Text(
             text = label,
-            color = if (isActive) Color.White else Color(0xFF64748B),
+            color = if (isActive) scheme.textPrimary else scheme.textMuted,
             fontSize = 12.sp,
             fontFamily = if (step == 4) FontFamily.Monospace else FontFamily.Default,
             fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal

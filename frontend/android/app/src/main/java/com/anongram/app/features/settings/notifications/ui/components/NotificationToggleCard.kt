@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.notifications.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,10 +17,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Карточка переключателей уведомлений (ЛС, группы, скрытие текста в пушах).
@@ -35,11 +36,14 @@ fun NotificationToggleCard(
     onHidePreviewContentChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF1B2331))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         NotificationRow(
@@ -49,7 +53,7 @@ fun NotificationToggleCard(
             onCheckedChange = onPrivateChatsChange
         )
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         NotificationRow(
@@ -59,7 +63,7 @@ fun NotificationToggleCard(
             onCheckedChange = onGroupsChange
         )
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         NotificationRow(
@@ -78,6 +82,8 @@ private fun NotificationRow(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -85,13 +91,13 @@ private fun NotificationRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = subtitle,
-                color = Color(0xFF8E99A8),
+                color = scheme.textSecondary,
                 fontSize = 12.sp
             )
         }
@@ -99,8 +105,11 @@ private fun NotificationRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Color(0xFF8B5CF6)
+                checkedThumbColor = scheme.onAccent,
+                checkedTrackColor = scheme.accent,
+                uncheckedThumbColor = scheme.textSecondary,
+                uncheckedTrackColor = scheme.surface,
+                uncheckedBorderColor = scheme.cardBorder
             )
         )
     }

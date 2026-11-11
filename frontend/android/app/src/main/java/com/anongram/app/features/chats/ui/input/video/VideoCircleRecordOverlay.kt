@@ -65,7 +65,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.features.chats.media.circle.VideoCircleCameraManager
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -587,7 +586,7 @@ fun VideoCircleRecordOverlay(
                             .size(50.dp)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.72f))
-                            .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
+                            .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape)
                             .clickable {
                                 isFrontCamera = !isFrontCamera
                                 isFlashOn = false
@@ -610,7 +609,7 @@ fun VideoCircleRecordOverlay(
                             .size(50.dp)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.72f))
-                            .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
+                            .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape)
                             .clickable {
                                 isFlashOn = !isFlashOn
                                 cameraManager.toggleFlash()
@@ -641,7 +640,7 @@ fun VideoCircleRecordOverlay(
                                 .size(44.dp)
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.72f))
-                                .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
+                                .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape)
                                 .clickable {
                                     hasFinished = true
                                     cameraManager.cancelRecording()
@@ -664,7 +663,7 @@ fun VideoCircleRecordOverlay(
                                 .size(44.dp)
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.72f))
-                                .border(1.dp, CardBorder.copy(alpha = 0.55f), CircleShape)
+                                .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape)
                                 .clickable {
                                     stopToReview()
                                 },

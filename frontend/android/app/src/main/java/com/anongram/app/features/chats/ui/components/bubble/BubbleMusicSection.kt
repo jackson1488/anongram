@@ -57,9 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.timeLabel
@@ -80,10 +78,7 @@ import com.anongram.app.features.chats.media.player.AudioMetadataHelper
 import kotlin.math.roundToInt
 
 /**
- * Строка музыкального трека (одиночного или в слитной группе до 10 треков):
- * - Слева круглая кнопка Play/Pause 44.dp с реальной обложкой альбома
- * - Справа название трека и снизу интерактивный ползунок или «X:XX • X.X MB»
- * - В правом верхнем углу (только у первого трека в группе) — кнопка «⋮»
+ * Строка музыкального трека (одиночного или в слитной группе до 10 треков)
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -108,6 +103,9 @@ internal fun ChatMusicItemRow(
     onDeleteItem: () -> Unit,
     onRetry: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val bubbleText = if (isIncoming) scheme.incomingText else scheme.outgoingText
+    val bubbleSubtext = bubbleText.copy(alpha = 0.72f)
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val audioController = remember { ChatAudioController.getInstance(context) }
@@ -176,7 +174,6 @@ internal fun ChatMusicItemRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(contentAlignment = Alignment.Center) {
-                // Круглая обложка 44.dp с иконкой Play/Pause поверх
                 Box(
                     modifier = Modifier
                         .size(44.dp)
@@ -210,27 +207,26 @@ internal fun ChatMusicItemRow(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(if (isIncoming) accent else Color.White.copy(alpha = 0.24f)),
+                                .background(if (isIncoming) accent else bubbleText),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = if (isPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
                                 contentDescription = if (isPlaying) "Пауза" else "Играть",
-                                tint = Color.White,
+                                tint = if (isIncoming) scheme.onAccent else scheme.outgoingBubbleStart,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
                     }
                 }
 
-                // В режиме выбора на отдельном треке загорается круглая галочка
                 if (isSelectionMode) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .size(18.dp)
                             .clip(CircleShape)
-                            .background(if (isItemSelected) Color(0xFF8B5CF6) else Color.Black.copy(alpha = 0.55f))
+                            .background(if (isItemSelected) scheme.accent else Color.Black.copy(alpha = 0.55f))
                             .border(1.5.dp, Color.White, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
@@ -238,7 +234,7 @@ internal fun ChatMusicItemRow(
                             Icon(
                                 imageVector = Icons.Outlined.Check,
                                 contentDescription = "Выбрано",
-                                tint = Color.White,
+                                tint = scheme.onAccent,
                                 modifier = Modifier.size(12.dp)
                             )
                         }
@@ -259,7 +255,7 @@ internal fun ChatMusicItemRow(
                     } else {
                         AnnotatedString(displayTitle)
                     },
-                    color = TextPrimary,
+                    color = bubbleText,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -267,7 +263,6 @@ internal fun ChatMusicItemRow(
                 )
 
                 if (isCurrentlyActive && (isPlaying || playerState.progressMs > 0)) {
-                    // Активное воспроизведение: тайминг + интерактивный слайдер с круглым манипулятором
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -276,7 +271,7 @@ internal fun ChatMusicItemRow(
                     ) {
                         Text(
                             text = playerState.positionLabel,
-                            color = Color.White.copy(alpha = 0.85f),
+                            color = bubbleText.copy(alpha = 0.85f),
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Medium,
                             fontFamily = FontFamily.Monospace
@@ -316,37 +311,33 @@ internal fun ChatMusicItemRow(
                             val widthPx = constraints.maxWidth.toFloat()
                             val thumbXPx = (currentProgress * widthPx).coerceIn(0f, widthPx)
 
-                            // Неактивная полоса
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(2.5.dp)
                                     .clip(RoundedCornerShape(2.dp))
-                                    .background(Color.White.copy(alpha = 0.28f))
+                                    .background(bubbleText.copy(alpha = 0.28f))
                             )
-                            // Активная полоса
                             Box(
                                 modifier = Modifier
                                     .width(with(LocalDensity.current) { thumbXPx.toDp() })
                                     .height(2.5.dp)
                                     .clip(RoundedCornerShape(2.dp))
-                                    .background(Color.White)
+                                    .background(bubbleText)
                             )
-                            // Белый круглый бегунок
                             Box(
                                 modifier = Modifier
                                     .offset { IntOffset((thumbXPx - 5.dp.toPx()).roundToInt(), 0) }
                                     .size(10.dp)
                                     .clip(CircleShape)
-                                    .background(Color.White)
+                                    .background(bubbleText)
                             )
                         }
                     }
                 } else {
-                    // В неактивном состоянии: "3:56 • 3.7 MB"
                     Text(
                         text = "${music.durationLabel} • ${music.sizeLabel}",
-                        color = Color.White.copy(alpha = 0.72f),
+                        color = bubbleSubtext,
                         fontSize = 12.5.sp,
                         maxLines = 1
                     )
@@ -367,7 +358,7 @@ internal fun ChatMusicItemRow(
                     Icon(
                         imageVector = Icons.Outlined.MoreVert,
                         contentDescription = "Меню музыки",
-                        tint = TextSecondary,
+                        tint = bubbleSubtext,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -375,16 +366,16 @@ internal fun ChatMusicItemRow(
                 DropdownMenu(
                     expanded = isMenuOpen,
                     onDismissRequest = { isMenuOpen = false },
+                    containerColor = scheme.card,
                     modifier = Modifier
                         .width(235.dp)
-                        .background(Color(0xFF14151B), RoundedCornerShape(16.dp))
-                        .border(0.5.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+                        .background(scheme.card, RoundedCornerShape(16.dp))
+                        .border(0.5.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
                 ) {
-                    // 1. Ответить (первый пункт со стрелкой влево)
                     DropdownMenuItem(
-                        text = { Text("Ответить", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Ответить", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -392,12 +383,11 @@ internal fun ChatMusicItemRow(
                         }
                     )
 
-                    // 2. Сохранить в музыку
                     DropdownMenuItem(
                         text = {
                             Text(
                                 text = "Сохранить в музыку",
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = 14.5.sp
                             )
                         },
@@ -405,7 +395,7 @@ internal fun ChatMusicItemRow(
                             Icon(
                                 imageVector = Icons.Outlined.Download,
                                 contentDescription = null,
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                         },
@@ -423,11 +413,10 @@ internal fun ChatMusicItemRow(
                         }
                     )
 
-                    // 3. Поделиться
                     DropdownMenuItem(
-                        text = { Text("Поделиться", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Поделиться", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.Share, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.Share, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -435,11 +424,10 @@ internal fun ChatMusicItemRow(
                         }
                     )
 
-                    // 4. Переслать
                     DropdownMenuItem(
-                        text = { Text("Переслать", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Переслать", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.Forward, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.Forward, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -447,11 +435,10 @@ internal fun ChatMusicItemRow(
                         }
                     )
 
-                    // 5. Закрепить / Открепить
                     DropdownMenuItem(
-                        text = { Text(if (isPinned) "Открепить" else "Закрепить", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text(if (isPinned) "Открепить" else "Закрепить", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.PushPin, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.PushPin, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -459,11 +446,10 @@ internal fun ChatMusicItemRow(
                         }
                     )
 
-                    // 6. Изменить (замена трека)
                     DropdownMenuItem(
-                        text = { Text("Изменить", color = Color.White, fontSize = 14.5.sp) },
+                        text = { Text("Изменить", color = scheme.textPrimary, fontSize = 14.5.sp) },
                         leadingIcon = {
-                            Icon(Icons.Outlined.Edit, null, tint = Color.White, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Outlined.Edit, null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
                         },
                         onClick = {
                             isMenuOpen = false
@@ -471,7 +457,6 @@ internal fun ChatMusicItemRow(
                         }
                     )
 
-                    // 7. Удалить
                     DropdownMenuItem(
                         text = { Text("Удалить", color = Color(0xFFFF5252), fontSize = 14.5.sp) },
                         leadingIcon = {
@@ -495,13 +480,17 @@ internal fun ChatMusicItemRow(
             ) {
                 Text(
                     text = message.timeLabel(),
-                    color = TextMuted,
+                    color = bubbleSubtext,
                     fontSize = 10.sp,
                     fontFamily = FontFamily.Monospace
                 )
                 if (!isIncoming) {
                     Spacer(modifier = Modifier.width(3.dp))
-                    DeliveryStatus(status = message.status, onRetry = onRetry)
+                    DeliveryStatus(
+                        status = message.status,
+                        onRetry = onRetry,
+                        mutedTint = bubbleSubtext
+                    )
                 }
             }
         }

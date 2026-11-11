@@ -50,15 +50,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CyberCyan
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.wallpapers.logic.CuratedPhoto
 import com.anongram.app.features.wallpapers.logic.PhotoPickerViewModel
-
-private val AccentViolet = Color(0xFF7A4DF3)
 
 /**
  * Экран выбора фона из фото или галереи устройства.
@@ -74,6 +68,7 @@ fun PhotoPickerScreen(
     onPhotoSelected: (photoPath: String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
 
@@ -91,7 +86,7 @@ fun PhotoPickerScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
@@ -109,7 +104,7 @@ fun PhotoPickerScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
-                        tint = TextPrimary
+                        tint = scheme.textPrimary
                     )
                 }
 
@@ -117,7 +112,7 @@ fun PhotoPickerScreen(
 
                 Text(
                     text = "Выберите фон",
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.weight(1f)
@@ -133,8 +128,8 @@ fun PhotoPickerScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF161E2D))
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
                     .clickable {
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
@@ -146,13 +141,13 @@ fun PhotoPickerScreen(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(AccentViolet.copy(alpha = 0.2f)),
+                        .background(scheme.accentSoft),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.PhotoLibrary,
                         contentDescription = null,
-                        tint = AccentViolet,
+                        tint = scheme.accent,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -162,14 +157,14 @@ fun PhotoPickerScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Выбрать из галереи",
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = "Любые фото, скриншоты или обои",
-                        color = TextSecondary,
+                        color = scheme.textSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -177,7 +172,7 @@ fun PhotoPickerScreen(
                 Icon(
                     imageVector = Icons.Outlined.ChevronRight,
                     contentDescription = null,
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -187,7 +182,7 @@ fun PhotoPickerScreen(
             // Подзаголовок сетки
             Text(
                 text = "Коллекция фонов",
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -226,8 +221,8 @@ fun PhotoPickerScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Color(0xFF161E2D))
-                    .border(1.dp, CardBorder, RoundedCornerShape(14.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(14.dp))
                     .clickable {
                         Toast.makeText(context, "Конструктор обоев скоро появится в AnonGram", Toast.LENGTH_SHORT).show()
                     }
@@ -237,13 +232,13 @@ fun PhotoPickerScreen(
                     modifier = Modifier
                         .size(36.dp)
                         .clip(CircleShape)
-                        .background(CyberCyan.copy(alpha = 0.15f)),
+                        .background(scheme.accentSoft),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.AutoAwesome,
                         contentDescription = null,
-                        tint = CyberCyan,
+                        tint = scheme.accent,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -252,7 +247,7 @@ fun PhotoPickerScreen(
 
                 Text(
                     text = "Создать обои в конструкторе",
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.weight(1f)
@@ -262,13 +257,13 @@ fun PhotoPickerScreen(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(AccentViolet.copy(alpha = 0.25f))
-                        .border(1.dp, AccentViolet.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                        .background(scheme.accentSoft)
+                        .border(1.dp, scheme.accent.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = "скоро",
-                        color = AccentViolet,
+                        color = scheme.accent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -281,11 +276,11 @@ fun PhotoPickerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.6f)),
+                    .background(scheme.overlayScrim),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
-                    color = AccentViolet,
+                    color = scheme.accent,
                     strokeWidth = 3.dp
                 )
             }
@@ -302,6 +297,7 @@ private fun CuratedPhotoItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val gradientBrush = Brush.verticalGradient(
         colors = listOf(
             Color(photo.topColor),
@@ -322,14 +318,14 @@ private fun CuratedPhotoItem(
                 .aspectRatio(0.62f)
                 .clip(RoundedCornerShape(12.dp))
                 .background(gradientBrush)
-                .border(1.dp, CardBorder, RoundedCornerShape(12.dp))
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(12.dp))
         )
 
         Spacer(modifier = Modifier.height(4.dp))
 
         Text(
             text = photo.title,
-            color = TextSecondary,
+            color = scheme.textSecondary,
             fontSize = 11.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

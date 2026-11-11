@@ -11,10 +11,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
@@ -24,7 +26,6 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.R
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.MessageStatus
 
@@ -35,21 +36,22 @@ import com.anongram.app.features.chats.messages.domain.MessageStatus
 fun DeliveryStatus(
     status: MessageStatus,
     onRetry: () -> Unit,
-    iconSize: Dp = 13.dp
+    iconSize: Dp = 13.dp,
+    mutedTint: Color = LocalContentColor.current.copy(alpha = 0.68f)
 ) {
     val scheme = LocalAnonGramScheme.current
     when (status) {
         MessageStatus.SENDING -> Icon(
             imageVector = Icons.Outlined.Schedule,
             contentDescription = "Отправляется",
-            tint = TextMuted,
+            tint = mutedTint,
             modifier = Modifier.size(iconSize)
         )
 
         MessageStatus.SENT -> Icon(
             painter = painterResource(id = R.drawable.ic_tick_single),
             contentDescription = "Отправлено",
-            tint = TextMuted,
+            tint = mutedTint,
             modifier = Modifier.size(iconSize)
         )
 
@@ -82,7 +84,8 @@ fun BubbleTimestampRow(
     status: MessageStatus,
     textScale: Float,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    timeColor: Color = LocalContentColor.current.copy(alpha = 0.68f)
 ) {
     val timeFontSize = (10f * textScale).coerceIn(5.5f, 14f).sp
     val editedFontSize = (9f * textScale).coerceIn(5f, 12.5f).sp
@@ -96,7 +99,7 @@ fun BubbleTimestampRow(
         if (isEdited) {
             Text(
                 text = "изменено",
-                color = TextMuted,
+                color = timeColor,
                 fontSize = editedFontSize,
                 fontStyle = FontStyle.Italic
             )
@@ -104,13 +107,18 @@ fun BubbleTimestampRow(
         }
         Text(
             text = timeLabel,
-            color = TextMuted,
+            color = timeColor,
             fontSize = timeFontSize,
             fontFamily = FontFamily.Monospace
         )
         if (!isIncoming) {
             Spacer(modifier = Modifier.width((4f * textScale).coerceIn(2f, 5f).dp))
-            DeliveryStatus(status = status, onRetry = onRetry, iconSize = tickSize)
+            DeliveryStatus(
+                status = status,
+                onRetry = onRetry,
+                iconSize = tickSize,
+                mutedTint = timeColor
+            )
         }
     }
 }

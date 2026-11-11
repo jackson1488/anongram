@@ -128,7 +128,7 @@ fun TextSelectionFloatingBar(
                 content = {
                     Text(
                         text = "✦",
-                        color = Color(0xFFC084FC),
+                        color = scheme.accent,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -151,7 +151,8 @@ fun TextSelectionFloatingBar(
 
                 DropdownMenu(
                     expanded = isFontMenuOpen,
-                    onDismissRequest = { isFontMenuOpen = false }
+                    onDismissRequest = { isFontMenuOpen = false },
+                    containerColor = scheme.card
                 ) {
                     val fonts = listOf(
                         "Sans-Serif" to "sans",
@@ -170,7 +171,7 @@ fun TextSelectionFloatingBar(
                                         "cursive" -> FontFamily.Cursive
                                         else -> FontFamily.SansSerif
                                     },
-                                    color = Color.White
+                                    color = scheme.textPrimary
                                 )
                             },
                             onClick = {

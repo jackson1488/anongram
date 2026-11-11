@@ -108,7 +108,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 import androidx.compose.runtime.Immutable
-
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.ui.components.SpoilerOverlay
 
 @Immutable
@@ -127,10 +127,6 @@ data class GalleryAlbum(
     val count: Int,
     val coverUri: Uri?
 )
-
-private val PurpleAccent = Color(0xFF8B5CF6)
-private val CardDark = Color(0xFF131D31)
-private val BorderMuted = Color(0x33FFFFFF)
 
 @Composable
 fun GalleryTab(
@@ -396,9 +392,10 @@ private fun LiveCameraTile(
     onLaunchCamera: () -> Unit,
     modifier: Modifier = Modifier.aspectRatio(1f)
 ) {
+    val scheme = LocalAnonGramScheme.current
     Box(
         modifier = modifier
-            .background(Color(0xFF1E293B))
+            .background(scheme.card)
             .clickable { onLaunchCamera() },
         contentAlignment = Alignment.Center
     ) {
@@ -483,13 +480,13 @@ private fun LiveCameraTile(
                 Icon(
                     imageVector = Icons.Rounded.CameraAlt,
                     contentDescription = "Камера",
-                    tint = PurpleAccent,
+                    tint = scheme.accent,
                     modifier = Modifier.size(34.dp)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Камера",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -522,6 +519,7 @@ fun AlbumDropdownRowItem(
     isSelected: Boolean = false,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var bitmap by remember(album.coverUri) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -537,7 +535,7 @@ fun AlbumDropdownRowItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(if (isSelected) Color(0x227C4DFF) else Color.Transparent)
+            .background(if (isSelected) scheme.accentSoft else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -547,7 +545,7 @@ fun AlbumDropdownRowItem(
             modifier = Modifier
                 .size(38.dp)
                 .clip(RoundedCornerShape(6.dp))
-                .background(Color(0xFF333333)),
+                .background(scheme.surface),
             contentAlignment = Alignment.Center
         ) {
             if (bitmap != null) {
@@ -561,7 +559,7 @@ fun AlbumDropdownRowItem(
                 Icon(
                     imageVector = Icons.Rounded.CameraAlt,
                     contentDescription = null,
-                    tint = Color(0xFF888888),
+                    tint = scheme.textMuted,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -569,7 +567,7 @@ fun AlbumDropdownRowItem(
 
         Spacer(modifier = Modifier.width(12.dp))
 
-        // Название альбома жирным белым и сразу серым количество
+        // Название альбома жирным и сразу количество
         val displayName = if (album.name == "Все медиа") "Галерея" else album.name
         Row(
             modifier = Modifier.weight(1f),
@@ -577,7 +575,7 @@ fun AlbumDropdownRowItem(
         ) {
             Text(
                 text = displayName,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -586,7 +584,7 @@ fun AlbumDropdownRowItem(
             Spacer(modifier = Modifier.width(6.dp))
             Text(
                 text = album.count.toString(),
-                color = Color(0xFF9E9E9E),
+                color = scheme.textSecondary,
                 fontSize = 14.sp
             )
         }
@@ -602,6 +600,7 @@ private fun GalleryItemTile(
     onToggleSelect: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -615,7 +614,7 @@ private fun GalleryItemTile(
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .background(Color(0xFF131D31))
+            .background(scheme.card)
             .clickable { onOpenViewer() }
     ) {
         if (bitmap != null) {
@@ -631,7 +630,7 @@ private fun GalleryItemTile(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF1A2338))
+                    .background(scheme.card)
             )
         }
 
@@ -674,10 +673,10 @@ private fun GalleryItemTile(
                 .padding(6.dp)
                 .size(24.dp)
                 .clip(CircleShape)
-                .background(if (isSelected) PurpleAccent else Color(0x66000000))
+                .background(if (isSelected) scheme.accent else Color(0x66000000))
                 .border(
                     width = 1.5.dp,
-                    color = if (isSelected) PurpleAccent else Color.White,
+                    color = if (isSelected) scheme.accent else Color.White,
                     shape = CircleShape
                 )
                 .clickable { onToggleSelect() },
@@ -686,7 +685,7 @@ private fun GalleryItemTile(
             if (isSelected) {
                 Text(
                     text = selectionNumber.toString(),
-                    color = Color.White,
+                    color = scheme.onAccent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -716,6 +715,7 @@ fun GalleryMediaViewer(
 ) {
     BackHandler { onClose() }
 
+    val scheme = LocalAnonGramScheme.current
     val safeInitial = initialIndex.coerceIn(0, (mediaList.size - 1).coerceAtLeast(0))
     val pagerState = rememberPagerState(initialPage = safeInitial, pageCount = { mediaList.size })
     val currentMedia = mediaList.getOrNull(pagerState.currentPage)
@@ -778,10 +778,10 @@ fun GalleryMediaViewer(
                 modifier = Modifier
                     .size(28.dp)
                     .clip(CircleShape)
-                    .background(if (isSelected) PurpleAccent else Color(0x66000000))
+                    .background(if (isSelected) scheme.accent else Color(0x66000000))
                     .border(
                         width = 1.5.dp,
-                        color = if (isSelected) PurpleAccent else Color.White,
+                        color = if (isSelected) scheme.accent else Color.White,
                         shape = CircleShape
                     )
                     .clickable {
@@ -792,7 +792,7 @@ fun GalleryMediaViewer(
                 if (isSelected) {
                     Text(
                         text = (currentSelectedIdx + 1).toString(),
-                        color = Color.White,
+                        color = scheme.onAccent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )

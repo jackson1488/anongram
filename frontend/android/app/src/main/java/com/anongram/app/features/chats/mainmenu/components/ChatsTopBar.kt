@@ -35,14 +35,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.NeonEmerald
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.core.ui.safeStatusBarPadding
-
-private val OnionBadgeBackground = Color(0xFF0F261E)
 
 /** Топбар главного меню: название, onion-статус, поиск и три точки справа. */
 @Composable
@@ -52,6 +47,8 @@ internal fun ChatsTopBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val onionBg = if (scheme.isDark) Color(0xFF0F261E) else Color(0xFFE6F7F0)
+    val onionTint = if (scheme.isDark) NeonEmerald else Color(0xFF059669)
     var menuOpen by remember { mutableStateOf(false) }
 
     Row(
@@ -70,20 +67,20 @@ internal fun ChatsTopBar(
                 text = "AnonGram",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
-                color = TextPrimary
+                color = scheme.textPrimary
             )
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(OnionBadgeBackground)
-                    .border(1.dp, NeonEmerald.copy(alpha = 0.5f), CircleShape)
+                    .background(onionBg)
+                    .border(1.dp, onionTint.copy(alpha = 0.5f), CircleShape)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_onion),
                         contentDescription = null,
-                        tint = NeonEmerald,
+                        tint = onionTint,
                         modifier = Modifier.size(10.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -91,7 +88,7 @@ internal fun ChatsTopBar(
                         text = "Onion v3",
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = NeonEmerald
+                        color = onionTint
                     )
                 }
             }
@@ -111,24 +108,24 @@ internal fun ChatsTopBar(
                 Icon(
                     imageVector = Icons.Outlined.MoreVert,
                     contentDescription = "Меню",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.size(22.dp)
                 )
             }
             DropdownMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                containerColor = CardDark
+                containerColor = scheme.card
             ) {
                 DropdownMenuItem(
                     text = {
-                        Text(text = "Выбрать чаты", color = TextPrimary, fontSize = 13.sp)
+                        Text(text = "Выбрать чаты", color = scheme.textPrimary, fontSize = 13.sp)
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.SelectAll,
                             contentDescription = null,
-                            tint = TextSecondary,
+                            tint = scheme.textSecondary,
                             modifier = Modifier.size(17.dp)
                         )
                     },

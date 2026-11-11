@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
-import com.anongram.app.features.attach.ui.theme.AttachSheetBackground
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -71,8 +70,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -82,6 +79,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.permissions.PermissionUtils
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.api.AttachmentDraft
 import com.anongram.app.features.attach.ui.components.PermissionDeniedView
 import kotlinx.coroutines.Dispatchers
@@ -101,8 +99,6 @@ data class DeviceContact(
     val username: String = ""
 )
 
-private val PurpleAccent = Color(0xFF8B5CF6)
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ContactsTab(
@@ -116,6 +112,7 @@ fun ContactsTab(
     onOpenQuickCard: (DeviceContact) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var hasPermission by remember {
         mutableStateOf(DEMO_CONTACTS || PermissionUtils.hasContactsPermission(context))
@@ -183,8 +180,8 @@ fun ContactsTab(
                 .zIndex(5f)
                 .background(
                     Brush.verticalGradient(
-                        0.0f to AttachSheetBackground,
-                        0.75f to AttachSheetBackground.copy(alpha = 0.95f),
+                        0.0f to scheme.surface,
+                        0.75f to scheme.surface.copy(alpha = 0.95f),
                         1.0f to Color.Transparent
                     )
                 )
@@ -208,15 +205,15 @@ fun ContactsTab(
                     .fillMaxWidth()
                     .height(48.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(AttachCardDark)
-                    .border(1.dp, if (isFocused) PurpleAccent else AttachBorder, RoundedCornerShape(24.dp))
+                    .background(scheme.inputBg)
+                    .border(1.dp, if (isFocused) scheme.accent else scheme.inputBorder, RoundedCornerShape(24.dp))
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = "Поиск",
-                    tint = Color(0xFF94A3B8),
+                    tint = scheme.textMuted,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
@@ -227,7 +224,7 @@ fun ContactsTab(
                     if (searchQuery.isEmpty()) {
                         Text(
                             text = "Поиск контактов",
-                            color = Color(0xFF94A3B8),
+                            color = scheme.textMuted,
                             fontSize = 14.sp
                         )
                     }
@@ -236,11 +233,11 @@ fun ContactsTab(
                         onValueChange = { searchQuery = it },
                         singleLine = true,
                         textStyle = TextStyle(
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 14.sp,
                             lineHeight = 20.sp
                         ),
-                        cursorBrush = SolidColor(PurpleAccent),
+                        cursorBrush = SolidColor(scheme.accent),
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged {
@@ -257,7 +254,7 @@ fun ContactsTab(
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Очистить",
-                            tint = Color(0xFF94A3B8),
+                            tint = scheme.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -284,7 +281,7 @@ fun ContactsTab(
             ) {
                 Text(
                     text = if (contacts.isEmpty()) "Контакты не найдены" else "Ничего не найдено",
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 14.sp
                 )
             }
@@ -314,7 +311,7 @@ fun ContactsTab(
                         onLongClick = { onToggleSelectContact(contact) }
                     )
                     HorizontalDivider(
-                        color = Color(0x15FFFFFF),
+                        color = scheme.divider,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(start = 58.dp)
                     )
@@ -335,6 +332,7 @@ private fun ContactListItemRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val avatarColor = remember(contact.name) {
         val colors = listOf(
             Color(0xFF8B5CF6), Color(0xFF3B82F6), Color(0xFF10B981),
@@ -352,7 +350,7 @@ private fun ContactListItemRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) PurpleAccent.copy(alpha = 0.15f) else Color.Transparent)
+            .background(if (isSelected) scheme.accentSoft else Color.Transparent)
             .combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick
@@ -381,7 +379,7 @@ private fun ContactListItemRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = contact.name,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -392,7 +390,7 @@ private fun ContactListItemRow(
                            else contact.phones.firstOrNull() ?: ""
             Text(
                 text = subtitle,
-                color = Color(0xFF94A3B8),
+                color = scheme.textSecondary,
                 fontSize = 13.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -404,13 +402,13 @@ private fun ContactListItemRow(
                 modifier = Modifier
                     .size(24.dp)
                     .clip(CircleShape)
-                    .background(PurpleAccent),
+                    .background(scheme.accent),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Выбран",
-                    tint = Color.White,
+                    tint = scheme.onAccent,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -428,6 +426,7 @@ internal fun ContactQuickCardSheet(
     onSend: (String) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     var selectedPhone by remember(contact) { mutableStateOf(contact.phones.firstOrNull() ?: "") }
 
     val avatarColor = remember(contact.name) {
@@ -448,7 +447,7 @@ internal fun ContactQuickCardSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0x99000000))
+            .background(scheme.overlayScrim)
             .clickable { onDismiss() }
     ) {
         Column(
@@ -456,7 +455,8 @@ internal fun ContactQuickCardSheet(
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color(0xFF131D31))
+                .background(scheme.surface)
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .clickable(enabled = false) {}
                 .draggable(
                     orientation = Orientation.Vertical,
@@ -473,7 +473,7 @@ internal fun ContactQuickCardSheet(
                     .width(36.dp)
                     .height(4.dp)
                     .clip(CircleShape)
-                    .background(Color(0x44FFFFFF))
+                    .background(scheme.textMuted.copy(alpha = 0.35f))
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -499,7 +499,7 @@ internal fun ContactQuickCardSheet(
             // Имя
             Text(
                 text = contact.name,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -512,7 +512,7 @@ internal fun ContactQuickCardSheet(
             val idLabel = if (contact.username.isNotBlank()) contact.username else selectedPhone
             Text(
                 text = idLabel,
-                color = PurpleAccent,
+                color = scheme.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -522,7 +522,7 @@ internal fun ContactQuickCardSheet(
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
                     text = "Выберите номер для отправки:",
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 12.sp,
                     modifier = Modifier.align(Alignment.Start)
                 )
@@ -538,17 +538,20 @@ internal fun ContactQuickCardSheet(
                         RadioButton(
                             selected = (selectedPhone == phone),
                             onClick = { selectedPhone = phone },
-                            colors = RadioButtonDefaults.colors(selectedColor = PurpleAccent)
+                            colors = RadioButtonDefaults.colors(
+                                selectedColor = scheme.accent,
+                                unselectedColor = scheme.textMuted
+                            )
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = phone, color = Color.White, fontSize = 14.sp)
+                        Text(text = phone, color = scheme.textPrimary, fontSize = 14.sp)
                     }
                 }
             } else {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = selectedPhone,
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 13.sp
                 )
             }
@@ -558,7 +561,7 @@ internal fun ContactQuickCardSheet(
             // Кнопка "Отправить контакт"
             Button(
                 onClick = { onSend(selectedPhone) },
-                colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
+                colors = ButtonDefaults.buttonColors(containerColor = scheme.accent),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -566,7 +569,7 @@ internal fun ContactQuickCardSheet(
             ) {
                 Text(
                     text = "Отправить контакт",
-                    color = Color.White,
+                    color = scheme.onAccent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )

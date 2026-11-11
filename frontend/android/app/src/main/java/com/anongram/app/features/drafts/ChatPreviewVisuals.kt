@@ -40,8 +40,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -226,7 +224,7 @@ fun ChatMediaAttachmentPreview(
                 )
                 Text(
                     text = attachment.title,
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 12.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis

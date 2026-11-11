@@ -89,8 +89,8 @@ import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.style.TextDecoration
+import com.anongram.app.core.theme.AnonGramScheme
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -394,7 +394,7 @@ fun ChatFullTextEditorScreen(
                                     .fillMaxWidth()
                                     .padding(bottom = 12.dp)
                                     .clip(RoundedCornerShape(14.dp))
-                                    .background(Color(0xFF1E1E24))
+                                    .background(scheme.card)
                                     .border(1.dp, scheme.accent.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
                                     .padding(10.dp)
                             ) {
@@ -407,7 +407,7 @@ fun ChatFullTextEditorScreen(
                                 ) {
                                     Text(
                                         text = strings.albumPhotos(photos.size),
-                                        color = Color.White,
+                                        color = scheme.textPrimary,
                                         fontSize = 13.5.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
@@ -444,7 +444,7 @@ fun ChatFullTextEditorScreen(
                                             modifier = Modifier
                                                 .size(110.dp)
                                                 .clip(RoundedCornerShape(10.dp))
-                                                .background(Color(0xFF26262E))
+                                                .background(scheme.surface)
                                         ) {
                                             if (item.uri != null) {
                                                 ChatRealPhotoBox(
@@ -455,7 +455,7 @@ fun ChatFullTextEditorScreen(
                                                 )
                                             } else {
                                                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                                    Icon(Icons.Outlined.Image, contentDescription = null, tint = Color.White)
+                                                    Icon(Icons.Outlined.Image, contentDescription = null, tint = scheme.textSecondary)
                                                 }
                                             }
                                             IconButton(
@@ -610,7 +610,8 @@ fun ChatFullTextEditorScreen(
 
                             DropdownMenu(
                                 expanded = isLanguageMenuOpen,
-                                onDismissRequest = { isLanguageMenuOpen = false }
+                                onDismissRequest = { isLanguageMenuOpen = false },
+                                containerColor = scheme.card
                             ) {
                                 CodeLanguages.forEach { lang ->
                                     DropdownMenuItem(
@@ -751,7 +752,7 @@ fun ChatFullTextEditorScreen(
                                 undoState.updateValue(processed)
                             },
                             onTextLayout = { textLayoutResult = it },
-                            visualTransformation = remember(scheme.accent) { EditorWysiwygVisualTransformation(scheme.accent) },
+                            visualTransformation = remember(scheme) { EditorWysiwygVisualTransformation(scheme) },
                             textStyle = textStyle,
                             cursorBrush = SolidColor(scheme.accent),
                             modifier = Modifier
@@ -1062,15 +1063,15 @@ fun ChatFullTextEditorScreen(
  * Отображает спойлер ||...|| мерцающим фиолетовым фоном сразу при вводе (WYSIWYG),
  * а также подсвечивает полужирный **...** и курсив *...* без искажения индексов курсора.
  */
-private class EditorWysiwygVisualTransformation(private val accent: Color) : VisualTransformation {
+private class EditorWysiwygVisualTransformation(private val scheme: AnonGramScheme) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val raw = text.text
         val builder = AnnotatedString.Builder(raw)
-        val markerStyle = SpanStyle(color = Color(0x38FFFFFF))
-        val spoilerMarkerStyle = SpanStyle(color = Color(0x55C084FC))
-        val headingMarkerStyle = SpanStyle(color = Color(0x55C084FC))
+        val markerStyle = SpanStyle(color = scheme.textMuted.copy(alpha = 0.55f))
+        val spoilerMarkerStyle = SpanStyle(color = scheme.accent.copy(alpha = 0.55f))
+        val headingMarkerStyle = SpanStyle(color = scheme.accent.copy(alpha = 0.6f))
 
-        // 1. Спойлер ||...|| -> маркеры мягко подсвечены, скрытый текст на фиолетовом фоне
+        // 1. Спойлер ||...|| -> маркеры мягко подсвечены, скрытый текст на мягком акцентном фоне
         val spoilerRegex = Regex("\\|\\|([\\s\\S]*?)\\|\\|")
         spoilerRegex.findAll(raw).forEach { match ->
             val start = match.range.first
@@ -1079,8 +1080,8 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
                 builder.addStyle(spoilerMarkerStyle, start, start + 2)
                 builder.addStyle(
                     SpanStyle(
-                        background = Color(0xFF3F2B66),
-                        color = Color(0xFFE9D5FF)
+                        background = scheme.accentSoft,
+                        color = scheme.textPrimary
                     ),
                     start + 2,
                     end - 2
@@ -1097,7 +1098,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             if (end - start >= 4) {
                 builder.addStyle(markerStyle, start, start + 2)
                 builder.addStyle(
-                    SpanStyle(fontWeight = FontWeight.Bold, color = Color.White),
+                    SpanStyle(fontWeight = FontWeight.Bold, color = scheme.textPrimary),
                     start + 2,
                     end - 2
                 )
@@ -1113,7 +1114,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             if (end - start >= 2) {
                 builder.addStyle(markerStyle, start, start + 1)
                 builder.addStyle(
-                    SpanStyle(fontStyle = FontStyle.Italic, color = Color.White),
+                    SpanStyle(fontStyle = FontStyle.Italic, color = scheme.textPrimary),
                     start + 1,
                     end - 1
                 )
@@ -1129,7 +1130,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             if (end - start >= 4) {
                 builder.addStyle(markerStyle, start, start + 2)
                 builder.addStyle(
-                    SpanStyle(textDecoration = TextDecoration.LineThrough, color = Color(0xFF94A3B8)),
+                    SpanStyle(textDecoration = TextDecoration.LineThrough, color = scheme.textMuted),
                     start + 2,
                     end - 2
                 )
@@ -1147,7 +1148,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             if (innerEnd >= innerStart) {
                 builder.addStyle(markerStyle, fullStart, innerStart)
                 builder.addStyle(
-                    SpanStyle(textDecoration = TextDecoration.Underline, color = Color.White),
+                    SpanStyle(textDecoration = TextDecoration.Underline, color = scheme.textPrimary),
                     innerStart,
                     innerEnd
                 )
@@ -1165,8 +1166,8 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
                 builder.addStyle(
                     SpanStyle(
                         fontFamily = FontFamily.Monospace,
-                        background = Color(0x33A1A1AA),
-                        color = Color(0xFFF1F5F9)
+                        background = scheme.accentSoft.copy(alpha = 0.65f),
+                        color = scheme.textPrimary
                     ),
                     start + 1,
                     end - 1
@@ -1191,7 +1192,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
                 else -> FontFamily.SansSerif
             }
             builder.addStyle(markerStyle, fullStart, innerStart)
-            builder.addStyle(SpanStyle(fontFamily = family, color = Color.White), innerStart, innerEnd)
+            builder.addStyle(SpanStyle(fontFamily = family, color = scheme.textPrimary), innerStart, innerEnd)
             builder.addStyle(markerStyle, innerEnd, fullEnd)
         }
 
@@ -1208,7 +1209,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             builder.addStyle(
                 SpanStyle(
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = scheme.textPrimary
                 ),
                 prefixEnd,
                 textEnd
@@ -1225,7 +1226,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             val titleEnd = prefixEnd + title.length
             builder.addStyle(headingMarkerStyle, prefixStart, prefixEnd)
             builder.addStyle(
-                SpanStyle(color = Color(0xFFC084FC), fontWeight = FontWeight.Bold),
+                SpanStyle(color = scheme.accent, fontWeight = FontWeight.Bold),
                 prefixEnd,
                 titleEnd
             )
@@ -1241,7 +1242,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
             val textEnd = prefixEnd + quoteText.length
             builder.addStyle(headingMarkerStyle, prefixStart, prefixEnd)
             builder.addStyle(
-                SpanStyle(color = Color.White, fontStyle = FontStyle.Italic),
+                SpanStyle(color = scheme.textPrimary, fontStyle = FontStyle.Italic),
                 prefixEnd,
                 textEnd
             )
@@ -1252,7 +1253,7 @@ private class EditorWysiwygVisualTransformation(private val accent: Color) : Vis
         checkedRegex.findAll(raw).forEach { match ->
             builder.addStyle(
                 SpanStyle(
-                    color = Color(0xFF94A3B8)
+                    color = scheme.textMuted
                 ),
                 match.range.first,
                 match.range.last + 1

@@ -21,11 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.direct.DirectChatSession
 import com.anongram.app.features.chats.group.GroupChatSession
@@ -65,13 +62,13 @@ internal fun DeleteSessionsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardDark,
+        containerColor = scheme.card,
         title = {
-            Text(text = title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text(text = title, color = scheme.textPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
         },
         text = {
             androidx.compose.foundation.layout.Column {
-                Text(text = message, color = TextSecondary, fontSize = 13.sp)
+                Text(text = message, color = scheme.textSecondary, fontSize = 13.sp)
                 if (showPeerCheckbox) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
@@ -86,12 +83,13 @@ internal fun DeleteSessionsDialog(
                             onCheckedChange = { alsoForPeer = it },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = scheme.accent,
-                                uncheckedColor = TextSecondary
+                                uncheckedColor = scheme.textSecondary,
+                                checkmarkColor = scheme.onAccent
                             )
                         )
                         Text(
                             text = "Также удалить у собеседника",
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 13.sp
                         )
                     }
@@ -105,7 +103,7 @@ internal fun DeleteSessionsDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Отмена", color = TextSecondary)
+                Text(text = "Отмена", color = scheme.textSecondary)
             }
         }
     )

@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -28,11 +29,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.account.ui.components.AccountInfoCard
 
@@ -48,97 +51,101 @@ fun AccountSettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
     var displayName by remember { mutableStateOf(initialDisplayName) }
     var handle by remember { mutableStateOf(initialHandle.removePrefix("@")) }
     var bio by remember { mutableStateOf("Децентрализованный анонимный профиль AnonGram (Ed25519)") }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF131924))
-    ) {
-        // Верхняя панель с безопасным отступом от статус-бара
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1B2331))
-                .safeStatusBarPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = Color.White
-                )
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Аккаунт",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
-            IconButton(
-                onClick = {
-                    onSaveAccount(
-                        displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
-                        handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
-                    )
-                    Toast.makeText(context, "Профиль обновлён", Toast.LENGTH_SHORT).show()
-                    onBack()
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Check,
-                    contentDescription = "Сохранить",
-                    tint = Color(0xFF8B5CF6)
-                )
-            }
-        }
-
+    AnonGramScreenSurface(applySystemBarsPadding = false) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .safeNavigationBarPadding()
         ) {
-            AccountInfoCard(
-                displayName = displayName,
-                onDisplayNameChange = { displayName = it },
-                handle = handle,
-                onHandleChange = { handle = it.replace("@", "") },
-                bio = bio,
-                onBioChange = { bio = it }
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            Button(
-                onClick = {
-                    onSaveAccount(
-                        displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
-                        handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
-                    )
-                    Toast.makeText(context, "Изменения сохранены", Toast.LENGTH_SHORT).show()
-                    onBack()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF8B5CF6),
-                    contentColor = Color.White
-                ),
-                shape = RoundedCornerShape(14.dp),
+            // Верхняя панель с безопасным отступом от статус-бара
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp)
+                    .background(scheme.surface)
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = scheme.textPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Сохранить изменения",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = "Аккаунт",
+                    color = scheme.textPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
+                IconButton(
+                    onClick = {
+                        onSaveAccount(
+                            displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
+                            handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
+                        )
+                        Toast.makeText(context, "Профиль обновлён", Toast.LENGTH_SHORT).show()
+                        onBack()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Сохранить",
+                        tint = scheme.accent
+                    )
+                }
+            }
+            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                AccountInfoCard(
+                    displayName = displayName,
+                    onDisplayNameChange = { displayName = it },
+                    handle = handle,
+                    onHandleChange = { handle = it.replace("@", "") },
+                    bio = bio,
+                    onBioChange = { bio = it }
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Button(
+                    onClick = {
+                        onSaveAccount(
+                            displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
+                            handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
+                        )
+                        Toast.makeText(context, "Изменения сохранены", Toast.LENGTH_SHORT).show()
+                        onBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = scheme.accent,
+                        contentColor = scheme.onAccent
+                    ),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                ) {
+                    Text(
+                        text = "Сохранить изменения",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }

@@ -22,11 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.direct.DirectChatSession
 
@@ -53,18 +50,18 @@ internal fun ClearHistoryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardDark,
+        containerColor = scheme.card,
         title = {
             Text(
                 text = "Очистить историю?",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
         },
         text = {
             Column {
-                Text(text = message, color = TextSecondary, fontSize = 13.sp)
+                Text(text = message, color = scheme.textSecondary, fontSize = 13.sp)
                 if (showPeerCheckbox) {
                     Spacer(modifier = Modifier.height(10.dp))
                     Row(
@@ -79,12 +76,13 @@ internal fun ClearHistoryDialog(
                             onCheckedChange = { forEveryone = it },
                             colors = CheckboxDefaults.colors(
                                 checkedColor = scheme.accent,
-                                uncheckedColor = TextSecondary
+                                uncheckedColor = scheme.textSecondary,
+                                checkmarkColor = scheme.onAccent
                             )
                         )
                         Text(
                             text = "Также очистить у собеседника",
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 13.sp
                         )
                     }
@@ -98,7 +96,7 @@ internal fun ClearHistoryDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text(text = "Отмена", color = TextSecondary)
+                Text(text = "Отмена", color = scheme.textSecondary)
             }
         }
     )

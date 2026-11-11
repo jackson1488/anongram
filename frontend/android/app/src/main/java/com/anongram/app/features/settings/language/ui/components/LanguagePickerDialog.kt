@@ -24,16 +24,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.AppLanguage
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**
@@ -51,11 +46,11 @@ fun LanguagePickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = CardDark,
+        containerColor = scheme.card,
         title = {
             Text(
                 text = strings.settingsLanguageTitle,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp
             )
@@ -80,14 +75,14 @@ fun LanguagePickerDialog(
                                     if (isSelected) {
                                         Brush.linearGradient(listOf(scheme.accent, scheme.accentDim))
                                     } else {
-                                        Brush.linearGradient(listOf(Color(0xFF2A2930), Color(0xFF1E1D22)))
+                                        Brush.linearGradient(listOf(scheme.surface, scheme.islandBg))
                                     }
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = lang.code.uppercase(),
-                                color = if (isSelected) Color.White else TextMuted,
+                                color = if (isSelected) scheme.onAccent else scheme.textMuted,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 12.sp
                             )
@@ -98,14 +93,14 @@ fun LanguagePickerDialog(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = lang.displayName,
-                                color = TextPrimary,
+                                color = scheme.textPrimary,
                                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                                 fontSize = 15.sp
                             )
                             if (lang.displayName != lang.nativeName) {
                                 Text(
                                     text = lang.nativeName,
-                                    color = TextSecondary,
+                                    color = scheme.textSecondary,
                                     fontSize = 11.sp
                                 )
                             }
@@ -125,7 +120,7 @@ fun LanguagePickerDialog(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = strings.settingsLanguageSubtitle,
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 11.sp
                 )
             }

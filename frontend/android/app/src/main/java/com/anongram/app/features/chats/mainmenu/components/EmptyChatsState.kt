@@ -16,13 +16,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CyberTeal
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /** Пустое состояние списка: ни одной сессии. */
 @Composable
 internal fun EmptyChatsState(modifier: Modifier = Modifier) {
+    val scheme = LocalAnonGramScheme.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -32,20 +32,20 @@ internal fun EmptyChatsState(modifier: Modifier = Modifier) {
         Icon(
             painter = painterResource(id = R.drawable.ic_stat_anongram),
             contentDescription = null,
-            tint = CyberTeal.copy(alpha = 0.85f),
+            tint = scheme.accent.copy(alpha = 0.85f),
             modifier = Modifier.size(56.dp)
         )
         Spacer(modifier = Modifier.height(12.dp))
         Text(
             text = "Нет активных сессий",
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontWeight = FontWeight.Bold,
             fontSize = 15.sp
         )
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = "Добавьте контакт: карандаш снизу или QR-щит в центре",
-            color = TextSecondary,
+            color = scheme.textSecondary,
             fontSize = 12.sp
         )
     }

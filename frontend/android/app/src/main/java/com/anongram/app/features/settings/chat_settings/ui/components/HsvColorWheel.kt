@@ -15,6 +15,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.ThemePaletteEngine
 import kotlin.math.PI
 import kotlin.math.atan2
@@ -34,6 +35,7 @@ fun HsvColorWheel(
     modifier: Modifier = Modifier,
     wheelSize: Dp = 184.dp
 ) {
+    val scheme = LocalAnonGramScheme.current
     val updatedCallback by rememberUpdatedState(onColorChange)
 
     val rainbowColors = listOf(
@@ -103,9 +105,9 @@ fun HsvColorWheel(
             center = center
         )
 
-        // Тонкий внешний контур круга
+        // Тонкий внешний контур круга (адаптируется под светлую и тёмную тему)
         drawCircle(
-            color = Color.White.copy(alpha = 0.22f),
+            color = scheme.cardBorder,
             radius = radius,
             center = center,
             style = Stroke(width = 1.5.dp.toPx())

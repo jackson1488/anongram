@@ -43,14 +43,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.ui.accentColor
 import com.anongram.app.features.contacts.common.Contact
@@ -79,7 +73,7 @@ fun ChatSearchScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(ObsidianBlack)
+            .background(scheme.background)
             .safeStatusBarPadding()
     ) {
         Row(
@@ -91,7 +85,7 @@ fun ChatSearchScreen(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Назад",
-                tint = TextSecondary,
+                tint = scheme.textSecondary,
                 modifier = Modifier
                     .padding(8.dp)
                     .size(24.dp)
@@ -106,25 +100,25 @@ fun ChatSearchScreen(
                     .focusRequester(focusRequester),
                 singleLine = true,
                 placeholder = {
-                    Text(text = "Поиск по чатам и людям", color = TextMuted, fontSize = 14.sp)
+                    Text(text = "Поиск по чатам и людям", color = scheme.textMuted, fontSize = 14.sp)
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = null,
-                        tint = TextMuted,
+                        tint = scheme.textMuted,
                         modifier = Modifier.size(18.dp)
                     )
                 },
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 colors = TextFieldDefaults.colors(
-                    focusedContainerColor = SurfaceDark,
-                    unfocusedContainerColor = SurfaceDark,
+                    focusedContainerColor = scheme.inputBg,
+                    unfocusedContainerColor = scheme.inputBg,
                     focusedIndicatorColor = Color.Transparent,
                     unfocusedIndicatorColor = Color.Transparent,
                     cursorColor = scheme.accent,
-                    focusedTextColor = TextPrimary,
-                    unfocusedTextColor = TextPrimary
+                    focusedTextColor = scheme.textPrimary,
+                    unfocusedTextColor = scheme.textPrimary
                 ),
                 shape = RoundedCornerShape(18.dp)
             )
@@ -168,9 +162,11 @@ fun ChatSearchScreen(
 
 @Composable
 private fun SearchSectionHeader(label: String) {
+    val scheme = LocalAnonGramScheme.current
+
     Text(
         text = label,
-        color = TextMuted,
+        color = scheme.textMuted,
         fontSize = 11.sp,
         fontFamily = FontFamily.Monospace,
         modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)
@@ -179,6 +175,7 @@ private fun SearchSectionHeader(label: String) {
 
 @Composable
 private fun SearchSessionRow(session: IChatSession, onClick: () -> Unit) {
+    val scheme = LocalAnonGramScheme.current
     val accent = session.accentColor
     Row(
         modifier = Modifier
@@ -197,7 +194,7 @@ private fun SearchSessionRow(session: IChatSession, onClick: () -> Unit) {
             Text(
                 text = session.avatarMonogram ?: "··",
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 14.sp
             )
         }
@@ -205,7 +202,7 @@ private fun SearchSessionRow(session: IChatSession, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = session.title,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -213,7 +210,7 @@ private fun SearchSessionRow(session: IChatSession, onClick: () -> Unit) {
             )
             Text(
                 text = "${session.securityLabel} · ${session.fingerprint}",
-                color = TextMuted,
+                color = scheme.textMuted,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 maxLines = 1,
@@ -231,6 +228,8 @@ private fun SearchSessionRow(session: IChatSession, onClick: () -> Unit) {
 
 @Composable
 private fun SearchContactRow(contact: Contact, onClick: () -> Unit) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -242,13 +241,13 @@ private fun SearchContactRow(contact: Contact, onClick: () -> Unit) {
             modifier = Modifier
                 .size(42.dp)
                 .clip(CircleShape)
-                .background(LocalAnonGramScheme.current.accent.copy(alpha = 0.16f)),
+                .background(scheme.accent.copy(alpha = 0.16f)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = contact.monogram,
                 fontWeight = FontWeight.Bold,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 14.sp
             )
         }
@@ -256,7 +255,7 @@ private fun SearchContactRow(contact: Contact, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = contact.name,
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -264,7 +263,7 @@ private fun SearchContactRow(contact: Contact, onClick: () -> Unit) {
             )
             Text(
                 text = contact.fingerprint,
-                color = TextMuted,
+                color = scheme.textMuted,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace
             )
@@ -274,12 +273,14 @@ private fun SearchContactRow(contact: Contact, onClick: () -> Unit) {
 
 @Composable
 private fun SearchHint(text: String) {
+    val scheme = LocalAnonGramScheme.current
+
     Box(
         modifier = Modifier
             .fillMaxSize()
             .padding(32.dp),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = text, color = TextMuted, fontSize = 13.sp)
+        Text(text = text, color = scheme.textMuted, fontSize = 13.sp)
     }
 }

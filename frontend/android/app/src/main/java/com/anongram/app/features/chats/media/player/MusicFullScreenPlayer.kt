@@ -13,6 +13,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -75,7 +76,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -88,12 +88,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -187,9 +182,8 @@ fun MusicFullScreenPlayer(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF141724),
-                        Color(0xFF0C0E17),
-                        Color(0xFF080910)
+                        scheme.surface,
+                        scheme.background
                     )
                 )
             )
@@ -212,12 +206,12 @@ fun MusicFullScreenPlayer(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.08f))
+                        .background(scheme.accentSoft)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.KeyboardArrowDown,
                         contentDescription = "Свернуть",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -225,7 +219,7 @@ fun MusicFullScreenPlayer(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "ВОСПРОИЗВЕДЕНИЕ ИЗ ЧАТА",
-                        color = Color.White.copy(alpha = 0.5f),
+                        color = scheme.textSecondary,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         letterSpacing = 1.sp
@@ -238,12 +232,12 @@ fun MusicFullScreenPlayer(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
+                            .background(scheme.accentSoft)
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
                             contentDescription = "Опции",
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -251,25 +245,25 @@ fun MusicFullScreenPlayer(
                     DropdownMenu(
                         expanded = isMenuOpen,
                         onDismissRequest = { isMenuOpen = false },
-                        modifier = Modifier
-                            .width(220.dp)
-                            .background(Color(0xFF161926), RoundedCornerShape(16.dp))
-                            .border(0.5.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                        shape = RoundedCornerShape(16.dp),
+                        containerColor = scheme.card,
+                        border = BorderStroke(1.dp, scheme.islandBorder),
+                        modifier = Modifier.width(220.dp)
                     ) {
                         DropdownMenuItem(
-                            text = { Text("Сохранить в загрузки", color = Color.White, fontSize = 14.sp) },
+                            text = { Text("Сохранить в загрузки", color = scheme.textPrimary, fontSize = 14.sp) },
                             leadingIcon = {
                                 Icon(Icons.Outlined.FileDownload, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
                             },
                             onClick = {
                                 isMenuOpen = false
                                 ChatActionBannerBus.show(
-                                    androidx.compose.material.icons.Icons.Outlined.FileDownload
+                                    Icons.Outlined.FileDownload
                                 ) { it.bannerTrackSavedNamed(currentTrack.title) }
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Переслать", color = Color.White, fontSize = 14.sp) },
+                            text = { Text("Переслать", color = scheme.textPrimary, fontSize = 14.sp) },
                             leadingIcon = {
                                 Icon(Icons.AutoMirrored.Outlined.Reply, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
                             },
@@ -280,7 +274,7 @@ fun MusicFullScreenPlayer(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Поделиться", color = Color.White, fontSize = 14.sp) },
+                            text = { Text("Поделиться", color = scheme.textPrimary, fontSize = 14.sp) },
                             leadingIcon = {
                                 Icon(Icons.Outlined.Share, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
                             },
@@ -297,7 +291,7 @@ fun MusicFullScreenPlayer(
                             }
                         )
                         DropdownMenuItem(
-                            text = { Text("Показать в чате", color = Color.White, fontSize = 14.sp) },
+                            text = { Text("Показать в чате", color = scheme.textPrimary, fontSize = 14.sp) },
                             leadingIcon = {
                                 Icon(Icons.Outlined.Visibility, null, tint = scheme.accent, modifier = Modifier.size(20.dp))
                             },
@@ -320,7 +314,7 @@ fun MusicFullScreenPlayer(
                     .aspectRatio(1f)
                     .shadow(24.dp, RoundedCornerShape(24.dp), spotColor = scheme.accent.copy(alpha = 0.5f))
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Color(0xFF1A1C29)),
+                    .background(scheme.card),
                 contentAlignment = Alignment.Center
             ) {
                 if (artBitmap != null) {
@@ -349,7 +343,7 @@ fun MusicFullScreenPlayer(
             ) {
                 MarqueeText(
                     text = currentTrack.title,
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth()
@@ -357,7 +351,7 @@ fun MusicFullScreenPlayer(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = currentTrack.artist.ifBlank { "AnonGram" },
-                    color = Color.White.copy(alpha = 0.65f),
+                    color = scheme.textSecondary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -367,7 +361,7 @@ fun MusicFullScreenPlayer(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Скраббер в стиле нового iPhone (плавная полоса с белой точкой-манипулятором)
+            // Скраббер в стиле нового iPhone (плавная полоса с точкой-манипулятором)
             var isScrubbing by remember { mutableStateOf(false) }
             var scrubProgress by remember { mutableFloatStateOf(0f) }
             val activeProgress = if (isScrubbing) scrubProgress else state.progress
@@ -408,23 +402,23 @@ fun MusicFullScreenPlayer(
                             .fillMaxWidth()
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
-                            .background(Color.White.copy(alpha = 0.2f))
+                            .background(scheme.textMuted.copy(alpha = 0.25f))
                     )
-                    // Активная белая полоса
+                    // Активная полоса
                     Box(
                         modifier = Modifier
                             .width(with(density) { thumbXPx.toDp() })
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
-                            .background(Color.White)
+                            .background(scheme.accent)
                     )
-                    // Белая точка-манипулятор (увеличивается при зажатии)
+                    // Точка-манипулятор (увеличивается при зажатии)
                     Box(
                         modifier = Modifier
                             .offset { IntOffset((thumbXPx - if (isScrubbing) 8.dp.toPx() else 6.dp.toPx()).roundToInt(), 0) }
                             .size(if (isScrubbing) 16.dp else 12.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
+                            .background(scheme.accent)
                     )
                 }
 
@@ -434,13 +428,13 @@ fun MusicFullScreenPlayer(
                 ) {
                     Text(
                         text = state.positionLabel,
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = scheme.textSecondary,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
                         text = state.remainingLabel,
-                        color = Color.White.copy(alpha = 0.6f),
+                        color = scheme.textSecondary,
                         fontSize = 12.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -463,7 +457,7 @@ fun MusicFullScreenPlayer(
                     Icon(
                         imageVector = Icons.Rounded.Shuffle,
                         contentDescription = "Shuffle",
-                        tint = if (state.isShuffleEnabled) scheme.accent else Color.White.copy(alpha = 0.65f),
+                        tint = if (state.isShuffleEnabled) scheme.accent else scheme.textMuted,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -476,7 +470,7 @@ fun MusicFullScreenPlayer(
                     Icon(
                         imageVector = Icons.Rounded.SkipPrevious,
                         contentDescription = "Предыдущий",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -493,7 +487,7 @@ fun MusicFullScreenPlayer(
                     Icon(
                         imageVector = if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                         contentDescription = if (state.isPlaying) "Пауза" else "Играть",
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(38.dp)
                     )
                 }
@@ -506,7 +500,7 @@ fun MusicFullScreenPlayer(
                     Icon(
                         imageVector = Icons.Rounded.SkipNext,
                         contentDescription = "Следующий",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -520,7 +514,7 @@ fun MusicFullScreenPlayer(
                         ChatRepeatMode.ONE -> Icons.Rounded.RepeatOne
                         else -> Icons.Rounded.Repeat
                     }
-                    val repeatTint = if (state.repeatMode != ChatRepeatMode.OFF) scheme.accent else Color.White.copy(alpha = 0.65f)
+                    val repeatTint = if (state.repeatMode != ChatRepeatMode.OFF) scheme.accent else scheme.textMuted
                     Icon(
                         imageVector = repeatIcon,
                         contentDescription = "Repeat",
@@ -536,7 +530,7 @@ fun MusicFullScreenPlayer(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Color.White.copy(alpha = 0.08f))
+                    .background(scheme.accentSoft)
                     .clickable { isQueueOpen = !isQueueOpen }
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -544,13 +538,13 @@ fun MusicFullScreenPlayer(
                 Icon(
                     imageVector = Icons.Outlined.QueueMusic,
                     contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.85f),
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Список треков чата (${state.queue.size})",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -569,8 +563,8 @@ fun MusicFullScreenPlayer(
                     .fillMaxWidth()
                     .fillMaxHeight(0.72f)
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(Color(0xFF141724))
-                    .border(1.dp, CardBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -581,7 +575,7 @@ fun MusicFullScreenPlayer(
                             .width(36.dp)
                             .height(4.dp)
                             .clip(RoundedCornerShape(2.dp))
-                            .background(Color.White.copy(alpha = 0.25f))
+                            .background(scheme.textMuted.copy(alpha = 0.35f))
                             .clickable { isQueueOpen = false }
                     )
                     Row(
@@ -593,7 +587,7 @@ fun MusicFullScreenPlayer(
                     ) {
                         Text(
                             text = "Очередь треков (${state.queue.size})",
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -604,7 +598,7 @@ fun MusicFullScreenPlayer(
                             Icon(
                                 imageVector = Icons.Filled.Close,
                                 contentDescription = "Закрыть",
-                                tint = Color.White.copy(alpha = 0.7f),
+                                tint = scheme.textSecondary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -620,7 +614,7 @@ fun MusicFullScreenPlayer(
                                 onPlay = { ctrl.play(state.queue, track) },
                                 onSave = {
                                     ChatActionBannerBus.show(
-                                        androidx.compose.material.icons.Icons.Outlined.FileDownload
+                                        Icons.Outlined.FileDownload
                                     ) { it.bannerSavedNamed(track.title) }
                                 },
                                 onForward = {

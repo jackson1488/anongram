@@ -292,7 +292,7 @@ fun VideoCircleTrimBar(
                         modifier = Modifier
                             .width(2.dp)
                             .height(16.dp)
-                            .background(Color(0xFF4A3464))
+                            .background(scheme.accent)
                     )
                 }
 
@@ -318,7 +318,7 @@ fun VideoCircleTrimBar(
                         modifier = Modifier
                             .width(2.dp)
                             .height(16.dp)
-                            .background(Color(0xFF4A3464))
+                            .background(scheme.accent)
                     )
                 }
             }

@@ -28,9 +28,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CyberTeal
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -256,6 +254,7 @@ private fun buildRenderItems(messages: List<ChatMessage>, firstUnreadId: String?
 
 @Composable
 private fun EmptyThreadHint() {
+    val scheme = LocalAnonGramScheme.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -266,20 +265,20 @@ private fun EmptyThreadHint() {
             Icon(
                 painter = painterResource(id = R.drawable.ic_stat_anongram),
                 contentDescription = null,
-                tint = CyberTeal.copy(alpha = 0.7f),
+                tint = scheme.accent.copy(alpha = 0.7f),
                 modifier = Modifier.size(48.dp)
             )
             Spacer(modifier = Modifier.padding(top = 12.dp))
             Text(
                 text = "Сообщений пока нет",
-                color = TextPrimary,
+                color = scheme.textPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp
             )
             Spacer(modifier = Modifier.padding(top = 6.dp))
             Text(
                 text = "Напишите первое зашифрованное сообщение",
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 12.sp
             )
         }

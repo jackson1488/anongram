@@ -17,21 +17,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.settings.language.i18n.LanguageI18nStrings
 import com.anongram.app.features.settings.language.model.LanguageItem
 
 /**
  * Карточка со списком доступных языков интерфейса:
- * - Фиолетовый заголовок секции «Язык»
+ * - Акцентный заголовок секции «Язык»
  * - Telegram-радиокнопки СЛЕВА у каждого пункта
- * - Нативное название (16sp, белое) и английское название (13sp, серое)
+ * - Нативное название (16sp) и английское название (13sp)
  * - Тонкие разделители между строками
  */
 @Composable
@@ -42,22 +39,20 @@ fun LanguageListCard(
     onSelectLanguage: (LanguageItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val accentPurple = Color(0xFFB388FF)
-    val cardBackground = Color(0xFF141318)
-    val dividerColor = Color(0x1AFFFFFF)
+    val scheme = LocalAnonGramScheme.current
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(cardBackground)
-            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(vertical = 12.dp)
     ) {
         // Заголовок секции «Язык»
         Text(
             text = strings.languageSectionTitle,
-            color = accentPurple,
+            color = scheme.accent,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
@@ -77,7 +72,8 @@ fun LanguageListCard(
             ) {
                 TelegramRadioButton(
                     selected = isSelected,
-                    activeColor = accentPurple
+                    activeColor = scheme.accent,
+                    inactiveColor = scheme.textMuted
                 )
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -85,13 +81,13 @@ fun LanguageListCard(
                 Column {
                     Text(
                         text = lang.nativeName,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Text(
                         text = lang.englishName,
-                        color = TextMuted,
+                        color = scheme.textSecondary,
                         fontSize = 13.sp
                     )
                 }
@@ -99,7 +95,7 @@ fun LanguageListCard(
 
             if (index < languages.lastIndex) {
                 HorizontalDivider(
-                    color = dividerColor,
+                    color = scheme.divider,
                     thickness = 0.5.dp,
                     modifier = Modifier.padding(start = 54.dp, end = 16.dp)
                 )

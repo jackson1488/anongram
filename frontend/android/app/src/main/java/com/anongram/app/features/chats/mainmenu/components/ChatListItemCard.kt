@@ -31,9 +31,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.ui.accentColor
 
@@ -84,7 +81,7 @@ internal fun ChatListItemCard(
                         Icon(
                             imageVector = Icons.Outlined.PushPin,
                             contentDescription = null,
-                            tint = TextMuted,
+                            tint = scheme.textMuted,
                             modifier = Modifier.size(12.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
@@ -92,7 +89,7 @@ internal fun ChatListItemCard(
                     Text(
                         text = session.title,
                         fontWeight = FontWeight.Bold,
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 14.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -101,7 +98,7 @@ internal fun ChatListItemCard(
                 if (session.lastMessagePreview.isNotEmpty()) {
                     Text(
                         text = timeLabel,
-                        color = TextMuted,
+                        color = scheme.textMuted,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
                     )
@@ -130,7 +127,7 @@ internal fun ChatListItemCard(
                     ) {
                         Text(
                             text = draftText!!,
-                            color = TextSecondary,
+                            color = scheme.textSecondary,
                             fontSize = 12.sp,
                             lineHeight = 15.sp,
                             maxLines = 2,
@@ -159,7 +156,7 @@ internal fun ChatListItemCard(
                         if (session.lastMessagePreview.isNotBlank() || session.lastMessageAttachment == null) {
                             Text(
                                 text = session.lastMessagePreview.ifEmpty { "История очищена" },
-                                color = if (session.lastMessagePreview.isEmpty()) TextMuted else TextSecondary,
+                                color = if (session.lastMessagePreview.isEmpty()) scheme.textMuted else scheme.textSecondary,
                                 fontSize = 12.sp,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis

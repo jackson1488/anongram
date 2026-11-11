@@ -93,11 +93,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.api.AttachmentDraft
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
-import com.anongram.app.features.attach.ui.theme.AttachPillDark
-import com.anongram.app.features.attach.ui.theme.AttachSheetBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -132,6 +129,7 @@ fun FilesTab(
     onOpenUncompressedGallery: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var isGallerySubScreenOpen by remember { mutableStateOf(false) }
     // Выбор хранится здесь: выход из подраздела его не сбрасывает
@@ -261,8 +259,8 @@ fun FilesTab(
                         .height(64.dp)
                         .background(
                             Brush.verticalGradient(
-                                0.0f to AttachSheetBackground,
-                                0.75f to AttachSheetBackground.copy(alpha = 0.95f),
+                                0.0f to scheme.surface,
+                                0.75f to scheme.surface.copy(alpha = 0.95f),
                                 1.0f to Color.Transparent
                             )
                         )
@@ -279,8 +277,8 @@ fun FilesTab(
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, CircleShape)
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, CircleShape)
                         .clickable {
                             if (isSearchActive) {
                                 isSearchActive = false
@@ -294,7 +292,7 @@ fun FilesTab(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -308,8 +306,8 @@ fun FilesTab(
                             .weight(1f)
                             .height(50.dp)
                             .clip(RoundedCornerShape(25.dp))
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                            .background(scheme.islandBg)
+                            .border(1.dp, scheme.islandBorder, RoundedCornerShape(25.dp))
                             .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
@@ -317,11 +315,11 @@ fun FilesTab(
                             value = searchQuery,
                             onValueChange = { searchQuery = it },
                             singleLine = true,
-                            textStyle = TextStyle(color = Color.White, fontSize = 14.sp),
-                            cursorBrush = SolidColor(Color(0xFF8B5CF6)),
+                            textStyle = TextStyle(color = scheme.textPrimary, fontSize = 14.sp),
+                            cursorBrush = SolidColor(scheme.accent),
                             decorationBox = { inner ->
                                 if (searchQuery.isEmpty()) {
-                                    Text("Поиск файлов...", color = Color(0xFF94A3B8), fontSize = 14.sp)
+                                    Text("Поиск файлов...", color = scheme.textMuted, fontSize = 14.sp)
                                 }
                                 inner()
                             },
@@ -336,15 +334,15 @@ fun FilesTab(
                             modifier = Modifier
                                 .size(50.dp)
                                 .clip(CircleShape)
-                                .background(AttachPillDark)
-                                .border(1.dp, AttachBorder, CircleShape)
+                                .background(scheme.islandBg)
+                                .border(1.dp, scheme.islandBorder, CircleShape)
                                 .clickable { searchQuery = "" },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Очистить",
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -356,14 +354,14 @@ fun FilesTab(
                             .weight(1f)
                             .height(50.dp)
                             .clip(RoundedCornerShape(25.dp))
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                            .background(scheme.islandBg)
+                            .border(1.dp, scheme.islandBorder, RoundedCornerShape(25.dp))
                             .padding(horizontal = 14.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
                             text = "Выбрать файл",
-                            color = Color.White,
+                            color = scheme.textPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -376,15 +374,15 @@ fun FilesTab(
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape)
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, CircleShape)
+                            .background(scheme.islandBg)
+                            .border(1.dp, scheme.islandBorder, CircleShape)
                             .clickable { isSearchActive = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Поиск",
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -396,8 +394,8 @@ fun FilesTab(
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape)
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, CircleShape)
+                            .background(scheme.islandBg)
+                            .border(1.dp, scheme.islandBorder, CircleShape)
                             .clickable {
                                 sortOrder = if (sortOrder == FileSortOrder.BY_DATE) FileSortOrder.BY_NAME else FileSortOrder.BY_DATE
                             },
@@ -406,7 +404,7 @@ fun FilesTab(
                         Icon(
                             imageVector = Icons.Rounded.Sort,
                             contentDescription = "Сортировка",
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -429,7 +427,8 @@ fun FilesTab(
                         .fillMaxWidth()
                         .padding(horizontal = 14.dp)
                         .clip(RoundedCornerShape(18.dp))
-                        .background(AttachCardDark)
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                 ) {
                     // 1. Внутреннее хранилище
                     StorageCardRow(
@@ -442,7 +441,7 @@ fun FilesTab(
 
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 68.dp),
-                        color = Color(0x1AFFFFFF),
+                        color = scheme.divider,
                         thickness = 0.5.dp
                     )
 
@@ -451,7 +450,8 @@ fun FilesTab(
                         title = "AnonGram",
                         subtitle = "Поиск в папке приложения",
                         icon = Icons.Outlined.Folder,
-                        iconBackground = Color(0xFF8B5CF6),
+                        iconBackground = scheme.accent,
+                        iconTint = scheme.onAccent,
                         onClick = {
                             val appFiles = context.filesDir.listFiles()?.map { f ->
                                 DeviceFileItem(
@@ -468,7 +468,7 @@ fun FilesTab(
 
                     HorizontalDivider(
                         modifier = Modifier.padding(start = 68.dp),
-                        color = Color(0x1AFFFFFF),
+                        color = scheme.divider,
                         thickness = 0.5.dp
                     )
 
@@ -490,11 +490,11 @@ fun FilesTab(
                 }
             }
 
-            // Заголовок раздела под карточкой (ТЗ: фиолетовый текст media_1793211129173.png)
+            // Заголовок раздела под карточкой
             item(key = "section_header") {
                 Text(
                     text = sortOrder.title,
-                    color = Color(0xFFA78BFA),
+                    color = scheme.accent,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 16.dp, bottom = 8.dp, start = 18.dp)
@@ -515,7 +515,7 @@ fun FilesTab(
                     ) {
                         Text(
                             text = "Файлы не найдены",
-                            color = Color(0xFF94A3B8),
+                            color = scheme.textSecondary,
                             fontSize = 14.sp
                         )
                     }
@@ -544,8 +544,10 @@ private fun StorageCardRow(
     subtitle: String,
     icon: ImageVector,
     iconBackground: Color,
+    iconTint: Color = Color.White,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -563,7 +565,7 @@ private fun StorageCardRow(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = Color.White,
+                tint = iconTint,
                 modifier = Modifier.size(24.dp)
             )
         }
@@ -573,14 +575,14 @@ private fun StorageCardRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                color = Color(0xFF9E9E9E),
+                color = scheme.textSecondary,
                 fontSize = 13.sp
             )
         }
@@ -593,6 +595,7 @@ private fun FileRowItem(
     isSelected: Boolean,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val fileColor = remember(file.extension) { getFileExtensionColor(file.extension) }
     val extLabel = remember(file.extension) {
@@ -659,7 +662,7 @@ private fun FileRowItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = file.name,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -674,7 +677,7 @@ private fun FileRowItem(
             }
             Text(
                 text = "${formatFileSize(file.size)}${if (dateStr.isNotEmpty()) " • $dateStr" else ""}",
-                color = Color(0xFF94A3B8),
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
@@ -688,10 +691,10 @@ private fun FileRowItem(
             modifier = Modifier
                 .size(24.dp)
                 .clip(CircleShape)
-                .background(if (isSelected) Color(0xFF8B5CF6) else Color.Transparent)
+                .background(if (isSelected) scheme.accent else Color.Transparent)
                 .border(
                     width = 1.5.dp,
-                    color = if (isSelected) Color(0xFF8B5CF6) else Color(0x66FFFFFF),
+                    color = if (isSelected) scheme.accent else scheme.textMuted.copy(alpha = 0.5f),
                     shape = CircleShape
                 )
                 .clickable { onClick() },
@@ -701,7 +704,7 @@ private fun FileRowItem(
                 Icon(
                     imageVector = Icons.Default.Check,
                     contentDescription = "Выбран",
-                    tint = Color.White,
+                    tint = scheme.onAccent,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -838,6 +841,7 @@ fun FilesGallerySubScreen(
     onSendSelected: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("anongram_attach_prefs", Context.MODE_PRIVATE) }
     var isGridMode by remember {
@@ -870,7 +874,7 @@ fun FilesGallerySubScreen(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(AttachSheetBackground)
+            .background(scheme.surface)
             .clickable(
                 interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                 indication = null
@@ -895,7 +899,7 @@ fun FilesGallerySubScreen(
             ) {
                 Text(
                     text = "Медиафайлы не найдены",
-                    color = Color(0xFF94A3B8),
+                    color = scheme.textSecondary,
                     fontSize = 14.sp
                 )
             }
@@ -933,7 +937,7 @@ fun FilesGallerySubScreen(
                         onClick = { onToggleMedia(media) }
                     )
                     HorizontalDivider(
-                        color = Color(0x15FFFFFF),
+                        color = scheme.divider,
                         thickness = 0.5.dp,
                         modifier = Modifier.padding(start = 64.dp)
                     )
@@ -948,7 +952,7 @@ fun FilesGallerySubScreen(
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .zIndex(11f)
-                    .background(AttachSheetBackground)
+                    .background(scheme.surface)
                     .padding(horizontal = 10.dp, vertical = 8.dp)
                     .navigationBarsPadding()
                     .imePadding(),
@@ -959,20 +963,20 @@ fun FilesGallerySubScreen(
                         .weight(1f)
                         .height(46.dp)
                         .clip(RoundedCornerShape(23.dp))
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, RoundedCornerShape(23.dp))
+                        .background(scheme.inputBg)
+                        .border(1.dp, scheme.inputBorder, RoundedCornerShape(23.dp))
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (caption.isEmpty()) {
-                        Text("Добавить подпись...", color = Color(0xFF8E8E93), fontSize = 15.sp)
+                        Text("Добавить подпись...", color = scheme.textMuted, fontSize = 15.sp)
                     }
                     BasicTextField(
                         value = caption,
                         onValueChange = onCaptionChange,
                         singleLine = true,
-                        textStyle = androidx.compose.ui.text.TextStyle(color = Color.White, fontSize = 15.sp),
-                        cursorBrush = androidx.compose.ui.graphics.SolidColor(Color(0xFF8B5CF6)),
+                        textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
+                        cursorBrush = SolidColor(scheme.accent),
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -981,14 +985,14 @@ fun FilesGallerySubScreen(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF8B5CF6))
+                        .background(scheme.accent)
                         .clickable { onSendSelected() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Отправить",
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(22.dp)
                     )
                     Box(
@@ -997,13 +1001,14 @@ fun FilesGallerySubScreen(
                             .offset(x = 4.dp, y = (-4).dp)
                             .defaultMinSize(minWidth = 20.dp, minHeight = 20.dp)
                             .clip(CircleShape)
-                            .background(Color.White)
+                            .background(scheme.surface)
+                            .border(1.dp, scheme.accent, CircleShape)
                             .padding(horizontal = 4.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = selectedMedia.size.toString(),
-                            color = Color(0xFF6D28D9),
+                            color = scheme.accent,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -1026,8 +1031,8 @@ fun FilesGallerySubScreen(
                     .height(64.dp)
                     .background(
                         Brush.verticalGradient(
-                            0.0f to AttachSheetBackground,
-                            0.75f to AttachSheetBackground.copy(alpha = 0.95f),
+                            0.0f to scheme.surface,
+                            0.75f to scheme.surface.copy(alpha = 0.95f),
                             1.0f to Color.Transparent
                         )
                     )
@@ -1044,35 +1049,35 @@ fun FilesGallerySubScreen(
                     modifier = Modifier
                         .size(50.dp)
                         .clip(CircleShape)
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, CircleShape)
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, CircleShape)
                         .clickable { onBack() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Назад",
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
                 }
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Островок 2: Заголовок «Все медиа (без сжатия)»
+                // Островок 2: Заголовок «Все медиа»
                 Box(
                     modifier = Modifier
                         .weight(1f)
                         .height(50.dp)
                         .clip(RoundedCornerShape(25.dp))
-                        .background(AttachPillDark)
-                        .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(25.dp))
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
                         text = "Все медиа",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -1093,15 +1098,15 @@ fun FilesGallerySubScreen(
                         modifier = Modifier
                             .size(50.dp)
                             .clip(CircleShape)
-                            .background(AttachPillDark)
-                            .border(1.dp, AttachBorder, CircleShape)
+                            .background(scheme.islandBg)
+                            .border(1.dp, scheme.islandBorder, CircleShape)
                             .clickable { menuExpanded = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
                             contentDescription = "Меню действий",
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -1109,13 +1114,15 @@ fun FilesGallerySubScreen(
                     DropdownMenu(
                         expanded = menuExpanded,
                         onDismissRequest = { menuExpanded = false },
-                        modifier = Modifier.background(AttachCardDark)
+                        modifier = Modifier
+                            .background(scheme.card, RoundedCornerShape(14.dp))
+                            .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(14.dp))
                     ) {
                         DropdownMenuItem(
                             text = {
                                 Text(
                                     if (isGridMode) "Показать списком" else "В виде сетки",
-                                    color = Color.White,
+                                    color = scheme.textPrimary,
                                     fontSize = 14.sp
                                 )
                             },
@@ -1123,7 +1130,7 @@ fun FilesGallerySubScreen(
                                 Icon(
                                     imageVector = if (isGridMode) Icons.Outlined.FormatListBulleted else Icons.Outlined.GridView,
                                     contentDescription = null,
-                                    tint = Color(0xFFA78BFA)
+                                    tint = scheme.accent
                                 )
                             },
                             onClick = {
@@ -1137,7 +1144,7 @@ fun FilesGallerySubScreen(
                             text = {
                                 Text(
                                     "Открыть в...",
-                                    color = Color.White,
+                                    color = scheme.textPrimary,
                                     fontSize = 14.sp
                                 )
                             },
@@ -1145,7 +1152,7 @@ fun FilesGallerySubScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.OpenInNew,
                                     contentDescription = null,
-                                    tint = Color(0xFFA78BFA)
+                                    tint = scheme.accent
                                 )
                             },
                             onClick = {
@@ -1173,6 +1180,7 @@ private fun FilesGalleryGridItem(
     selectionNumber: Int,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var thumbnail by remember(media.uri) { mutableStateOf<Bitmap?>(null) }
 
@@ -1186,11 +1194,12 @@ private fun FilesGalleryGridItem(
         modifier = Modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(8.dp))
-            .background(AttachCardDark)
+            .background(scheme.card)
             .clickable(onClick = onClick)
     ) {
         FilesSelectionCircle(
             selectionNumber = selectionNumber,
+            overMedia = true,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(6.dp)
@@ -1211,7 +1220,7 @@ private fun FilesGalleryGridItem(
                 Icon(
                     imageVector = if (media.isVideo) Icons.Rounded.Videocam else Icons.Outlined.PhotoLibrary,
                     contentDescription = null,
-                    tint = Color(0x66FFFFFF),
+                    tint = scheme.textMuted,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -1252,6 +1261,7 @@ private fun FilesGalleryListItem(
     selectionNumber: Int,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var thumbnail by remember(media.uri) { mutableStateOf<Bitmap?>(null) }
     val meta = remember(media.uri) { getFileMetadata(context, media.uri) }
@@ -1274,7 +1284,7 @@ private fun FilesGalleryListItem(
             modifier = Modifier
                 .size(52.dp)
                 .clip(RoundedCornerShape(10.dp))
-                .background(AttachCardDark),
+                .background(scheme.card),
             contentAlignment = Alignment.Center
         ) {
             if (thumbnail != null) {
@@ -1288,7 +1298,7 @@ private fun FilesGalleryListItem(
                 Icon(
                     imageVector = if (media.isVideo) Icons.Rounded.Videocam else Icons.Outlined.PhotoLibrary,
                     contentDescription = null,
-                    tint = Color(0x88FFFFFF),
+                    tint = scheme.textMuted,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -1314,7 +1324,7 @@ private fun FilesGalleryListItem(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = meta.name,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -1323,32 +1333,40 @@ private fun FilesGalleryListItem(
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = "${formatFileSize(meta.size)}${if (media.isVideo && media.durationMs > 0) " • ${formatDuration(media.durationMs)}" else ""}",
-                color = Color(0xFF94A3B8),
+                color = scheme.textSecondary,
                 fontSize = 12.sp
             )
         }
 
         Spacer(modifier = Modifier.width(8.dp))
-        FilesSelectionCircle(selectionNumber = selectionNumber)
+        FilesSelectionCircle(selectionNumber = selectionNumber, overMedia = false)
         Spacer(modifier = Modifier.width(4.dp))
     }
 }
 
 @Composable
-private fun FilesSelectionCircle(selectionNumber: Int, modifier: Modifier = Modifier) {
+private fun FilesSelectionCircle(
+    selectionNumber: Int,
+    overMedia: Boolean = true,
+    modifier: Modifier = Modifier
+) {
+    val scheme = LocalAnonGramScheme.current
     val isSelected = selectionNumber > 0
+    val unselectedBg = if (overMedia) Color(0x66000000) else Color.Transparent
+    val unselectedBorder = if (overMedia) Color.White else scheme.textMuted.copy(alpha = 0.5f)
+
     Box(
         modifier = modifier
             .size(24.dp)
             .clip(CircleShape)
-            .background(if (isSelected) Color(0xFF8B5CF6) else Color(0x66000000))
-            .border(1.5.dp, if (isSelected) Color(0xFF8B5CF6) else Color.White, CircleShape),
+            .background(if (isSelected) scheme.accent else unselectedBg)
+            .border(1.5.dp, if (isSelected) scheme.accent else unselectedBorder, CircleShape),
         contentAlignment = Alignment.Center
     ) {
         if (isSelected) {
             Text(
                 text = selectionNumber.toString(),
-                color = Color.White,
+                color = scheme.onAccent,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold
             )

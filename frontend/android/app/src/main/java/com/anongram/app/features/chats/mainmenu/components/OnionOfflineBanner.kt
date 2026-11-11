@@ -21,33 +21,35 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.AmberWarning
-import com.anongram.app.core.theme.TextSecondary
-
-private val AmberBackground = Color(0xFF241704)
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /** Баннер недоступности onion-цепочки: сообщения копятся в локальной очереди шифрования. */
 @Composable
 internal fun OnionOfflineBanner(modifier: Modifier = Modifier) {
+    val scheme = LocalAnonGramScheme.current
+    val bannerBg = if (scheme.isDark) Color(0xFF241704) else Color(0xFFFFF7ED)
+    val warningTint = if (scheme.isDark) AmberWarning else Color(0xFFD97706)
+
     Row(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(AmberBackground)
-            .border(1.dp, AmberWarning.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+            .background(bannerBg)
+            .border(1.dp, warningTint.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = Icons.Outlined.WarningAmber,
             contentDescription = null,
-            tint = AmberWarning,
+            tint = warningTint,
             modifier = Modifier.size(16.dp)
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = "Onion-сеть недоступна — исходящие ждут в очереди шифрования",
-            color = TextSecondary,
+            color = scheme.textSecondary,
             fontSize = 11.sp
         )
     }

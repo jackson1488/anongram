@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.permissions.PermissionUtils
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.ui.components.PermissionDeniedView
 import com.anongram.app.features.camera.api.CapturedMedia
 import kotlinx.coroutines.Job
@@ -93,6 +94,7 @@ fun CameraScreenContent(
     onClose: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -371,7 +373,7 @@ fun CameraScreenContent(
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(
-                        color = Color(0xFF8B5CF6),
+                        color = scheme.accent,
                         radius = size.minDimension / 2,
                         style = Stroke(width = 2.dp.toPx())
                     )
@@ -454,7 +456,7 @@ fun CameraScreenContent(
                     Icon(
                         imageVector = icon,
                         contentDescription = "Flash",
-                        tint = if (flashMode == FlashMode.OFF) Color.White else Color(0xFF8B5CF6)
+                        tint = if (flashMode == FlashMode.OFF) Color.White else scheme.accent
                     )
                 }
 
@@ -487,7 +489,7 @@ fun CameraScreenContent(
                         )
                         if (isRecording) {
                             drawArc(
-                                color = Color(0xFF8B5CF6),
+                                color = scheme.accent,
                                 startAngle = -90f,
                                 sweepAngle = recordingProgress * 360f,
                                 useCenter = false,

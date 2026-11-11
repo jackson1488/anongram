@@ -32,13 +32,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachCardDark
-import com.anongram.app.features.attach.ui.theme.AttachPurple
-import com.anongram.app.features.attach.ui.theme.AttachSheetBackground
-import com.anongram.app.features.attach.ui.theme.AttachTextMuted
-import com.anongram.app.features.attach.ui.theme.AttachTextPrimary
-import com.anongram.app.features.attach.ui.theme.AttachTextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Плавающие таблетки полного экрана (ТЗ, шаг 1):
@@ -60,6 +54,8 @@ fun AttachTopBar(
     centerContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -71,8 +67,8 @@ fun AttachTopBar(
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
-                .background(AttachCardDark)
-                .border(1.dp, AttachBorder, CircleShape),
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             IconButton(
@@ -82,7 +78,7 @@ fun AttachTopBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Назад / Свернуть",
-                    tint = AttachTextPrimary,
+                    tint = scheme.textPrimary,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -96,8 +92,8 @@ fun AttachTopBar(
                 .weight(1f)
                 .height(50.dp)
                 .clip(RoundedCornerShape(25.dp))
-                .background(AttachCardDark)
-                .border(1.dp, AttachBorder, RoundedCornerShape(25.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(25.dp))
                 .padding(horizontal = 14.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -111,7 +107,7 @@ fun AttachTopBar(
                     Icon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = null,
-                        tint = AttachPurple,
+                        tint = scheme.accent,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
@@ -120,15 +116,15 @@ fun AttachTopBar(
                         onValueChange = onSearchQueryChange,
                         singleLine = true,
                         textStyle = TextStyle(
-                            color = AttachTextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 14.sp
                         ),
-                        cursorBrush = SolidColor(AttachPurple),
+                        cursorBrush = SolidColor(scheme.accent),
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
                                     text = searchPlaceholder,
-                                    color = AttachTextMuted,
+                                    color = scheme.textMuted,
                                     fontSize = 14.sp
                                 )
                             }
@@ -144,7 +140,7 @@ fun AttachTopBar(
                             Icon(
                                 imageVector = Icons.Outlined.Close,
                                 contentDescription = "Очистить",
-                                tint = AttachTextSecondary,
+                                tint = scheme.textSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -159,7 +155,7 @@ fun AttachTopBar(
                 ) {
                     Text(
                         text = title,
-                        color = AttachTextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
@@ -167,7 +163,7 @@ fun AttachTopBar(
                     Icon(
                         imageVector = Icons.Outlined.Search,
                         contentDescription = "Поиск",
-                        tint = AttachTextSecondary,
+                        tint = scheme.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -186,8 +182,8 @@ fun AttachTopBar(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
-                        .background(AttachCardDark)
-                        .border(1.dp, AttachBorder, CircleShape),
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     IconButton(
@@ -197,7 +193,7 @@ fun AttachTopBar(
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
                             contentDescription = "Меню действий",
-                            tint = AttachTextPrimary,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
                     }

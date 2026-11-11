@@ -20,25 +20,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
-
-private val AccentViolet = Color(0xFF7A4DF3)
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Превью пузырей чата для экрана настройки и предпросмотра обоев:
  * - Системная плашка с датой
  * - Один входящий пузырь сообщения
- * - Один исходящий пузырь сообщения с фиолетовым акцентом
+ * - Один исходящий пузырь сообщения в палитре активной темы
  */
 @Composable
 fun WallpaperMockChat(
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val incomingShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp)
+    val outgoingShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -49,12 +50,12 @@ fun WallpaperMockChat(
             modifier = Modifier
                 .align(Alignment.CenterHorizontally)
                 .clip(RoundedCornerShape(12.dp))
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(scheme.bannerBg)
                 .padding(horizontal = 12.dp, vertical = 4.dp)
         ) {
             Text(
                 text = "Сегодня",
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -67,21 +68,21 @@ fun WallpaperMockChat(
             modifier = Modifier
                 .align(Alignment.Start)
                 .fillMaxWidth(0.78f)
-                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
-                .background(Color(0xFF1E293B).copy(alpha = 0.92f))
-                .border(1.dp, Color(0xFF334155).copy(alpha = 0.5f), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomEnd = 16.dp, bottomStart = 4.dp))
+                .clip(incomingShape)
+                .background(scheme.incomingBubbleBg.copy(alpha = 0.94f))
+                .border(1.dp, scheme.incomingBubbleBorder, incomingShape)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Column {
                 Text(
                     text = "Привет! Как тебе новый фон чата? 🔥",
-                    color = TextPrimary,
+                    color = scheme.incomingText,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "19:42",
-                    color = TextSecondary,
+                    color = scheme.textSecondary,
                     fontSize = 11.sp,
                     modifier = Modifier.align(Alignment.End)
                 )
@@ -90,19 +91,24 @@ fun WallpaperMockChat(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Исходящее сообщение с фиолетовым акцентом
+        // Исходящее сообщение
         Box(
             modifier = Modifier
                 .align(Alignment.End)
                 .fillMaxWidth(0.78f)
-                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 16.dp, bottomEnd = 4.dp))
-                .background(AccentViolet.copy(alpha = 0.92f))
+                .clip(outgoingShape)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd)
+                    )
+                )
+                .border(1.dp, scheme.outgoingBubbleBorder, outgoingShape)
                 .padding(horizontal = 12.dp, vertical = 8.dp)
         ) {
             Column {
                 Text(
                     text = "Выглядит шикарно, очень стильно и анонимно! 🚀",
-                    color = Color.White,
+                    color = scheme.outgoingText,
                     fontSize = 14.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
@@ -112,14 +118,14 @@ fun WallpaperMockChat(
                 ) {
                     Text(
                         text = "19:43",
-                        color = Color.White.copy(alpha = 0.8f),
+                        color = scheme.outgoingText.copy(alpha = 0.78f),
                         fontSize = 11.sp
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Icon(
                         imageVector = Icons.Default.DoneAll,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.85f),
+                        tint = scheme.outgoingText.copy(alpha = 0.85f),
                         modifier = Modifier.size(14.dp)
                     )
                 }

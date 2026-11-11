@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.animations.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -18,11 +19,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Верхняя панель экрана «Анимации» в стиле Telegram:
@@ -36,6 +37,8 @@ fun AnimationsTopBar(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -48,14 +51,15 @@ fun AnimationsTopBar(
             modifier = Modifier
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(Color(0x2EFFFFFF))
+                .background(scheme.islandBg)
+                .border(0.8.dp, scheme.islandBorder, CircleShape)
                 .clickable(onClick = onBack),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Назад",
-                tint = Color.White,
+                tint = scheme.textPrimary,
                 modifier = Modifier.size(20.dp)
             )
         }
@@ -63,7 +67,7 @@ fun AnimationsTopBar(
         // Центрированный заголовок
         Text(
             text = title,
-            color = Color.White,
+            color = scheme.textPrimary,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,

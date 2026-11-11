@@ -340,6 +340,7 @@ fun VideoCircleExpandedPlayer(
                 val angleRad = angleDeg * (PI.toFloat() / 180f)
                 val handleX = (radiusPx * cos(angleRad)).roundToInt()
                 val handleY = (radiusPx * sin(angleRad)).roundToInt()
+                val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
 
                 Box(
                     modifier = Modifier
@@ -348,7 +349,7 @@ fun VideoCircleExpandedPlayer(
                         .size(20.dp)
                         .clip(CircleShape)
                         .background(Color.White)
-                        .border(2.dp, Color(0xFF6B4EEA), CircleShape)
+                        .border(2.dp, scheme.accent, CircleShape)
                 )
             }
         }

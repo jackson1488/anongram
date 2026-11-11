@@ -162,20 +162,20 @@ fun VoiceDraftReviewBar(
             Icon(
                 imageVector = Icons.Outlined.Delete,
                 contentDescription = "Удалить запись",
-                tint = Color.White.copy(alpha = 0.8f),
+                tint = scheme.textPrimary.copy(alpha = 0.8f),
                 modifier = Modifier.size(24.dp)
             )
         }
 
         Spacer(modifier = Modifier.width(6.dp))
 
-        // Центральная фиолетовая капсула с предпрослушиванием аудиоволны
+        // Центральная акцентная капсула с предпрослушиванием аудиоволны
         Box(
             modifier = Modifier
                 .weight(1f)
                 .height(44.dp)
                 .clip(RoundedCornerShape(22.dp))
-                .background(scheme.accent.copy(alpha = 0.85f))
+                .background(scheme.accent.copy(alpha = 0.88f))
                 .border(1.dp, scheme.accent, RoundedCornerShape(22.dp))
                 .padding(horizontal = 8.dp),
             contentAlignment = Alignment.CenterStart
@@ -189,14 +189,14 @@ fun VoiceDraftReviewBar(
                     modifier = Modifier
                         .size(30.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.25f))
+                        .background(scheme.onAccent.copy(alpha = 0.22f))
                         .clickable { togglePlay() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
                         contentDescription = if (isPlaying) "Пауза" else "Слушать",
-                        tint = Color.White,
+                        tint = scheme.onAccent,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -205,7 +205,7 @@ fun VoiceDraftReviewBar(
 
                 Text(
                     text = elapsedLabel,
-                    color = Color.White,
+                    color = scheme.onAccent,
                     fontSize = 12.sp,
                     maxLines = 1
                 )
@@ -230,7 +230,7 @@ fun VoiceDraftReviewBar(
                                 .height((height * 1.5f).dp.coerceIn(4.dp, 20.dp))
                                 .clip(RoundedCornerShape(2.dp))
                                 .background(
-                                    if (isPassed) Color.White else Color.White.copy(alpha = 0.4f)
+                                    if (isPassed) scheme.onAccent else scheme.onAccent.copy(alpha = 0.4f)
                                 )
                         )
                     }
@@ -240,7 +240,7 @@ fun VoiceDraftReviewBar(
 
         Spacer(modifier = Modifier.width(8.dp))
 
-        // Круглая фиолетовая кнопка «Отправить» справа
+        // Круглая акцентная кнопка «Отправить» справа
         Box(
             modifier = Modifier
                 .size(46.dp)
@@ -259,7 +259,7 @@ fun VoiceDraftReviewBar(
             Icon(
                 imageVector = Icons.AutoMirrored.Outlined.Send,
                 contentDescription = "Отправить голосовое",
-                tint = Color.White,
+                tint = scheme.onAccent,
                 modifier = Modifier.size(22.dp)
             )
         }

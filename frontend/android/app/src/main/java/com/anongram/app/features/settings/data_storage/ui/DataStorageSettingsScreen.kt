@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -23,11 +24,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.data_storage.ui.components.StorageUsageCard
 
@@ -39,50 +42,54 @@ fun DataStorageSettingsScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
     var cacheSizeMb by remember { mutableIntStateOf(42) }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFF131924))
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(Color(0xFF1B2331))
-                .safeStatusBarPadding()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(onClick = onBack) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = Color.White
-                )
-            }
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Данные и память",
-                color = Color.White,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
+    AnonGramScreenSurface(applySystemBarsPadding = false) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .safeNavigationBarPadding()
         ) {
-            StorageUsageCard(
-                cacheSizeMb = cacheSizeMb,
-                onClearCache = {
-                    cacheSizeMb = 0
-                    Toast.makeText(context, "Кэш медиафайлов очищен", Toast.LENGTH_SHORT).show()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(scheme.surface)
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Назад",
+                        tint = scheme.textPrimary
+                    )
                 }
-            )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Данные и память",
+                    color = scheme.textPrimary,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
+                StorageUsageCard(
+                    cacheSizeMb = cacheSizeMb,
+                    onClearCache = {
+                        cacheSizeMb = 0
+                        Toast.makeText(context, "Кэш медиафайлов очищен", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
         }
     }
 }

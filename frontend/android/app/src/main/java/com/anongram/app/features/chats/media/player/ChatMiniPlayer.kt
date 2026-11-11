@@ -31,16 +31,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.IslandBackground
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 
 /**
  * Плавающий мини-плеер музыки чата (Фото 2 и 3):
@@ -74,8 +69,8 @@ fun ChatMiniPlayer(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(IslandBackground)
-                .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
                 .clickable {
                     onOpenSheet?.invoke()
                     ctrl.openSheet()
@@ -117,7 +112,7 @@ fun ChatMiniPlayer(
                     ) {
                         MarqueeText(
                             text = label,
-                            color = TextPrimary,
+                            color = scheme.textPrimary,
                             fontSize = 13.5.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.fillMaxWidth()
@@ -134,7 +129,7 @@ fun ChatMiniPlayer(
                         Icon(
                             imageVector = Icons.Outlined.Close,
                             contentDescription = "Закрыть плеер",
-                            tint = TextSecondary,
+                            tint = scheme.textSecondary,
                             modifier = Modifier.size(17.dp)
                         )
                     }
@@ -145,7 +140,7 @@ fun ChatMiniPlayer(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(2.dp)
-                        .background(Color.White.copy(alpha = 0.08f))
+                        .background(scheme.divider)
                 ) {
                     Box(
                         modifier = Modifier

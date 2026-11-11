@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.animations.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,17 +43,19 @@ fun AnimationsEffectsCard(
 ) {
     val scheme = LocalAnonGramScheme.current
     val switchColors = SwitchDefaults.colors(
-        checkedThumbColor = Color.White,
+        checkedThumbColor = scheme.onAccent,
         checkedTrackColor = scheme.accent,
-        uncheckedThumbColor = Color(0xFFB0B0B0),
-        uncheckedTrackColor = Color(0xFF333333)
+        uncheckedThumbColor = scheme.textSecondary,
+        uncheckedTrackColor = scheme.surface,
+        uncheckedBorderColor = scheme.cardBorder
     )
 
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF141318))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(16.dp)
     ) {
         Text(
@@ -74,7 +76,7 @@ fun AnimationsEffectsCard(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         // 2. Размытие iPhone Glass
@@ -87,7 +89,7 @@ fun AnimationsEffectsCard(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         // 3. Зацикленные стикеры и эмодзи
@@ -100,7 +102,7 @@ fun AnimationsEffectsCard(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         // 4. Эффекты реакций
@@ -113,7 +115,7 @@ fun AnimationsEffectsCard(
         )
 
         Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
         // 5. Динамические градиентные фоны
@@ -136,6 +138,8 @@ private fun AnimationToggleRow(
     colors: androidx.compose.material3.SwitchColors,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
@@ -143,13 +147,13 @@ private fun AnimationToggleRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = subtitle,
-                color = Color(0xFF8E99A8),
+                color = scheme.textSecondary,
                 fontSize = 12.sp,
                 lineHeight = 16.sp
             )

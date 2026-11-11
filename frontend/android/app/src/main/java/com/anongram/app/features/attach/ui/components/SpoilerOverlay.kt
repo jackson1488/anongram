@@ -17,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import kotlin.random.Random
 
 private data class SpoilerParticle(
@@ -35,6 +36,7 @@ fun SpoilerOverlay(
     modifier: Modifier = Modifier,
     particleCount: Int = 160
 ) {
+    val scheme = LocalAnonGramScheme.current
     val particles = remember(particleCount) {
         val rand = Random(42)
         List(particleCount) {
@@ -62,7 +64,7 @@ fun SpoilerOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0x66000000))
+            .background(scheme.overlayScrim.copy(alpha = 0.45f))
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val w = size.width

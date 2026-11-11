@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.data_storage.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,10 +18,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Карточка статистики зашифрованного кэша и очистки памяти.
@@ -32,11 +33,14 @@ fun StorageUsageCard(
     onClearCache: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF1B2331))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Row(
@@ -46,13 +50,13 @@ fun StorageUsageCard(
         ) {
             Text(
                 text = "Зашифрованный кэш медиа",
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
                 text = "$cacheSizeMb МБ",
-                color = Color(0xFF8B5CF6),
+                color = scheme.accent,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -62,8 +66,8 @@ fun StorageUsageCard(
 
         LinearProgressIndicator(
             progress = { (cacheSizeMb / 256f).coerceIn(0.02f, 1f) },
-            color = Color(0xFF8B5CF6),
-            trackColor = Color.White.copy(alpha = 0.12f),
+            color = scheme.accent,
+            trackColor = scheme.divider,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(8.dp)
@@ -75,8 +79,8 @@ fun StorageUsageCard(
         Button(
             onClick = onClearCache,
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF8B5CF6),
-                contentColor = Color.White
+                containerColor = scheme.accent,
+                contentColor = scheme.onAccent
             ),
             shape = RoundedCornerShape(12.dp),
             modifier = Modifier.fillMaxWidth()

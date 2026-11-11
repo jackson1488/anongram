@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.privacy.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Карточка криптографических ключей и параметров приватности AnonGram.
@@ -40,32 +42,36 @@ fun PrivacyKeyCard(
     anonymousForwardingAlwaysOn: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val keyColor = if (scheme.isDark) Color(0xFF4ADE80) else Color(0xFF059669)
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF1B2331))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
             .padding(16.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Outlined.Key,
                 contentDescription = null,
-                tint = Color(0xFF4ADE80),
+                tint = keyColor,
                 modifier = Modifier.size(24.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column {
                 Text(
                     text = "Публичный ключ Ed25519",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = publicKeyHex.ifBlank { "ed25519:8f91c2a0b4...e391" },
-                    color = Color(0xFF8E99A8),
+                    color = scheme.textSecondary,
                     fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -73,7 +79,7 @@ fun PrivacyKeyCard(
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(14.dp))
 
         Row(
@@ -83,13 +89,13 @@ fun PrivacyKeyCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Скрывать время в сети",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
                     text = "Никто не увидит точное время последнего входа",
-                    color = Color(0xFF8E99A8),
+                    color = scheme.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -97,14 +103,17 @@ fun PrivacyKeyCard(
                 checked = hideOnlineStatus,
                 onCheckedChange = onHideOnlineStatusChange,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF8B5CF6)
+                    checkedThumbColor = scheme.onAccent,
+                    checkedTrackColor = scheme.accent,
+                    uncheckedThumbColor = scheme.textSecondary,
+                    uncheckedTrackColor = scheme.surface,
+                    uncheckedBorderColor = scheme.cardBorder
                 )
             )
         }
 
         Spacer(modifier = Modifier.height(14.dp))
-        HorizontalDivider(color = Color.White.copy(alpha = 0.06f))
+        HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(14.dp))
 
         Row(
@@ -114,14 +123,14 @@ fun PrivacyKeyCard(
             Icon(
                 imageVector = Icons.Outlined.Shield,
                 contentDescription = null,
-                tint = Color(0xFF8B5CF6),
+                tint = scheme.accent,
                 modifier = Modifier.size(22.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "100% анонимная пересылка",
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -129,7 +138,7 @@ fun PrivacyKeyCard(
                     text = if (anonymousForwardingAlwaysOn) {
                         "Протокол AnonGram всегда очищает метаданные автора при пересылке"
                     } else "",
-                    color = Color(0xFF8E99A8),
+                    color = scheme.textSecondary,
                     fontSize = 12.sp
                 )
             }

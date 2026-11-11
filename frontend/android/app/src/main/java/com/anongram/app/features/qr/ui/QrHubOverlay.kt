@@ -33,12 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 
 /**
  * QR-хаб (секция 3 из 5): личный QR ID + вход в раздел «Контакты».
@@ -56,7 +51,7 @@ fun QrHubOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.88f))
+            .background(scheme.overlayScrim)
             .clickable(onClick = onClose),
         contentAlignment = Alignment.Center
     ) {
@@ -64,7 +59,7 @@ fun QrHubOverlay(
             modifier = Modifier
                 .padding(24.dp)
                 .clip(RoundedCornerShape(32.dp))
-                .background(SurfaceDark)
+                .background(scheme.card)
                 .border(1.dp, scheme.accent.copy(alpha = 0.5f), RoundedCornerShape(32.dp))
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -77,13 +72,13 @@ fun QrHubOverlay(
                 Text(
                     text = "AnonGram QR ID",
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 16.sp
                 )
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Закрыть",
-                    tint = TextSecondary,
+                    tint = scheme.textSecondary,
                     modifier = Modifier.clickable(onClick = onClose)
                 )
             }
@@ -108,14 +103,14 @@ fun QrHubOverlay(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(12.dp))
-                        .background(ObsidianBlack)
+                        .background(scheme.surface)
                         .border(1.5.dp, scheme.accent, RoundedCornerShape(12.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_stat_anongram),
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -131,7 +126,7 @@ fun QrHubOverlay(
             Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = "Покажите код для добавления контакта",
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 11.sp
             )
 
@@ -142,8 +137,8 @@ fun QrHubOverlay(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(16.dp))
-                    .background(ObsidianBlack)
-                    .border(1.dp, CardBorder, RoundedCornerShape(16.dp))
+                    .background(scheme.surface)
+                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
                     .clickable(onClick = onOpenContacts)
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -166,13 +161,13 @@ fun QrHubOverlay(
                 Column {
                     Text(
                         text = "Мои контакты",
-                        color = TextPrimary,
+                        color = scheme.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         text = "Список и SAS-верификация",
-                        color = TextSecondary,
+                        color = scheme.textSecondary,
                         fontSize = 11.sp
                     )
                 }

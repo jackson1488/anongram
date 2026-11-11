@@ -1,6 +1,7 @@
 package com.anongram.app.features.settings.main.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Модель активного аккаунта в списке «Аккаунты».
@@ -43,8 +45,8 @@ data class ConnectedAccountItem(
 
 /**
  * Карточка списка аккаунтов (Макет 1):
- * - Фиолетовый заголовок «Аккаунты»;
- * - Список профилей (текущий активный аккаунт пользователя с фиолетовой галочкой активности).
+ * - Акцентный заголовок «Аккаунты»;
+ * - Список профилей (текущий активный аккаунт пользователя с галочкой активности).
  */
 @Composable
 fun AccountsSectionCard(
@@ -52,16 +54,19 @@ fun AccountsSectionCard(
     onAccountClick: (ConnectedAccountItem) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0xFF141318))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(vertical = 12.dp)
     ) {
         Text(
             text = "Аккаунты",
-            color = Color(0xFFB388FF),
+            color = scheme.accent,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
@@ -92,7 +97,7 @@ fun AccountsSectionCard(
                     ) {
                         Text(
                             text = acc.name.take(1).uppercase(),
-                            color = Color.White,
+                            color = scheme.onAccent,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -102,7 +107,7 @@ fun AccountsSectionCard(
 
                     Text(
                         text = acc.name,
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -113,7 +118,7 @@ fun AccountsSectionCard(
                         Icon(
                             imageVector = Icons.Default.Check,
                             contentDescription = "Текущий активный аккаунт",
-                            tint = Color(0xFF8B5CF6),
+                            tint = scheme.accent,
                             modifier = Modifier.size(20.dp)
                         )
                     } else {
@@ -121,13 +126,13 @@ fun AccountsSectionCard(
                             Box(
                                 modifier = Modifier
                                     .clip(CircleShape)
-                                    .background(Color(0xFFA855F7))
+                                    .background(scheme.accent)
                                     .padding(horizontal = 8.dp, vertical = 2.dp),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
                                     text = acc.unreadCount.toString(),
-                                    color = Color.White,
+                                    color = scheme.onAccent,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -138,7 +143,7 @@ fun AccountsSectionCard(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                             contentDescription = null,
-                            tint = Color(0xFF6E6D76),
+                            tint = scheme.textMuted,
                             modifier = Modifier.size(20.dp)
                         )
                     }

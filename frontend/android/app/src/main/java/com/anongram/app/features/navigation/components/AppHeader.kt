@@ -25,15 +25,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.NeonEmerald
-import com.anongram.app.core.theme.TextPrimary
-
-private val OnionBadgeBackground = Color(0xFF0F261E)
+import com.anongram.app.core.ui.safeStatusBarPadding
 
 /** Глобальный заголовок приложения: логотип и индикатор живой onion-цепочки. */
 @Composable
 internal fun AppHeader(modifier: Modifier = Modifier) {
+    val scheme = LocalAnonGramScheme.current
+    val onionBg = if (scheme.isDark) Color(0xFF0F261E) else Color(0xFFE6F7F0)
+    val onionTint = if (scheme.isDark) NeonEmerald else Color(0xFF059669)
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -47,14 +49,14 @@ internal fun AppHeader(modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .size(30.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF8B5CF6).copy(alpha = 0.22f))
-                    .border(1.dp, Color(0xFFC084FC).copy(alpha = 0.6f), CircleShape),
+                    .background(scheme.accentSoft)
+                    .border(1.dp, scheme.accent.copy(alpha = 0.6f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_stat_anongram),
                     contentDescription = null,
-                    tint = Color(0xFFC084FC),
+                    tint = scheme.accent,
                     modifier = Modifier.size(17.dp)
                 )
             }
@@ -63,21 +65,21 @@ internal fun AppHeader(modifier: Modifier = Modifier) {
                 text = "AnonGram",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Black,
-                color = TextPrimary
+                color = scheme.textPrimary
             )
             Spacer(modifier = Modifier.width(8.dp))
             Box(
                 modifier = Modifier
                     .clip(CircleShape)
-                    .background(OnionBadgeBackground)
-                    .border(1.dp, NeonEmerald.copy(alpha = 0.5f), CircleShape)
+                    .background(onionBg)
+                    .border(1.dp, onionTint.copy(alpha = 0.5f), CircleShape)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_onion),
                         contentDescription = null,
-                        tint = NeonEmerald,
+                        tint = onionTint,
                         modifier = Modifier.size(10.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
@@ -85,7 +87,7 @@ internal fun AppHeader(modifier: Modifier = Modifier) {
                         text = "Onion v3",
                         fontSize = 10.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = NeonEmerald
+                        color = onionTint
                     )
                 }
             }

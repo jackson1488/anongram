@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +43,7 @@ fun BubbleChecklistBlock(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val contentTint = LocalContentColor.current
     // Локальное состояние отмеченных пунктов для мгновенной обратной связи при тапе
     val checkedState = remember(items) {
         mutableStateMapOf<Int, Boolean>().apply {
@@ -67,7 +69,7 @@ fun BubbleChecklistBlock(
                         .background(if (isChecked) scheme.accent else Color.Transparent)
                         .border(
                             width = 1.5.dp,
-                            color = if (isChecked) scheme.accent else Color(0xFF94A3B8),
+                            color = if (isChecked) scheme.accent else contentTint.copy(alpha = 0.55f),
                             shape = RoundedCornerShape(5.dp)
                         ),
                     contentAlignment = Alignment.Center
@@ -76,7 +78,7 @@ fun BubbleChecklistBlock(
                         Icon(
                             imageVector = Icons.Outlined.Check,
                             contentDescription = "Выполнено",
-                            tint = Color.White,
+                            tint = scheme.onAccent,
                             modifier = Modifier.size(14.dp)
                         )
                     }
@@ -94,7 +96,7 @@ fun BubbleChecklistBlock(
                 } else {
                     Text(
                         text = buildRichAnnotatedText(item.text, scheme.accent),
-                        color = if (isChecked) Color(0xFF94A3B8) else Color.White,
+                        color = if (isChecked) contentTint.copy(alpha = 0.55f) else contentTint,
                         fontSize = textSizeSp.sp,
                         lineHeight = (textSizeSp * 1.25f).sp,
                         fontWeight = FontWeight.Normal,

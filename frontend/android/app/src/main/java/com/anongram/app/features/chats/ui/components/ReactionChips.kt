@@ -18,10 +18,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 
 /**
@@ -46,7 +43,7 @@ internal fun ReactionChips(
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(50))
-                    .background(if (isMine) scheme.accent.copy(alpha = 0.25f) else CardDark)
+                    .background(if (isMine) scheme.accentSoft else scheme.card)
                     .clickable { onToggle(emoji) }
                     .padding(horizontal = 8.dp, vertical = 3.dp)
             ) {
@@ -58,7 +55,7 @@ internal fun ReactionChips(
                     Text(
                         text = count.toString(),
                         fontSize = 10.sp,
-                        color = if (isMine) scheme.accent else TextSecondary
+                        color = if (isMine) scheme.accent else scheme.textSecondary
                     )
                 }
             }
@@ -80,7 +77,7 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .weight(1f)
                 .height(1.dp)
-                .background(TextSecondary.copy(alpha = 0.3f))
+                .background(scheme.textSecondary.copy(alpha = 0.3f))
         )
         Text(
             text = "Непрочитанные сообщения",
@@ -93,7 +90,7 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .weight(1f)
                 .height(1.dp)
-                .background(TextSecondary.copy(alpha = 0.3f))
+                .background(scheme.textSecondary.copy(alpha = 0.3f))
         )
     }
 }

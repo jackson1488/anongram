@@ -319,9 +319,9 @@ fun VoiceTrimBar(
                         val isPlayed = barFraction <= currentProgress && barFraction >= trimStartFraction
 
                         val barColor = when {
-                            isPlayed && isInTrimZone -> Color.White
-                            isInTrimZone -> Color.White.copy(alpha = 0.60f)
-                            else -> Color.White.copy(alpha = 0.20f)
+                            isPlayed && isInTrimZone -> scheme.onAccent
+                            isInTrimZone -> scheme.onAccent.copy(alpha = 0.60f)
+                            else -> scheme.onAccent.copy(alpha = 0.20f)
                         }
 
                         Box(
@@ -343,7 +343,7 @@ fun VoiceTrimBar(
                         .offset { IntOffset(leftXPx, 0) }
                         .width(activeWidthDp)
                         .height(34.dp)
-                        .border(1.5.dp, Color.White.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
+                        .border(1.5.dp, scheme.onAccent.copy(alpha = 0.85f), RoundedCornerShape(6.dp))
                 )
 
                 // Подвижный левый ползунок [ ❙ ]
@@ -352,7 +352,7 @@ fun VoiceTrimBar(
                         .offset { IntOffset(leftXPx, 0) }
                         .size(width = handleWidthDp, height = 34.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.White)
+                        .background(scheme.onAccent)
                         .pointerInput(usableWidthPx) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
@@ -369,7 +369,7 @@ fun VoiceTrimBar(
                         modifier = Modifier
                             .width(2.dp)
                             .height(16.dp)
-                            .background(Color(0xFF4A3464))
+                            .background(scheme.accent)
                     )
                 }
 
@@ -379,7 +379,7 @@ fun VoiceTrimBar(
                         .offset { IntOffset(rightXPx, 0) }
                         .size(width = handleWidthDp, height = 34.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(Color.White)
+                        .background(scheme.onAccent)
                         .pointerInput(usableWidthPx) {
                             detectDragGestures { change, dragAmount ->
                                 change.consume()
@@ -396,7 +396,7 @@ fun VoiceTrimBar(
                         modifier = Modifier
                             .width(2.dp)
                             .height(16.dp)
-                            .background(Color(0xFF4A3464))
+                            .background(scheme.accent)
                     )
                 }
             }

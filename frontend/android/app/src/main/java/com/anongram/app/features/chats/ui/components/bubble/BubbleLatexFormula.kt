@@ -62,8 +62,8 @@ fun BubbleLatexFormula(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF181820))
-            .border(1.dp, Color(0xFFC084FC).copy(alpha = 0.35f), RoundedCornerShape(12.dp))
+            .background(scheme.surface)
+            .border(1.dp, scheme.accent.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
             .padding(10.dp)
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -77,19 +77,19 @@ fun BubbleLatexFormula(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFFC084FC).copy(alpha = 0.2f))
+                        .background(scheme.accentSoft)
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Functions,
                         contentDescription = null,
-                        tint = Color(0xFFC084FC),
+                        tint = scheme.accent,
                         modifier = Modifier.size(13.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "LaTeX",
-                        color = Color(0xFFC084FC),
+                        color = scheme.accent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -109,13 +109,13 @@ fun BubbleLatexFormula(
                     Icon(
                         imageVector = Icons.Outlined.ContentCopy,
                         contentDescription = "Скопировать формулу",
-                        tint = Color(0xFFA1A1AA),
+                        tint = scheme.textMuted,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = "Копировать",
-                        color = Color(0xFFA1A1AA),
+                        color = scheme.textMuted,
                         fontSize = 11.sp
                     )
                 }
@@ -126,7 +126,7 @@ fun BubbleLatexFormula(
             // Основной математический текст крупным шрифтом
             Text(
                 text = renderedMath,
-                color = Color.White,
+                color = scheme.textPrimary,
                 fontSize = 17.sp,
                 fontFamily = FontFamily.Serif,
                 fontWeight = FontWeight.Medium,

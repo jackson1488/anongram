@@ -21,12 +21,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 /**
  * Защитный экран-заглушка при отсутствии системного разрешения (Камера или Галерея).
@@ -49,6 +49,8 @@ fun QrPermissionNotice(
     onRequestPermission: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -60,14 +62,14 @@ fun QrPermissionNotice(
             modifier = Modifier
                 .size(88.dp)
                 .clip(CircleShape)
-                .background(Color(0xFF8B5CF6).copy(alpha = 0.18f))
-                .border(1.5.dp, Color(0xFFC084FC).copy(alpha = 0.6f), CircleShape),
+                .background(scheme.accentSoft)
+                .border(1.5.dp, scheme.accent.copy(alpha = 0.6f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = Color(0xFFC084FC),
+                tint = scheme.accent,
                 modifier = Modifier.size(42.dp)
             )
         }
@@ -76,7 +78,7 @@ fun QrPermissionNotice(
 
         Text(
             text = title,
-            color = Color.White,
+            color = scheme.textPrimary,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center
@@ -86,7 +88,7 @@ fun QrPermissionNotice(
 
         Text(
             text = description,
-            color = Color(0xFFA1A1AA),
+            color = scheme.textSecondary,
             fontSize = 14.sp,
             textAlign = TextAlign.Center,
             lineHeight = 20.sp
@@ -101,7 +103,7 @@ fun QrPermissionNotice(
                 .clip(RoundedCornerShape(26.dp))
                 .background(
                     Brush.horizontalGradient(
-                        colors = listOf(Color(0xFF7C3AED), Color(0xFFA855F7))
+                        colors = listOf(scheme.accent, scheme.accentDim)
                     )
                 )
                 .clickable { onRequestPermission() },
@@ -109,7 +111,7 @@ fun QrPermissionNotice(
         ) {
             Text(
                 text = buttonText,
-                color = Color.White,
+                color = scheme.onAccent,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )

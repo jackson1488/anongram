@@ -89,11 +89,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.attach.ui.tabs.GalleryMedia
 import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
-import com.anongram.app.features.attach.ui.theme.AttachPurple
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -124,6 +124,7 @@ fun PreviewOrderScreen(
     onOffsetChange: (Float) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val orderedList = remember { mutableStateListOf<GalleryMedia>().apply { addAll(initialMediaList) } }
     var isMenuOpen by remember { mutableStateOf(false) }
@@ -278,7 +279,7 @@ fun PreviewOrderScreen(
                     .fillMaxSize()
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
             ) {
-                // Живые обои чата внутри шторки предпросмотра с темным тинтом (как в Telegram)
+                // Живые обои чата внутри шторки предпросмотра с тинтом темы
                 if (chatId.isNotBlank()) {
                     WallpaperBackground(
                         chatId = chatId,
@@ -287,13 +288,13 @@ fun PreviewOrderScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF131317).copy(alpha = 0.50f))
+                            .background(scheme.surface.copy(alpha = if (scheme.isDark) 0.50f else 0.40f))
                     )
                 } else {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF161618))
+                            .background(scheme.surface)
                     )
                 }
 
@@ -329,7 +330,7 @@ fun PreviewOrderScreen(
                                 .width(28.dp)
                                 .height(2.5.dp)
                                 .clip(CircleShape)
-                                .background(Color(0x4DFFFFFF))
+                                .background(scheme.textMuted.copy(alpha = 0.35f))
                         )
                     }
 
@@ -366,13 +367,13 @@ fun PreviewOrderScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Назад",
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "Предпросмотр",
-                                color = Color.White,
+                                color = scheme.textPrimary,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -386,7 +387,7 @@ fun PreviewOrderScreen(
                                 Icon(
                                     imageVector = Icons.Outlined.MoreVert,
                                     contentDescription = "Опции",
-                                    tint = Color.White,
+                                    tint = scheme.textPrimary,
                                     modifier = Modifier.size(22.dp)
                                 )
                             }
@@ -395,14 +396,14 @@ fun PreviewOrderScreen(
                                 expanded = isMenuOpen,
                                 onDismissRequest = { isMenuOpen = false },
                                 modifier = Modifier
-                                    .background(Color(0xFF141418), RoundedCornerShape(18.dp))
-                                    .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                                    .background(scheme.card, RoundedCornerShape(18.dp))
+                                    .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
                             ) {
                                 DropdownMenuItem(
                                     text = {
                                         Text(
                                             text = "Отправить без сжатия",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
                                     },
@@ -414,7 +415,7 @@ fun PreviewOrderScreen(
                                         Icon(
                                             imageVector = Icons.Outlined.InsertDriveFile,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = scheme.textPrimary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -425,7 +426,7 @@ fun PreviewOrderScreen(
                                         text = {
                                             Text(
                                                 text = "Отправить без группировки",
-                                                color = Color.White,
+                                                color = scheme.textPrimary,
                                                 fontSize = 14.5.sp
                                             )
                                         },
@@ -438,7 +439,7 @@ fun PreviewOrderScreen(
                                             Icon(
                                                 imageVector = Icons.Outlined.GridOff,
                                                 contentDescription = null,
-                                                tint = Color.White,
+                                                tint = scheme.textPrimary,
                                                 modifier = Modifier.size(20.dp)
                                             )
                                         }
@@ -449,7 +450,7 @@ fun PreviewOrderScreen(
                                     text = {
                                         Text(
                                             text = if (allHaveSpoiler) "Отменить спойлер" else "Скрыть под спойлер",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
                                     },
@@ -461,7 +462,7 @@ fun PreviewOrderScreen(
                                         Icon(
                                             imageVector = if (allHaveSpoiler) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
                                             contentDescription = null,
-                                            tint = if (allHaveSpoiler) AttachPurple else Color.White,
+                                            tint = if (allHaveSpoiler) scheme.accent else scheme.textPrimary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -471,7 +472,7 @@ fun PreviewOrderScreen(
                                     text = {
                                         Text(
                                             text = "Отправить в HD-качестве",
-                                            color = Color.White,
+                                            color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
                                     },
@@ -483,7 +484,7 @@ fun PreviewOrderScreen(
                                         Icon(
                                             imageVector = Icons.Default.HighQuality,
                                             contentDescription = null,
-                                            tint = Color.White,
+                                            tint = scheme.textPrimary,
                                             modifier = Modifier.size(20.dp)
                                         )
                                     }
@@ -587,13 +588,13 @@ fun PreviewOrderScreen(
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(18.dp))
-                                        .background(Color(0x992E2E34))
-                                        .border(0.5.dp, Color(0x33FFFFFF), RoundedCornerShape(18.dp))
+                                        .background(scheme.islandBg.copy(alpha = 0.92f))
+                                        .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
                                         .padding(horizontal = 16.dp, vertical = 6.dp)
                                 ) {
                                     Text(
                                         text = "Перетащите для изменения порядка",
-                                        color = Color(0xFFE2E2E2),
+                                        color = scheme.textPrimary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
                                     )
@@ -634,8 +635,8 @@ fun PreviewOrderScreen(
                     .zIndex(250f)
                     .shadow(24.dp, RoundedCornerShape(14.dp))
                     .clip(RoundedCornerShape(14.dp))
-                    .border(2.dp, Color(0xFFC084FC), RoundedCornerShape(14.dp))
-                    .background(Color(0xFF1E1E1E))
+                    .border(2.dp, scheme.accent, RoundedCornerShape(14.dp))
+                    .background(scheme.card)
             ) {
                 if (dragBitmap != null) {
                     Image(
@@ -653,13 +654,13 @@ fun PreviewOrderScreen(
                         .padding(6.dp)
                         .size(24.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFC084FC))
-                        .border(1.dp, Color(0xFF1E1E1E), CircleShape),
+                        .background(scheme.accent)
+                        .border(1.dp, scheme.surface, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = draggedOrderNum.toString(),
-                        color = Color.White,
+                        color = scheme.onAccent,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -699,7 +700,7 @@ fun PreviewOrderScreen(
                 title = {
                     Text(
                         text = "Сбросить выбор?",
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
                     )
@@ -707,7 +708,7 @@ fun PreviewOrderScreen(
                 text = {
                     Text(
                         text = "Вы действительно хотите сбросить выбор фотографий?",
-                        color = Color(0xFFCCCCCC),
+                        color = scheme.textSecondary,
                         fontSize = 14.sp
                     )
                 },
@@ -730,10 +731,10 @@ fun PreviewOrderScreen(
                             onOffsetChange(previewOffsetPx)
                         }
                     ) {
-                        Text("Отмена", color = Color.White)
+                        Text("Отмена", color = scheme.textPrimary)
                     }
                 },
-                containerColor = Color(0xFF222226),
+                containerColor = scheme.card,
                 shape = RoundedCornerShape(16.dp)
             )
         }
@@ -848,6 +849,7 @@ private fun AlbumBubble(
     onDragCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val bubbleShape = RoundedCornerShape(16.dp)
     val count = mediaItems.size
 
@@ -867,8 +869,8 @@ private fun AlbumBubble(
                 .fillMaxWidth(bubbleWidthFraction)
                 .animateContentSize()
                 .clip(bubbleShape)
-                .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
-                .background(Color(0xFF131317))
+                .border(1.5.dp, scheme.accent, bubbleShape)
+                .background(scheme.outgoingBubbleStart)
         ) {
             when (count) {
                 2 -> {
@@ -898,7 +900,7 @@ private fun AlbumBubble(
                             modifier = Modifier
                                 .width(1.5.dp)
                                 .fillMaxHeight()
-                                .background(Color(0xFFC084FC))
+                                .background(scheme.accent)
                         )
                         PreviewCollageItem(
                             media = mediaItems[1],
@@ -946,7 +948,7 @@ private fun AlbumBubble(
                             modifier = Modifier
                                 .width(1.5.dp)
                                 .fillMaxHeight()
-                                .background(Color(0xFFC084FC))
+                                .background(scheme.accent)
                         )
                         Column(
                             modifier = Modifier
@@ -973,7 +975,7 @@ private fun AlbumBubble(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(1.5.dp)
-                                    .background(Color(0xFFC084FC))
+                                    .background(scheme.accent)
                             )
                             PreviewCollageItem(
                                 media = mediaItems[2],
@@ -1022,7 +1024,7 @@ private fun AlbumBubble(
                             modifier = Modifier
                                 .width(1.5.dp)
                                 .fillMaxHeight()
-                                .background(Color(0xFFC084FC))
+                                .background(scheme.accent)
                         )
                         Column(
                             modifier = Modifier
@@ -1035,7 +1037,7 @@ private fun AlbumBubble(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .height(1.5.dp)
-                                            .background(Color(0xFFC084FC))
+                                            .background(scheme.accent)
                                     )
                                 }
                                 PreviewCollageItem(
@@ -1068,7 +1070,7 @@ private fun AlbumBubble(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(1.5.dp)
-                                        .background(Color(0xFFC084FC))
+                                        .background(scheme.accent)
                                 )
                             }
 
@@ -1086,7 +1088,7 @@ private fun AlbumBubble(
                                                 modifier = Modifier
                                                     .width(1.5.dp)
                                                     .fillMaxHeight()
-                                                    .background(Color(0xFFC084FC))
+                                                    .background(scheme.accent)
                                             )
                                         }
                                         val media = mediaItems[currentItemIdx]
@@ -1124,17 +1126,17 @@ private fun AlbumBubble(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.5.dp)
-                        .background(Color(0xFFC084FC))
+                        .background(scheme.accent)
                 )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF191922))
+                        .background(scheme.outgoingBubbleEnd)
                         .padding(horizontal = 12.dp, vertical = 9.dp)
                 ) {
                     Text(
                         text = caption,
-                        color = Color.White,
+                        color = scheme.outgoingText,
                         fontSize = 14.sp,
                         lineHeight = 18.sp
                     )
@@ -1165,6 +1167,7 @@ private fun SinglePhotoBubble(
     onDragCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val bubbleShape = RoundedCornerShape(16.dp)
     Box(
         modifier = modifier,
@@ -1175,8 +1178,8 @@ private fun SinglePhotoBubble(
                 .fillMaxWidth(0.68f)
                 .animateContentSize()
                 .clip(bubbleShape)
-                .border(1.5.dp, Color(0xFFC084FC), bubbleShape)
-                .background(Color(0xFF131317))
+                .border(1.5.dp, scheme.accent, bubbleShape)
+                .background(scheme.outgoingBubbleStart)
         ) {
             PreviewCollageItem(
                 media = media,
@@ -1199,17 +1202,17 @@ private fun SinglePhotoBubble(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(1.5.dp)
-                        .background(Color(0xFFC084FC))
+                        .background(scheme.accent)
                 )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF191922))
+                        .background(scheme.outgoingBubbleEnd)
                         .padding(horizontal = 12.dp, vertical = 9.dp)
                 ) {
                     Text(
                         text = caption,
-                        color = Color.White,
+                        color = scheme.outgoingText,
                         fontSize = 14.sp,
                         lineHeight = 18.sp
                     )
@@ -1240,6 +1243,7 @@ private fun PreviewCollageItem(
     onDragCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
     var itemRectInRoot by remember { mutableStateOf(Rect.Zero) }
@@ -1261,7 +1265,7 @@ private fun PreviewCollageItem(
             .graphicsLayer {
                 alpha = if (isBeingDragged) 0.25f else 1f
             }
-            .background(Color(0xFF1E1E1E))
+            .background(scheme.card)
             .pointerInput(media.uri) {
                 detectTapGestures(
                     onTap = { onPhotoClick(media.uri) }
@@ -1304,15 +1308,15 @@ private fun PreviewCollageItem(
             SpoilerOverlay(modifier = Modifier.fillMaxSize())
         }
 
-        // Фиолетовый бейдж с номером в правом верхнем углу: тап по бейджу отменяет выбор этого фото, и альбом перестраивается
+        // Акцентный бейдж с номером в правом верхнем углу: тап по бейджу отменяет выбор этого фото, и альбом перестраивается
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(4.dp)
                 .size(28.dp)
                 .clip(CircleShape)
-                .background(Color(0xFFC084FC))
-                .border(1.5.dp, Color(0xFF1E1E1E), CircleShape)
+                .background(scheme.accent)
+                .border(1.5.dp, scheme.surface, CircleShape)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null
@@ -1323,7 +1327,7 @@ private fun PreviewCollageItem(
         ) {
             Text(
                 text = orderNumber.toString(),
-                color = Color.White,
+                color = scheme.onAccent,
                 fontSize = 11.5.sp,
                 fontWeight = FontWeight.Bold
             )

@@ -27,11 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 
 /**
  * Карточка «Добавить контакт» (каналов у AnonGram нет): два входа —
@@ -49,8 +45,8 @@ internal fun AddContactCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -79,6 +75,8 @@ private fun AddContactRow(
     accent: androidx.compose.ui.graphics.Color,
     onClick: () -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,8 +101,8 @@ private fun AddContactRow(
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column {
-            Text(text = title, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            Text(text = subtitle, color = TextSecondary, fontSize = 11.sp)
+            Text(text = title, color = scheme.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = subtitle, color = scheme.textSecondary, fontSize = 11.sp)
         }
     }
 }

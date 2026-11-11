@@ -28,13 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.FlameOrange
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.NeonEmerald
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 
 /**
  * Хаб «Сервисы» (секция 2 из 5): Onion VPN, Kill-Switch, OTP-блокнот.
@@ -44,6 +41,11 @@ import com.anongram.app.core.theme.TextSecondary
  */
 @Composable
 fun ServicesScreen(modifier: Modifier = Modifier) {
+    val scheme = LocalAnonGramScheme.current
+    val onionAccent = if (scheme.isDark) NeonEmerald else Color(0xFF059669)
+    val killSwitchAccent = if (scheme.isDark) CrimsonKillSwitch else Color(0xFFDC2626)
+    val otpAccent = if (scheme.isDark) FlameOrange else Color(0xFFEA580C)
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -53,7 +55,7 @@ fun ServicesScreen(modifier: Modifier = Modifier) {
         Text(
             text = "Сервисы Приватности",
             fontWeight = FontWeight.Bold,
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = 16.sp
         )
 
@@ -67,7 +69,7 @@ fun ServicesScreen(modifier: Modifier = Modifier) {
                 )
             },
             title = "AnonGram Onion VPN",
-            accent = NeonEmerald,
+            accent = onionAccent,
             body = "Статус: Активен · 3 луковых прыжка",
             detail = "Трафик замаскирован под TLS 1.3"
         )
@@ -82,7 +84,7 @@ fun ServicesScreen(modifier: Modifier = Modifier) {
                 )
             },
             title = "Kill-Switch",
-            accent = CrimsonKillSwitch,
+            accent = killSwitchAccent,
             body = "Взведён",
             detail = "При обрыве туннеля весь трафик блокируется мгновенно"
         )
@@ -97,7 +99,7 @@ fun ServicesScreen(modifier: Modifier = Modifier) {
                 )
             },
             title = "OTP Блокнот",
-            accent = FlameOrange,
+            accent = otpAccent,
             body = "Осталось 7 страниц",
             detail = "Каждая страница сгорает сразу после прочтения"
         )
@@ -112,12 +114,14 @@ private fun ServiceCard(
     detail: String,
     accent: Color
 ) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -135,9 +139,9 @@ private fun ServiceCard(
         Column {
             Text(text = title, fontWeight = FontWeight.Bold, color = accent, fontSize = 14.sp)
             Spacer(modifier = Modifier.size(4.dp))
-            Text(text = body, color = TextPrimary, fontSize = 12.sp)
+            Text(text = body, color = scheme.textPrimary, fontSize = 12.sp)
             Spacer(modifier = Modifier.size(2.dp))
-            Text(text = detail, color = TextSecondary, fontSize = 11.sp)
+            Text(text = detail, color = scheme.textSecondary, fontSize = 11.sp)
         }
     }
 }

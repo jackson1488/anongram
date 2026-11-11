@@ -69,10 +69,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.FlameOrange
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextMuted
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -127,11 +123,17 @@ internal fun ChatContactCardSection(
     onSelect: () -> Unit,
     onOpenContactChat: (String, String) -> Unit
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val primaryText = if (isIncoming) scheme.incomingText else scheme.outgoingText
+    val secondaryText = primaryText.copy(alpha = 0.72f)
+    val cardBg = primaryText.copy(alpha = 0.08f)
+    val accentBarColor = if (isIncoming) accent else primaryText
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(Color.White.copy(alpha = 0.08f))
+            .background(cardBg)
             .clickable {
                 if (isSelectionMode) {
                     onSelect()
@@ -150,7 +152,7 @@ internal fun ChatContactCardSection(
                 modifier = Modifier
                     .width(3.5.dp)
                     .fillMaxHeight()
-                    .background(if (isIncoming) accent else Color.White)
+                    .background(accentBarColor)
             )
             Column(
                 modifier = Modifier
@@ -165,12 +167,12 @@ internal fun ChatContactCardSection(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(CircleShape)
-                            .background(accent.copy(alpha = 0.30f)),
+                            .background(if (isIncoming) accent.copy(alpha = 0.24f) else primaryText.copy(alpha = 0.16f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = attachment.name.firstOrNull()?.uppercase() ?: "?",
-                            color = Color.White,
+                            color = primaryText,
                             fontWeight = FontWeight.Bold,
                             fontSize = 17.sp
                         )
@@ -183,7 +185,7 @@ internal fun ChatContactCardSection(
                             } else {
                                 AnnotatedString(attachment.name)
                             },
-                            color = TextPrimary,
+                            color = primaryText,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -196,7 +198,7 @@ internal fun ChatContactCardSection(
                             } else {
                                 AnnotatedString(attachment.phone)
                             },
-                            color = TextSecondary,
+                            color = secondaryText,
                             fontSize = 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -205,12 +207,12 @@ internal fun ChatContactCardSection(
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
-                HorizontalDivider(color = Color.White.copy(alpha = 0.14f), thickness = 0.7.dp)
+                HorizontalDivider(color = primaryText.copy(alpha = 0.16f), thickness = 0.7.dp)
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
                     text = "НАПИСАТЬ",
-                    color = if (isIncoming) accent else Color.White,
+                    color = accentBarColor,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -239,11 +241,12 @@ internal fun ChatGeoSection(
     accent: Color,
     searchQuery: String
 ) {
+    val scheme = LocalAnonGramScheme.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(SurfaceDark)
+            .background(scheme.surface.copy(alpha = 0.85f))
             .padding(8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -268,7 +271,7 @@ internal fun ChatGeoSection(
             } else {
                 AnnotatedString(attachment.address)
             },
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = 13.sp
         )
     }
@@ -331,6 +334,9 @@ internal fun ChatVoiceSection(
     onLongClick: () -> Unit = {},
     onPlay: () -> Unit = {}
 ) {
+    val scheme = LocalAnonGramScheme.current
+    val bubbleText = if (isIncoming) scheme.incomingText else scheme.outgoingText
+    val bubbleBg = if (isIncoming) scheme.incomingBubbleBg else scheme.outgoingBubbleStart
     val context = LocalContext.current
     val audioController = remember { ChatAudioController.getInstance(context) }
     val voiceTrackId = "voice_${message.id}"
@@ -375,14 +381,14 @@ internal fun ChatVoiceSection(
     val effectiveProgress = dragFraction
         ?: if (isCurrentVoice) (playerState?.progress ?: 0f).coerceIn(0f, 1f) else 0f
 
-    val playButtonBg = if (!isIncoming) Color.White else accent
-    val playIconTint = if (!isIncoming) accent else Color.White
-    val activeBarColor = if (!isIncoming) Color.White else accent
-    val inactiveBarColor = if (!isIncoming) Color.White.copy(alpha = 0.42f) else accent.copy(alpha = 0.34f)
-    val timeColor = if (!isIncoming) Color.White.copy(alpha = 0.85f) else TextMuted
-    val pillBg = if (!isIncoming) Color.White.copy(alpha = 0.20f) else accent.copy(alpha = 0.16f)
-    val pillActiveBg = if (!isIncoming) Color.White.copy(alpha = 0.34f) else accent.copy(alpha = 0.28f)
-    val pillText = if (!isIncoming) Color.White else accent
+    val playButtonBg = if (!isIncoming) bubbleText else accent
+    val playIconTint = if (!isIncoming) bubbleBg else scheme.onAccent
+    val activeBarColor = if (!isIncoming) bubbleText else accent
+    val inactiveBarColor = if (!isIncoming) bubbleText.copy(alpha = 0.36f) else accent.copy(alpha = 0.34f)
+    val timeColor = bubbleText.copy(alpha = if (!isIncoming) 0.85f else 0.70f)
+    val pillBg = if (!isIncoming) bubbleText.copy(alpha = 0.14f) else accent.copy(alpha = 0.16f)
+    val pillActiveBg = if (!isIncoming) bubbleText.copy(alpha = 0.28f) else accent.copy(alpha = 0.28f)
+    val pillText = if (!isIncoming) bubbleText else accent
 
     Column(
         modifier = Modifier
@@ -517,15 +523,12 @@ internal fun ChatVoiceSection(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
-                    .background(
-                        if (!isIncoming) Color.White.copy(alpha = 0.14f)
-                        else SurfaceDark.copy(alpha = 0.55f)
-                    )
+                    .background(bubbleText.copy(alpha = 0.12f))
                     .padding(horizontal = 10.dp, vertical = 7.dp)
             ) {
                 Text(
                     text = "Расшифровка речи скоро будет доступна",
-                    color = if (!isIncoming) Color.White.copy(alpha = 0.9f) else TextSecondary,
+                    color = bubbleText.copy(alpha = 0.88f),
                     fontSize = 12.sp,
                     lineHeight = 16.sp
                 )
@@ -893,10 +896,10 @@ internal fun ChatVideoCircleSection(
             modifier = Modifier
                 .size(currentSize)
                 .clip(CircleShape)
-                .background(Color(0xFF1B1B22))
+                .background(scheme.surface)
                 .border(
                     width = if (isSelected) 3.dp else 1.5.dp,
-                    color = if (isSelected) Color(0xFF8B5CF6) else Color.White.copy(alpha = 0.22f),
+                    color = if (isSelected) scheme.accent else scheme.cardBorder.copy(alpha = 0.65f),
                     shape = CircleShape
                 )
                 .pointerInput(message.id) {
@@ -1146,7 +1149,8 @@ internal fun ChatVideoCircleSection(
                         DeliveryStatus(
                             status = message.status,
                             onRetry = {},
-                            iconSize = 12.dp
+                            iconSize = 12.dp,
+                            mutedTint = Color.White.copy(alpha = 0.85f)
                         )
                     }
                 }

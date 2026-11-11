@@ -41,7 +41,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings

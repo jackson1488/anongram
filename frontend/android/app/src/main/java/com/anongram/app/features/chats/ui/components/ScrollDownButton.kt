@@ -17,11 +17,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.theme.CardBorder
-import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.CyberCyan
-import com.anongram.app.core.theme.ObsidianBlack
-import com.anongram.app.core.theme.TextSecondary
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row

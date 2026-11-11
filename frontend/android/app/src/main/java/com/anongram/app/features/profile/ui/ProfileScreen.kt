@@ -30,12 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.CardBorder
 import com.anongram.app.core.theme.CrimsonKillSwitch
-import com.anongram.app.core.theme.CyberCyan
-import com.anongram.app.core.theme.SurfaceDark
-import com.anongram.app.core.theme.TextPrimary
-import com.anongram.app.core.theme.TextSecondary
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.auth.data.crypto.KeystoreVault
 
 /**
@@ -50,6 +46,7 @@ fun ProfileScreen(
     onLogout: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val vault = remember { KeystoreVault(context) }
     val identity = remember { vault.loadIdentity() }
@@ -70,7 +67,7 @@ fun ProfileScreen(
         Text(
             text = "Крипто-Профиль",
             fontWeight = FontWeight.Bold,
-            color = TextPrimary,
+            color = scheme.textPrimary,
             fontSize = 16.sp
         )
 
@@ -78,8 +75,8 @@ fun ProfileScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(SurfaceDark)
-                .border(1.dp, CardBorder, RoundedCornerShape(20.dp))
+                .background(scheme.card)
+                .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -87,14 +84,14 @@ fun ProfileScreen(
                 modifier = Modifier
                     .size(52.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF8B5CF6).copy(alpha = 0.20f))
-                    .border(1.dp, Color(0xFFC084FC).copy(alpha = 0.7f), RoundedCornerShape(16.dp)),
+                    .background(scheme.accentSoft)
+                    .border(1.dp, scheme.accent.copy(alpha = 0.7f), RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_stat_anongram),
                     contentDescription = null,
-                    tint = Color(0xFFC084FC),
+                    tint = scheme.accent,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -103,13 +100,13 @@ fun ProfileScreen(
                 Text(
                     text = nickname,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = scheme.textPrimary,
                     fontSize = 15.sp
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = "$displayPublicId (Ed25519)",
-                    color = Color(0xFFC084FC),
+                    color = scheme.accent,
                     fontSize = 11.sp,
                     fontFamily = FontFamily.Monospace
                 )
@@ -123,13 +120,15 @@ fun ProfileScreen(
 
         if (onLogout != null) {
             Spacer(modifier = Modifier.height(12.dp))
+            val dangerColor = if (scheme.isDark) CrimsonKillSwitch else Color(0xFFDC2626)
+            val dangerBg = if (scheme.isDark) Color(0xFF241017) else Color(0xFFFEF2F2)
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(18.dp))
-                    .background(Color(0xFF241017))
-                    .border(1.dp, CrimsonKillSwitch.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
+                    .background(dangerBg)
+                    .border(1.dp, dangerColor.copy(alpha = 0.4f), RoundedCornerShape(18.dp))
                     .clickable { onLogout() }
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -137,7 +136,7 @@ fun ProfileScreen(
             ) {
                 Text(
                     text = "Выйти из аккаунта (стереть ключи)",
-                    color = CrimsonKillSwitch,
+                    color = dangerColor,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 13.sp
                 )
@@ -148,20 +147,22 @@ fun ProfileScreen(
 
 @Composable
 private fun ProfileRow(title: String, value: String) {
+    val scheme = LocalAnonGramScheme.current
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
-            .background(SurfaceDark)
-            .border(1.dp, CardBorder, RoundedCornerShape(18.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Column {
-            Text(text = title, fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 13.sp)
+            Text(text = title, fontWeight = FontWeight.SemiBold, color = scheme.textPrimary, fontSize = 13.sp)
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = value,
-                color = TextSecondary,
+                color = scheme.textSecondary,
                 fontSize = 11.sp,
                 fontFamily = FontFamily.Monospace
             )
