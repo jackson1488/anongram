@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,7 +20,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
-import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,14 +42,12 @@ import com.anongram.app.features.chats.messages.state.RecordingState
  * Строка заблокированной записи голосового сообщения (Фото 6 в стиле Telegram):
  * - Красная пульсирующая точка + таймер «0:03,4» слева
  * - Текст «ОТМЕНА» по центру (акцентный цвет)
- * - Круглая кнопка паузы [ ❙❙ ] для перехода в режим обрезки/прослушивания
  * - Круглая кнопка отправки [ ➤ ] с аурой Monet справа
  */
 @Composable
 fun VoiceRecordingBar(
     recording: RecordingState,
     onCancel: () -> Unit,
-    onPauseReview: () -> Unit,
     onSend: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -66,10 +64,12 @@ fun VoiceRecordingBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(26.dp))
+            .height(50.dp)
+            .clip(RoundedCornerShape(25.dp))
             .background(IslandBackground)
-            .border(1.dp, CardBorder, RoundedCornerShape(26.dp))
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .border(1.dp, CardBorder, RoundedCornerShape(25.dp))
+            .padding(horizontal = 14.dp, vertical = 4.dp),
+        contentAlignment = Alignment.CenterStart
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -83,7 +83,7 @@ fun VoiceRecordingBar(
                     .background(Color.Red.copy(alpha = pulseAlpha))
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             // Таймер с десятыми долями (0:03,4)
             Text(
@@ -96,58 +96,38 @@ fun VoiceRecordingBar(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Текстовая кнопка «ОТМЕНА»
+            // Текстовая кнопка «ОТМЕНА» по центру (Фото 6)
             Text(
                 text = "ОТМЕНА",
                 color = scheme.accent,
                 fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontWeight = FontWeight.Bold,
                 letterSpacing = 0.5.sp,
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(onClick = onCancel)
-                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                    .padding(horizontal = 12.dp, vertical = 6.dp)
             )
 
-            Spacer(modifier = Modifier.width(8.dp))
+            Spacer(modifier = Modifier.weight(1f))
 
-            // Круглая кнопка Паузы [ ❙❙ ] для перехода к обрезке
+            // Круглая кнопка отправки с аурой Monet [ ➤ ] (Фото 6)
             Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF2B2B33))
-                    .border(1.dp, CardBorder, CircleShape)
-                    .clickable(onClick = onPauseReview),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.Pause,
-                    contentDescription = "Пауза / обрезка",
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            // Круглая кнопка отправки с аурой Monet [ ➤ ]
-            Box(
-                modifier = Modifier.size(46.dp),
+                modifier = Modifier.size(54.dp),
                 contentAlignment = Alignment.Center
             ) {
                 // Аура / Ореол
                 Box(
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(54.dp)
                         .clip(CircleShape)
-                        .background(scheme.accent.copy(alpha = 0.28f))
+                        .background(scheme.accent.copy(alpha = 0.32f))
                 )
 
                 // Внутренняя кнопка
                 Box(
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .background(scheme.accent)
                         .clickable(onClick = onSend),
@@ -157,7 +137,7 @@ fun VoiceRecordingBar(
                         imageVector = Icons.AutoMirrored.Outlined.Send,
                         contentDescription = "Отправить",
                         tint = Color.White,
-                        modifier = Modifier.size(19.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }

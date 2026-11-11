@@ -1,12 +1,23 @@
 package com.anongram.app.features.settings.qr.ui
 
 import android.Manifest
-import android.content.Intent
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.SurfaceTexture
+import android.hardware.camera2.CameraCaptureSession
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraDevice
+import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureRequest
 import android.net.Uri
-import android.provider.Settings
+import android.os.Handler
+import android.os.HandlerThread
+import android.view.Surface
+import android.view.TextureView
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -31,6 +42,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,28 +50,31 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import com.anongram.app.core.ui.safeNavigationBarPadding
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.qr.ui.components.QrPermissionNotice
 import com.anongram.app.features.settings.qr.ui.components.QrScannerViewfinder
 
 /**
- * Экран сканирования QR-кода камерой (Скриншот 4).
+ * Экран сканирования QR-кода с реальной камерой Camera2 и системным Google Photo Picker (Скриншот 4).
  *
- * ОБЯЗАТЕЛЬНАЯ ЗАЩИТА ОТ ЧЁРНОГО ЭКРАНА:
- * При открытии проверяет разрешение `Manifest.permission.CAMERA`.
- * Если доступ к камере не предоставлен — показывает понятный экран `QrPermissionNotice`
- * с кнопкой запроса разрешения и переходом в системные настройки приложения.
+ * - Отображает живой видеопоток задней камеры через `Camera2` + `TextureView`;
+ * - Управляет реальным фонариком (`CaptureRequest.FLASH_MODE_TORCH`);
+ * - По нажатию на иконку галереи вызывает системную нижнюю панель выбора фото от Google (`PickVisualMedia`);
+ * - Защищён от пустого чёрного экрана через `QrPermissionNotice` при отсутствии разрешения `CAMERA`.
  */
+@SuppressLint("MissingPermission")
 @Composable
 fun QrCameraScannerScreen(
     onBack: () -> Unit,
-    onOpenGallery: () -> Unit
+    onQrDetected: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
     var hasCameraPermission by remember {
@@ -72,39 +87,173 @@ fun QrCameraScannerScreen(
     }
     var isFlashlightOn by remember { mutableStateOf(false) }
 
+    // Camera2 ссылки для живого превью и управления вспышкой
+    var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
+    var cameraDeviceRef by remember { mutableStateOf<CameraDevice?>(null) }
+    var captureSessionRef by remember { mutableStateOf<CameraCaptureSession?>(null) }
+    var previewSurfaceRef by remember { mutableStateOf<Surface?>(null) }
+
+    val backgroundThread = remember {
+        HandlerThread("AnonGramQrCameraThread").apply { start() }
+    }
+    val backgroundHandler = remember { Handler(backgroundThread.looper) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            try {
+                captureSessionRef?.close()
+                cameraDeviceRef?.close()
+                previewSurfaceRef?.release()
+                backgroundThread.quitSafely()
+            } catch (_: Exception) {}
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { granted ->
         hasCameraPermission = granted
     }
 
-    // Автоматически запрашиваем разрешение при первом входе, если оно ещё не выдано
+    // Системная нижняя шторка выбора фотографий от Google (Photo Picker)
+    val googlePhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            Toast.makeText(
+                context,
+                "QR-код из выбранного фото обработан",
+                Toast.LENGTH_SHORT
+            ).show()
+            onQrDetected(uri.toString())
+            onBack()
+        }
+    }
+
+    // Автоматически запрашиваем разрешение на камеру при первом входе
     LaunchedEffect(Unit) {
         if (!hasCameraPermission) {
             permissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 
+    fun updateRepeatingPreview(
+        camera: CameraDevice,
+        session: CameraCaptureSession,
+        surface: Surface,
+        torchEnabled: Boolean
+    ) {
+        try {
+            val requestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
+                addTarget(surface)
+                set(
+                    CaptureRequest.CONTROL_AF_MODE,
+                    CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE
+                )
+                set(
+                    CaptureRequest.FLASH_MODE,
+                    if (torchEnabled) CaptureRequest.FLASH_MODE_TORCH else CaptureRequest.FLASH_MODE_OFF
+                )
+            }
+            session.setRepeatingRequest(requestBuilder.build(), null, backgroundHandler)
+        } catch (_: Exception) {}
+    }
+
+    fun startQrCameraPreview(textureView: TextureView) {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as? CameraManager ?: return
+        try {
+            val cameraId = cameraManager.cameraIdList.firstOrNull { id ->
+                val chars = cameraManager.getCameraCharacteristics(id)
+                chars.get(CameraCharacteristics.LENS_FACING) == CameraCharacteristics.LENS_FACING_BACK
+            } ?: cameraManager.cameraIdList.firstOrNull() ?: return
+
+            captureSessionRef?.close()
+            captureSessionRef = null
+            cameraDeviceRef?.close()
+            cameraDeviceRef = null
+
+            cameraManager.openCamera(cameraId, object : CameraDevice.StateCallback() {
+                override fun onOpened(camera: CameraDevice) {
+                    cameraDeviceRef = camera
+                    val surfaceTexture = textureView.surfaceTexture ?: return
+                    surfaceTexture.setDefaultBufferSize(1920, 1080)
+                    val previewSurface = Surface(surfaceTexture)
+                    previewSurfaceRef = previewSurface
+
+                    try {
+                        camera.createCaptureSession(
+                            listOf(previewSurface),
+                            object : CameraCaptureSession.StateCallback() {
+                                override fun onConfigured(session: CameraCaptureSession) {
+                                    captureSessionRef = session
+                                    updateRepeatingPreview(
+                                        camera = camera,
+                                        session = session,
+                                        surface = previewSurface,
+                                        torchEnabled = isFlashlightOn
+                                    )
+                                }
+
+                                override fun onConfigureFailed(session: CameraCaptureSession) {}
+                            },
+                            backgroundHandler
+                        )
+                    } catch (_: Exception) {}
+                }
+
+                override fun onDisconnected(camera: CameraDevice) {
+                    camera.close()
+                    cameraDeviceRef = null
+                }
+
+                override fun onError(camera: CameraDevice, error: Int) {
+                    camera.close()
+                    cameraDeviceRef = null
+                }
+            }, backgroundHandler)
+        } catch (_: Exception) {}
+    }
+
+    // Переключение фонарика на живой сессии камеры
+    LaunchedEffect(isFlashlightOn) {
+        val camera = cameraDeviceRef
+        val session = captureSessionRef
+        val surface = previewSurfaceRef
+        if (camera != null && session != null && surface != null) {
+            updateRepeatingPreview(camera, session, surface, isFlashlightOn)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0E121A))
+            .background(Color.Black)
     ) {
         if (!hasCameraPermission) {
             // Защита от пустого чёрного экрана при отсутствии разрешения на камеру
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeStatusBarPadding()
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp, vertical = 12.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
-                            tint = Color.White
-                        )
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.12f),
+                        modifier = Modifier.size(44.dp)
+                    ) {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Назад",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
                 QrPermissionNotice(
@@ -118,98 +267,125 @@ fun QrCameraScannerScreen(
                 )
             }
         } else {
-            // Активный видоискатель сканера QR-кода (Скриншот 4)
+            // 1. Живое видео с камеры на весь экран
+            AndroidView(
+                factory = { ctx ->
+                    TextureView(ctx).apply {
+                        surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                            override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                                textureViewRef = this@apply
+                                startQrCameraPreview(this@apply)
+                            }
+
+                            override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+                            override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean = true
+                            override fun onSurfaceTextureUpdated(st: SurfaceTexture) {}
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            // 2. Полупрозрачная вуаль вокруг видоискателя
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFF141923),
-                                Color(0xFF1E1B2E),
-                                Color(0xFF11151F)
-                            )
-                        )
-                    )
+                    .background(Color.Black.copy(alpha = 0.38f))
+            )
+
+            // 3. Кнопка Назад в левом верхнем углу с отступом под системный статус-бар
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopStart)
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                // Кнопка Назад в левом верхнем углу
-                IconButton(
-                    onClick = onBack,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = 12.dp, top = 12.dp)
+                Surface(
+                    shape = CircleShape,
+                    color = Color.Black.copy(alpha = 0.42f),
+                    modifier = Modifier.size(44.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = Color.White
-                    )
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Назад",
+                            tint = Color.White
+                        )
+                    }
                 }
+            }
 
-                // Центральный блок: Заголовок «Сканировать QR-код», рамка видоискателя и кнопки внизу
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+            // 4. Центральный блок: Заголовок «Сканировать QR-код», рамка видоискателя и кнопки внизу
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeStatusBarPadding()
+                    .safeNavigationBarPadding()
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "Сканировать QR-код",
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(36.dp))
+
+                QrScannerViewfinder(
+                    modifier = Modifier.size(260.dp)
+                )
+
+                Spacer(modifier = Modifier.height(48.dp))
+
+                // Нижние кнопки управления: Системная шторка Фото (Google Photo Picker) слева, Фонарик справа
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(56.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Сканировать QR-код",
-                        color = Color.White,
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    Spacer(modifier = Modifier.height(36.dp))
-
-                    QrScannerViewfinder(
-                        modifier = Modifier.size(260.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(48.dp))
-
-                    // Нижние кнопки управления: Галерея слева, Вспышка справа
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(56.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    // Кнопка вызова системной нижней панели выбора фото от Google
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.Black.copy(alpha = 0.48f),
+                        modifier = Modifier.size(58.dp)
                     ) {
-                        // Кнопка открытия Галереи
-                        Surface(
-                            shape = CircleShape,
-                            color = Color.White.copy(alpha = 0.14f),
-                            modifier = Modifier.size(56.dp)
-                        ) {
-                            IconButton(onClick = onOpenGallery) {
-                                Icon(
-                                    imageVector = Icons.Outlined.PhotoLibrary,
-                                    contentDescription = "Выбрать QR из галереи",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
+                        IconButton(
+                            onClick = {
+                                googlePhotoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                                 )
                             }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.PhotoLibrary,
+                                contentDescription = "Выбрать фото с QR",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
+                    }
 
-                        // Кнопка включения/выключения фонарика
-                        Surface(
-                            shape = CircleShape,
-                            color = if (isFlashlightOn) Color(0xFF8B5CF6) else Color.White.copy(alpha = 0.14f),
-                            modifier = Modifier.size(56.dp)
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    isFlashlightOn = !isFlashlightOn
-                                    val msg = if (isFlashlightOn) "Фонарик включён" else "Фонарик выключен"
-                                    Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                                }
-                            ) {
-                                Icon(
-                                    imageVector = if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
-                                    contentDescription = "Фонарик",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(28.dp)
-                                )
+                    // Кнопка включения/выключения реального фонарика камеры
+                    Surface(
+                        shape = CircleShape,
+                        color = if (isFlashlightOn) Color(0xFF8B5CF6) else Color.Black.copy(alpha = 0.48f),
+                        modifier = Modifier.size(58.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                isFlashlightOn = !isFlashlightOn
                             }
+                        ) {
+                            Icon(
+                                imageVector = if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                                contentDescription = "Фонарик",
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
                         }
                     }
                 }

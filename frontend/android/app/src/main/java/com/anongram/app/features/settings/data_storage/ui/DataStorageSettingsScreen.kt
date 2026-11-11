@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.data_storage.ui.components.StorageUsageCard
 
 /**
@@ -49,6 +50,7 @@ fun DataStorageSettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFF1B2331))
+                .safeStatusBarPadding()
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

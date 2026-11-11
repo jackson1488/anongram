@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.account.ui.components.AccountInfoCard
 
 /**
@@ -56,11 +57,12 @@ fun AccountSettingsScreen(
             .fillMaxSize()
             .background(Color(0xFF131924))
     ) {
-        // Верхняя панель
+        // Верхняя панель с безопасным отступом от статус-бара
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFF1B2331))
+                .safeStatusBarPadding()
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

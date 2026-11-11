@@ -147,16 +147,16 @@ fun VideoCircleRecordOverlay(
             .background(Color.Black.copy(alpha = 0.35f)),
         contentAlignment = Alignment.Center
     ) {
-        // Компактный круглый видоискатель камеры (210dp)
+        // Большой круглый видоискатель камеры (320dp — Фото 1 и 3)
         Box(
             modifier = Modifier
-                .offset(y = (-40).dp)
-                .size(224.dp),
+                .offset(y = (-50).dp)
+                .size(336.dp),
             contentAlignment = Alignment.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(210.dp)
+                    .size(320.dp)
                     .clip(CircleShape)
                     .background(Color.Black),
                 contentAlignment = Alignment.Center

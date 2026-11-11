@@ -1,6 +1,11 @@
 package com.anongram.app.features.settings.main.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -32,9 +37,12 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,9 +50,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.auth.data.crypto.KeystoreVault
@@ -59,7 +70,8 @@ import com.anongram.app.features.settings.navigation.SettingsRoute
  * Главный экран раздела «Настройки» (Макеты 1 и 2).
  *
  * Включает:
- * - Топбар с круглой кнопкой QR слева и островком Поиск + Три точки справа;
+ * - Закреплённую сверху полупрозрачную шапку с эффектом матового стекла (блюр-вуаль),
+ *   круглой кнопкой QR слева и островком «Поиск + 3 точки» справа, которая остаётся на месте при прокрутке;
  * - Шапку профиля с крупным аватаром, бейджем камеры, именем и хэндлом;
  * - Карточку мульти-аккаунтов («Аккаунты»);
  * - Сгруппированный список из 9 подразделов настроек с цветными иконками;
@@ -82,6 +94,19 @@ fun SettingsMainScreen(
     val subtitleInfo = "$publicShort • $handleTag"
 
     var overflowExpanded by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+
+    // Плавное проявление матовой полупрозрачной шапки при прокрутке вниз
+    val headerScrollFraction by remember {
+        derivedStateOf { (scrollState.value / 180f).coerceIn(0f, 1f) }
+    }
+    val animatedHeaderAlpha by animateFloatAsState(
+        targetValue = headerScrollFraction,
+        label = "settingsStickyHeaderAlpha"
+    )
+    val showCollapsedTitle by remember {
+        derivedStateOf { scrollState.value > 210 }
+    }
 
     val connectedAccounts = remember {
         listOf(
@@ -113,82 +138,17 @@ fun SettingsMainScreen(
                 if (overflowExpanded) overflowExpanded = false
             }
     ) {
+        // 1. Прокручиваемый контент настроек (проходит под полупрозрачной закреплённой шапкой)
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(scrollState)
                 .safeStatusBarPadding()
+                .padding(top = 62.dp)
                 .padding(horizontal = 14.dp)
                 .padding(bottom = 115.dp)
         ) {
-            // 1. Верхняя панель: QR слева, Поиск + 3 точки справа
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp, bottom = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Круглая кнопка QR
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF17161C))
-                        .clickable { onNavigate(SettingsRoute.MyQr) },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.QrCode2,
-                        contentDescription = "Мой QR-код",
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-
-                // Островок Поиск + Меню 3 точки
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(Color(0xFF17161C))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .clickable { },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Поиск настроек",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    Spacer(modifier = Modifier.width(4.dp))
-
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .clickable { overflowExpanded = !overflowExpanded },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Меню",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
-
-            // 2. Шапка профиля (Аватар с камерой + Имя + Хэндл)
+            // Шапка профиля (Аватар с камерой + Имя + Хэндл)
             SettingsProfileHeader(
                 displayName = displayName,
                 subtitleText = subtitleInfo,
@@ -197,7 +157,7 @@ fun SettingsMainScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 3. Карточка «Аккаунты»
+            // Карточка «Аккаунты»
             AccountsSectionCard(
                 accounts = connectedAccounts,
                 onAccountClick = { onNavigate(SettingsRoute.Account) }
@@ -205,7 +165,7 @@ fun SettingsMainScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 4. Основная карточка подразделов настроек (9 разделов)
+            // Основная карточка подразделов настроек (9 разделов)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -288,7 +248,7 @@ fun SettingsMainScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // 5. Дополнительный блок крипто-возможностей AnonGram
+            // Дополнительный блок крипто-возможностей AnonGram
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -306,7 +266,114 @@ fun SettingsMainScreen(
             }
         }
 
-        // Выпадающее меню «Выход» (Макет 2)
+        // 2. Закреплённая сверху полупрозрачная шапка с эффектом матового стекла (блюр-вуаль):
+        // Остаётся на месте при прокрутке вниз, кнопки QR, Поиск и 3 точки всегда доступны.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color(0xFF0E0D14).copy(alpha = 0.72f + 0.22f * animatedHeaderAlpha),
+                            Color(0xFF151320).copy(alpha = 0.55f + 0.34f * animatedHeaderAlpha),
+                            Color(0xFF050508).copy(alpha = 0.15f * (1f - animatedHeaderAlpha) + 0.82f * animatedHeaderAlpha)
+                        )
+                    )
+                )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Круглая кнопка QR (с матовой стеклянной подложкой и тонкой окантовкой)
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFF1E1C29).copy(alpha = 0.82f))
+                        .border(0.8.dp, Color.White.copy(alpha = 0.10f), CircleShape)
+                        .clickable { onNavigate(SettingsRoute.MyQr) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.QrCode2,
+                        contentDescription = "Мой QR-код",
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Заголовок в центре шапки, плавно проявляющийся при прокрутке вниз
+                AnimatedVisibility(
+                    visible = showCollapsedTitle,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    Text(
+                        text = displayName,
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                // Островок Поиск + Меню 3 точки (с матовой стеклянной подложкой)
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(Color(0xFF1E1C29).copy(alpha = 0.82f))
+                        .border(0.8.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(22.dp))
+                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable { },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Поиск настроек",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable { overflowExpanded = !overflowExpanded },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Меню",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+
+            if (animatedHeaderAlpha > 0.08f) {
+                HorizontalDivider(
+                    color = Color.White.copy(alpha = 0.08f * animatedHeaderAlpha),
+                    thickness = 0.5.dp
+                )
+            }
+        }
+
+        // 3. Выпадающее меню «Выход» (Макет 2)
         SettingsOverflowMenu(
             expanded = overflowExpanded,
             onLogoutClick = {
@@ -317,7 +384,7 @@ fun SettingsMainScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .safeStatusBarPadding()
-                .padding(top = 56.dp, end = 16.dp)
+                .padding(top = 60.dp, end = 16.dp)
         )
     }
 }

@@ -110,12 +110,12 @@ fun ActionButton(
 
     // Мягкий ореол (halo/glow) вокруг кнопки в стиле Telegram / Monet
     val haloSize by animateDpAsState(
-        targetValue = if (isElevated || isLockedRecording) 70.dp else 0.dp,
+        targetValue = if (isElevated || isLockedRecording) 78.dp else 0.dp,
         animationSpec = tween(200),
         label = "haloSize"
     )
     val haloAlpha by animateFloatAsState(
-        targetValue = if (isElevated || isLockedRecording) 0.28f else 0f,
+        targetValue = if (isElevated || isLockedRecording) 0.32f else 0f,
         animationSpec = tween(200),
         label = "haloAlpha"
     )
@@ -157,13 +157,20 @@ fun ActionButton(
             }
         }
 
-        // Физический подъем кнопки и ауры вместе с пальцем пользователя
+        val maxCancelDragPx = with(density) { 160.dp.toPx().toInt() }
+
+        // Физический подъем кнопки и ауры вместе с пальцем пользователя (и вверх к замку, и влево к отмене)
         Box(
             modifier = Modifier
-                .offset { IntOffset(0, dragOffsetY.roundToInt().coerceIn(-lockDistancePx.toInt(), 0)) },
+                .offset {
+                    IntOffset(
+                        dragOffsetX.roundToInt().coerceIn(-maxCancelDragPx, 0),
+                        dragOffsetY.roundToInt().coerceIn(-lockDistancePx.toInt(), 0)
+                    )
+                },
             contentAlignment = Alignment.Center
         ) {
-            // Ореол (Monet Halo Glow)
+            // Ореол (Monet Halo Glow) — фото 1, 2, 6
             if (haloSize > 0.dp) {
                 Box(
                     modifier = Modifier

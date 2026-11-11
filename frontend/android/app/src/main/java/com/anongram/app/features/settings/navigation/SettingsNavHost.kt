@@ -28,7 +28,6 @@ import com.anongram.app.features.settings.notifications.ui.NotificationsSettings
 import com.anongram.app.features.settings.privacy.ui.PrivacySecuritySettingsScreen
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import com.anongram.app.features.settings.qr.ui.QrCameraScannerScreen
-import com.anongram.app.features.settings.qr.ui.QrGalleryPickerScreen
 
 /**
  * Навигационный хост раздела «Настройки» (`features/settings/`).
@@ -106,21 +105,7 @@ fun SettingsNavHost(
 
             SettingsRoute.QrScanner -> {
                 QrCameraScannerScreen(
-                    onBack = popBack,
-                    onOpenGallery = { navigateTo(SettingsRoute.QrGallery) }
-                )
-            }
-
-            SettingsRoute.QrGallery -> {
-                QrGalleryPickerScreen(
-                    onBack = popBack,
-                    onQrImageSelected = {
-                        // После выбора изображения с QR возвращаемся в меню
-                        while (backStack.size > 1) {
-                            backStack.removeAt(backStack.lastIndex)
-                        }
-                        onSubScreenVisibilityChange(false)
-                    }
+                    onBack = popBack
                 )
             }
 

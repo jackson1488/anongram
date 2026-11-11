@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -42,12 +41,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.ui.safeNavigationBarPadding
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.qr.ui.components.QrCodeCard
 
 /**
  * Экран собственного QR-кода пользователя AnonGram (Скриншот 3).
  * Включает:
- * - Верхнюю панель с кнопкой закрытия `(X)` и капсулой «Сканировать QR-код».
+ * - Верхнюю панель с отступом под системный статус-бар, кнопкой закрытия `(X)` и капсулой «Сканировать QR-код».
  * - Центральную белую карточку с фиолетовым QR-кодом, логотипом самолётика и `@HANDLE`.
  * - Нижнюю панель быстрых действий (Поделиться, Стили темы, Скачать).
  */
@@ -77,20 +78,21 @@ fun MyQrCodeScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(brush = Brush.verticalGradient(currentGradient))
-            .padding(horizontal = 20.dp, vertical = 16.dp)
     ) {
-        // Верхняя панель: Кнопка (X) слева и кнопка «Сканировать QR-код» справа
+        // Верхняя панель с безопасным отступом от статус-бара: Кнопка (X) слева и «Сканировать QR-код» справа
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.TopCenter),
+                .align(Alignment.TopCenter)
+                .safeStatusBarPadding()
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Surface(
                 shape = CircleShape,
-                color = Color.Black.copy(alpha = 0.24f),
-                modifier = Modifier.size(42.dp)
+                color = Color.Black.copy(alpha = 0.28f),
+                modifier = Modifier.size(44.dp)
             ) {
                 IconButton(onClick = onClose) {
                     Icon(
@@ -103,13 +105,13 @@ fun MyQrCodeScreen(
 
             Surface(
                 shape = RoundedCornerShape(24.dp),
-                color = Color.Black.copy(alpha = 0.24f),
+                color = Color.Black.copy(alpha = 0.28f),
                 modifier = Modifier
                     .clip(RoundedCornerShape(24.dp))
                     .clickable(onClick = onOpenScanner)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -145,7 +147,8 @@ fun MyQrCodeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
+                .safeNavigationBarPadding()
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {

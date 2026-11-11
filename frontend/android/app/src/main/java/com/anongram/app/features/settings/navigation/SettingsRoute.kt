@@ -7,7 +7,6 @@ sealed interface SettingsRoute {
     data object Main : SettingsRoute
     data object MyQr : SettingsRoute
     data object QrScanner : SettingsRoute
-    data object QrGallery : SettingsRoute
     data object Account : SettingsRoute
     data object ChatSettings : SettingsRoute
     data object Privacy : SettingsRoute

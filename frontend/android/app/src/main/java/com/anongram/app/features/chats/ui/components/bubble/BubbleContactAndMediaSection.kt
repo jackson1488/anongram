@@ -327,7 +327,7 @@ internal fun ChatVideoCircleSection(
 
     Box(
         modifier = Modifier
-            .size(210.dp)
+            .size(250.dp)
             .clip(CircleShape)
             .background(Color.Black)
             .border(1.5.dp, Color.White.copy(alpha = 0.2f), CircleShape)

@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.devices.ui.components.DeviceSessionCard
 
 /**
@@ -44,6 +45,7 @@ fun DevicesSettingsScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFF1B2331))
+                .safeStatusBarPadding()
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

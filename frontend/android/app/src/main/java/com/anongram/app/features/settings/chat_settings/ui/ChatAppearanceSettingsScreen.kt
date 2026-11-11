@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.AnonGramThemes
 import com.anongram.app.core.theme.ChatTextSettingsStore
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.chat_settings.ui.components.ChatTextSizeCard
 import com.anongram.app.features.settings.chat_settings.ui.components.ThemePickerDialog
 
@@ -69,11 +70,12 @@ fun ChatAppearanceSettingsScreen(
             .fillMaxSize()
             .background(Color(0xFF131924))
     ) {
-        // Верхняя панель
+        // Верхняя панель с безопасным отступом от статус-бара
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(Color(0xFF1B2331))
+                .safeStatusBarPadding()
                 .padding(horizontal = 8.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
