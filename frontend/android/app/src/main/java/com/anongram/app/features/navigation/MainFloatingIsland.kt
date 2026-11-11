@@ -31,7 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
-import com.anongram.app.core.theme.*
+import com.anongram.app.core.theme.LocalAnonGramScheme
 
 import com.anongram.app.core.ui.icons.FluentIcons
 
@@ -59,14 +59,14 @@ fun MainFloatingIsland(
                 .fillMaxWidth()
                 .height(64.dp)
                 .shadow(
-                    elevation = 24.dp,
+                    elevation = if (scheme.isDark) 24.dp else 14.dp,
                     shape = RoundedCornerShape(28.dp),
-                    ambientColor = Color.Black,
-                    spotColor = Color.Black.copy(alpha = 0.7f)
+                    ambientColor = Color.Black.copy(alpha = if (scheme.isDark) 1f else 0.25f),
+                    spotColor = Color.Black.copy(alpha = if (scheme.isDark) 0.7f else 0.22f)
                 )
                 .clip(RoundedCornerShape(28.dp))
-                .background(IslandBackground)
-                .border(1.dp, IslandBorder, RoundedCornerShape(28.dp))
+                .background(scheme.islandBg)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(28.dp))
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceAround
@@ -77,6 +77,8 @@ fun MainFloatingIsland(
                 icon = FluentIcons.ChatMultiple,
                 isSelected = currentTab == 0,
                 activeColor = scheme.accent,
+                activeBgColor = scheme.accentSoft,
+                inactiveColor = scheme.textSecondary,
                 onClick = { onTabSelected(0) }
             )
 
@@ -86,6 +88,8 @@ fun MainFloatingIsland(
                 icon = FluentIcons.Shield,
                 isSelected = currentTab == 1,
                 activeColor = scheme.accent,
+                activeBgColor = scheme.accentSoft,
+                inactiveColor = scheme.textSecondary,
                 onClick = { onTabSelected(1) }
             )
 
@@ -98,6 +102,8 @@ fun MainFloatingIsland(
                 icon = FluentIcons.Settings,
                 isSelected = currentTab == 2,
                 activeColor = scheme.accent,
+                activeBgColor = scheme.accentSoft,
+                inactiveColor = scheme.textSecondary,
                 onClick = { onTabSelected(2) }
             )
 
@@ -107,6 +113,8 @@ fun MainFloatingIsland(
                 icon = FluentIcons.Person,
                 isSelected = currentTab == 3,
                 activeColor = scheme.accent,
+                activeBgColor = scheme.accentSoft,
+                inactiveColor = scheme.textSecondary,
                 onClick = { onTabSelected(3) }
             )
         }
@@ -116,18 +124,15 @@ fun MainFloatingIsland(
             modifier = Modifier
                 .offset(y = (-20).dp)
                 .shadow(
-                    elevation = 20.dp,
+                    elevation = if (scheme.isDark) 20.dp else 12.dp,
                     shape = RoundedCornerShape(22.dp),
-                    spotColor = scheme.accent.copy(alpha = 0.5f)
+                    spotColor = scheme.accent.copy(alpha = if (scheme.isDark) 0.5f else 0.35f)
                 )
                 .size(56.dp)
                 .clip(RoundedCornerShape(22.dp))
                 .background(
                     Brush.linearGradient(
-                        colors = listOf(
-                            Color(0xFF09111E),
-                            Color(0xFF0F1E33)
-                        )
+                        colors = listOf(scheme.card, scheme.surface)
                     )
                 )
                 .border(
@@ -148,7 +153,7 @@ fun MainFloatingIsland(
             Icon(
                 painter = painterResource(id = R.drawable.ic_stat_anongram),
                 contentDescription = "Stealth QR",
-                tint = Color.White,
+                tint = scheme.textPrimary,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -161,9 +166,11 @@ private fun RowScope.NavTabItem(
     icon: ImageVector,
     isSelected: Boolean,
     activeColor: Color,
+    activeBgColor: Color,
+    inactiveColor: Color,
     onClick: () -> Unit
 ) {
-    val contentColor = if (isSelected) activeColor else TextSecondary
+    val contentColor = if (isSelected) activeColor else inactiveColor
     val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
 
     Column(
@@ -181,7 +188,7 @@ private fun RowScope.NavTabItem(
         Box(
             modifier = Modifier
                 .clip(CircleShape)
-                .background(if (isSelected) activeColor.copy(alpha = 0.18f) else Color.Transparent)
+                .background(if (isSelected) activeBgColor else Color.Transparent)
                 .padding(horizontal = 14.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {

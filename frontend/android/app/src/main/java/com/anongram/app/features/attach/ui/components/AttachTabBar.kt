@@ -32,16 +32,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.attach.ui.AttachTab
-import com.anongram.app.features.attach.ui.theme.AttachBorder
-import com.anongram.app.features.attach.ui.theme.AttachPurple
-import com.anongram.app.features.attach.ui.theme.AttachTextMuted
-import com.anongram.app.features.attach.ui.theme.AttachTextPrimary
 
 /**
  * Парящая нижняя панель-таблетка вкладок (ТЗ, шаг 10):
  * - НЕ прижата к краю: отступ снизу = навигационная панель + 12dp, по бокам по 12dp.
- * - Приподнята выше с мягкой тенью и полупрозрачным фоном.
+ * - Приподнята выше с мягкой тенью и фоном текущей темы.
  */
 @Composable
 fun AttachTabBar(
@@ -50,6 +47,7 @@ fun AttachTabBar(
     visible: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val scheme = LocalAnonGramScheme.current
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 12.dp
 
     AnimatedVisibility(
@@ -67,10 +65,15 @@ fun AttachTabBar(
         ) {
             Row(
                 modifier = Modifier
-                    .shadow(elevation = 16.dp, shape = RoundedCornerShape(28.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                    .shadow(
+                        elevation = if (scheme.isDark) 16.dp else 10.dp,
+                        shape = RoundedCornerShape(28.dp),
+                        ambientColor = Color.Black.copy(alpha = if (scheme.isDark) 1f else 0.25f),
+                        spotColor = Color.Black.copy(alpha = if (scheme.isDark) 0.7f else 0.22f)
+                    )
                     .clip(RoundedCornerShape(28.dp))
-                    .background(Color(0xF0181818))
-                    .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(28.dp))
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(28.dp))
                     .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 6.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -81,7 +84,7 @@ fun AttachTabBar(
                     Row(
                         modifier = Modifier
                             .clip(RoundedCornerShape(22.dp))
-                            .background(if (isSelected) AttachPurple else Color.Transparent)
+                            .background(if (isSelected) scheme.accent else Color.Transparent)
                             .clickable { onSelectTab(tab) }
                             .padding(horizontal = 14.dp, vertical = 9.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -89,13 +92,13 @@ fun AttachTabBar(
                         Icon(
                             imageVector = tab.icon,
                             contentDescription = null,
-                            tint = if (isSelected) Color.White else AttachTextMuted,
+                            tint = if (isSelected) scheme.onAccent else scheme.textMuted,
                             modifier = Modifier.size(17.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = tab.title,
-                            color = if (isSelected) Color.White else AttachTextPrimary,
+                            color = if (isSelected) scheme.onAccent else scheme.textPrimary,
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                         )
