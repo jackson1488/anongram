@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.ui.components.reply
+package com.anongram.app.features.chats.ui.input.reply
 
 import android.net.Uri
 import androidx.compose.foundation.Image

@@ -95,9 +95,9 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
-import com.anongram.app.features.chats.ui.components.EmojiStickerPanel
+import com.anongram.app.features.chats.ui.input.emoji.EmojiStickerPanel
 import com.anongram.app.features.chats.ui.components.bubble.ChatRealPhotoBox
-import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
+import com.anongram.app.features.chats.ui.input.reply.ReplyAttachmentMiniThumb
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import java.util.Locale
 

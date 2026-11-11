@@ -97,8 +97,8 @@ import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.chats.messages.domain.timeLabel
 import com.anongram.app.features.chats.ui.components.LocalMessageTextSizeSp
 import com.anongram.app.features.chats.ui.components.ReactionChips
-import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
-import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
+import com.anongram.app.features.chats.ui.input.reply.ReplyAttachmentMiniThumb
+import com.anongram.app.features.chats.ui.input.reply.replyPreviewSnippet
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 

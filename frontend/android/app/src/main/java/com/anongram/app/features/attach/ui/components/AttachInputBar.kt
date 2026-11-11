@@ -54,7 +54,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.features.attach.ui.theme.AttachPurple
-import com.anongram.app.features.chats.ui.components.EmojiStickerPanel
+import com.anongram.app.features.chats.ui.input.emoji.EmojiStickerPanel
 
 /**
  * Плавающая нижняя панель ввода подписи:

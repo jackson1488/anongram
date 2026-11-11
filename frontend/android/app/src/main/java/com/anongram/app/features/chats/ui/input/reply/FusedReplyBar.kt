@@ -32,8 +32,6 @@ import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.core.theme.TextSecondary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
-import com.anongram.app.features.chats.ui.components.reply.ReplyAttachmentMiniThumb
-import com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 
 /**

@@ -89,7 +89,7 @@ class ChatMessagesViewModel(
     private fun persistDraft() {
         val s = _uiState.value
         val txt = s.input.trim()
-        val snippet = s.replyTo?.let { com.anongram.app.features.chats.ui.components.reply.replyPreviewSnippet(it) }
+        val snippet = s.replyTo?.let { com.anongram.app.features.chats.ui.input.reply.replyPreviewSnippet(it) }
         val draft = ChatDraft(
             chatId = sessionId,
             text = txt,

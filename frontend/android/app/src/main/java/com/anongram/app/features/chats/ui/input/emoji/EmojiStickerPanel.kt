@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.ui.components
+package com.anongram.app.features.chats.ui.input.emoji
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
