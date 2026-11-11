@@ -76,7 +76,7 @@ fun ChatAppearanceSettingsScreen(
                 .fillMaxWidth()
                 .background(Color(0xFF1B2331))
                 .safeStatusBarPadding()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {

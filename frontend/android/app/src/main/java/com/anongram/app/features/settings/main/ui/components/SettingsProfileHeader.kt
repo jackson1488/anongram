@@ -26,16 +26,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * Шапка профиля главного меню настроек (Макет 1):
- * - Крупный круглый аватар по центру;
- * - Фиолетовый бейдж с иконкой фотоаппарата в правом нижнем углу аватара;
- * - Крупное имя пользователя («Кайрат» / никнейм из сессии);
- * - Строка с телефоном/Public ID и хэндлом (@KNSHVK).
- *
- * @param displayName Имя пользователя.
- * @param subtitleText Текст с номером/ID и @handle.
- * @param onAvatarClick Колбэк нажатия на кнопку смены фото профиля.
- * @param modifier Модификатор макета.
+ * Компактная шапка профиля главного меню настроек (Макет 1):
+ * - Круглый аватар по центру;
+ * - Фиолетовый бейдж с иконкой фотоаппарата;
+ * - Имя пользователя;
+ * - Публичный криптографический ID и @handle.
  */
 @Composable
 fun SettingsProfileHeader(
@@ -47,17 +42,17 @@ fun SettingsProfileHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.size(96.dp),
+            modifier = Modifier.size(86.dp),
             contentAlignment = Alignment.Center
         ) {
             // Основной круг аватара
             Box(
                 modifier = Modifier
-                    .size(92.dp)
+                    .size(82.dp)
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
@@ -70,7 +65,7 @@ fun SettingsProfileHeader(
                 Text(
                     text = displayName.take(1).uppercase(),
                     color = Color(0xFF4C1D95),
-                    fontSize = 36.sp,
+                    fontSize = 32.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -79,7 +74,7 @@ fun SettingsProfileHeader(
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(30.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
                     .background(Color(0xFFA855F7))
                     .border(2.dp, Color(0xFF0A0A0E), CircleShape)
@@ -90,21 +85,21 @@ fun SettingsProfileHeader(
                     imageVector = Icons.Default.CameraAlt,
                     contentDescription = "Изменить фото",
                     tint = Color.White,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(15.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = displayName,
             color = Color.White,
-            fontSize = 22.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
         Text(
             text = subtitleText,

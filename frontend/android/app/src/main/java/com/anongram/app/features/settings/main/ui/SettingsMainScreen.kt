@@ -139,7 +139,7 @@ fun SettingsMainScreen(
                 .fillMaxSize()
                 .verticalScroll(scrollState)
                 .safeStatusBarPadding()
-                .padding(top = 62.dp)
+                .padding(top = 46.dp)
                 .padding(horizontal = 14.dp)
                 .padding(bottom = 115.dp)
         ) {
@@ -150,7 +150,7 @@ fun SettingsMainScreen(
                 onAvatarClick = { onNavigate(SettingsRoute.Account) }
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Карточка «Аккаунты»
             AccountsSectionCard(
@@ -158,7 +158,7 @@ fun SettingsMainScreen(
                 onAccountClick = { onNavigate(SettingsRoute.Account) }
             )
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             // Основная карточка подразделов настроек (9 разделов)
             Column(
@@ -281,14 +281,14 @@ fun SettingsMainScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .safeStatusBarPadding()
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                    .padding(horizontal = 14.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Круглая кнопка QR (с матовой стеклянной подложкой и тонкой окантовкой)
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(38.dp)
                         .clip(CircleShape)
                         .background(Color(0xFF1E1C29).copy(alpha = 0.82f))
                         .border(0.8.dp, Color.White.copy(alpha = 0.10f), CircleShape)
@@ -299,23 +299,17 @@ fun SettingsMainScreen(
                         imageVector = Icons.Default.QrCode2,
                         contentDescription = "Мой QR-код",
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
 
-                // Заголовок в центре шапки: надпись «Настройки», плавно проявляющаяся при прокрутке вниз
-                AnimatedVisibility(
-                    visible = showCollapsedTitle,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    Text(
-                        text = "Настройки",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                // Заголовок в центре шапки: по дефолту надпись «Настройки», всегда остаётся сверху
+                Text(
+                    text = "Настройки",
+                    color = Color.White,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
 
                 // Островок Поиск + Меню 3 точки (с матовой стеклянной подложкой)
                 Row(
@@ -323,12 +317,12 @@ fun SettingsMainScreen(
                         .clip(RoundedCornerShape(22.dp))
                         .background(Color(0xFF1E1C29).copy(alpha = 0.82f))
                         .border(0.8.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(22.dp))
-                        .padding(horizontal = 6.dp, vertical = 4.dp),
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .clickable { },
                         contentAlignment = Alignment.Center
@@ -337,15 +331,15 @@ fun SettingsMainScreen(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Поиск настроек",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(2.dp))
 
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(34.dp)
                             .clip(CircleShape)
                             .clickable { overflowExpanded = !overflowExpanded },
                         contentAlignment = Alignment.Center
@@ -354,7 +348,7 @@ fun SettingsMainScreen(
                             imageVector = Icons.Default.MoreVert,
                             contentDescription = "Меню",
                             tint = Color.White,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     }
                 }
@@ -379,7 +373,7 @@ fun SettingsMainScreen(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .safeStatusBarPadding()
-                .padding(top = 60.dp, end = 16.dp)
+                .padding(top = 46.dp, end = 16.dp)
         )
     }
 }
