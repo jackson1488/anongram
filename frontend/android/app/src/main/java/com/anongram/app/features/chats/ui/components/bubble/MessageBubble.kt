@@ -814,7 +814,6 @@ private fun AttachmentContent(
                 message = message,
                 attachment = attachment,
                 isSelectionMode = isSelectionMode,
-                isSelected = isSelected,
                 onSelect = onSelect,
                 onLongClick = onLongClick,
                 onPlay = { onPlayVideoCircle(message) }
