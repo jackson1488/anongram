@@ -59,11 +59,11 @@ import com.anongram.app.core.theme.TextPrimary
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.messages.state.RecordingState
+import com.anongram.app.features.chats.ui.input.button.ActionButton
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
-import com.anongram.app.features.chats.ui.input.recording.ActionButton
-import com.anongram.app.features.chats.ui.input.recording.RecordingBar
 import com.anongram.app.features.chats.ui.input.reply.FusedEditBar
 import com.anongram.app.features.chats.ui.input.reply.FusedReplyBar
+import com.anongram.app.features.chats.ui.input.voice.VoiceRecordingBar
 
 /**
  * Единый монолитный островок ввода (макет media_1794245430730.png):
@@ -99,6 +99,7 @@ fun ChatInputBar(
     onLockRecording: () -> Unit,
     onCancelRecording: () -> Unit,
     onStopLockedRecording: () -> Unit,
+    onPauseVoiceRecording: () -> Unit = {},
     onOpenFullEditor: () -> Unit = {},
     onFocusInput: () -> Unit = {},
     focusRequester: FocusRequester? = null,
@@ -114,12 +115,12 @@ fun ChatInputBar(
             .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.Bottom
     ) {
-        if (recording.isLocked) {
-            RecordingBar(
+        if (recording.isLocked && recording.mode == RecordMode.VOICE) {
+            VoiceRecordingBar(
                 recording = recording,
                 onCancel = onCancelRecording,
-                onStop = onStopLockedRecording,
-                onLock = onLockRecording,
+                onPauseReview = onPauseVoiceRecording,
+                onSend = onStopLockedRecording,
                 modifier = Modifier.fillMaxWidth()
             )
         } else {

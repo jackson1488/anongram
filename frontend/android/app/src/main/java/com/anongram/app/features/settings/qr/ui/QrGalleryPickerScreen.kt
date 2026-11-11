@@ -150,16 +150,9 @@ fun QrGalleryPickerScreen(
                 icon = Icons.Outlined.PhotoLibrary,
                 title = "Требуется доступ к галерее",
                 description = "Чтобы выбрать скриншот или фотографию с QR-кодом из альбомов устройства, разрешите AnonGram доступ к вашим изображениям.",
-                primaryButtonText = "Разрешить доступ к фото",
+                buttonText = "Разрешить доступ к фото",
                 onRequestPermission = {
                     permissionLauncher.launch(requiredPermission)
-                },
-                onOpenSystemSettings = {
-                    val intent = Intent(
-                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        Uri.fromParts("package", context.packageName, null)
-                    )
-                    context.startActivity(intent)
                 }
             )
         } else {

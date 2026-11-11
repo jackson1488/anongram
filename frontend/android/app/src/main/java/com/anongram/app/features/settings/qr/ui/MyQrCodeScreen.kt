@@ -135,9 +135,8 @@ fun MyQrCodeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             QrCodeCard(
-                handle = cleanHandle,
-                payload = qrPayload,
-                primaryColor = qrAccentColor
+                handleText = "@$cleanHandle",
+                qrColor = qrAccentColor
             )
         }
 

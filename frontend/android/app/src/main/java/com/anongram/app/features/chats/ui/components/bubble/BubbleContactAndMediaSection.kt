@@ -300,6 +300,7 @@ internal fun ChatVoiceSection(
  */
 @Composable
 internal fun ChatVideoCircleSection(
+    message: ChatMessage,
     attachment: MessageAttachment.VideoCircle,
     onClick: () -> Unit = {}
 ) {
@@ -324,10 +325,10 @@ internal fun ChatVideoCircleSection(
 
     Box(
         modifier = Modifier
-            .size(200.dp)
+            .size(210.dp)
             .clip(CircleShape)
-            .background(attachmentColor(attachment.colorSeed))
-            .border(1.5.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+            .background(Color.Black)
+            .border(1.5.dp, Color.White.copy(alpha = 0.2f), CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -341,37 +342,61 @@ internal fun ChatVideoCircleSection(
             )
         }
 
-        // Кнопка воспроизведения по центру
+        // Внизу внутри кружочка (Фото 2 и Фото 4 в стиле Telegram):
+        // Слева: Длительность со значком кружочка [ 00:16 ⚪ ]
         Box(
             modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(Color.Black.copy(alpha = 0.45f)),
-            contentAlignment = Alignment.Center
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = 12.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color.Black.copy(alpha = 0.55f))
+                .padding(horizontal = 7.dp, vertical = 2.dp)
         ) {
-            Icon(
-                imageVector = Icons.Outlined.PlayArrow,
-                contentDescription = "Смотреть кружочек",
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = attachment.durationLabel,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.width(3.dp))
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.9f))
+                )
+            }
         }
 
-        // Внизу длительность со значком звука
+        // Справа: Время отправки и статус доставки/прочтения [ 19:29 ✓✓ ]
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 10.dp)
-                .clip(CircleShape)
+                .align(Alignment.BottomEnd)
+                .padding(end = 16.dp, bottom = 12.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(Color.Black.copy(alpha = 0.55f))
-                .padding(horizontal = 8.dp, vertical = 2.dp)
+                .padding(horizontal = 7.dp, vertical = 2.dp)
         ) {
-            Text(
-                text = "${attachment.durationLabel} 🔊",
-                color = Color.White,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = message.timeLabel(),
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.Medium
+                )
+                if (!message.isIncoming) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    DeliveryStatus(
+                        status = message.status,
+                        onRetry = {},
+                        iconSize = 12.dp
+                    )
+                }
+            }
         }
     }
 }
+

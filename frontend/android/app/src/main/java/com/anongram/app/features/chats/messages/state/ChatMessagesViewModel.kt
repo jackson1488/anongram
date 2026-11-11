@@ -1163,11 +1163,35 @@ class ChatMessagesViewModel(
         }
     }
 
-    fun sendVoiceReview() {
+    fun pauseVoiceRecordingToDraft() {
+        val recording = _uiState.value.recording
+        if (recording.mode != RecordMode.VOICE) return
+        recordingJob?.cancel()
+        recordingJob = null
+        _uiState.update { it.copy(recording = RecordingState()) }
+        val result = voiceRecorder.stop()
+        if (result != null) {
+            val voice = MessageAttachment.Voice(
+                durationLabel = result.durationLabel,
+                waveform = result.waveform,
+                uri = result.file.absolutePath
+            )
+            _uiState.update { it.copy(voiceReviewDraft = voice) }
+        }
+    }
+
+    fun sendVoiceReview(startFraction: Float = 0f, endFraction: Float = 1f) {
         val voice = _uiState.value.voiceReviewDraft ?: return
         _uiState.update { it.copy(voiceReviewDraft = null) }
         ChatDraftsRepository.instance.clearDraft(sessionId)
-        sendAttachment(voice)
+        val trimmedWaveform = if (voice.waveform.isNotEmpty() && (startFraction > 0.02f || endFraction < 0.98f)) {
+            val startIdx = (startFraction * voice.waveform.size).toInt().coerceIn(0, voice.waveform.size - 1)
+            val endIdx = (endFraction * voice.waveform.size).toInt().coerceIn(startIdx + 1, voice.waveform.size)
+            voice.waveform.subList(startIdx, endIdx)
+        } else {
+            voice.waveform
+        }
+        sendAttachment(voice.copy(waveform = trimmedWaveform))
     }
 
     fun discardVoiceReview() {

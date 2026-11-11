@@ -343,6 +343,21 @@ internal fun MessageBubble(
                                 onLongClick = onLongClick
                             )
                         }
+                    } else if (message.attachment is MessageAttachment.VideoCircle && message.text.isBlank()) {
+                        Box(
+                            modifier = if (pulseAlpha > 0f) {
+                                Modifier
+                                    .clip(CircleShape)
+                                    .background(scheme.accent.copy(alpha = pulseAlpha * 0.35f))
+                                    .padding(4.dp)
+                            } else Modifier.padding(vertical = 2.dp)
+                        ) {
+                            ChatVideoCircleSection(
+                                message = message,
+                                attachment = message.attachment as MessageAttachment.VideoCircle,
+                                onClick = { if (isSelectionMode) onSelect() else onOpenVideoCircle(message.attachment as MessageAttachment.VideoCircle) }
+                            )
+                        }
                     } else {
                         val isEdgeToEdgeMedia = (message.attachment is MessageAttachment.MediaAlbum) ||
                             (message.attachment is MessageAttachment.Photo && (message.attachment as MessageAttachment.Photo).uri != null)
@@ -790,6 +805,7 @@ private fun AttachmentContent(
 
         is MessageAttachment.VideoCircle -> {
             ChatVideoCircleSection(
+                message = message,
                 attachment = attachment,
                 onClick = { if (isSelectionMode) onSelect() else onOpenVideoCircle(attachment) }
             )

@@ -111,16 +111,9 @@ fun QrCameraScannerScreen(
                     icon = Icons.Outlined.CameraAlt,
                     title = "Требуется доступ к камере",
                     description = "Чтобы отсканировать QR-код собеседника или войти на другом устройстве, разрешите AnonGram доступ к камере.",
-                    primaryButtonText = "Разрешить доступ к камере",
+                    buttonText = "Разрешить доступ к камере",
                     onRequestPermission = {
                         permissionLauncher.launch(Manifest.permission.CAMERA)
-                    },
-                    onOpenSystemSettings = {
-                        val intent = Intent(
-                            Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                            Uri.fromParts("package", context.packageName, null)
-                        )
-                        context.startActivity(intent)
                     }
                 )
             }
