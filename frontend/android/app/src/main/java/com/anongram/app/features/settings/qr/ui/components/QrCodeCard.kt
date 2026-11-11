@@ -6,10 +6,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -72,18 +74,19 @@ fun QrCodeCard(
 
     Column(
         modifier = modifier
-            .width(330.dp)
+            .widthIn(max = 356.dp)
+            .fillMaxWidth(0.92f)
             .shadow(24.dp, RoundedCornerShape(36.dp), spotColor = Color.Black.copy(alpha = 0.35f))
             .clip(RoundedCornerShape(36.dp))
             .background(Color.White)
-            .padding(horizontal = 26.dp, vertical = 26.dp),
+            .padding(horizontal = 22.dp, vertical = 20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            modifier = Modifier.size(256.dp),
+            modifier = Modifier.size(276.dp),
             contentAlignment = Alignment.Center
         ) {
-            Canvas(modifier = Modifier.size(256.dp)) {
+            Canvas(modifier = Modifier.size(276.dp)) {
                 val matrix = bitMatrix
                 val gridSize = matrix?.width ?: 29
                 val cellSize = size.width / gridSize
@@ -152,7 +155,7 @@ fun QrCodeCard(
             // 3. Фирменная Стелс-иконка приложения в центре QR-кода (Cryptographic Shield + Stealth Plane)
             Box(
                 modifier = Modifier
-                    .size(56.dp)
+                    .size(60.dp)
                     .clip(CircleShape)
                     .background(effectiveColor)
                     .border(2.5.dp, Color.White, CircleShape),
@@ -162,18 +165,18 @@ fun QrCodeCard(
                     painter = painterResource(id = R.drawable.ic_stat_anongram),
                     contentDescription = "AnonGram Stealth Logo",
                     tint = Color.White,
-                    modifier = Modifier.size(30.dp)
+                    modifier = Modifier.size(32.dp)
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(18.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         // Хэндл пользователя крупным жирным шрифтом
         Text(
             text = handleText,
             color = effectiveColor,
-            fontSize = 25.sp,
+            fontSize = 26.sp,
             fontWeight = FontWeight.Black,
             letterSpacing = 0.5.sp
         )

@@ -96,12 +96,10 @@ fun MyQrCodeScreen(
 
     // Плавное масштабирование карточки при открытии палитры
     val cardScale by animateFloatAsState(
-        targetValue = if (isPaletteVisible) 0.86f else 1.0f,
-        animationSpec = tween(durationMillis = 300),
+        targetValue = if (isPaletteVisible) 0.94f else 1.0f,
+        animationSpec = tween(durationMillis = 250),
         label = "QrCardScale"
     )
-
-    val scrollState = rememberScrollState()
 
     Box(
         modifier = Modifier
@@ -133,13 +131,20 @@ fun MyQrCodeScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 // Кнопка (X) слева (iPhone Glass Circle)
+                // Если открыта палитра — нажатие закрывает палитру, иначе закрывает экран
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.16f))
                         .border(1.2.dp, Color.White.copy(alpha = 0.24f), CircleShape)
-                        .clickable(onClick = onClose),
+                        .clickable {
+                            if (isPaletteVisible) {
+                                isPaletteVisible = false
+                            } else {
+                                onClose()
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -180,156 +185,151 @@ fun MyQrCodeScreen(
                 }
             }
 
-            // 2. Основная рабочая область экрана:
-            // Если палитра скрыта — QR-код центрирован строго посередине экрана.
-            // Если палитра открыта — QR-код сдвинут наверх под шапку, а под ним палитра, как на фото.
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState)
-                    .animateContentSize(animationSpec = tween(durationMillis = 300)),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = if (isPaletteVisible) Arrangement.Top else Arrangement.Center
-            ) {
-                Spacer(modifier = Modifier.height(if (isPaletteVisible) 8.dp else 0.dp))
+            if (!isPaletteVisible) {
+                // 2А. РЕЖИМ ПО УМОЛЧАНИЮ (палитра закрыта):
+                // Очень крупный QR-код центрирован строго посередине экрана
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    QrCodeCard(
+                        handleText = "@$cleanHandle",
+                        qrPayload = qrPayload,
+                        qrColor = selectedTheme.color,
+                        modifier = Modifier.scale(cardScale)
+                    )
+                }
 
-                // Крупная карточка QR-кода
+                // 3. Нижняя панель действий (iPhone Glass): Поделиться, Кисточка (по центру), Скачать
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .safeNavigationBarPadding()
+                        .padding(vertical = 12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // 1. Кнопка «Поделиться» (ТОЛЬКО ЧИСТЫЙ PNG-ФАЙЛ БЕЗ ТЕКСТА)
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.18f))
+                                .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                                .clickable {
+                                    QrImageRenderer.shareQrImage(
+                                        context = context,
+                                        handle = cleanHandle,
+                                        qrColor = selectedTheme.color,
+                                        gradientColors = selectedTheme.gradient,
+                                        qrPayload = qrPayload
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Поделиться изображением QR",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        // 2. В ЦЕНТРЕ — ЕДИНАЯ КНОПКА «КИСТОЧКА» (открытие палитры)
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.18f))
+                                .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                                .clickable {
+                                    isPaletteVisible = true
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Brush,
+                                contentDescription = "Изменить стиль (кисточка)",
+                                tint = Color.White,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        // 3. Кнопка «Скачать» (сохранение HD PNG в Галерею)
+                        Box(
+                            modifier = Modifier
+                                .size(52.dp)
+                                .clip(CircleShape)
+                                .background(Color.White.copy(alpha = 0.18f))
+                                .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                                .clickable {
+                                    val saved = QrImageRenderer.saveQrImageToGallery(
+                                        context = context,
+                                        handle = cleanHandle,
+                                        qrColor = selectedTheme.color,
+                                        gradientColors = selectedTheme.gradient,
+                                        qrPayload = qrPayload
+                                    )
+                                    val message = if (saved) {
+                                        "QR-код @$cleanHandle сохранён в Галерею"
+                                    } else {
+                                        "Ошибка при сохранении QR-кода"
+                                    }
+                                    Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Скачать QR в галерею",
+                                tint = Color.White,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                // 2Б. РЕЖИМ ОТКРЫТОЙ ПАЛИТРЫ (в точности как на скриншоте 3):
+                // - Крупный QR-код сразу под верхней шапкой;
+                // - Нижней панели навигации НЕТ («нету ангив»);
+                // - Палитра занимает ВСЁ оставшееся пространство экрана внизу («фулл окна берет внизу»);
+                // - 84 цвета листаются вертикальным скроллом.
+                Spacer(modifier = Modifier.height(4.dp))
+
                 QrCodeCard(
                     handleText = "@$cleanHandle",
                     qrPayload = qrPayload,
                     qrColor = selectedTheme.color,
-                    modifier = Modifier.scale(cardScale)
+                    modifier = Modifier
+                        .scale(cardScale)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            // Клик по QR-коду закрывает палитру
+                            isPaletteVisible = false
+                        }
                 )
 
-                // 42-цветная палитра расцветок (плавное появление прямо под карточкой QR)
-                AnimatedVisibility(
-                    visible = isPaletteVisible,
-                    enter = slideInVertically(
-                        initialOffsetY = { it / 2 },
-                        animationSpec = tween(durationMillis = 300)
-                    ) + fadeIn(animationSpec = tween(durationMillis = 250)),
-                    exit = slideOutVertically(
-                        targetOffsetY = { it / 2 },
-                        animationSpec = tween(durationMillis = 260)
-                    ) + fadeOut(animationSpec = tween(durationMillis = 200))
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
-                        QrColorPaletteSheet(
-                            selectedTheme = selectedTheme,
-                            onSelectTheme = { theme ->
-                                selectedTheme = theme
-                                QrThemePalette.saveTheme(context, theme)
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-                }
-            }
-
-            // 3. Нижняя панель действий (iPhone Glass): Поделиться, Кисточка (по центру), Скачать
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .safeNavigationBarPadding()
-                    .padding(vertical = 12.dp)
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    // 1. Кнопка «Поделиться» (ТОЛЬКО ЧИСТЫЙ PNG-ФАЙЛ БЕЗ ТЕКСТА)
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.18f))
-                            .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
-                            .clickable {
-                                QrImageRenderer.shareQrImage(
-                                    context = context,
-                                    handle = cleanHandle,
-                                    qrColor = selectedTheme.color,
-                                    gradientColors = selectedTheme.gradient,
-                                    qrPayload = qrPayload
-                                )
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Share,
-                            contentDescription = "Поделиться изображением QR",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // 2. В ЦЕНТРЕ — ЕДИНАЯ КНОПКА «КИСТОЧКА» (открытие/скрытие палитры)
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (isPaletteVisible) Color.White.copy(alpha = 0.35f)
-                                else Color.White.copy(alpha = 0.18f)
-                            )
-                            .border(
-                                1.2.dp,
-                                if (isPaletteVisible) Color.White else Color.White.copy(alpha = 0.26f),
-                                CircleShape
-                            )
-                            .clickable {
-                                isPaletteVisible = !isPaletteVisible
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Brush,
-                            contentDescription = "Изменить стиль (кисточка)",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-
-                    // 3. Кнопка «Скачать» (сохранение HD PNG в Галерею)
-                    Box(
-                        modifier = Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.18f))
-                            .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
-                            .clickable {
-                                val saved = QrImageRenderer.saveQrImageToGallery(
-                                    context = context,
-                                    handle = cleanHandle,
-                                    qrColor = selectedTheme.color,
-                                    gradientColors = selectedTheme.gradient,
-                                    qrPayload = qrPayload
-                                )
-                                val message = if (saved) {
-                                    "QR-код @$cleanHandle сохранён в Галерею"
-                                } else {
-                                    "Ошибка при сохранении QR-кода"
-                                }
-                                Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = "Скачать QR в галерею",
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
+                QrColorPaletteSheet(
+                    selectedTheme = selectedTheme,
+                    onSelectTheme = { theme ->
+                        selectedTheme = theme
+                        QrThemePalette.saveTheme(context, theme)
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .safeNavigationBarPadding()
+                        .padding(bottom = 6.dp)
+                )
             }
         }
     }
