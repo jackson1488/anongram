@@ -125,7 +125,6 @@ fun ChatInputBar(
             )
         } else {
             var textValue: String by remember(input) { mutableStateOf(input) }
-            var cancelDragOffsetX by remember { androidx.compose.runtime.mutableFloatStateOf(0f) }
             val scrollState = rememberScrollState()
 
             // Проверяем, нужно ли показывать кнопку раскрытия в углу:
@@ -177,7 +176,6 @@ fun ChatInputBar(
                                 animationSpec = infiniteRepeatable(tween(500), repeatMode = RepeatMode.Reverse),
                                 label = "pulseAlpha"
                             )
-                            val cancelHintAlpha = (1f + (cancelDragOffsetX / 320f)).coerceIn(0f, 1f)
                             Row(
                                 modifier = Modifier
                                     .weight(1f)
@@ -201,9 +199,8 @@ fun ChatInputBar(
                                 Spacer(modifier = Modifier.weight(1f))
                                 Text(
                                     text = strings.slideLeftToCancel,
-                                    color = TextMuted.copy(alpha = cancelHintAlpha),
-                                    fontSize = 13.sp,
-                                    modifier = Modifier.padding(end = 12.dp)
+                                    color = TextMuted,
+                                    fontSize = 13.sp
                                 )
                             }
                         } else {
@@ -298,7 +295,6 @@ fun ChatInputBar(
                             onStopLockedRecording = onStopLockedRecording,
                             onLockRecording = onLockRecording,
                             onCancelRecording = onCancelRecording,
-                            onDragCancelOffset = { offset -> cancelDragOffsetX = offset },
                             modifier = Modifier.padding(bottom = 2.dp)
                         )
                     }

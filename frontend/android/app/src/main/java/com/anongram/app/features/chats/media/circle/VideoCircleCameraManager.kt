@@ -193,8 +193,8 @@ class VideoCircleCameraManager(private val context: Context) {
     }
 
     fun toggleFlash() {
-        isFlashOn = !isFlashOn
         if (isFrontCamera) return
+        isFlashOn = !isFlashOn
         val session = captureSession ?: return
         val camera = cameraDevice ?: return
         val st = surfaceTexture ?: return
