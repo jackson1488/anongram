@@ -17,6 +17,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import android.graphics.Bitmap
+import android.media.MediaMetadataRetriever
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -25,8 +30,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import androidx.compose.ui.Alignment
@@ -284,34 +295,82 @@ internal fun ChatVoiceSection(
 }
 
 /**
- * Видео-кружок в пузыре.
+ * Видео-кружок в пузыре (маленький круг в чате).
  */
 @Composable
 internal fun ChatVideoCircleSection(
     attachment: MessageAttachment.VideoCircle,
     onClick: () -> Unit = {}
 ) {
+    val thumbnailBitmap by produceState<Bitmap?>(initialValue = null, key1 = attachment.uri) {
+        val uriStr = attachment.uri
+        if (!uriStr.isNullOrBlank()) {
+            withContext(Dispatchers.IO) {
+                val file = File(uriStr)
+                if (file.exists()) {
+                    val mmr = MediaMetadataRetriever()
+                    try {
+                        mmr.setDataSource(file.absolutePath)
+                        value = mmr.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                    } catch (_: Exception) {
+                    } finally {
+                        mmr.release()
+                    }
+                }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
-            .size(160.dp)
+            .size(200.dp)
             .clip(CircleShape)
             .background(attachmentColor(attachment.colorSeed))
+            .border(1.5.dp, Color.White.copy(alpha = 0.25f), CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Icon(
-            imageVector = Icons.Outlined.PlayArrow,
-            contentDescription = null,
-            tint = Color.White.copy(alpha = 0.85f),
-            modifier = Modifier.size(36.dp)
-        )
-        Text(
-            text = attachment.durationLabel,
-            color = Color.White,
-            fontSize = 11.sp,
+        val bmp = thumbnailBitmap
+        if (bmp != null) {
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = "Видео-сообщение",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Кнопка воспроизведения по центру
+        Box(
+            modifier = Modifier
+                .size(48.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.45f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.PlayArrow,
+                contentDescription = "Смотреть кружочек",
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        // Внизу длительность со значком звука
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp)
-        )
+                .padding(bottom = 10.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.55f))
+                .padding(horizontal = 8.dp, vertical = 2.dp)
+        ) {
+            Text(
+                text = "${attachment.durationLabel} 🔊",
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
     }
 }

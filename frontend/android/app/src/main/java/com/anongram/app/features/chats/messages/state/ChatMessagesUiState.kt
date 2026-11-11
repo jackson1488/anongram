@@ -9,7 +9,8 @@ enum class RecordMode { NONE, VOICE, CIRCLE }
 data class RecordingState(
     val mode: RecordMode = RecordMode.NONE,
     val isLocked: Boolean = false,
-    val elapsedTenths: Int = 0
+    val elapsedTenths: Int = 0,
+    val finishRequested: Boolean = false
 ) {
     val seconds: Int get() = elapsedTenths / 10
     val tenths: Int get() = elapsedTenths % 10

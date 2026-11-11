@@ -7,6 +7,7 @@ import android.view.TextureView
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -16,6 +17,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -126,12 +129,20 @@ fun VideoCircleExpandedPlayer(
     val elapsedSec = (currentPosMs / 1000).toInt()
     val elapsedLabel = "%02d:%02d".format(elapsedSec / 60, elapsedSec % 60)
 
-    val circleSize = 310.dp
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenHeight = configuration.screenHeightDp.dp
+    val circleSize = (screenWidth * 0.94f).coerceAtMost(screenHeight * 0.72f)
+    val innerVideoSize = circleSize - 12.dp
+
+    val density = LocalDensity.current
+    val circleSizePx = with(density) { circleSize.toPx() }
+    val radiusPx = (circleSizePx / 2f) - with(density) { 6.dp.toPx() }
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.65f))
+            .background(Color.Black.copy(alpha = 0.7f))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
@@ -147,19 +158,55 @@ fun VideoCircleExpandedPlayer(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {
-                        isPlaying = !isPlaying
-                        val mp = mediaPlayer
-                        if (mp != null) {
-                            if (isPlaying) mp.start() else mp.pause()
+                        if (!isDragging) {
+                            isPlaying = !isPlaying
+                            val mp = mediaPlayer
+                            if (mp != null) {
+                                if (isPlaying) mp.start() else mp.pause()
+                            }
                         }
                     }
-                ),
+                )
+                .pointerInput(totalMs, circleSizePx) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            val dx = offset.x - (circleSizePx / 2f)
+                            val dy = offset.y - (circleSizePx / 2f)
+                            val angle = atan2(dy, dx)
+                            var deg = (angle * 180f / PI.toFloat()) + 90f
+                            if (deg < 0f) deg += 360f
+                            val fraction = (deg / 360f).coerceIn(0f, 1f)
+                            currentPosMs = (fraction * totalMs).toLong()
+                            mediaPlayer?.seekTo(currentPosMs.toInt())
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            mediaPlayer?.seekTo(currentPosMs.toInt())
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            val touchPos = change.position
+                            val dx = touchPos.x - (circleSizePx / 2f)
+                            val dy = touchPos.y - (circleSizePx / 2f)
+                            val angle = atan2(dy, dx)
+                            var deg = (angle * 180f / PI.toFloat()) + 90f
+                            if (deg < 0f) deg += 360f
+                            val fraction = (deg / 360f).coerceIn(0f, 1f)
+                            currentPosMs = (fraction * totalMs).toLong()
+                            mediaPlayer?.seekTo(currentPosMs.toInt())
+                        }
+                    )
+                },
             contentAlignment = Alignment.Center
         ) {
             // Тело кругового видео
             Box(
                 modifier = Modifier
-                    .size(280.dp)
+                    .size(innerVideoSize)
                     .clip(CircleShape)
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
@@ -212,7 +259,7 @@ fun VideoCircleExpandedPlayer(
                 if (!isPlaying) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(64.dp)
                             .clip(CircleShape)
                             .background(Color.Black.copy(alpha = 0.55f)),
                         contentAlignment = Alignment.Center
@@ -221,7 +268,7 @@ fun VideoCircleExpandedPlayer(
                             imageVector = Icons.Filled.PlayArrow,
                             contentDescription = "Воспроизвести",
                             tint = Color.White,
-                            modifier = Modifier.size(34.dp)
+                            modifier = Modifier.size(38.dp)
                         )
                     }
                 }
@@ -230,45 +277,46 @@ fun VideoCircleExpandedPlayer(
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
-                        .padding(start = 28.dp, bottom = 18.dp)
+                        .padding(start = 28.dp, bottom = 20.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .background(Color.Black.copy(alpha = 0.65f))
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = "$elapsedLabel ${if (isPlaying) "🔊" else "⏸"}",
                         color = Color.White,
-                        fontSize = 12.sp,
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.Medium
                     )
                 }
 
-                // Внизу справа время сообщения
+                // Внизу справа время сообщения и галочки
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 28.dp, bottom = 18.dp)
+                        .padding(end = 28.dp, bottom = 20.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.6f))
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                        .background(Color.Black.copy(alpha = 0.65f))
+                        .padding(horizontal = 10.dp, vertical = 3.dp)
                 ) {
                     Text(
-                        text = timeLabel,
-                        color = Color.White.copy(alpha = 0.85f),
-                        fontSize = 12.sp
+                        text = "$timeLabel ✓✓",
+                        color = Color.White.copy(alpha = 0.9f),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             }
 
             // Круговой SeekBar (дуга прогресса + точка ручки)
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val radius = (size.minDimension - 14.dp.toPx()) / 2f
+                val radius = radiusPx
                 val strokeWidth = 4.dp.toPx()
                 val centerOffset = Offset(size.width / 2f, size.height / 2f)
 
                 // Фоновое кольцо (полупрозрачное)
                 drawCircle(
-                    color = Color.White.copy(alpha = 0.2f),
+                    color = Color.White.copy(alpha = 0.25f),
                     radius = radius,
                     center = centerOffset,
                     style = Stroke(width = strokeWidth)
@@ -286,45 +334,21 @@ fun VideoCircleExpandedPlayer(
                 )
             }
 
-            // Белая точка-ручка (●) на ободе при паузе или перемотке
+            // Белая точка-ручка (●) на ободе при паузе или перемотке (как на фото пользователя!)
             if (!isPlaying || isDragging) {
                 val angleDeg = -90f + animatedProgress * 360f
                 val angleRad = angleDeg * (PI.toFloat() / 180f)
-                val radiusPx = (circleSize.value * 2.8f)
-
-                val handleSize = 16.dp
+                val handleX = (radiusPx * cos(angleRad)).roundToInt()
+                val handleY = (radiusPx * sin(angleRad)).roundToInt()
 
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .offset {
-                            val r = 148.dp.toPx()
-                            val x = (r * cos(angleRad)).roundToInt()
-                            val y = (r * sin(angleRad)).roundToInt()
-                            IntOffset(x, y)
-                        }
-                        .size(handleSize)
+                        .offset { IntOffset(handleX, handleY) }
+                        .size(20.dp)
                         .clip(CircleShape)
                         .background(Color.White)
-                        .pointerInput(totalMs) {
-                            detectDragGestures(
-                                onDragStart = { isDragging = true },
-                                onDragEnd = {
-                                    isDragging = false
-                                    mediaPlayer?.seekTo(currentPosMs.toInt())
-                                },
-                                onDragCancel = { isDragging = false },
-                                onDrag = { change, _ ->
-                                    change.consume()
-                                    val touchPos = change.position
-                                    val angle = atan2(touchPos.y, touchPos.x)
-                                    var deg = (angle * 180f / PI.toFloat()) + 90f
-                                    if (deg < 0) deg += 360f
-                                    val fraction = (deg / 360f).coerceIn(0f, 1f)
-                                    currentPosMs = (fraction * totalMs).toLong()
-                                }
-                            )
-                        }
+                        .border(2.dp, Color(0xFF6B4EEA), CircleShape)
                 )
             }
         }

@@ -100,16 +100,24 @@ fun VideoCircleRecordOverlay(
     fun finishAndSend() {
         val file = cameraManager.stopRecording()
         val timeLabel = "%02d:%02d".format(secondsElapsed / 60, secondsElapsed % 60)
-        if (file != null && onSendVideo != null) {
+        val tenths = recordingState?.elapsedTenths ?: 0
+        if (file != null && file.exists() && file.length() > 0 && (secondsElapsed >= 1 || tenths >= 5) && onSendVideo != null) {
             onSendVideo(file.absolutePath, timeLabel)
         } else {
-            sendAction()
+            file?.delete()
+            onCancel()
         }
     }
 
     fun cancelAndCleanup() {
         cameraManager.cancelRecording()
         onCancel()
+    }
+
+    LaunchedEffect(recordingState?.finishRequested) {
+        if (recordingState?.finishRequested == true) {
+            finishAndSend()
+        }
     }
 
     LaunchedEffect(Unit) {
@@ -190,125 +198,107 @@ fun VideoCircleRecordOverlay(
             }
         }
 
-        // Кнопки управления слева (смена камеры, фонарик)
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 24.dp, bottom = 90.dp)
-        ) {
-            IconButton(
-                onClick = {
-                    isFrontCamera = !isFrontCamera
-                    cameraManager.switchCamera()
-                },
+        // В заблокированном режиме: панель управления камерой, таймер, отмена и кнопка отправки
+        if (isLocked) {
+            // Кнопки управления слева (смена камеры, фонарик)
+            Column(
                 modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .align(Alignment.BottomStart)
+                    .padding(start = 24.dp, bottom = 90.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Cameraswitch,
-                    contentDescription = "Сменить камеру",
-                    tint = Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            IconButton(
-                onClick = {
-                    isFlashOn = !isFlashOn
-                    cameraManager.toggleFlash()
-                },
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
-            ) {
-                Icon(
-                    imageVector = if (isFlashOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
-                    contentDescription = "Вспышка",
-                    tint = if (isFlashOn) FlameOrange else Color.White,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-        }
-
-        // Замочек блокировки записи сверху кнопки записи
-        if (!isLocked) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 28.dp, bottom = 90.dp)
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.6f))
-                    .clickable(onClick = lockAction),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Lock,
-                    contentDescription = "Заблокировать",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        }
-
-        // Нижняя плашка с таймером и кнопкой отмены
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(IslandBackground)
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
-                    .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+                IconButton(
+                    onClick = {
+                        isFrontCamera = !isFrontCamera
+                        cameraManager.switchCamera()
+                    },
                     modifier = Modifier
-                        .size(10.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color.Red.copy(alpha = pulseAlpha))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = timeLabel,
-                    color = Color.White,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = "ОТМЕНА",
-                    color = scheme.accent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { cancelAndCleanup() }
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                // Кнопка остановки и отправки
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .background(scheme.accent)
-                        .clickable { finishAndSend() },
-                    contentAlignment = Alignment.Center
+                        .background(Color.Black.copy(alpha = 0.6f))
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.Videocam,
-                        contentDescription = "Отправить кружочек",
+                        imageVector = Icons.Outlined.Cameraswitch,
+                        contentDescription = "Сменить камеру",
                         tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+                IconButton(
+                    onClick = {
+                        isFlashOn = !isFlashOn
+                        cameraManager.toggleFlash()
+                    },
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                ) {
+                    Icon(
+                        imageVector = if (isFlashOn) Icons.Outlined.FlashOn else Icons.Outlined.FlashOff,
+                        contentDescription = "Вспышка",
+                        tint = if (isFlashOn) FlameOrange else Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            // Нижняя плашка с таймером и кнопкой отмены / отправки
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(IslandBackground)
+                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(Color.Red.copy(alpha = pulseAlpha))
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = timeLabel,
+                        color = Color.White,
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "ОТМЕНА",
+                        color = scheme.accent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable { cancelAndCleanup() }
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    // Кнопка остановки и отправки
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(scheme.accent)
+                            .clickable { finishAndSend() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Videocam,
+                            contentDescription = "Отправить кружочек",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
         }

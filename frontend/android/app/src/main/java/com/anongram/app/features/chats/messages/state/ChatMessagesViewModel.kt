@@ -1119,7 +1119,7 @@ class ChatMessagesViewModel(
     }
 
     fun lockRecording() {
-        if (_uiState.value.recording.mode == RecordMode.VOICE) {
+        if (_uiState.value.recording.mode != RecordMode.NONE) {
             _uiState.update { s -> s.copy(recording = s.recording.copy(isLocked = true)) }
         }
     }
@@ -1129,12 +1129,15 @@ class ChatMessagesViewModel(
         finishRecording(send = false)
     }
 
-    /** Палец убран: незаблокированная голосовая уходит в чат, заблокированная ждёт. */
+    /** Палец убран: незаблокированная голосовая или кружочек уходит в чат, заблокированная ждёт. */
     fun endPress() {
         val recording = _uiState.value.recording
         when {
             recording.mode == RecordMode.VOICE && !recording.isLocked ->
                 finishRecording(send = true)
+
+            recording.mode == RecordMode.CIRCLE && !recording.isLocked ->
+                _uiState.update { s -> s.copy(recording = s.recording.copy(finishRequested = true)) }
         }
     }
 
