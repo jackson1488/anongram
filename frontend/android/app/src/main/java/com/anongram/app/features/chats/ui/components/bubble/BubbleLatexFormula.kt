@@ -102,7 +102,7 @@ fun BubbleLatexFormula(
                         .clickable {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("LaTeX Formula", formula))
-                            ChatActionBannerBus.show("Формула скопирована", Icons.Outlined.ContentCopy)
+                            ChatActionBannerBus.show(Icons.Outlined.ContentCopy) { it.bannerFormulaCopied }
                         }
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {

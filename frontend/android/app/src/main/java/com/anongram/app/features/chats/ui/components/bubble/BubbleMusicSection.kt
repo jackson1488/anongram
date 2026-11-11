@@ -414,10 +414,11 @@ internal fun ChatMusicItemRow(
                             scope.launch {
                                 val ok = saveMusicToDeviceMusic(context, music)
                                 ChatActionBannerBus.show(
-                                    text = if (ok) "Трек сохранён в Музыку: $displayTitle" else "Не удалось сохранить трек",
                                     icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
                                     isError = !ok
-                                )
+                                ) { s ->
+                                    if (ok) s.bannerSavedToMusicNamed(displayTitle) else s.bannerTrackSaveFailed
+                                }
                             }
                         }
                     )

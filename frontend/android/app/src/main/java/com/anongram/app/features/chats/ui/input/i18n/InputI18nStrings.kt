@@ -120,4 +120,43 @@ interface InputI18nStrings {
     val settingsLanguageSubtitle: String
     val activeLanguageBadge: String
     val close: String
+
+    // Кастомные баннеры уведомлений чата (ChatActionBanner)
+    val bannerCopiedToClipboard: String
+    val bannerFullTextCopied: String
+    val bannerCodeCopied: String
+    val bannerFormulaCopied: String
+    val bannerRecordPermissionRequired: String
+    val bannerFileSavedToDownloads: String
+    val bannerTrackSavedToMusic: String
+    val bannerSaveFailed: String
+    val bannerVideoCircleSavedToGallery: String
+    val bannerVideoCircleSaveFailed: String
+    val bannerVoiceSavedToDownloads: String
+    val bannerVoiceSaveFailed: String
+    val bannerVideoSavedToGallery: String
+    val bannerPhotoSavedToGallery: String
+    val bannerSavedToGallery: String
+    fun bannerAlbumSavedCount(count: Int): String
+    fun bannerAlbumSavedPartial(count: Int, total: Int): String
+    val bannerAlbumSaveFailed: String
+    val bannerFileSaveFailed: String
+    fun bannerFilesSavedPartial(saved: Int, total: Int): String
+    val bannerFilesSaveFailed: String
+    val bannerTrackSaveFailed: String
+    fun bannerTracksSavedPartial(saved: Int, total: Int): String
+    val bannerTracksSaveFailed: String
+    val bannerNothingToSave: String
+    val bannerShareVideoPrepareFailed: String
+    val bannerVoiceUnavailable: String
+    val bannerFileUnavailable: String
+    val bannerAudioUnavailable: String
+    fun bannerSavedToGalleryNamed(name: String): String
+    val bannerPhotoSaveFailed: String
+    fun bannerSavedToDownloadsNamed(name: String): String
+    fun bannerSavedToMusicNamed(title: String): String
+    fun bannerSavedNamed(title: String): String
+    fun bannerTrackSavedNamed(title: String): String
+    fun bannerOpeningFileNamed(name: String): String
+    fun bannerNoAppForFileNamed(name: String): String
 }

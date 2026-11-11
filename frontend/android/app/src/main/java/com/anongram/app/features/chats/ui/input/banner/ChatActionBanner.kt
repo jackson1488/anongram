@@ -42,6 +42,8 @@ import com.anongram.app.core.theme.CardDark
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.TextPrimary
+import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
+import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -49,15 +51,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 data class ChatActionBannerData(
     val id: Long,
-    val text: String,
+    val resolveText: (InputI18nStrings) -> String,
     val icon: ImageVector,
     val isError: Boolean = false
 )
 
 /**
- * Единая шина кастомных уведомлений чата (скопировано, сохранено в галерею/загрузки, скачано N фото).
- * Вынесена из ChatScreen в отдельный модуль ui/input/banner, чтобы все компоненты и модальные экраны
- * могли показывать кастомный баннер над полем ввода/клавиатурой без системных Toast.
+ * Единая шина локализованных кастомных уведомлений чата (i18n RU/EN через LocalInputStrings).
  */
 object ChatActionBannerBus {
     private val _state = MutableStateFlow<ChatActionBannerData?>(null)
@@ -68,9 +68,17 @@ object ChatActionBannerBus {
         icon: ImageVector = Icons.Outlined.CheckCircle,
         isError: Boolean = false
     ) {
+        show(icon = icon, isError = isError) { text }
+    }
+
+    fun show(
+        icon: ImageVector = Icons.Outlined.CheckCircle,
+        isError: Boolean = false,
+        resolveText: (InputI18nStrings) -> String
+    ) {
         _state.value = ChatActionBannerData(
             id = System.nanoTime(),
-            text = text,
+            resolveText = resolveText,
             icon = icon,
             isError = isError
         )
@@ -88,6 +96,7 @@ fun BoxScope.ChatActionBannerHost(
 ) {
     val banner by ChatActionBannerBus.state.collectAsState()
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
 
     LaunchedEffect(banner?.id) {
         if (banner != null) {
@@ -137,7 +146,7 @@ fun BoxScope.ChatActionBannerHost(
                         modifier = Modifier.size(19.dp)
                     )
                     Text(
-                        text = item.text,
+                        text = item.resolveText(strings),
                         color = TextPrimary,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.Medium

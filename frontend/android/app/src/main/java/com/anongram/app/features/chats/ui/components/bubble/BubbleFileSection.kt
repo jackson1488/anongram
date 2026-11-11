@@ -317,17 +317,19 @@ internal fun ChatFileItemRow(
                                 if (isImageFile && !file.uri.isNullOrBlank()) {
                                     val ok = savePhotoToDeviceGallery(context, file.uri)
                                     ChatActionBannerBus.show(
-                                        text = if (ok) "Сохранено в галерею: ${file.name}" else "Не удалось сохранить фото",
                                         icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
                                         isError = !ok
-                                    )
+                                    ) { s ->
+                                        if (ok) s.bannerSavedToGalleryNamed(file.name) else s.bannerPhotoSaveFailed
+                                    }
                                 } else {
                                     val ok = saveFileToDeviceDownloads(context, file)
                                     ChatActionBannerBus.show(
-                                        text = if (ok) "Сохранено в Загрузки: ${file.name}" else "Не удалось сохранить файл",
                                         icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
                                         isError = !ok
-                                    )
+                                    ) { s ->
+                                        if (ok) s.bannerSavedToDownloadsNamed(file.name) else s.bannerFileSaveFailed
+                                    }
                                 }
                             }
                         }

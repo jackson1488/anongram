@@ -5,34 +5,31 @@ import android.content.Intent
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.FileDownload
-import androidx.compose.ui.graphics.vector.ImageVector
 import com.anongram.app.features.chats.media.circle.VideoCircleExportHelper
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.ui.components.savePhotoToDeviceGallery
 import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
 
 /**
- * Вынесенные из ChatScreen.kt хелперы сохранения в галерею/загрузки и системного шеринга вложений.
+ * Хелперы сохранения в галерею/загрузки и системного шеринга вложений с локализованными баннерами (i18n).
  */
 suspend fun saveMessageMediaToDevice(
     context: Context,
     msg: ChatMessage,
-    subPhotoIdx: Int? = null,
-    onBanner: (text: String, icon: ImageVector, isError: Boolean) -> Unit = { text, icon, isError ->
-        ChatActionBannerBus.show(text, icon, isError)
-    }
+    subPhotoIdx: Int? = null
 ) {
     val att = msg.attachment
     var savedOk = false
-    val msgText = when (att) {
+    val resolveText: (InputI18nStrings) -> String = when (att) {
         is MessageAttachment.VideoCircle -> {
             savedOk = VideoCircleExportHelper.saveVideoCircleToGallery(context, att.uri)
-            if (savedOk) "Видео-кружок сохранён в галерею" else "Не удалось сохранить кружок"
+            { s -> if (savedOk) s.bannerVideoCircleSavedToGallery else s.bannerVideoCircleSaveFailed }
         }
         is MessageAttachment.Voice -> {
             savedOk = saveVoiceToDeviceDownloads(context, att)
-            if (savedOk) "Голосовое сохранено в Загрузки" else "Не удалось сохранить голосовое"
+            { s -> if (savedOk) s.bannerVoiceSavedToDownloads else s.bannerVoiceSaveFailed }
         }
         is MessageAttachment.Photo -> {
             val uri = att.uri
@@ -41,9 +38,11 @@ suspend fun saveMessageMediaToDevice(
                 att.isVideo -> saveVideoToDeviceGallery(context, uri)
                 else -> savePhotoToDeviceGallery(context, uri)
             }
-            if (savedOk) {
-                if (att.isVideo) "Видео сохранено в галерею" else "Фото сохранено в галерею"
-            } else "Не удалось сохранить"
+            { s ->
+                if (savedOk) {
+                    if (att.isVideo) s.bannerVideoSavedToGallery else s.bannerPhotoSavedToGallery
+                } else s.bannerSaveFailed
+            }
         }
         is MessageAttachment.MediaAlbum -> {
             if (subPhotoIdx != null) {
@@ -53,19 +52,22 @@ suspend fun saveMessageMediaToDevice(
                 } else {
                     savePhotoToDeviceGallery(context, item.uri)
                 }
-                if (savedOk) "Сохранено в галерею" else "Не удалось сохранить"
+                { s -> if (savedOk) s.bannerSavedToGallery else s.bannerSaveFailed }
             } else {
                 val count = saveMediaAlbumToGallery(context, att)
                 savedOk = count > 0
-                if (savedOk) {
-                    if (count == att.items.size) "Скачано $count фото в галерею"
-                    else "Скачано $count из ${att.items.size} в галерею"
-                } else "Не удалось сохранить альбом"
+                val total = att.items.size
+                { s ->
+                    if (savedOk) {
+                        if (count == total) s.bannerAlbumSavedCount(count)
+                        else s.bannerAlbumSavedPartial(count, total)
+                    } else s.bannerAlbumSaveFailed
+                }
             }
         }
         is MessageAttachment.File -> {
             savedOk = saveFileToDeviceDownloads(context, att)
-            if (savedOk) "Файл сохранён в Загрузки" else "Не удалось сохранить файл"
+            { s -> if (savedOk) s.bannerFileSavedToDownloads else s.bannerFileSaveFailed }
         }
         is MessageAttachment.FileGroup -> {
             var saved = 0
@@ -73,11 +75,12 @@ suspend fun saveMessageMediaToDevice(
                 if (saveFileToDeviceDownloads(context, f)) saved++
             }
             savedOk = saved > 0
-            if (savedOk) "Скачано файлов: $saved из ${att.items.size} в Загрузки" else "Не удалось сохранить файлы"
+            val total = att.items.size
+            { s -> if (savedOk) s.bannerFilesSavedPartial(saved, total) else s.bannerFilesSaveFailed }
         }
         is MessageAttachment.Music -> {
             savedOk = saveMusicToDeviceMusic(context, att)
-            if (savedOk) "Трек сохранён в Музыку" else "Не удалось сохранить трек"
+            { s -> if (savedOk) s.bannerTrackSavedToMusic else s.bannerTrackSaveFailed }
         }
         is MessageAttachment.MusicGroup -> {
             var saved = 0
@@ -85,29 +88,33 @@ suspend fun saveMessageMediaToDevice(
                 if (saveMusicToDeviceMusic(context, m)) saved++
             }
             savedOk = saved > 0
-            if (savedOk) "Сохранено треков: $saved из ${att.items.size}" else "Не удалось сохранить треки"
+            val total = att.items.size
+            { s -> if (savedOk) s.bannerTracksSavedPartial(saved, total) else s.bannerTracksSaveFailed }
         }
-        else -> "Нечего сохранять"
+        else -> {
+            { s -> s.bannerNothingToSave }
+        }
     }
-    onBanner(
-        msgText,
-        if (savedOk) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
-        !savedOk
+    ChatActionBannerBus.show(
+        icon = if (savedOk) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+        isError = !savedOk,
+        resolveText = resolveText
     )
 }
 
 suspend fun shareMessageMediaSystem(
     context: Context,
     msg: ChatMessage,
-    subPhotoIdx: Int? = null,
-    onError: (String) -> Unit = { errText ->
-        ChatActionBannerBus.show(errText, Icons.Outlined.ErrorOutline, isError = true)
-    }
+    subPhotoIdx: Int? = null
 ) {
     when (val att = msg.attachment) {
         is MessageAttachment.VideoCircle -> {
             val ok = VideoCircleExportHelper.shareVideoCircleSystemChooser(context, att.uri)
-            if (!ok) onError("Не удалось подготовить видео для отправки")
+            if (!ok) {
+                ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) {
+                    it.bannerShareVideoPrepareFailed
+                }
+            }
         }
         is MessageAttachment.Voice -> {
             val ok = shareMediaUriSystemChooser(
@@ -117,7 +124,11 @@ suspend fun shareMessageMediaSystem(
                 chooserTitle = "Поделиться голосовым",
                 suggestedFileName = "voice_${msg.id}.m4a"
             )
-            if (!ok) onError("Файл голосового недоступен")
+            if (!ok) {
+                ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) {
+                    it.bannerVoiceUnavailable
+                }
+            }
         }
         is MessageAttachment.Photo -> {
             val ok = shareMediaUriSystemChooser(
@@ -126,7 +137,11 @@ suspend fun shareMessageMediaSystem(
                 mimeType = if (att.isVideo) "video/mp4" else "image/jpeg",
                 chooserTitle = if (att.isVideo) "Поделиться видео" else "Поделиться фото"
             )
-            if (!ok) onError("Файл недоступен")
+            if (!ok) {
+                ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) {
+                    it.bannerFileUnavailable
+                }
+            }
         }
         is MessageAttachment.MediaAlbum -> {
             val item = subPhotoIdx?.let { att.items.getOrNull(it) } ?: att.items.firstOrNull()
@@ -138,7 +153,11 @@ suspend fun shareMessageMediaSystem(
                     chooserTitle = "Поделиться"
                 )
             } else false
-            if (!ok) onError("Файл недоступен")
+            if (!ok) {
+                ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) {
+                    it.bannerFileUnavailable
+                }
+            }
         }
         is MessageAttachment.File -> {
             val ok = shareMediaUriSystemChooser(
@@ -148,7 +167,11 @@ suspend fun shareMessageMediaSystem(
                 chooserTitle = att.name,
                 suggestedFileName = att.name
             )
-            if (!ok) onError("Файл недоступен")
+            if (!ok) {
+                ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) {
+                    it.bannerFileUnavailable
+                }
+            }
         }
         is MessageAttachment.Music -> {
             val ok = shareMediaUriSystemChooser(
@@ -157,7 +180,11 @@ suspend fun shareMessageMediaSystem(
                 mimeType = "audio/*",
                 chooserTitle = "${att.artist} - ${att.title}"
             )
-            if (!ok) onError("Аудио недоступно")
+            if (!ok) {
+                ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) {
+                    it.bannerAudioUnavailable
+                }
+            }
         }
         else -> {
             val shareIntent = Intent(Intent.ACTION_SEND).apply {

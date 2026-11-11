@@ -111,7 +111,7 @@ fun MessageFullTextViewerModal(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         clipboard.setPrimaryClip(ClipData.newPlainText("message", message.text))
-                        ChatActionBannerBus.show("Весь текст скопирован", Icons.Outlined.ContentCopy)
+                        ChatActionBannerBus.show(Icons.Outlined.ContentCopy) { it.bannerFullTextCopied }
                     },
                     modifier = Modifier.size(36.dp)
                 ) {

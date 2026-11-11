@@ -569,10 +569,11 @@ internal fun ChatMediaFullscreenViewer(
                                         scope.launch {
                                             val ok = savePhotoToDeviceGallery(context, currentUriString)
                                             ChatActionBannerBus.show(
-                                                text = if (ok) "Сохранено в галерею" else "Не удалось сохранить фото",
                                                 icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
                                                 isError = !ok
-                                            )
+                                            ) { s ->
+                                                if (ok) s.bannerSavedToGallery else s.bannerPhotoSaveFailed
+                                            }
                                         }
                                     }
                                 )

@@ -264,9 +264,8 @@ fun MusicFullScreenPlayer(
                             onClick = {
                                 isMenuOpen = false
                                 ChatActionBannerBus.show(
-                                    "Трек сохранён: ${currentTrack.title}",
                                     androidx.compose.material.icons.Icons.Outlined.FileDownload
-                                )
+                                ) { it.bannerTrackSavedNamed(currentTrack.title) }
                             }
                         )
                         DropdownMenuItem(
@@ -621,9 +620,8 @@ fun MusicFullScreenPlayer(
                                 onPlay = { ctrl.play(state.queue, track) },
                                 onSave = {
                                     ChatActionBannerBus.show(
-                                        "Сохранено: ${track.title}",
                                         androidx.compose.material.icons.Icons.Outlined.FileDownload
-                                    )
+                                    ) { it.bannerSavedNamed(track.title) }
                                 },
                                 onForward = {
                                     closeAnimated()

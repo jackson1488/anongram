@@ -99,7 +99,7 @@ fun BubbleCodeBlock(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                             clipboard.setPrimaryClip(ClipData.newPlainText("code", codeText))
-                            ChatActionBannerBus.show("Код скопирован", Icons.Outlined.ContentCopy)
+                            ChatActionBannerBus.show(Icons.Outlined.ContentCopy) { it.bannerCodeCopied }
                         },
                         modifier = Modifier.size(24.dp)
                     ) {

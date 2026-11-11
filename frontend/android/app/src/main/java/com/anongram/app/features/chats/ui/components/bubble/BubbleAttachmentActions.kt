@@ -70,10 +70,10 @@ internal fun openFileInSystemViewer(context: Context, file: MessageAttachment.Fi
             }
             context.startActivity(chooser)
         } else {
-            ChatActionBannerBus.show("Открытие файла: ${file.name}", Icons.Outlined.Description)
+            ChatActionBannerBus.show(Icons.Outlined.Description) { it.bannerOpeningFileNamed(file.name) }
         }
     }.onFailure {
-        ChatActionBannerBus.show("Нет приложения для открытия ${file.name}", Icons.Outlined.ErrorOutline, isError = true)
+        ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) { it.bannerNoAppForFileNamed(file.name) }
     }
 }
 

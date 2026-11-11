@@ -198,7 +198,9 @@ fun ChatScreen(
         } else if (mode == RecordMode.CIRCLE && audioGranted && cameraGranted) {
             viewModel.startRecording(RecordMode.CIRCLE, context)
         } else {
-            ChatActionBannerBus.show("Требуется разрешение для записи", Icons.Outlined.ErrorOutline, isError = true)
+            ChatActionBannerBus.show(Icons.Outlined.ErrorOutline, isError = true) {
+                it.bannerRecordPermissionRequired
+            }
         }
     }
 
@@ -767,7 +769,7 @@ fun ChatScreen(
                                     when (state.editing?.attachment) {
                                         is MessageAttachment.Voice -> viewModel.openVoiceEditTrim()
                                         is MessageAttachment.VideoCircle -> viewModel.openVideoEditTrim()
-                                        else -> ChatActionBannerBus.show("Редактирование фото")
+                                        else -> ChatActionBannerBus.show { it.editPhoto }
                                     }
                                 },
                                 onReplyClick = { replyMsg ->
@@ -969,7 +971,6 @@ fun ChatScreen(
                 isMusicSheetOpen = true
                 audioController.openSheet()
             },
-            onShowBanner = { text, icon, isError -> ChatActionBannerBus.show(text, icon, isError) },
             modifier = Modifier
                 .zIndex(1f)
                 .align(Alignment.TopCenter)
@@ -1239,7 +1240,7 @@ fun ChatScreen(
                     }
                     clipboard.setText(AnnotatedString(copyText))
                     viewModel.closeActionMenu()
-                    ChatActionBannerBus.show("Скопировано в буфер обмена", Icons.Outlined.ContentCopy)
+                    ChatActionBannerBus.show(Icons.Outlined.ContentCopy) { it.bannerCopiedToClipboard }
                 },
                 onSave = {
                     viewModel.closeActionMenu()
@@ -1711,7 +1712,6 @@ private fun ChatFloatingTopHeader(
     onCycleWallpaper: () -> Unit,
     onStartForward: (List<String>) -> Unit,
     onOpenMusicSheet: () -> Unit,
-    onShowBanner: (text: String, icon: ImageVector, isError: Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -1739,7 +1739,7 @@ private fun ChatFloatingTopHeader(
                         val combined = state.selectedMessages.joinToString("\n") { it.text }
                         clipboard.setText(AnnotatedString(combined))
                         viewModel.clearSelection()
-                        onShowBanner("Скопировано в буфер обмена", Icons.Outlined.ContentCopy, false)
+                        ChatActionBannerBus.show(Icons.Outlined.ContentCopy) { it.bannerCopiedToClipboard }
                     },
                     onBrushEdit = {
                         val openKeyboard = !state.isSingleSelectedVideoCircle && !state.isSingleSelectedVoice
@@ -1762,22 +1762,24 @@ private fun ChatFloatingTopHeader(
                         when {
                             file != null -> scope.launch {
                                 val ok = saveFileToDeviceDownloads(context, file)
-                                onShowBanner(
-                                    if (ok) "Файл сохранён в Загрузки" else "Не удалось сохранить",
-                                    if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
-                                    !ok
-                                )
+                                ChatActionBannerBus.show(
+                                    icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                    isError = !ok
+                                ) { s ->
+                                    if (ok) s.bannerFileSavedToDownloads else s.bannerSaveFailed
+                                }
                             }
                             music != null -> scope.launch {
                                 val ok = saveMusicToDeviceMusic(context, music)
-                                onShowBanner(
-                                    if (ok) "Трек сохранён в Музыку" else "Не удалось сохранить",
-                                    if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
-                                    !ok
-                                )
+                                ChatActionBannerBus.show(
+                                    icon = if (ok) Icons.Outlined.FileDownload else Icons.Outlined.ErrorOutline,
+                                    isError = !ok
+                                ) { s ->
+                                    if (ok) s.bannerTrackSavedToMusic else s.bannerSaveFailed
+                                }
                             }
                             targetMsg != null -> scope.launch {
-                                saveMessageMediaToDevice(context, targetMsg, subPhotoIdx, onShowBanner)
+                                saveMessageMediaToDevice(context, targetMsg, subPhotoIdx)
                             }
                         }
                     },
@@ -1791,9 +1793,7 @@ private fun ChatFloatingTopHeader(
                         viewModel.clearSelection()
                         if (targetMsg != null) {
                             scope.launch {
-                                shareMessageMediaSystem(context, targetMsg, subPhotoIdx) { errText ->
-                                    onShowBanner(errText, Icons.Outlined.ErrorOutline, true)
-                                }
+                                shareMessageMediaSystem(context, targetMsg, subPhotoIdx)
                             }
                         }
                     },

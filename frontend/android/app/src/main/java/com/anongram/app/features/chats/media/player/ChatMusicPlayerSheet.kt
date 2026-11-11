@@ -235,7 +235,7 @@ fun ChatMusicPlayerSheet(
                                 accent = scheme.accent,
                                 onPlay = { ctrl.play(state.queue, track) },
                                 onSave = {
-                                    ChatActionBannerBus.show("Сохранено: ${track.title}", Icons.Outlined.FileDownload)
+                                    ChatActionBannerBus.show(Icons.Outlined.FileDownload) { it.bannerSavedNamed(track.title) }
                                 },
                                 onForward = {
                                     dismissAnimated()
