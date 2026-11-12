@@ -92,17 +92,6 @@ fun LocationTab(
         hasPermission = PermissionUtils.hasLocationPermission(context)
     }
 
-    if (!hasPermission) {
-        PermissionDeniedView(
-            message = strings.locationPermissionDesc,
-            onRequestPermission = {
-                launcher.launch(PermissionUtils.getLocationPermissions())
-            },
-            modifier = modifier
-        )
-        return
-    }
-
     var pinLat by remember { mutableDoubleStateOf(42.8746) }
     var pinLon by remember { mutableDoubleStateOf(74.5698) }
     var userLat by remember { mutableStateOf<Double?>(null) }
@@ -303,6 +292,10 @@ fun LocationTab(
                     .background(scheme.islandBg.copy(alpha = 0.95f))
                     .border(1.dp, scheme.islandBorder, CircleShape)
                     .clickable {
+                        if (!hasPermission) {
+                            launcher.launch(PermissionUtils.getLocationPermissions())
+                            return@clickable
+                        }
                         val lm = context.getSystemService(Context.LOCATION_SERVICE) as? LocationManager
                         try {
                             val loc = lm?.getLastKnownLocation(LocationManager.GPS_PROVIDER)

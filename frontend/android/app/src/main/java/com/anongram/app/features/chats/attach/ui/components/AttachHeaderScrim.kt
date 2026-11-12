@@ -34,8 +34,8 @@ fun AttachHeaderScrim(
             .height(scrimHeight)
             .background(
                 Brush.verticalGradient(
-                    0.0f to scheme.surface.copy(alpha = 0.96f * alpha),
-                    0.65f to scheme.surface.copy(alpha = 0.82f * alpha),
+                    0.0f to scheme.background.copy(alpha = 0.58f * alpha),
+                    0.65f to scheme.background.copy(alpha = 0.25f * alpha),
                     1.0f to Color.Transparent
                 )
             )

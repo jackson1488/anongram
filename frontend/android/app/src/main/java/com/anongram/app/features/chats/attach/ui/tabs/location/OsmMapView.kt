@@ -52,6 +52,7 @@ fun OsmMapView(
     val mapView = remember {
         MapView(context).apply {
             setMultiTouchControls(true)
+            isTilesScaledToDpi = true
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             minZoomLevel = 3.0
             maxZoomLevel = 20.0

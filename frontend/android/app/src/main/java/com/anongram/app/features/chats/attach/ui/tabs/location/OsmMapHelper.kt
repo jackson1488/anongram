@@ -70,6 +70,19 @@ object OsmMapHelper {
         }
     }
 
+    val CARTO_VOYAGER_SOURCE: OnlineTileSourceBase = XYTileSource(
+        "CartoVoyager",
+        0,
+        19,
+        256,
+        ".png",
+        arrayOf(
+            "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
+            "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
+            "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
+        )
+    )
+
     val DARK_MATTER_SOURCE: OnlineTileSourceBase = XYTileSource(
         "CartoDarkMatter",
         0,
@@ -101,8 +114,8 @@ object OsmMapHelper {
 
     fun resolveTileSource(mode: MapLayerMode, isDarkTheme: Boolean): OnlineTileSourceBase {
         return when (mode) {
-            MapLayerMode.AUTO -> if (isDarkTheme) DARK_MATTER_SOURCE else TileSourceFactory.MAPNIK
-            MapLayerMode.STANDARD -> TileSourceFactory.MAPNIK
+            MapLayerMode.AUTO -> if (isDarkTheme) DARK_MATTER_SOURCE else CARTO_VOYAGER_SOURCE
+            MapLayerMode.STANDARD -> CARTO_VOYAGER_SOURCE
             MapLayerMode.DARK -> DARK_MATTER_SOURCE
             MapLayerMode.SATELLITE -> ESRI_SATELLITE_SOURCE
         }
@@ -318,7 +331,7 @@ object OsmMapHelper {
                 val urlStr = if (isDark) {
                     "https://a.basemaps.cartocdn.com/dark_all/$zoom/$tileX/$tileY.png"
                 } else {
-                    "https://tile.openstreetmap.org/$zoom/$tileX/$tileY.png"
+                    "https://a.basemaps.cartocdn.com/rastertiles/voyager/$zoom/$tileX/$tileY.png"
                 }
                 val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 4500

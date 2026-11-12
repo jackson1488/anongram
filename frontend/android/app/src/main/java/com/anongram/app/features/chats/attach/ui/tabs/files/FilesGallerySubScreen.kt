@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
 import com.anongram.app.features.chats.attach.ui.components.AttachHeaderScrim
 import com.anongram.app.features.chats.attach.ui.components.GalleryGridSkeleton
@@ -136,13 +137,15 @@ fun FilesGallerySubScreen(
                 indication = null
             ) { /* отдельный экран, не пробрасывает жесты на шторку */ }
     ) {
+        val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
         if (isLoadingMedia) {
             GalleryGridSkeleton(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(1f)
                     .padding(horizontal = 4.dp),
-                contentPadding = PaddingValues(top = 72.dp, bottom = 84.dp)
+                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 96.dp)
             )
         } else if (mediaList.isEmpty()) {
             Box(
@@ -164,7 +167,7 @@ fun FilesGallerySubScreen(
                     .fillMaxSize()
                     .zIndex(1f)
                     .padding(horizontal = 4.dp),
-                contentPadding = PaddingValues(top = 72.dp, bottom = 84.dp),
+                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 96.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
@@ -182,7 +185,7 @@ fun FilesGallerySubScreen(
                     .fillMaxSize()
                     .zIndex(1f)
                     .padding(horizontal = 14.dp),
-                contentPadding = PaddingValues(top = 72.dp, bottom = 140.dp)
+                contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 140.dp)
             ) {
                 items(mediaList, key = { it.uri.toString() }) { media ->
                     FilesGalleryListItem(
@@ -283,6 +286,7 @@ fun FilesGallerySubScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .safeStatusBarPadding()
                     .padding(horizontal = 8.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

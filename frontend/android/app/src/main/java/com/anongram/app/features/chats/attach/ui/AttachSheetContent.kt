@@ -1064,13 +1064,8 @@ fun AttachSheetContent(
                 visible = !isSingleReplaceMode,
                 modifier = Modifier.graphicsLayer {
                     val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
-                    val topNavP = if (selectedTab == AttachTab.LOCATION) {
-                        0f
-                    } else {
-                        ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
-                    }
-                    alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavP)
-                    translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavP)
+                    alpha = if (isCardOrSelectionOpen) 0f else 1f
+                    translationY = if (isCardOrSelectionOpen) 200f else 0f
                 }
             )
 
