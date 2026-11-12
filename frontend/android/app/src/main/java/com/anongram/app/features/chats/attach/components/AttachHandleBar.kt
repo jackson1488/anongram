@@ -34,7 +34,7 @@ fun AttachHandleBar(
                 .width(36.dp)
                 .height(4.dp)
                 .clip(CircleShape)
-                .background(scheme.textMuted.copy(alpha = 0.38f))
+                .background(scheme.textMuted.copy(alpha = 0.45f))
         )
     }
 }

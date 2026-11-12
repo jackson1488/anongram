@@ -63,7 +63,10 @@ import com.anongram.app.features.chats.messages.domain.timeLabel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -968,6 +971,18 @@ internal fun ChatVideoCircleSection(
         Box(
             modifier = Modifier
                 .size(currentSize)
+                .graphicsLayer {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                    clip = true
+                    shape = CircleShape
+                }
+                .drawWithContent {
+                    drawContent()
+                    drawCircle(
+                        color = Color.Black,
+                        blendMode = BlendMode.DstIn
+                    )
+                }
                 .clip(CircleShape)
                 .background(scheme.surface)
                 .border(
@@ -986,18 +1001,7 @@ internal fun ChatVideoCircleSection(
                                 currentOnSelect()
                             } else if (insideCircle) {
                                 if (!currentExpanded) {
-                                    val st = surfaceTextureRef
-                                    if (st != null) {
-                                        circleScope.launch {
-                                            releaseMutedPreviewSync()
-                                            val pSurf = android.view.Surface(st)
-                                            playSurfaceRef = pSurf
-                                            audioController.attachVideoSurface(circleTrackId, pSurf)
-                                            currentOnPlay()
-                                        }
-                                    } else {
-                                        currentOnPlay()
-                                    }
+                                    currentOnPlay()
                                 } else if (!currentDragging) {
                                     audioController.togglePlayPause()
                                 }

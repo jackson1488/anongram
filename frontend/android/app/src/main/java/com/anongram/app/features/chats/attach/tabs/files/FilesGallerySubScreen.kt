@@ -53,7 +53,9 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,8 +74,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.chats.attach.i18n.AttachI18n
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
 import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
 import com.anongram.app.features.chats.attach.components.GalleryGridSkeleton
@@ -99,6 +103,8 @@ fun FilesGallerySubScreen(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val appLanguage by LanguageSettingsStore.language.collectAsState()
+    val strings = remember(appLanguage) { AttachI18n.forLanguage(appLanguage) }
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("anongram_attach_prefs", Context.MODE_PRIVATE) }
     var isGridMode by remember {
@@ -302,7 +308,7 @@ fun FilesGallerySubScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = LocalAttachStrings.current.back,
+                        contentDescription = strings.back,
                         tint = scheme.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
@@ -322,7 +328,7 @@ fun FilesGallerySubScreen(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
-                        text = LocalAttachStrings.current.allMedia,
+                        text = strings.allMedia,
                         color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -339,7 +345,6 @@ fun FilesGallerySubScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     var menuExpanded by remember { mutableStateOf(false) }
-                    val strings = LocalAttachStrings.current
 
                     Box(
                         modifier = Modifier

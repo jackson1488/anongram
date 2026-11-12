@@ -653,6 +653,7 @@ fun AttachSheetContent(
                 val handleHeight = when {
                     isGalleryWithSelection -> 44.dp
                     isFull -> 0.dp
+                    selectedTab == AttachTab.LOCATION -> 28.dp
                     else -> 18.dp
                 }
                 if (handleHeight > 0.dp) {
@@ -900,15 +901,21 @@ fun AttachSheetContent(
             }
         }
 
-        // 4. Плавающая шапка с блюр-скримом для Галереи и Геопозиции
-        val showTopBar = (selectedTab == AttachTab.LOCATION || selectedTab == AttachTab.GALLERY) && (offsetPx <= H * 0.05f)
+        // 4. Плавающая шапка с блюр-скримом для Галереи (95%) и Геопозиции (с 80%)
+        val topBarThreshold = if (selectedTab == AttachTab.LOCATION) H * 0.20f else H * 0.05f
+        val showTopBar = (selectedTab == AttachTab.LOCATION || selectedTab == AttachTab.GALLERY) && (offsetPx <= topBarThreshold)
         if (showTopBar) {
+            val topBarAlpha = if (selectedTab == AttachTab.LOCATION) {
+                ((H * 0.20f - offsetPx) / (H * 0.12f)).coerceIn(0f, 1f)
+            } else {
+                ((H * 0.05f - offsetPx) / (H * 0.05f)).coerceIn(0f, 1f)
+            }
             AttachHeaderScrim(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .zIndex(9f)
                     .graphicsLayer {
-                        alpha = ((H * 0.05f - offsetPx) / (H * 0.05f)).coerceIn(0f, 1f)
+                        alpha = topBarAlpha
                     }
             )
             AttachTopBar(
@@ -1049,9 +1056,8 @@ fun AttachSheetContent(
                     .safeStatusBarPadding()
                     .zIndex(10f)
                     .graphicsLayer {
-                        val p = ((H * 0.05f - offsetPx) / (H * 0.05f)).coerceIn(0f, 1f)
-                        alpha = p
-                        translationY = -8.dp.toPx() * (1f - p)
+                        alpha = topBarAlpha
+                        translationY = -8.dp.toPx() * (1f - topBarAlpha)
                     }
             )
         }
