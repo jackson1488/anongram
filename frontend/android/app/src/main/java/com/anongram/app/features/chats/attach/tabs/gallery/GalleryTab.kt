@@ -96,6 +96,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,6 +117,7 @@ import com.anongram.app.features.chats.attach.components.PartialAccessBanner
 import com.anongram.app.features.chats.attach.components.PermissionDeniedView
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 import androidx.compose.runtime.Immutable
@@ -402,7 +404,7 @@ fun GalleryTab(
                             visible = showFastThumb || isDraggingThumb,
                             isDragging = isDraggingThumb,
                             onDraggingChange = { isDraggingThumb = it },
-                            dateFormatter = strings.monthYearFormatter,
+                            dateFormatter = LocalAttachStrings.current.monthYearFormatter,
                             onScrollToIndex = { targetIdx ->
                                 fastScrollScope.launch {
                                     gridState.scrollToItem(targetIdx)
