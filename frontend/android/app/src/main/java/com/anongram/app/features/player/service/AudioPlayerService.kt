@@ -22,6 +22,8 @@ import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import com.anongram.app.MainActivity
 import com.anongram.app.R
+import com.anongram.app.core.i18n.AppLanguage
+import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.features.auth.data.crypto.KeystoreVault
 import com.anongram.app.features.chats.media.player.AudioMetadataHelper
 import com.anongram.app.features.chats.media.player.ChatAudioController
@@ -123,10 +125,11 @@ class AudioPlayerService : Service() {
         }
         val state = chatController.state.value
         val track = state.currentTrack
+        val isEn = LanguageSettingsStore.language.value == AppLanguage.EN
         if (track != null && !(track.isVoice && !state.isPlaying && !state.isVisible)) {
             syncState(state, forceNotify = true)
         } else {
-            val notification = buildNotification(state, "AnonGram", "Плеер", null)
+            val notification = buildNotification(state, "AnonGram", if (isEn) "Player" else "Плеер", null)
             startForeground(NOTIFICATION_ID, notification)
             stopForeground(STOP_FOREGROUND_REMOVE)
             stopSelf()
@@ -137,6 +140,7 @@ class AudioPlayerService : Service() {
     private fun syncState(state: ChatPlayerState, forceNotify: Boolean = false) {
         val track = state.currentTrack ?: return
         val isVoice = track.isVoice
+        val isEn = LanguageSettingsStore.language.value == AppLanguage.EN
 
         val isOut = track.isOutgoing || track.title == "Вы"
         val identity = if (isVoice && isOut) {
@@ -147,16 +151,18 @@ class AudioPlayerService : Service() {
             if (isOut) {
                 identity?.nickname?.takeIf { it.isNotBlank() } ?: "AnonGram"
             } else {
-                track.chatTitle.ifBlank { track.title.ifBlank { "Голосовое сообщение" } }
+                track.chatTitle.ifBlank {
+                    track.title.ifBlank { if (isEn) "Voice message" else "Голосовое сообщение" }
+                }
             }
         } else {
             track.title.ifBlank { "AnonGram Music" }
         }
 
         val artist = if (track.isVideoCircle) {
-            "Видеосообщение • ${track.durationLabel}"
+            if (isEn) "Video message • ${track.durationLabel}" else "Видеосообщение • ${track.durationLabel}"
         } else if (isVoice) {
-            "Голосовое сообщение • ${track.durationLabel}"
+            if (isEn) "Voice message • ${track.durationLabel}" else "Голосовое сообщение • ${track.durationLabel}"
         } else {
             track.artist.ifBlank { "AnonGram Player" }
         }
@@ -219,6 +225,7 @@ class AudioPlayerService : Service() {
         largeIcon: Bitmap?
     ): Notification {
         val isVoice = state.currentTrack?.isVoice == true
+        val isEn = LanguageSettingsStore.language.value == AppLanguage.EN
 
         val openAppIntent = PendingIntent.getActivity(
             this,
@@ -248,9 +255,12 @@ class AudioPlayerService : Service() {
             builder.setLargeIcon(largeIcon)
         }
 
+        val pauseLabel = if (isEn) "Pause" else "Пауза"
+        val playLabel = if (isEn) "Play" else "Слушать"
+
         if (isVoice) {
             // Для голосовых сообщений: только кнопка воспроизведения/паузы, без стрелок переключения треков
-            builder.addAction(playPauseIcon, if (state.isPlaying) "Пауза" else "Слушать", togglePending)
+            builder.addAction(playPauseIcon, if (state.isPlaying) pauseLabel else playLabel, togglePending)
             builder.setStyle(
                 MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)
@@ -260,9 +270,9 @@ class AudioPlayerService : Service() {
             // Для музыки: Предыдущий, Play/Pause, Следующий
             val prevPending = actionIntent(ACTION_PREV, 1)
             val nextPending = actionIntent(ACTION_NEXT, 3)
-            builder.addAction(android.R.drawable.ic_media_previous, "Предыдущий", prevPending)
-            builder.addAction(playPauseIcon, if (state.isPlaying) "Пауза" else "Слушать", togglePending)
-            builder.addAction(android.R.drawable.ic_media_next, "Следующий", nextPending)
+            builder.addAction(android.R.drawable.ic_media_previous, if (isEn) "Previous" else "Предыдущий", prevPending)
+            builder.addAction(playPauseIcon, if (state.isPlaying) pauseLabel else playLabel, togglePending)
+            builder.addAction(android.R.drawable.ic_media_next, if (isEn) "Next" else "Следующий", nextPending)
             builder.setStyle(
                 MediaStyle()
                     .setMediaSession(mediaSession?.sessionToken)

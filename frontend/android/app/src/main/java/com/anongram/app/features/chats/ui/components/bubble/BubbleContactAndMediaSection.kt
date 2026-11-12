@@ -685,7 +685,7 @@ private fun applyVideoCircleCenterCrop(
         scaleY = viewAspect / videoAspect
     }
     val matrix = android.graphics.Matrix()
-    matrix.setScale(scaleX, scaleY, viewW / 2f, viewH / 2f)
+    matrix.setScale(scaleX * 1.03f, scaleY * 1.03f, viewW / 2f, viewH / 2f)
     textureView.setTransform(matrix)
 }
 
@@ -1065,7 +1065,7 @@ internal fun ChatVideoCircleSection(
                                 override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
                                     val s = minOf(view.width, view.height)
                                     if (s > 0) {
-                                        outline.setOval(0, 0, s, s)
+                                        outline.setOval(-2, -2, view.width + 2, view.height + 2)
                                     }
                                 }
                             }
