@@ -27,7 +27,7 @@ fun AttachHeaderScrim(
 ) {
     val scheme = LocalAnonGramScheme.current
     val statusBarTop = if (includeStatusBar) WindowInsets.statusBars.asPaddingValues().calculateTopPadding() else 0.dp
-    val scrimHeight = statusBarTop + 68.dp
+    val scrimHeight = statusBarTop + 82.dp
 
     Box(
         modifier = modifier
@@ -35,8 +35,9 @@ fun AttachHeaderScrim(
             .height(scrimHeight)
             .background(
                 Brush.verticalGradient(
-                    0.0f to scheme.background.copy(alpha = 0.58f * alpha),
-                    0.65f to scheme.background.copy(alpha = 0.25f * alpha),
+                    0.0f to scheme.surface.copy(alpha = 0.90f * alpha),
+                    0.55f to scheme.surface.copy(alpha = 0.55f * alpha),
+                    0.82f to scheme.surface.copy(alpha = 0.18f * alpha),
                     1.0f to Color.Transparent
                 )
             )

@@ -239,12 +239,7 @@ fun GalleryTab(
                 )
             }
 
-            val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val topGridPadding by animateDpAsState(
-                targetValue = if (isFullscreen) statusBarTopDp + 64.dp else 12.dp,
-                animationSpec = tween(durationMillis = 220),
-                label = "galleryTopGridPadding"
-            )
+            val topGridPadding = 12.dp
 
             val openViewerHelper: (Int) -> Unit = { index ->
                 if (onOpenViewer != null) {
