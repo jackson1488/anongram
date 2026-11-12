@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.components
+package com.anongram.app.features.chats.ui.attach.ui.components
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -91,9 +91,10 @@ import androidx.compose.ui.zIndex
 import kotlin.math.roundToInt
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
-import com.anongram.app.features.attach.ui.tabs.GalleryMedia
-import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
-import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
+import com.anongram.app.features.chats.ui.attach.ui.tabs.GalleryMedia
+import com.anongram.app.features.chats.ui.attach.ui.tabs.loadMediaThumbnail
+import com.anongram.app.features.chats.ui.attach.ui.tabs.loadHdBitmap
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -125,6 +126,7 @@ fun PreviewOrderScreen(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
     val context = LocalContext.current
     val orderedList = remember { mutableStateListOf<GalleryMedia>().apply { addAll(initialMediaList) } }
     var isMenuOpen by remember { mutableStateOf(false) }
@@ -366,13 +368,13 @@ fun PreviewOrderScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Назад",
+                                contentDescription = strings.back,
                                 tint = scheme.textPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Предпросмотр",
+                                text = strings.preview,
                                 color = scheme.textPrimary,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -386,7 +388,7 @@ fun PreviewOrderScreen(
                             IconButton(onClick = { isMenuOpen = true }) {
                                 Icon(
                                     imageVector = Icons.Outlined.MoreVert,
-                                    contentDescription = "Опции",
+                                    contentDescription = strings.options,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -402,7 +404,7 @@ fun PreviewOrderScreen(
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            text = "Отправить без сжатия",
+                                            text = strings.sendWithoutCompression,
                                             color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
@@ -425,7 +427,7 @@ fun PreviewOrderScreen(
                                     DropdownMenuItem(
                                         text = {
                                             Text(
-                                                text = "Отправить без группировки",
+                                                text = strings.sendWithoutGrouping,
                                                 color = scheme.textPrimary,
                                                 fontSize = 14.5.sp
                                             )
@@ -449,7 +451,7 @@ fun PreviewOrderScreen(
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            text = if (allHaveSpoiler) "Отменить спойлер" else "Скрыть под спойлер",
+                                            text = if (allHaveSpoiler) strings.removeSpoiler else strings.hideUnderSpoiler,
                                             color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
@@ -471,7 +473,7 @@ fun PreviewOrderScreen(
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            text = "Отправить в HD-качестве",
+                                            text = strings.sendInHd,
                                             color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
@@ -593,7 +595,7 @@ fun PreviewOrderScreen(
                                         .padding(horizontal = 16.dp, vertical = 6.dp)
                                 ) {
                                     Text(
-                                        text = "Перетащите для изменения порядка",
+                                        text = strings.dragToReorder,
                                         color = scheme.textPrimary,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Medium
@@ -699,7 +701,7 @@ fun PreviewOrderScreen(
                 },
                 title = {
                     Text(
-                        text = "Сбросить выбор?",
+                        text = strings.discardSelectionTitle,
                         color = scheme.textPrimary,
                         fontWeight = FontWeight.Bold,
                         fontSize = 17.sp
@@ -707,7 +709,7 @@ fun PreviewOrderScreen(
                 },
                 text = {
                     Text(
-                        text = "Вы действительно хотите сбросить выбор фотографий?",
+                        text = strings.discardPhotoSelectionMessage,
                         color = scheme.textSecondary,
                         fontSize = 14.sp
                     )
@@ -720,7 +722,7 @@ fun PreviewOrderScreen(
                             onDismissAll()
                         }
                     ) {
-                        Text("Сбросить", color = Color(0xFFFF5252), fontWeight = FontWeight.SemiBold)
+                        Text(strings.discardConfirm, color = Color(0xFFFF5252), fontWeight = FontWeight.SemiBold)
                     }
                 },
                 dismissButton = {
@@ -731,7 +733,7 @@ fun PreviewOrderScreen(
                             onOffsetChange(previewOffsetPx)
                         }
                     ) {
-                        Text("Отмена", color = scheme.textPrimary)
+                        Text(strings.cancel, color = scheme.textPrimary)
                     }
                 },
                 containerColor = scheme.card,
@@ -775,7 +777,7 @@ fun PreviewOrderScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = strings.back,
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )

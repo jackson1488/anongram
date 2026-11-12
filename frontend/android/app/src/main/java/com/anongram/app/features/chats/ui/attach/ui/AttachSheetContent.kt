@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui
+package com.anongram.app.features.chats.ui.attach.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -80,7 +80,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import com.anongram.app.core.ui.safeStatusBarPadding
-import com.anongram.app.features.attach.ui.components.PreviewOrderScreen
+import com.anongram.app.features.chats.ui.attach.ui.components.AttachDiscardDialog
+import com.anongram.app.features.chats.ui.attach.ui.components.GallerySelectionBar
+import com.anongram.app.features.chats.ui.attach.ui.components.GallerySelectionOptionsMenu
+import com.anongram.app.features.chats.ui.attach.ui.components.PreviewOrderScreen
+import com.anongram.app.features.chats.ui.attach.ui.components.getGallerySelectionTitle
 import android.app.Activity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.runtime.snapshotFlow
@@ -97,6 +101,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -123,21 +128,21 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.mutableStateListOf
-import com.anongram.app.features.attach.api.AttachmentDraft
-import com.anongram.app.features.attach.ui.components.AttachInputBar
-import com.anongram.app.features.attach.ui.components.AttachTabBar
-import com.anongram.app.features.attach.ui.components.AttachTopBar
-import com.anongram.app.features.attach.ui.tabs.ContactQuickCardSheet
+import com.anongram.app.features.chats.ui.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.ui.components.AttachInputBar
+import com.anongram.app.features.chats.ui.attach.ui.components.AttachTabBar
+import com.anongram.app.features.chats.ui.attach.ui.components.AttachTopBar
+import com.anongram.app.features.chats.ui.attach.ui.tabs.ContactQuickCardSheet
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.attach.ui.tabs.ContactsTab
-import com.anongram.app.features.attach.ui.tabs.DeviceContact
-import com.anongram.app.features.attach.ui.tabs.DeviceFileItem
-import com.anongram.app.features.attach.ui.tabs.FilesGallerySubScreen
-import com.anongram.app.features.attach.ui.tabs.FilesTab
-import com.anongram.app.features.attach.ui.tabs.GalleryMedia
-import com.anongram.app.features.attach.ui.tabs.GalleryTab
-import com.anongram.app.features.attach.ui.tabs.LocationTab
-import com.anongram.app.features.attach.ui.tabs.MusicTab
+import com.anongram.app.features.chats.ui.attach.ui.tabs.ContactsTab
+import com.anongram.app.features.chats.ui.attach.ui.tabs.DeviceContact
+import com.anongram.app.features.chats.ui.attach.ui.tabs.DeviceFileItem
+import com.anongram.app.features.chats.ui.attach.ui.tabs.FilesGallerySubScreen
+import com.anongram.app.features.chats.ui.attach.ui.tabs.FilesTab
+import com.anongram.app.features.chats.ui.attach.ui.tabs.GalleryMedia
+import com.anongram.app.features.chats.ui.attach.ui.tabs.GalleryTab
+import com.anongram.app.features.chats.ui.attach.ui.tabs.LocationTab
+import com.anongram.app.features.chats.ui.attach.ui.tabs.MusicTab
 import com.anongram.app.features.camera.api.CameraScreen
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.mediaeditor.api.MediaEditorScreen
@@ -152,9 +157,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.mutableIntStateOf
-import com.anongram.app.features.attach.ui.tabs.AlbumDropdownRowItem
-import com.anongram.app.features.attach.ui.tabs.GalleryAlbum
-import com.anongram.app.features.attach.ui.tabs.GalleryMediaViewer
+import com.anongram.app.features.chats.ui.attach.ui.tabs.AlbumDropdownRowItem
+import com.anongram.app.features.chats.ui.attach.ui.tabs.GalleryAlbum
+import com.anongram.app.features.chats.ui.attach.ui.tabs.GalleryMediaViewer
+import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.features.chats.ui.attach.i18n.AttachI18n
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
 import kotlinx.coroutines.launch
 
 @Composable
@@ -172,6 +180,8 @@ fun AttachSheetContent(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val appLanguage by LanguageSettingsStore.language.collectAsState()
+    val attachStrings = remember(appLanguage) { AttachI18n.forLanguage(appLanguage) }
     val currentOnDismiss by rememberUpdatedState(onDismiss)
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -608,11 +618,17 @@ fun AttachSheetContent(
 
     // Шторка: ВСЕГДА на всю высоту, двигается только translationY
     @OptIn(ExperimentalFoundationApi::class)
-    CompositionLocalProvider(LocalOverscrollConfiguration provides null) {
+    CompositionLocalProvider(
+        LocalOverscrollConfiguration provides null,
+        LocalAttachStrings provides attachStrings
+    ) {
         Box(
             Modifier.fillMaxSize()
                 .graphicsLayer { translationY = offsetPx }
-                .nestedScroll(connection)
+                .then(
+                    if (selectedTab == AttachTab.LOCATION) Modifier
+                    else Modifier.nestedScroll(connection)
+                )
         ) {
             Column(
                 Modifier.fillMaxSize()
@@ -654,7 +670,7 @@ fun AttachSheetContent(
                 ) {
                     if (isGalleryWithSelection) {
                         GallerySelectionBar(
-                            title = getGallerySelectionTitle(selectedMedia),
+                            title = getGallerySelectionTitle(selectedMedia, attachStrings),
                             hasMoreItems = selectedMedia.isNotEmpty(),
                             onOpenPreviewOrder = {
                                 if (selectedMedia.isNotEmpty()) {
@@ -802,6 +818,7 @@ fun AttachSheetContent(
                                 onSend(listOf(locDraft))
                                 dismissAnimated()
                             },
+                            isFullscreen = isFull,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -873,22 +890,23 @@ fun AttachSheetContent(
             }
         }
 
-        // 4. Плавающая шапка для Галереи и Геопозиции (на 95%+ всегда показывает «Галерея ▾» и навигацию, никогда не «Выбрано»)
+        // 4. Плавающая шапка для Галереи и Геопозиции
         val showTopBar = (selectedTab == AttachTab.LOCATION || selectedTab == AttachTab.GALLERY) && (offsetPx <= H * 0.05f)
         if (showTopBar) {
             AttachTopBar(
-                title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum) else selectedTab.title,
+                title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum) else selectedTab.label(attachStrings),
                 onBack = { requestDismiss() },
                 hasActionMenu = (selectedTab == AttachTab.GALLERY),
                 actionMenuContent = if (selectedTab == AttachTab.GALLERY) {
                     {
                         var isTopBarMenuOpen by remember { mutableStateOf(false) }
                         IconButton(onClick = { isTopBarMenuOpen = true }) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = "Меню", tint = scheme.textPrimary)
+                            Icon(Icons.Outlined.MoreVert, contentDescription = attachStrings.menu, tint = scheme.textPrimary)
                         }
                         DropdownMenu(
                             expanded = isTopBarMenuOpen,
                             onDismissRequest = { isTopBarMenuOpen = false },
+                            containerColor = scheme.card,
                             modifier = Modifier
                                 .background(scheme.card, RoundedCornerShape(16.dp))
                                 .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
@@ -901,7 +919,7 @@ fun AttachSheetContent(
                                             modifier = Modifier.fillMaxWidth(),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            Text("Просмотреть сообщение", color = scheme.textPrimary, fontSize = 14.5.sp)
+                                            Text(attachStrings.viewMessage, color = scheme.textPrimary, fontSize = 14.5.sp)
                                             Spacer(modifier = Modifier.weight(1f))
                                             Icon(
                                                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -921,7 +939,7 @@ fun AttachSheetContent(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Открыть в...", color = scheme.textPrimary, fontSize = 14.5.sp) },
+                                text = { Text(attachStrings.openInDots, color = scheme.textPrimary, fontSize = 14.5.sp) },
                                 onClick = {
                                     isTopBarMenuOpen = false
                                     val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
@@ -929,7 +947,7 @@ fun AttachSheetContent(
                                         addCategory(Intent.CATEGORY_OPENABLE)
                                         putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
                                     }
-                                    systemChooserLauncher.launch(Intent.createChooser(intent, "Открыть с помощью"))
+                                    systemChooserLauncher.launch(Intent.createChooser(intent, attachStrings.openWithDots))
                                 },
                                 leadingIcon = {
                                     Icon(Icons.Outlined.Folder, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
@@ -939,7 +957,7 @@ fun AttachSheetContent(
                                 DropdownMenuItem(
                                     text = {
                                         Text(
-                                            text = if (selectedMedia.all { it.hasSpoiler }) "Отменить спойлер" else "Скрыть под спойлер",
+                                            text = if (selectedMedia.all { it.hasSpoiler }) attachStrings.removeSpoiler else attachStrings.hideUnderSpoiler,
                                             color = scheme.textPrimary,
                                             fontSize = 14.5.sp
                                         )
@@ -959,7 +977,7 @@ fun AttachSheetContent(
                                 )
                             }
                             DropdownMenuItem(
-                                text = { Text("Отправить в HD-качестве", color = scheme.textPrimary, fontSize = 14.5.sp) },
+                                text = { Text(attachStrings.sendInHd, color = scheme.textPrimary, fontSize = 14.5.sp) },
                                 onClick = {
                                     isTopBarMenuOpen = false
                                     sendAsHd()
@@ -973,7 +991,7 @@ fun AttachSheetContent(
                 } else null,
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
-                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) "Галерея" else selectedAlbum
+                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -991,7 +1009,7 @@ fun AttachSheetContent(
                             Spacer(modifier = Modifier.width(4.dp))
                             Icon(
                                 imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = "Альбомы",
+                                contentDescription = attachStrings.albums,
                                 tint = scheme.accent,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -1025,7 +1043,11 @@ fun AttachSheetContent(
                 visible = !isSingleReplaceMode,
                 modifier = Modifier.graphicsLayer {
                     val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
-                    val topNavP = ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                    val topNavP = if (selectedTab == AttachTab.LOCATION) {
+                        0f
+                    } else {
+                        ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                    }
                     alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavP)
                     translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavP)
                 }
@@ -1326,84 +1348,16 @@ fun AttachSheetContent(
             )
         }
 
-        // Диалог подтверждения сброса выбора при выходе (ТЗ: центрированный заголовок и текст, широкая красная кнопка Сбросить)
+        // Диалог подтверждения сброса выбора при выходе
         if (showDiscardDialog) {
-            Dialog(onDismissRequest = { showDiscardDialog = false }) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth(0.88f)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(scheme.card)
-                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(22.dp))
-                        .padding(24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Text(
-                            text = "Сбросить выбор?",
-                            color = scheme.textPrimary,
-                            fontSize = 19.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center
-                        )
-                        Text(
-                            text = "Выбранные элементы не будут отправлены.",
-                            color = scheme.textSecondary,
-                            fontSize = 15.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Кнопка Отмена
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(23.dp))
-                                    .background(scheme.textMuted.copy(alpha = 0.14f))
-                                    .clickable { showDiscardDialog = false },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Отмена",
-                                    color = scheme.textPrimary,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                            }
-
-                            // Кнопка Сбросить (широкая, красная, по центру)
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(46.dp)
-                                    .clip(RoundedCornerShape(23.dp))
-                                    .background(Color(0xFFDC2626))
-                                    .clickable {
-                                        showDiscardDialog = false
-                                        clearAllSelected()
-                                        forceDismiss()
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Сбросить",
-                                    color = Color.White,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
+            AttachDiscardDialog(
+                onDismiss = { showDiscardDialog = false },
+                onConfirmDiscard = {
+                    showDiscardDialog = false
+                    clearAllSelected()
+                    forceDismiss()
                 }
-            }
+            )
         }
 
         if (quickCardContact != null) {
@@ -1445,272 +1399,4 @@ private fun getFileMetadataHelper(context: Context, uri: Uri): FileMeta {
     } catch (_: Exception) {}
     return FileMeta(name, size)
 }
-
-private fun getGallerySelectionTitle(items: List<GalleryMedia>): String {
-    val count = items.size
-    if (count == 0) return ""
-    val hasVideo = items.any { it.isVideo }
-    val hasPhoto = items.any { !it.isVideo }
-    val isOnlyPhoto = hasPhoto && !hasVideo
-    val isOnlyVideo = hasVideo && !hasPhoto
-
-    return when {
-        isOnlyPhoto -> {
-            val mod10 = count % 10
-            val mod100 = count % 100
-            val word = when {
-                mod100 in 11..19 -> "фотографий"
-                mod10 == 1 -> "фотография"
-                mod10 in 2..4 -> "фотографии"
-                else -> "фотографий"
-            }
-            val verb = if (count == 1) "Выбрана" else "Выбрано"
-            "$verb $count $word"
-        }
-        isOnlyVideo -> {
-            val mod10 = count % 10
-            val mod100 = count % 100
-            val word = when {
-                mod100 in 11..19 -> "видео"
-                mod10 == 1 -> "видео"
-                mod10 in 2..4 -> "видео"
-                else -> "видео"
-            }
-            val verb = if (count == 1) "Выбрано" else "Выбрано"
-            "$verb $count $word"
-        }
-        else -> {
-            val mod10 = count % 10
-            val mod100 = count % 100
-            val word = when {
-                mod100 in 11..19 -> "медиа"
-                mod10 == 1 -> "медиа"
-                mod10 in 2..4 -> "медиа"
-                else -> "медиа"
-            }
-            "Выбрано $count $word"
-        }
-    }
-}
-
-@Composable
-private fun GallerySelectionBar(
-    title: String,
-    hasMoreItems: Boolean,
-    onOpenPreviewOrder: () -> Unit,
-    onOptionsClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    onBack: (() -> Unit)? = null,
-    menuContent: (@Composable () -> Unit)? = null
-) {
-    val scheme = LocalAnonGramScheme.current
-
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(44.dp)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        if (onBack != null) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(4.dp))
-        }
-
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(18.dp))
-                .clickable(enabled = hasMoreItems, onClick = onOpenPreviewOrder)
-                .padding(vertical = 4.dp, horizontal = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = title,
-                color = scheme.textPrimary,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (hasMoreItems) {
-                Spacer(modifier = Modifier.width(6.dp))
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .background(scheme.accent),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = "Предпросмотр",
-                        tint = scheme.onAccent,
-                        modifier = Modifier.size(14.dp)
-                    )
-                }
-            }
-        }
-
-        Box(
-            modifier = Modifier.size(36.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            IconButton(
-                onClick = onOptionsClick,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "Опции",
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            menuContent?.invoke()
-        }
-    }
-}
-
-@Composable
-private fun GallerySelectionOptionsMenu(
-    expanded: Boolean,
-    onDismissRequest: () -> Unit,
-    allHaveSpoiler: Boolean,
-    canUngroup: Boolean = true,
-    onOpenPreview: () -> Unit,
-    onSendUncompressed: () -> Unit,
-    onSendUngrouped: () -> Unit,
-    onToggleSpoiler: () -> Unit,
-    onSendHd: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val scheme = LocalAnonGramScheme.current
-
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismissRequest,
-        modifier = modifier
-            .background(scheme.card, RoundedCornerShape(16.dp))
-            .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
-    ) {
-        // 1. Просмотреть сообщение > (доступно всегда при выборе >= 1 фото)
-        DropdownMenuItem(
-            text = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text("Просмотреть сообщение", color = scheme.textPrimary, fontSize = 14.5.sp)
-                    Spacer(modifier = Modifier.weight(1f))
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = scheme.textSecondary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                }
-            },
-            onClick = {
-                onDismissRequest()
-                onOpenPreview()
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Outlined.Visibility,
-                    contentDescription = null,
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        )
-
-        // 2. Отправить без сжатия
-        DropdownMenuItem(
-            text = { Text("Отправить без сжатия", color = scheme.textPrimary, fontSize = 14.5.sp) },
-            onClick = {
-                onDismissRequest()
-                onSendUncompressed()
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Outlined.InsertDriveFile,
-                    contentDescription = null,
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        )
-
-        if (canUngroup) {
-            // 3. Отправить без группировки
-            DropdownMenuItem(
-                text = { Text("Отправить без группировки", color = scheme.textPrimary, fontSize = 14.5.sp) },
-                onClick = {
-                    onDismissRequest()
-                    onSendUngrouped()
-                },
-                leadingIcon = {
-                    Icon(
-                        imageVector = Icons.Outlined.GridOff,
-                        contentDescription = null,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            )
-        }
-
-        // 4. Скрыть под спойлер / Отменить спойлер
-        DropdownMenuItem(
-            text = {
-                Text(
-                    text = if (allHaveSpoiler) "Отменить спойлер" else "Скрыть под спойлер",
-                    color = scheme.textPrimary,
-                    fontSize = 14.5.sp
-                )
-            },
-            onClick = {
-                onDismissRequest()
-                onToggleSpoiler()
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = if (allHaveSpoiler) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                    contentDescription = null,
-                    tint = if (allHaveSpoiler) scheme.accent else scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        )
-
-        // 5. Отправить в HD-качестве
-        DropdownMenuItem(
-            text = { Text("Отправить в HD-качестве", color = scheme.textPrimary, fontSize = 14.5.sp) },
-            onClick = {
-                onDismissRequest()
-                onSendHd()
-            },
-            leadingIcon = {
-                Icon(
-                    imageVector = Icons.Default.HighQuality,
-                    contentDescription = null,
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-        )
-    }
-}
-
 

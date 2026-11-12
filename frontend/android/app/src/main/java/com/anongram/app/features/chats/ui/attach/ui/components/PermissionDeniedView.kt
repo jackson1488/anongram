@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.components
+package com.anongram.app.features.chats.ui.attach.ui.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
 
 /**
  * Заглушка при отказе в разрешении (ТЗ, шаг 2):
@@ -45,7 +46,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 @Composable
 fun PermissionDeniedView(
     icon: ImageVector = Icons.Outlined.Lock,
-    title: String = "Нужен доступ",
+    title: String? = null,
     description: String = "",
     message: String = description,
     onRequestPermission: () -> Unit = {},
@@ -53,7 +54,9 @@ fun PermissionDeniedView(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
     val context = LocalContext.current
+    val resolvedTitle = title ?: strings.permissionNeededTitle
     val effectiveDescription = if (message.isNotBlank()) message else description
     val effectiveOpenSettings = onOpenSettings ?: { PermissionUtils.openAppSettings(context) }
 
@@ -84,7 +87,7 @@ fun PermissionDeniedView(
             }
             Spacer(modifier = Modifier.height(16.dp))
             Text(
-                text = title,
+                text = resolvedTitle,
                 color = scheme.textPrimary,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
@@ -106,7 +109,7 @@ fun PermissionDeniedView(
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Text(
-                        text = "Предоставить",
+                        text = strings.grantButton,
                         color = scheme.onAccent,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -117,7 +120,7 @@ fun PermissionDeniedView(
                     border = BorderStroke(1.dp, scheme.cardBorder),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = scheme.textPrimary)
                 ) {
-                    Text(text = "В настройки")
+                    Text(text = strings.toSettingsButton)
                 }
             }
         }
@@ -135,6 +138,7 @@ fun PartialAccessBanner(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
     val clickHandler = if (onSelectMore != {}) onSelectMore else onManageAccess
     Box(
         modifier = modifier
@@ -162,13 +166,13 @@ fun PartialAccessBanner(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Доступ ограничен",
+                    text = strings.partialAccessTitle,
                     color = scheme.textSecondary,
                     fontSize = 12.sp
                 )
             }
             Text(
-                text = "Выбрать ещё",
+                text = strings.selectMoreButton,
                 color = scheme.accent,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,

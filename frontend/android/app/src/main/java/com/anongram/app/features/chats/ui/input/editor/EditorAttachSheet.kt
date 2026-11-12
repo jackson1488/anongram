@@ -2,9 +2,9 @@ package com.anongram.app.features.chats.ui.input.editor
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.anongram.app.features.attach.api.AttachmentDraft
-import com.anongram.app.features.attach.ui.AttachSheetContent
-import com.anongram.app.features.attach.ui.AttachTab
+import com.anongram.app.features.chats.ui.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.ui.AttachSheetContent
+import com.anongram.app.features.chats.ui.attach.ui.AttachTab
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
@@ -63,18 +63,15 @@ fun EditorAttachSheet(
                     }
                     is AttachmentDraft.Location -> {
                         MessageAttachment.Geo(
-                            address = draft.address ?: strings.location(draft.lat, draft.lon)
+                            address = draft.address ?: strings.location(draft.lat, draft.lon),
+                            lat = draft.lat,
+                            lon = draft.lon
                         )
                     }
                     is AttachmentDraft.Contact -> {
                         MessageAttachment.Contact(
                             name = draft.name,
                             phone = draft.phones.firstOrNull() ?: ""
-                        )
-                    }
-                    is AttachmentDraft.LiveLocation -> {
-                        MessageAttachment.Geo(
-                            address = strings.liveLocation(draft.durationMin)
                         )
                     }
                 }

@@ -92,8 +92,8 @@ import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
-import com.anongram.app.features.attach.ui.tabs.loadHdBitmap
-import com.anongram.app.features.attach.ui.tabs.loadMediaThumbnail
+import com.anongram.app.features.chats.ui.attach.ui.tabs.loadHdBitmap
+import com.anongram.app.features.chats.ui.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment

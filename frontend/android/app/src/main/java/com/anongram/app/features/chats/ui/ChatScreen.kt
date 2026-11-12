@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.attach.ui.AttachTab
+import com.anongram.app.features.chats.ui.attach.ui.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
 import com.anongram.app.features.chats.media.player.ChatAudioController
@@ -76,6 +76,7 @@ fun ChatScreen(
     var isReplyPreviewOpen by remember { mutableStateOf(false) }
     var isSearchListMode by remember { mutableStateOf(false) }
     var viewingMediaMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var viewingGeoMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var viewingMediaInitialIndex by remember { mutableIntStateOf(0) }
     var viewingOverrideSingleUri by remember { mutableStateOf<String?>(null) }
     var wasKeyboardOpenBeforeViewer by remember { mutableStateOf(false) }
@@ -249,6 +250,10 @@ fun ChatScreen(
             onOpenTargetSession = onOpenTargetSession,
             onStartForward = { ids -> forwardingMessageIds = ids },
             onOpenFullTextMessage = { msg -> fullTextMessageModal = msg },
+            onOpenGeoViewer = { msg ->
+                if (imeMetrics.isKeyboardVisible) keyboardController?.hide()
+                viewingGeoMessage = msg
+            },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -404,7 +409,9 @@ fun ChatScreen(
                 isAudioFullScreenOpen = isAudioFullScreenOpen,
                 onCloseMusicSheet = { isMusicSheetOpen = false },
                 fullTextMessageModal = fullTextMessageModal,
-                onCloseFullTextModal = { fullTextMessageModal = null }
+                onCloseFullTextModal = { fullTextMessageModal = null },
+                viewingGeoMessage = viewingGeoMessage,
+                onCloseGeoViewer = { viewingGeoMessage = null }
             )
         }
 

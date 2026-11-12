@@ -73,7 +73,11 @@ sealed interface MessageAttachment {
 
     data class Contact(val name: String, val phone: String) : MessageAttachment
 
-    data class Geo(val address: String) : MessageAttachment
+    data class Geo(
+        val address: String,
+        val lat: Double = 0.0,
+        val lon: Double = 0.0
+    ) : MessageAttachment
 
     /** Стикер/крупный эмодзи — рисуется без пузыря. */
     data class Sticker(val symbol: String, val colorSeed: Int) : MessageAttachment

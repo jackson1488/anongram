@@ -92,7 +92,8 @@ internal fun MessagesList(
     onEmptyAreaTap: () -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
     onPlayMusic: (ChatTrack) -> Unit = {},
-    onOpenFullTextMessage: (ChatMessage) -> Unit = {}
+    onOpenFullTextMessage: (ChatMessage) -> Unit = {},
+    onOpenGeoViewer: (ChatMessage) -> Unit = {}
 ) {
     if (messages.isEmpty()) {
         EmptyThreadHint()
@@ -224,7 +225,8 @@ internal fun MessagesList(
                     onPlayVideoCircle = onPlayVideoCircle,
                     onPlayVoice = onPlayVoice,
                     onPlayMusic = onPlayMusic,
-                    onOpenFullTextMessage = onOpenFullTextMessage
+                    onOpenFullTextMessage = onOpenFullTextMessage,
+                    onOpenGeoViewer = { onOpenGeoViewer(item.message) }
                 )
             }
         }

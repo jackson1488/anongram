@@ -12,8 +12,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
-import com.anongram.app.features.attach.api.AttachSheet
-import com.anongram.app.features.attach.ui.AttachTab
+import com.anongram.app.features.chats.ui.attach.api.AttachSheet
+import com.anongram.app.features.chats.ui.attach.ui.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
@@ -78,7 +78,9 @@ internal fun ChatOverlaysHost(
     isAudioFullScreenOpen: Boolean,
     onCloseMusicSheet: () -> Unit,
     fullTextMessageModal: ChatMessage?,
-    onCloseFullTextModal: () -> Unit
+    onCloseFullTextModal: () -> Unit,
+    viewingGeoMessage: ChatMessage? = null,
+    onCloseGeoViewer: () -> Unit = {}
 ) {
     ChatInputAndMediaOverlays(
         session = session,
@@ -133,6 +135,16 @@ internal fun ChatOverlaysHost(
         fullTextMessageModal = fullTextMessageModal,
         onCloseFullTextModal = onCloseFullTextModal
     )
+
+    val geoAtt = viewingGeoMessage?.attachment as? MessageAttachment.Geo
+    if (viewingGeoMessage != null && geoAtt != null) {
+        ChatGeoViewerScreen(
+            message = viewingGeoMessage,
+            geo = geoAtt,
+            peerName = session.title,
+            onBack = onCloseGeoViewer
+        )
+    }
 }
 
 @Composable

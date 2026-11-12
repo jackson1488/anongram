@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.components
+package com.anongram.app.features.chats.ui.attach.ui.components
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode

@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.tabs
+package com.anongram.app.features.chats.ui.attach.ui.tabs
 
 import android.content.ContentUris
 import android.content.Context
@@ -94,7 +94,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.i18n.AttachI18nStrings
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -114,7 +116,12 @@ data class DeviceFileItem(
 
 enum class FileSortOrder(val title: String) {
     BY_DATE("Недавние файлы"),
-    BY_NAME("Файлы А-Я")
+    BY_NAME("Файлы А-Я");
+
+    fun label(strings: AttachI18nStrings): String = when (this) {
+        BY_DATE -> strings.recentFiles
+        BY_NAME -> strings.filesAZ
+    }
 }
 
 @Composable
@@ -130,6 +137,7 @@ fun FilesTab(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
     val context = LocalContext.current
     var isGallerySubScreenOpen by remember { mutableStateOf(false) }
     // Выбор хранится здесь: выход из подраздела его не сбрасывает
@@ -291,7 +299,7 @@ fun FilesTab(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
+                        contentDescription = strings.back,
                         tint = scheme.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
@@ -319,7 +327,7 @@ fun FilesTab(
                             cursorBrush = SolidColor(scheme.accent),
                             decorationBox = { inner ->
                                 if (searchQuery.isEmpty()) {
-                                    Text("Поиск файлов...", color = scheme.textMuted, fontSize = 14.sp)
+                                    Text(strings.searchFilesPlaceholder, color = scheme.textMuted, fontSize = 14.sp)
                                 }
                                 inner()
                             },
@@ -341,7 +349,7 @@ fun FilesTab(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Очистить",
+                                contentDescription = strings.clear,
                                 tint = scheme.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -360,7 +368,7 @@ fun FilesTab(
                         contentAlignment = Alignment.CenterStart
                     ) {
                         Text(
-                            text = "Выбрать файл",
+                            text = strings.chooseFileTitle,
                             color = scheme.textPrimary,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold
@@ -381,7 +389,7 @@ fun FilesTab(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Поиск",
+                            contentDescription = strings.search,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
@@ -403,7 +411,7 @@ fun FilesTab(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Sort,
-                            contentDescription = "Сортировка",
+                            contentDescription = strings.sort,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
@@ -432,8 +440,8 @@ fun FilesTab(
                 ) {
                     // 1. Внутреннее хранилище
                     StorageCardRow(
-                        title = "Внутреннее хранилище",
-                        subtitle = "Поиск в файловой системе",
+                        title = strings.internalStorage,
+                        subtitle = strings.searchInFilesystem,
                         icon = Icons.Outlined.SdStorage,
                         iconBackground = Color(0xFF22C55E),
                         onClick = { documentPickerLauncher.launch(arrayOf("*/*")) }
@@ -448,7 +456,7 @@ fun FilesTab(
                     // 2. AnonGram
                     StorageCardRow(
                         title = "AnonGram",
-                        subtitle = "Поиск в папке приложения",
+                        subtitle = strings.searchInAppFolder,
                         icon = Icons.Outlined.Folder,
                         iconBackground = scheme.accent,
                         iconTint = scheme.onAccent,
@@ -474,8 +482,8 @@ fun FilesTab(
 
                     // 3. Галерея
                     StorageCardRow(
-                        title = "Галерея",
-                        subtitle = "Для отправки изображений без сжатия",
+                        title = strings.tabGallery,
+                        subtitle = strings.galleryFilesSubtitle,
                         icon = Icons.Outlined.PhotoLibrary,
                         iconBackground = Color(0xFFF59E0B),
                         onClick = {
@@ -493,7 +501,7 @@ fun FilesTab(
             // Заголовок раздела под карточкой
             item(key = "section_header") {
                 Text(
-                    text = sortOrder.title,
+                    text = sortOrder.label(strings),
                     color = scheme.accent,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -503,7 +511,7 @@ fun FilesTab(
 
             if (isLoading) {
                 item(key = "files_loading_skeleton") {
-                    com.anongram.app.features.attach.ui.components.RecentFilesSkeleton()
+                    com.anongram.app.features.chats.ui.attach.ui.components.RecentFilesSkeleton()
                 }
             } else if (sortedFiles.isEmpty()) {
                 item(key = "empty_state") {
@@ -514,7 +522,7 @@ fun FilesTab(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Файлы не найдены",
+                            text = strings.filesNotFound,
                             color = scheme.textSecondary,
                             fontSize = 14.sp
                         )
@@ -676,7 +684,7 @@ private fun FileRowItem(
                 } else ""
             }
             Text(
-                text = "${formatFileSize(file.size)}${if (dateStr.isNotEmpty()) " • $dateStr" else ""}",
+                text = "${formatFileSize(file.size, LocalAttachStrings.current)}${if (dateStr.isNotEmpty()) " • $dateStr" else ""}",
                 color = scheme.textSecondary,
                 fontSize = 12.sp,
                 maxLines = 1,
@@ -703,7 +711,7 @@ private fun FileRowItem(
             if (isSelected) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Выбран",
+                    contentDescription = LocalAttachStrings.current.selected,
                     tint = scheme.onAccent,
                     modifier = Modifier.size(16.dp)
                 )
@@ -733,15 +741,15 @@ private fun getFileExtensionColor(ext: String): Color {
     }
 }
 
-private fun formatFileSize(bytes: Long): String {
-    if (bytes <= 0) return "0 Б"
-    if (bytes < 1024) return "$bytes Б"
+private fun formatFileSize(bytes: Long, strings: AttachI18nStrings): String {
+    if (bytes <= 0) return strings.sizeBytes(0)
+    if (bytes < 1024) return strings.sizeBytes(bytes)
     val kb = bytes / 1024.0
-    if (kb < 1024) return String.format(Locale.US, "%.1f КБ", kb)
+    if (kb < 1024) return strings.sizeKb(String.format(Locale.US, "%.1f", kb))
     val mb = kb / 1024.0
-    if (mb < 1024) return String.format(Locale.US, "%.1f МБ", mb)
+    if (mb < 1024) return strings.sizeMb(String.format(Locale.US, "%.1f", mb))
     val gb = mb / 1024.0
-    return String.format(Locale.US, "%.2f ГБ", gb)
+    return strings.sizeGb(String.format(Locale.US, "%.2f", gb))
 }
 
 private fun loadDeviceRecentFiles(context: Context): List<DeviceFileItem> {
@@ -883,7 +891,7 @@ fun FilesGallerySubScreen(
         val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
 
         if (isLoadingMedia) {
-            com.anongram.app.features.attach.ui.components.GalleryGridSkeleton(
+            com.anongram.app.features.chats.ui.attach.ui.components.GalleryGridSkeleton(
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(1f)
@@ -898,7 +906,7 @@ fun FilesGallerySubScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Медиафайлы не найдены",
+                    text = LocalAttachStrings.current.mediaNotFound,
                     color = scheme.textSecondary,
                     fontSize = 14.sp
                 )
@@ -969,7 +977,7 @@ fun FilesGallerySubScreen(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     if (caption.isEmpty()) {
-                        Text("Добавить подпись...", color = scheme.textMuted, fontSize = 15.sp)
+                        Text(LocalAttachStrings.current.addCaptionHint, color = scheme.textMuted, fontSize = 15.sp)
                     }
                     BasicTextField(
                         value = caption,
@@ -991,7 +999,7 @@ fun FilesGallerySubScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Отправить",
+                        contentDescription = LocalAttachStrings.current.send,
                         tint = scheme.onAccent,
                         modifier = Modifier.size(22.dp)
                     )
@@ -1056,7 +1064,7 @@ fun FilesGallerySubScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
+                        contentDescription = LocalAttachStrings.current.back,
                         tint = scheme.textPrimary,
                         modifier = Modifier.size(22.dp)
                     )
@@ -1076,7 +1084,7 @@ fun FilesGallerySubScreen(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Text(
-                        text = "Все медиа",
+                        text = LocalAttachStrings.current.allMedia,
                         color = scheme.textPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
@@ -1093,6 +1101,7 @@ fun FilesGallerySubScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     var menuExpanded by remember { mutableStateOf(false) }
+                    val strings = LocalAttachStrings.current
 
                     Box(
                         modifier = Modifier
@@ -1105,7 +1114,7 @@ fun FilesGallerySubScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
-                            contentDescription = "Меню действий",
+                            contentDescription = strings.actionMenu,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
@@ -1121,7 +1130,7 @@ fun FilesGallerySubScreen(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    if (isGridMode) "Показать списком" else "В виде сетки",
+                                    if (isGridMode) strings.showAsList else strings.showAsGrid,
                                     color = scheme.textPrimary,
                                     fontSize = 14.sp
                                 )
@@ -1143,7 +1152,7 @@ fun FilesGallerySubScreen(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    "Открыть в...",
+                                    strings.openInDots,
                                     color = scheme.textPrimary,
                                     fontSize = 14.sp
                                 )
@@ -1163,7 +1172,7 @@ fun FilesGallerySubScreen(
                                         putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
                                         addCategory(Intent.CATEGORY_OPENABLE)
                                     }
-                                    openInChooserLauncher.launch(Intent.createChooser(intent, "Открыть в..."))
+                                    openInChooserLauncher.launch(Intent.createChooser(intent, strings.openInDots))
                                 } catch (_: Exception) {}
                             }
                         )
@@ -1332,7 +1341,7 @@ private fun FilesGalleryListItem(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "${formatFileSize(meta.size)}${if (media.isVideo && media.durationMs > 0) " • ${formatDuration(media.durationMs)}" else ""}",
+                text = "${formatFileSize(meta.size, LocalAttachStrings.current)}${if (media.isVideo && media.durationMs > 0) " • ${formatDuration(media.durationMs)}" else ""}",
                 color = scheme.textSecondary,
                 fontSize = 12.sp
             )

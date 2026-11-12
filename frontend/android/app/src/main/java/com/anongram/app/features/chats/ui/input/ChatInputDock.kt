@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.features.attach.ui.AttachTab
+import com.anongram.app.features.chats.ui.attach.ui.AttachTab
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.ChatMessagesUiState
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel

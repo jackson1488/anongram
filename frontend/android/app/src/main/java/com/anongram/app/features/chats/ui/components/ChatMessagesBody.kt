@@ -57,6 +57,7 @@ internal fun ChatMessagesBody(
     onOpenTargetSession: (IChatSession) -> Unit,
     onStartForward: (List<String>) -> Unit,
     onOpenFullTextMessage: (ChatMessage) -> Unit,
+    onOpenGeoViewer: (ChatMessage) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -189,7 +190,8 @@ internal fun ChatMessagesBody(
                     } ?: targetTrack
                     audioController.play(if (queue.isNotEmpty()) queue else listOf(toPlay), toPlay)
                 },
-                onOpenFullTextMessage = onOpenFullTextMessage
+                onOpenFullTextMessage = onOpenFullTextMessage,
+                onOpenGeoViewer = onOpenGeoViewer
             )
         }
 

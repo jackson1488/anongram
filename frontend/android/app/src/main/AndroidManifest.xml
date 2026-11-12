@@ -46,12 +46,6 @@
             android:exported="false"
             android:foregroundServiceType="mediaPlayback" />
 
-        <!-- Сервис трансляции геопозиции (15 мин, 1 час, 8 часов) -->
-        <service
-            android:name="com.anongram.app.features.attach.ui.tabs.LocationSharingService"
-            android:exported="false"
-            android:foregroundServiceType="location" />
-
         <!-- FileProvider для шеринга сгенерированных изображений QR-кодов профиля -->
         <provider
             android:name="androidx.core.content.FileProvider"

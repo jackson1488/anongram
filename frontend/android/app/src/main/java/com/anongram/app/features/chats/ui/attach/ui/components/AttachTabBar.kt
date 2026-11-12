@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.components
+package com.anongram.app.features.chats.ui.attach.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -33,10 +33,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.attach.ui.AttachTab
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
+import com.anongram.app.features.chats.ui.attach.ui.AttachTab
 
 /**
- * Парящая нижняя панель-таблетка вкладок (ТЗ, шаг 10):
+ * Парящая нижняя панель-таблетка вкладок:
  * - НЕ прижата к краю: отступ снизу = навигационная панель + 12dp, по бокам по 12dp.
  * - Приподнята выше с мягкой тенью и фоном текущей темы.
  */
@@ -48,6 +49,7 @@ fun AttachTabBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 12.dp
 
     AnimatedVisibility(
@@ -97,7 +99,7 @@ fun AttachTabBar(
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
-                            text = tab.title,
+                            text = tab.label(strings),
                             color = if (isSelected) scheme.onAccent else scheme.textPrimary,
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium

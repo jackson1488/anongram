@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.api
+package com.anongram.app.features.chats.ui.attach.api
 
 import android.net.Uri
 
@@ -31,11 +31,6 @@ sealed interface AttachmentDraft {
         val lat: Double,
         val lon: Double,
         val address: String? = null
-    ) : AttachmentDraft
-
-    /** Трансляция геопозиции в реальном времени (15 мин, 1 час, 8 часов) */
-    data class LiveLocation(
-        val durationMin: Int
     ) : AttachmentDraft
 
     /** Контакт из телефонной книги */

@@ -1,6 +1,6 @@
 package com.anongram.app.features.chats.ui.input.attach
 
-import com.anongram.app.features.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.api.AttachmentDraft
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
@@ -142,15 +142,11 @@ internal fun sendAttachDraftsToChat(
         when (draft) {
             is AttachmentDraft.Location -> {
                 viewModel.sendAttachment(
-                    MessageAttachment.Geo(address = draft.address ?: "${draft.lat}, ${draft.lon}")
-                )
-            }
-            is AttachmentDraft.LiveLocation -> {
-                val strings = com.anongram.app.features.chats.ui.input.i18n.InputI18n.forLanguage(
-                    com.anongram.app.core.i18n.LanguageSettingsStore.language.value
-                )
-                viewModel.sendAttachment(
-                    MessageAttachment.Geo(address = strings.liveLocation(draft.durationMin))
+                    MessageAttachment.Geo(
+                        address = draft.address ?: "${draft.lat}, ${draft.lon}",
+                        lat = draft.lat,
+                        lon = draft.lon
+                    )
                 )
             }
             is AttachmentDraft.Contact -> {

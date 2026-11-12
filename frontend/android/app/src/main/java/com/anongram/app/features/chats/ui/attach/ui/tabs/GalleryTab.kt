@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.tabs
+package com.anongram.app.features.chats.ui.attach.ui.tabs
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -77,7 +77,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import com.anongram.app.features.attach.ui.components.AttachInputBar
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
+import com.anongram.app.features.chats.ui.attach.ui.components.AttachInputBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -101,15 +102,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.attach.ui.components.PartialAccessBanner
-import com.anongram.app.features.attach.ui.components.PermissionDeniedView
+import com.anongram.app.features.chats.ui.attach.ui.components.PartialAccessBanner
+import com.anongram.app.features.chats.ui.attach.ui.components.PermissionDeniedView
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 import androidx.compose.runtime.Immutable
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.attach.ui.components.SpoilerOverlay
+import com.anongram.app.features.chats.ui.attach.ui.components.SpoilerOverlay
 
 @Immutable
 data class GalleryMedia(
@@ -167,7 +168,7 @@ fun GalleryTab(
 
     if (!hasPermission) {
         PermissionDeniedView(
-            message = "Для выбора фото и видео предоставьте доступ к галерее.",
+            message = LocalAttachStrings.current.galleryPermissionDesc,
             onRequestPermission = {
                 launcher.launch(PermissionUtils.getGalleryPermissions())
             },
@@ -246,7 +247,7 @@ fun GalleryTab(
             }
 
             if (isLoading) {
-                com.anongram.app.features.attach.ui.components.GalleryGridSkeleton(
+                com.anongram.app.features.chats.ui.attach.ui.components.GalleryGridSkeleton(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
@@ -477,15 +478,16 @@ private fun LiveCameraTile(
             )
         } else {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                val strings = LocalAttachStrings.current
                 Icon(
                     imageVector = Icons.Rounded.CameraAlt,
-                    contentDescription = "Камера",
+                    contentDescription = strings.camera,
                     tint = scheme.accent,
                     modifier = Modifier.size(34.dp)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Камера",
+                    text = strings.camera,
                     color = scheme.textPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
@@ -757,7 +759,7 @@ fun GalleryMediaViewer(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
+                    contentDescription = LocalAttachStrings.current.back,
                     tint = Color.White
                 )
             }
@@ -765,7 +767,7 @@ fun GalleryMediaViewer(
             Spacer(modifier = Modifier.weight(1f))
 
             Text(
-                text = "${pagerState.currentPage + 1} из ${mediaList.size}",
+                text = LocalAttachStrings.current.pagerIndexOf(pagerState.currentPage + 1, mediaList.size),
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold
@@ -863,7 +865,7 @@ private fun GalleryMediaPageItem(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Воспроизвести",
+                    contentDescription = LocalAttachStrings.current.play,
                     tint = Color.White,
                     modifier = Modifier.size(42.dp)
                 )

@@ -27,6 +27,7 @@ import android.media.MediaMetadataRetriever
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.LocationOn
@@ -233,47 +234,105 @@ internal fun ChatContactCardSection(
 }
 
 /**
- * Карточка геопозиции в пузыре сообщения.
+ * Карточка геопозиции в пузыре сообщения (как в Telegram: превью карты с красным пином).
  */
 @Composable
 internal fun ChatGeoSection(
     attachment: MessageAttachment.Geo,
     accent: Color,
-    searchQuery: String
+    searchQuery: String,
+    onOpenGeo: () -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(scheme.surface.copy(alpha = 0.85f))
-            .padding(8.dp)
+    val context = LocalContext.current
+    val previewData by produceState<Pair<Bitmap, Pair<Float, Float>>?>(
+        initialValue = null,
+        key1 = attachment.lat,
+        key2 = attachment.lon,
+        key3 = scheme.isDark
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Outlined.LocationOn,
-                contentDescription = null,
-                tint = FlameOrange,
-                modifier = Modifier.size(18.dp)
+        value = com.anongram.app.features.chats.ui.attach.ui.tabs.location.OsmMapHelper
+            .loadStaticPreviewTile(
+                context = context,
+                lat = attachment.lat,
+                lon = attachment.lon,
+                isDark = scheme.isDark
             )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Геопозиция",
-                color = FlameOrange,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
+    }
+
+    val fallbackBg = if (scheme.isDark) Color(0xFF1A2233) else Color(0xFFF3F0E6)
+    val roadColor = if (scheme.isDark) Color(0xFF2B3752) else Color.White
+
+    Box(
+        modifier = Modifier
+            .widthIn(min = 210.dp, max = 264.dp)
+            .fillMaxWidth()
+            .height(152.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(fallbackBg)
+            .clickable(onClick = onOpenGeo)
+    ) {
+        val tile = previewData
+        if (tile != null) {
+            val (bmp, frac) = tile
+            Image(
+                bitmap = bmp.asImageBitmap(),
+                contentDescription = attachment.address,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
             )
+            // Красный пин по центру карты
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    tint = Color(0xFFEA4335),
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+        } else {
+            // Аккуратная оффлайн-подложка карты, пока грузится тайл или если нет сети
+            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                val w = size.width
+                val h = size.height
+                drawLine(roadColor, androidx.compose.ui.geometry.Offset(0f, h * 0.35f), androidx.compose.ui.geometry.Offset(w, h * 0.55f), strokeWidth = 5.dp.toPx())
+                drawLine(roadColor, androidx.compose.ui.geometry.Offset(w * 0.42f, 0f), androidx.compose.ui.geometry.Offset(w * 0.6f, h), strokeWidth = 5.dp.toPx())
+                drawLine(roadColor, androidx.compose.ui.geometry.Offset(0f, h * 0.78f), androidx.compose.ui.geometry.Offset(w * 0.8f, 0f), strokeWidth = 3.dp.toPx())
+            }
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.LocationOn,
+                    contentDescription = null,
+                    tint = Color(0xFFEA4335),
+                    modifier = Modifier.size(38.dp)
+                )
+            }
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = if (searchQuery.isNotBlank()) {
-                buildHighlightedText(attachment.address, searchQuery, accent)
-            } else {
-                AnnotatedString(attachment.address)
-            },
-            color = scheme.textPrimary,
-            fontSize = 13.sp
-        )
+
+        // Если в чате идёт поиск по адресу — подсветим адрес мягкой плашкой сверху
+        if (searchQuery.isNotBlank() && attachment.address.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color.Black.copy(alpha = 0.58f))
+                    .padding(horizontal = 8.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = buildHighlightedText(attachment.address, searchQuery, accent),
+                    color = Color.White,
+                    fontSize = 11.5.sp,
+                    maxLines = 1
+                )
+            }
+        }
     }
 }
 

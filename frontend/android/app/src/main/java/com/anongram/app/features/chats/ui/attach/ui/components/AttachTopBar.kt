@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.components
+package com.anongram.app.features.chats.ui.attach.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
 
 /**
  * Плавающие таблетки полного экрана (ТЗ, шаг 1):
@@ -44,7 +45,7 @@ fun AttachTopBar(
     title: String,
     searchQuery: String = "",
     isSearchActive: Boolean = false,
-    searchPlaceholder: String = "Поиск...",
+    searchPlaceholder: String? = null,
     onBack: () -> Unit,
     onSearchQueryChange: (String) -> Unit = {},
     onToggleSearch: () -> Unit = {},
@@ -55,6 +56,8 @@ fun AttachTopBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
+    val effectivePlaceholder = searchPlaceholder ?: strings.searchPlaceholder
 
     Row(
         modifier = modifier
@@ -77,7 +80,7 @@ fun AttachTopBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад / Свернуть",
+                    contentDescription = strings.backOrCollapse,
                     tint = scheme.textPrimary,
                     modifier = Modifier.size(22.dp)
                 )
@@ -123,7 +126,7 @@ fun AttachTopBar(
                         decorationBox = { innerTextField ->
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = searchPlaceholder,
+                                    text = effectivePlaceholder,
                                     color = scheme.textMuted,
                                     fontSize = 14.sp
                                 )
@@ -139,7 +142,7 @@ fun AttachTopBar(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.Close,
-                                contentDescription = "Очистить",
+                                contentDescription = strings.clear,
                                 tint = scheme.textSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -162,7 +165,7 @@ fun AttachTopBar(
                     )
                     Icon(
                         imageVector = Icons.Outlined.Search,
-                        contentDescription = "Поиск",
+                        contentDescription = strings.search,
                         tint = scheme.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -192,7 +195,7 @@ fun AttachTopBar(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
-                            contentDescription = "Меню действий",
+                            contentDescription = strings.actionMenu,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )

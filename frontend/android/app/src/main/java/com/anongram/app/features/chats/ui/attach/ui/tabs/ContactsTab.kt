@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.tabs
+package com.anongram.app.features.chats.ui.attach.ui.tabs
 
 import android.content.Context
 import android.provider.ContactsContract
@@ -80,17 +80,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.attach.api.AttachmentDraft
-import com.anongram.app.features.attach.ui.components.PermissionDeniedView
+import com.anongram.app.features.chats.ui.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.ui.components.PermissionDeniedView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.absoluteValue
-
-/**
- * Флаг временного демо-режима контактов (ТЗ, шаг 14).
- * Пока он включён, генерируются 100 реалистичных контактов.
- */
-const val DEMO_CONTACTS = true
 
 @androidx.compose.runtime.Immutable
 data class DeviceContact(
@@ -113,9 +107,10 @@ fun ContactsTab(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings.current
     val context = LocalContext.current
     var hasPermission by remember {
-        mutableStateOf(DEMO_CONTACTS || PermissionUtils.hasContactsPermission(context))
+        mutableStateOf(PermissionUtils.hasContactsPermission(context))
     }
 
     val launcher = rememberLauncherForActivityResult(
@@ -124,9 +119,9 @@ fun ContactsTab(
         hasPermission = granted
     }
 
-    if (!hasPermission && !DEMO_CONTACTS) {
+    if (!hasPermission) {
         PermissionDeniedView(
-            message = "Для выбора и отправки контактов предоставьте доступ к списку контактов.",
+            message = strings.contactsPermissionDesc,
             onRequestPermission = {
                 launcher.launch(android.Manifest.permission.READ_CONTACTS)
             },
@@ -139,16 +134,12 @@ fun ContactsTab(
     var isLoading by remember { mutableStateOf(true) }
     var searchQuery by remember { mutableStateOf("") }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(hasPermission) {
+        if (!hasPermission) return@LaunchedEffect
         isLoading = true
         contacts = withContext(Dispatchers.IO) {
-            if (DEMO_CONTACTS) {
-                generateDemoContacts()
-            } else {
-                loadDeviceContacts(context)
-            }
+            loadDeviceContacts(context)
         }
-        kotlinx.coroutines.delay(220)
         isLoading = false
     }
 
@@ -212,7 +203,7 @@ fun ContactsTab(
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Поиск",
+                    contentDescription = strings.search,
                     tint = scheme.textMuted,
                     modifier = Modifier.size(20.dp)
                 )
@@ -223,7 +214,7 @@ fun ContactsTab(
                 ) {
                     if (searchQuery.isEmpty()) {
                         Text(
-                            text = "Поиск контактов",
+                            text = strings.contactsSearchPlaceholder,
                             color = scheme.textMuted,
                             fontSize = 14.sp
                         )
@@ -253,7 +244,7 @@ fun ContactsTab(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Очистить",
+                            contentDescription = strings.close,
                             tint = scheme.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -270,7 +261,7 @@ fun ContactsTab(
                     .padding(top = 58.dp)
                     .zIndex(1f)
             ) {
-                com.anongram.app.features.attach.ui.components.ContactsListSkeleton()
+                com.anongram.app.features.chats.ui.attach.ui.components.ContactsListSkeleton()
             }
         } else if (filteredContacts.isEmpty()) {
             Box(
@@ -280,7 +271,7 @@ fun ContactsTab(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (contacts.isEmpty()) "Контакты не найдены" else "Ничего не найдено",
+                    text = if (contacts.isEmpty()) strings.contactsEmpty else strings.contactsSearchPlaceholder,
                     color = scheme.textSecondary,
                     fontSize = 14.sp
                 )
@@ -407,7 +398,7 @@ private fun ContactListItemRow(
             ) {
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = "Выбран",
+                    contentDescription = LocalAttachStrings.current.selected,
                     tint = scheme.onAccent,
                     modifier = Modifier.size(16.dp)
                 )
@@ -427,6 +418,7 @@ internal fun ContactQuickCardSheet(
     onDismiss: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
     var selectedPhone by remember(contact) { mutableStateOf(contact.phones.firstOrNull() ?: "") }
 
     val avatarColor = remember(contact.name) {
@@ -521,7 +513,7 @@ internal fun ContactQuickCardSheet(
             if (contact.phones.size > 1) {
                 Spacer(modifier = Modifier.height(14.dp))
                 Text(
-                    text = "Выберите номер для отправки:",
+                    text = strings.choosePhonePrompt,
                     color = scheme.textSecondary,
                     fontSize = 12.sp,
                     modifier = Modifier.align(Alignment.Start)
@@ -568,7 +560,7 @@ internal fun ContactQuickCardSheet(
                     .height(48.dp)
             ) {
                 Text(
-                    text = "Отправить контакт",
+                    text = strings.sendContact,
                     color = scheme.onAccent,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
@@ -576,64 +568,6 @@ internal fun ContactQuickCardSheet(
             }
         }
     }
-}
-
-/**
- * Генерация 100 реалистичных контактов (русские и киргизские имена, телефоны +996 ..., ТЗ шаг 14)
- */
-private fun generateDemoContacts(): List<DeviceContact> {
-    val firstNamesRu = listOf(
-        "Александр", "Алексей", "Андрей", "Борис", "Валерий", "Виктор", "Владимир",
-        "Денис", "Дмитрий", "Евгений", "Иван", "Игорь", "Константин", "Максим",
-        "Михаил", "Николай", "Олег", "Павел", "Роман", "Сергей", "Юрий",
-        "Анна", "Елена", "Ирина", "Мария", "Ольга", "Татьяна", "Светлана"
-    )
-    val lastNamesRu = listOf(
-        "Иванов", "Смирнов", "Васильев", "Кузнецов", "Соколов", "Попов", "Лебедев",
-        "Козлов", "Новиков", "Морозов", "Петров", "Волков", "Соловьев", "Павлов"
-    )
-
-    val firstNamesKg = listOf(
-        "Азамат", "Адилет", "Айбек", "Айдар", "Алмаз", "Аман", "Аскар", "Бакыт",
-        "Данияр", "Жаныбек", "Ильяс", "Канат", "Кубат", "Марат", "Мирлан", "Нурлан",
-        "Руслан", "Талант", "Улан", "Эркин", "Айгерим", "Айжамал", "Айдана",
-        "Айсулуу", "Бермет", "Гульзат", "Динара", "Жибек", "Мээрим", "Назира"
-    )
-    val lastNamesKg = listOf(
-        "Бакиров", "Токтогулов", "Жумабеков", "Касымов", "Нурбеков", "Султанов",
-        "Садыков", "Осмонов", "Беков", "Асанов", "Маратов", "Темиров", "Алиев"
-    )
-
-    val list = mutableListOf<DeviceContact>()
-    var seed = 1001
-
-    // Генерация 50 кыргызских контактов
-    for (i in 0 until 50) {
-        val fn = firstNamesKg[i % firstNamesKg.size]
-        val ln = lastNamesKg[(i * 3) % lastNamesKg.size]
-        val prefix = listOf("+996 550", "+996 700", "+996 770", "+996 500")[i % 4]
-        val num = String.format("%s %02d%02d%02d", prefix, (seed % 90 + 10), ((seed * 7) % 90 + 10), ((seed * 13) % 90 + 10))
-        val hasMulti = (i % 7 == 0)
-        val phones = if (hasMulti) listOf(num, "+996 312 908070") else listOf(num)
-        val username = "@${fn.lowercase()}_kg"
-        list.add(DeviceContact(name = "$fn $ln", phones = phones, username = username))
-        seed += 37
-    }
-
-    // Генерация 50 русских контактов
-    for (i in 0 until 50) {
-        val fn = firstNamesRu[i % firstNamesRu.size]
-        val ln = lastNamesRu[(i * 2) % lastNamesRu.size]
-        val prefix = listOf("+996 555", "+996 705", "+996 775", "+996 999")[i % 4]
-        val num = String.format("%s %02d%02d%02d", prefix, (seed % 90 + 10), ((seed * 5) % 90 + 10), ((seed * 11) % 90 + 10))
-        val hasMulti = (i % 6 == 0)
-        val phones = if (hasMulti) listOf(num, "+996 312 664422") else listOf(num)
-        val username = "@${fn.lowercase()}_${ln.lowercase().take(4)}"
-        list.add(DeviceContact(name = "$fn $ln", phones = phones, username = username))
-        seed += 43
-    }
-
-    return list.sortedBy { it.name }
 }
 
 private fun loadDeviceContacts(context: Context): List<DeviceContact> {

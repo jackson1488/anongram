@@ -1,4 +1,6 @@
-package com.anongram.app.features.attach.api
+package com.anongram.app.features.chats.ui.attach.api
+
+import com.anongram.app.features.chats.ui.attach.i18n.AttachI18nStrings
 
 /**
  * Таймер исчезновения медиа (шаг 11 ТЗ):
@@ -12,4 +14,12 @@ enum class MediaTtl(val title: String, val seconds: Int) {
     Sec30("30 сек.", 30);
 
     val isEphemeral: Boolean get() = this != Never
+
+    fun label(strings: AttachI18nStrings): String = when (this) {
+        Never -> strings.ttlNever
+        OneView -> strings.ttlOneView
+        Sec3 -> strings.ttl3s
+        Sec10 -> strings.ttl10s
+        Sec30 -> strings.ttl30s
+    }
 }

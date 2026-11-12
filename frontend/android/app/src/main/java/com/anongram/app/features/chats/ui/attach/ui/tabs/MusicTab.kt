@@ -1,4 +1,4 @@
-package com.anongram.app.features.attach.ui.tabs
+package com.anongram.app.features.chats.ui.attach.ui.tabs
 
 import android.content.ContentUris
 import android.content.Context
@@ -72,8 +72,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.attach.api.AttachmentDraft
-import com.anongram.app.features.attach.ui.components.PermissionDeniedView
+import com.anongram.app.features.chats.ui.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.ui.components.PermissionDeniedView
 import com.anongram.app.features.player.api.MiniPlayer
 import com.anongram.app.features.player.api.Track
 import com.anongram.app.features.player.logic.AudioPlayerController
@@ -86,6 +86,7 @@ import androidx.compose.material.icons.filled.Check
 
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
 
 @Composable
 fun MusicTab(
@@ -99,6 +100,7 @@ fun MusicTab(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalAttachStrings.current
     val context = LocalContext.current
     val controller = remember { AudioPlayerController.getInstance(context) }
     val playerState by controller.state.collectAsState()
@@ -123,7 +125,7 @@ fun MusicTab(
 
     if (!hasPermission) {
         PermissionDeniedView(
-            message = "Для просмотра и отправки аудиофайлов предоставьте доступ к медиатеке.",
+            message = strings.musicPermissionDesc,
             onRequestPermission = {
                 launcher.launch(PermissionUtils.getMusicPermissions())
             },
@@ -224,7 +226,7 @@ fun MusicTab(
                 ) {
                     if (searchQuery.isEmpty()) {
                         Text(
-                            text = "Поиск музыки",
+                            text = strings.searchMusicPlaceholder,
                             color = scheme.textMuted,
                             fontSize = 15.sp
                         )
@@ -257,7 +259,7 @@ fun MusicTab(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Clear",
+                            contentDescription = strings.clear,
                             tint = scheme.textSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -282,7 +284,7 @@ fun MusicTab(
                     .padding(top = totalHeaderHeight + 6.dp)
                     .zIndex(1f)
             ) {
-                com.anongram.app.features.attach.ui.components.MusicListSkeleton()
+                com.anongram.app.features.chats.ui.attach.ui.components.MusicListSkeleton()
             }
         } else if (filteredTracks.isEmpty()) {
             Box(
@@ -292,7 +294,7 @@ fun MusicTab(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = if (tracks.isEmpty()) "Аудиозаписи не найдены" else "Ничего не найдено",
+                    text = if (tracks.isEmpty()) strings.audioNotFound else strings.nothingFound,
                     color = scheme.textSecondary,
                     fontSize = 14.sp
                 )
@@ -426,7 +428,7 @@ private fun MusicTrackRow(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Выбран",
+                        contentDescription = LocalAttachStrings.current.selected,
                         tint = Color.White,
                         modifier = Modifier.size(11.dp)
                     )

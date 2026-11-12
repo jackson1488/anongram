@@ -137,7 +137,8 @@ internal fun MessageBubble(
     onPlayVideoCircle: (ChatMessage) -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
     onPlayMusic: (ChatTrack) -> Unit = {},
-    onOpenFullTextMessage: (ChatMessage) -> Unit = {}
+    onOpenFullTextMessage: (ChatMessage) -> Unit = {},
+    onOpenGeoViewer: () -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
     val message = item.message
@@ -382,12 +383,13 @@ internal fun MessageBubble(
                         }
                     } else {
                         val isEdgeToEdgeMedia = (message.attachment is MessageAttachment.MediaAlbum) ||
-                            (message.attachment is MessageAttachment.Photo && (message.attachment as MessageAttachment.Photo).uri != null)
+                            (message.attachment is MessageAttachment.Photo && (message.attachment as MessageAttachment.Photo).uri != null) ||
+                            (message.attachment is MessageAttachment.Geo)
                         val isFlushGroupAttachment = (message.attachment is MessageAttachment.FileGroup) ||
                             (message.attachment is MessageAttachment.MusicGroup) ||
                             (message.attachment is MessageAttachment.File) ||
                             (message.attachment is MessageAttachment.Music)
-                        val isOverlayTimestampOnMedia = (message.attachment is MessageAttachment.MediaAlbum || message.attachment is MessageAttachment.Photo) &&
+                        val isOverlayTimestampOnMedia = (message.attachment is MessageAttachment.MediaAlbum || message.attachment is MessageAttachment.Photo || message.attachment is MessageAttachment.Geo) &&
                             message.text.isBlank()
                         val isTimestampHandledInsideAttachment = isFlushGroupAttachment && message.text.isBlank()
 
@@ -431,6 +433,8 @@ internal fun MessageBubble(
                                     onClick = {
                                         if (isSelectionMode) {
                                             onSelect()
+                                        } else if (message.attachment is MessageAttachment.Geo) {
+                                            onOpenGeoViewer()
                                         } else if (isEdgeToEdgeMedia) {
                                             onOpenMediaViewer(0)
                                         } else {
@@ -542,7 +546,8 @@ internal fun MessageBubble(
                                                 onDeleteSubItem = onDeleteSubItem,
                                                 onPlayVideoCircle = onPlayVideoCircle,
                                                 onPlayVoice = onPlayVoice,
-                                                onPlayMusic = onPlayMusic
+                                                onPlayMusic = onPlayMusic,
+                                                onOpenGeoViewer = onOpenGeoViewer
                                             )
 
                                             if (isOverlayTimestampOnMedia) {
@@ -748,7 +753,8 @@ private fun AttachmentContent(
     onDeleteSubItem: (String) -> Unit = {},
     onPlayVideoCircle: (ChatMessage) -> Unit = {},
     onPlayVoice: (ChatMessage) -> Unit = {},
-    onPlayMusic: (ChatTrack) -> Unit = {}
+    onPlayMusic: (ChatTrack) -> Unit = {},
+    onOpenGeoViewer: () -> Unit = {}
 ) {
     when (attachment) {
         is MessageAttachment.Photo -> {
@@ -935,7 +941,10 @@ private fun AttachmentContent(
             ChatGeoSection(
                 attachment = attachment,
                 accent = accent,
-                searchQuery = searchQuery
+                searchQuery = searchQuery,
+                onOpenGeo = {
+                    if (isSelectionMode) onSelect() else onOpenGeoViewer()
+                }
             )
         }
 
