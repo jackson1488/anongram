@@ -645,22 +645,13 @@ fun AttachSheetContent(
                         indication = null
                     ) { /* поглощаем клики внутри шторки */ }
             ) {
-                // В полноэкранном режиме статус-бар учитывается только для Галереи;
-                // FilesTab, ContactsTab, MusicTab и LocationTab обрабатывают statusBarTop сами
-                val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                val topHandlePad = if (isFull && selectedTab == AttachTab.GALLERY) statusBarTop else 0.dp
-                if (topHandlePad > 0.dp) {
-                    Spacer(modifier = Modifier.height(topHandlePad))
-                }
-
-                // В полураскрытом состоянии Галереи: тонкая полоска ручки (18.dp)
-                // При выборе медиа (только когда шторка ниже 95%): сверху появляется компактная полоса выбора (44.dp)
+                // В полноэкранном режиме все вкладки начинаются от y = 0 и сами учитывают statusBarTop
                 val isExpanded95 = offsetPx <= H * 0.05f
                 val isGallery = (selectedTab == AttachTab.GALLERY)
                 val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty() && !isExpanded95)
                 val handleHeight = when {
                     isGalleryWithSelection -> 44.dp
-                    isFull && selectedTab != AttachTab.GALLERY -> 0.dp
+                    isFull -> 0.dp
                     selectedTab == AttachTab.LOCATION -> 28.dp
                     else -> 18.dp
                 }
@@ -829,13 +820,15 @@ fun AttachSheetContent(
                     }
 
                     AttachTab.LOCATION -> {
+                        val sheetOffsetDp = with(LocalDensity.current) { offsetPx.coerceAtLeast(0f).toDp() }
                         LocationTab(
                             onSendLocation = { locDraft ->
                                 onSend(listOf(locDraft))
                                 dismissAnimated()
                             },
                             searchQuery = locationSearchQuery,
-                            isFullscreen = isFull,
+                            isFullscreen = offsetPx <= H * 0.05f,
+                            sheetOffsetDp = sheetOffsetDp,
                             modifier = Modifier.fillMaxSize()
                         )
                     }

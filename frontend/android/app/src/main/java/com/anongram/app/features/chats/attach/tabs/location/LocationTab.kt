@@ -77,6 +77,7 @@ import kotlinx.coroutines.delay
 fun LocationTab(
     onSendLocation: (AttachmentDraft) -> Unit,
     isFullscreen: Boolean = false,
+    sheetOffsetDp: androidx.compose.ui.unit.Dp = 0.dp,
     searchQuery: String = "",
     modifier: Modifier = Modifier
 ) {
@@ -199,11 +200,11 @@ fun LocationTab(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Фиксированный пин в центре карты
+        // Фиксированный пин в центре видимой области карты
         Box(
             modifier = Modifier
                 .align(Alignment.Center)
-                .offset(y = (-18).dp),
+                .offset(y = (-18).dp - sheetOffsetDp / 2),
             contentAlignment = Alignment.Center
         ) {
             Box(
@@ -221,12 +222,12 @@ fun LocationTab(
             )
         }
 
-        // Верхний правый угол: выбор слоёв карты
+        // Верхний правый угол: выбор слоёв карты (всегда ниже плавающей шапки/поиска)
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(
-                    top = if (isFullscreen) statusBarTop + 68.dp else 12.dp,
+                    top = if (isFullscreen) statusBarTop + 72.dp else 12.dp,
                     end = 12.dp
                 )
         ) {
@@ -285,7 +286,7 @@ fun LocationTab(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
-                .padding(bottom = tabBarClearance)
+                .padding(bottom = tabBarClearance + sheetOffsetDp)
                 .imePadding()
         ) {
             Box(
