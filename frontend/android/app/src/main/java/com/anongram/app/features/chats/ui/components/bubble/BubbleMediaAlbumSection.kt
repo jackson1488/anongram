@@ -57,6 +57,8 @@ import com.anongram.app.features.chats.attach.tabs.gallery.rememberMediaAspects
 import com.anongram.app.features.chats.attach.tabs.gallery.resolveMediaDimensions
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Одиночное сжатое фото или видео в пузыре сообщения.
