@@ -104,7 +104,8 @@ internal fun ChatOverlaysHost(
         viewingOverrideSingleUri = viewingOverrideSingleUri,
         wasKeyboardOpenBeforeViewer = wasKeyboardOpenBeforeViewer,
         onUpdateMediaViewer = onUpdateMediaViewer,
-        onCloseMediaViewer = onCloseMediaViewer
+        onCloseMediaViewer = onCloseMediaViewer,
+        onStartForward = onStartForward
     )
 
     ChatMessageActionAndSettingsOverlays(
@@ -170,7 +171,8 @@ private fun ChatInputAndMediaOverlays(
     viewingOverrideSingleUri: String?,
     wasKeyboardOpenBeforeViewer: Boolean,
     onUpdateMediaViewer: (ChatMessage?) -> Unit,
-    onCloseMediaViewer: (restoreKeyboard: Boolean) -> Unit
+    onCloseMediaViewer: (restoreKeyboard: Boolean) -> Unit,
+    onStartForward: (List<String>) -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()

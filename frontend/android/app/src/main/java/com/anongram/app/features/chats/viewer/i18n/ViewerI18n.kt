@@ -1,7 +1,7 @@
 package com.anongram.app.features.chats.viewer.i18n
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
@@ -131,6 +131,9 @@ val LocalViewerStrings = staticCompositionLocalOf { RuViewerStrings }
 object ViewerI18n {
     val current: ViewerI18nStrings
         @Composable
-        @ReadOnlyComposable
-        get() = if (LanguageSettingsStore.language == AppLanguage.RU) RuViewerStrings else EnViewerStrings
+        get() = if (LanguageSettingsStore.language.collectAsState().value == AppLanguage.RU) {
+            RuViewerStrings
+        } else {
+            EnViewerStrings
+        }
 }
