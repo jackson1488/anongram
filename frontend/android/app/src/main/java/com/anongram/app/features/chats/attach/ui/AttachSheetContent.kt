@@ -139,7 +139,7 @@ import com.anongram.app.features.chats.attach.ui.components.AttachHeaderScrim
 import com.anongram.app.features.chats.attach.ui.components.AttachHandleBar
 import com.anongram.app.features.chats.attach.ui.tabs.ContactsTab
 import com.anongram.app.features.chats.attach.ui.tabs.DeviceFileItem
-import com.anongram.app.features.chats.attach.ui.tabs.FilesGallerySubScreen
+import com.anongram.app.features.chats.attach.ui.tabs.files.FilesGallerySubScreen
 import com.anongram.app.features.chats.attach.ui.tabs.FilesTab
 import com.anongram.app.features.chats.attach.ui.tabs.GalleryMedia
 import com.anongram.app.features.chats.attach.ui.tabs.GalleryTab
