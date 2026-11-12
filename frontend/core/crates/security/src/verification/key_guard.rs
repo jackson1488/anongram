@@ -100,7 +100,7 @@ impl KeyChangeGuard {
             VerifiedContactRecord {
                 peer_id: *peer_id,
                 pinned_public_key: *new_key,
-                is_verified_by_qr,
+                is_verified_by_qr: verified_by_qr,
                 verified_at: timestamp,
             },
         );
