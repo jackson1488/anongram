@@ -11,6 +11,7 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
 import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
