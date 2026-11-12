@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
@@ -320,7 +322,7 @@ fun SettingsMainScreen(
 
                 // Заголовок строго по центру всего экрана (адаптивно для любых размеров)
                 Text(
-                    text = if (currentLanguage == "ru") "Настройки" else "Settings",
+                    text = if (currentLanguage == AppLanguage.RU) "Настройки" else "Settings",
                     color = scheme.textPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -347,7 +349,7 @@ fun SettingsMainScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = if (currentLanguage == "ru") "Поиск настроек" else "Search settings",
+                            contentDescription = if (currentLanguage == AppLanguage.RU) "Поиск настроек" else "Search settings",
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(19.dp)
                         )
@@ -364,7 +366,7 @@ fun SettingsMainScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = if (currentLanguage == "ru") "Меню" else "Menu",
+                            contentDescription = if (currentLanguage == AppLanguage.RU) "Меню" else "Menu",
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(19.dp)
                         )
