@@ -102,8 +102,8 @@ internal fun ChatGeoViewerScreen(
     val targetLat = if (geo.lat != 0.0 || geo.lon != 0.0) geo.lat else 42.8746
     val targetLon = if (geo.lat != 0.0 || geo.lon != 0.0) geo.lon else 74.5698
 
-    var cameraLat by remember(targetLat) { mutableDoubleStateOfFix(targetLat) }
-    var cameraLon by remember(targetLon) { mutableDoubleStateOfFix(targetLon) }
+    var cameraLat by remember(targetLat) { androidx.compose.runtime.mutableDoubleStateOf(targetLat) }
+    var cameraLon by remember(targetLon) { androidx.compose.runtime.mutableDoubleStateOf(targetLon) }
     var recenterNonce by remember { mutableIntStateOf(0) }
     var layerMode by remember { mutableStateOf(MapLayerMode.AUTO) }
     var isLayerMenuOpen by remember { mutableStateOf(false) }
@@ -455,7 +455,3 @@ internal fun ChatGeoViewerScreen(
         }
     }
 }
-
-@Composable
-private fun mutableDoubleStateOfFix(initial: Double) =
-    remember(initial) { androidx.compose.runtime.mutableDoubleStateOf(initial) }

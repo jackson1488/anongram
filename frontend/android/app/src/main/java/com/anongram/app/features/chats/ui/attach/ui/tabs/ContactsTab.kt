@@ -81,6 +81,7 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.ui.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.ui.attach.i18n.LocalAttachStrings
 import com.anongram.app.features.chats.ui.attach.ui.components.PermissionDeniedView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
