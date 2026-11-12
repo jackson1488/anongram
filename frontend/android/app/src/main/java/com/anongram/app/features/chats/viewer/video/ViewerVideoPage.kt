@@ -1,5 +1,9 @@
 package com.anongram.app.features.chats.viewer.video
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import android.graphics.SurfaceTexture
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
@@ -241,6 +245,7 @@ internal fun ViewerVideoPage(
             }
             mediaPlayer = null
             isPrepared = false
+            context.findViewerActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
     }
 
@@ -383,7 +388,25 @@ internal fun ViewerVideoPage(
                         .padding(8.dp)
                 ) {
                     IconButton(
-                        onClick = { isFillExpanded = !isFillExpanded },
+                        onClick = {
+                            if (videoAspect > 1.05f) {
+                                val act = context.findViewerActivity()
+                                if (act != null) {
+                                    val isCurrentlyLandscape = act.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE ||
+                                        act.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                    act.requestedOrientation = if (isCurrentlyLandscape) {
+                                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                                    } else {
+                                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                    }
+                                    isFillExpanded = !isCurrentlyLandscape
+                                } else {
+                                    isFillExpanded = !isFillExpanded
+                                }
+                            } else {
+                                isFillExpanded = !isFillExpanded
+                            }
+                        },
                         modifier = Modifier
                             .size(36.dp)
                             .clip(RoundedCornerShape(8.dp))
@@ -471,8 +494,8 @@ internal fun ViewerVideoPage(
             enter = fadeIn(),
             exit = fadeOut(),
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 86.dp)
+                .align(if (holdMode > 0) Alignment.CenterEnd else Alignment.CenterStart)
+                .padding(horizontal = 28.dp)
         ) {
             Row(
                 modifier = Modifier
@@ -502,4 +525,10 @@ internal fun ViewerVideoPage(
             }
         }
     }
+}
+
+private tailrec fun Context.findViewerActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findViewerActivity()
+    else -> null
 }

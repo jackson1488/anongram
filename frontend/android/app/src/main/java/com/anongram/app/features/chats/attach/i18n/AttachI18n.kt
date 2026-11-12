@@ -131,7 +131,8 @@ data class AttachI18nStrings(
     val musicPermissionDesc: String,
     val searchMusicPlaceholder: String,
     val audioNotFound: String,
-    val nothingFound: String
+    val nothingFound: String,
+    val monthYearFormatter: (Long) -> String
 )
 
 private val AttachStringsRu = AttachI18nStrings(
@@ -259,7 +260,14 @@ private val AttachStringsRu = AttachI18nStrings(
     musicPermissionDesc = "Для просмотра и отправки аудиофайлов предоставьте доступ к медиатеке.",
     searchMusicPlaceholder = "Поиск музыки",
     audioNotFound = "Аудиозаписи не найдены",
-    nothingFound = "Ничего не найдено"
+    nothingFound = "Ничего не найдено",
+    monthYearFormatter = { timestampSecOrMs ->
+        formatAttachMonthYear(
+            timestampSecOrMs = timestampSecOrMs,
+            months = RU_MONTH_NAMES,
+            suffix = " г."
+        )
+    }
 )
 
 private val AttachStringsEn = AttachI18nStrings(
@@ -376,8 +384,38 @@ private val AttachStringsEn = AttachI18nStrings(
     musicPermissionDesc = "Grant media library access to browse and send audio files.",
     searchMusicPlaceholder = "Search music",
     audioNotFound = "No audio files found",
-    nothingFound = "Nothing found"
+    nothingFound = "Nothing found",
+    monthYearFormatter = { timestampSecOrMs ->
+        formatAttachMonthYear(
+            timestampSecOrMs = timestampSecOrMs,
+            months = EN_MONTH_NAMES,
+            suffix = ""
+        )
+    }
 )
+
+private val RU_MONTH_NAMES = listOf(
+    "январь", "февраль", "март", "апрель", "май", "июнь",
+    "июль", "август", "сентябрь", "октябрь", "ноябрь", "декабрь"
+)
+
+private val EN_MONTH_NAMES = listOf(
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+)
+
+private fun formatAttachMonthYear(
+    timestampSecOrMs: Long,
+    months: List<String>,
+    suffix: String
+): String {
+    if (timestampSecOrMs <= 0L) return ""
+    val ms = if (timestampSecOrMs > 1_000_000_000_000L) timestampSecOrMs else timestampSecOrMs * 1000L
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = ms }
+    val monthIdx = cal.get(java.util.Calendar.MONTH).coerceIn(0, 11)
+    val year = cal.get(java.util.Calendar.YEAR)
+    return "${months[monthIdx]} $year$suffix"
+}
 
 object AttachI18n {
     fun forLanguage(language: AppLanguage = LanguageSettingsStore.language.value): AttachI18nStrings = when (language) {

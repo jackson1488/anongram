@@ -11,6 +11,7 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -35,6 +36,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -50,6 +52,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
@@ -60,9 +63,15 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -257,16 +266,34 @@ fun GalleryTab(
                     contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp)
                 )
             } else {
-                // Сетка медиа 3 колонки (ТЗ, шаг 5)
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(3),
+                val gridState = rememberLazyGridState()
+                val fastScrollScope = rememberCoroutineScope()
+                var isDraggingThumb by remember { mutableStateOf(false) }
+                var showFastThumb by remember { mutableStateOf(false) }
+
+                LaunchedEffect(gridState.isScrollInProgress, isDraggingThumb) {
+                    if (gridState.isScrollInProgress || isDraggingThumb) {
+                        showFastThumb = true
+                    } else {
+                        kotlinx.coroutines.delay(1500L)
+                        showFastThumb = false
+                    }
+                }
+
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                        .weight(1f)
                 ) {
+                    // Сетка медиа 3 колонки (ТЗ, шаг 5)
+                    LazyVerticalGrid(
+                        state = gridState,
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                 // Первая плитка: живое превью камеры высотой в 2 фото по вертикали (ТЗ, шаг 5)
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -355,6 +382,7 @@ fun GalleryTab(
                         media = effectiveMedia,
                         isSelected = isSelected,
                         selectionNumber = if (isSelected) selectedIndex + 1 else 0,
+                        deferDecode = isDraggingThumb,
                         onOpenViewer = {
                             if (originalIndex >= 0) {
                                 openViewerHelper(originalIndex)
@@ -366,6 +394,27 @@ fun GalleryTab(
                     )
                 }
             }
+
+                    if (filteredMedia.size >= 100) {
+                        GalleryFastScrollBar(
+                            gridState = gridState,
+                            filteredMedia = filteredMedia,
+                            visible = showFastThumb || isDraggingThumb,
+                            isDragging = isDraggingThumb,
+                            onDraggingChange = { isDraggingThumb = it },
+                            dateFormatter = strings.monthYearFormatter,
+                            onScrollToIndex = { targetIdx ->
+                                fastScrollScope.launch {
+                                    gridState.scrollToItem(targetIdx)
+                                }
+                            },
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .fillMaxHeight()
+                                .padding(top = topGridPadding + 8.dp, bottom = 92.dp, end = 4.dp)
+                        )
+                    }
+                }
             }
         }
 
@@ -603,17 +652,22 @@ private fun GalleryItemTile(
     selectionNumber: Int,
     onOpenViewer: () -> Unit,
     onToggleSelect: () -> Unit,
+    deferDecode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
-    var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
+    var bitmap by remember(media.uri) {
+        mutableStateOf<ImageBitmap?>(thumbnailCache.get(media.uri)?.asImageBitmap())
+    }
 
-    LaunchedEffect(media.uri) {
-        val bmp = withContext(Dispatchers.IO) {
-            loadMediaThumbnail(context, media.uri)
+    LaunchedEffect(media.uri, deferDecode) {
+        if (bitmap == null && !deferDecode) {
+            val bmp = withContext(Dispatchers.IO) {
+                loadMediaThumbnail(context, media.uri)
+            }
+            bitmap = bmp?.asImageBitmap()
         }
-        bitmap = bmp?.asImageBitmap()
     }
 
     Box(
@@ -894,20 +948,56 @@ private val hdBitmapCache = object : android.util.LruCache<Uri, Bitmap>(
 
 internal fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {
     thumbnailCache.get(uri)?.let { return it }
-    return try {
-        val bmp = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            context.contentResolver.loadThumbnail(uri, Size(360, 360), null)
-        } else {
-            val stream = context.contentResolver.openInputStream(uri)
-            BitmapFactory.decodeStream(stream).also { stream?.close() }
+    val bmp: Bitmap? = try {
+        var loaded: Bitmap? = null
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && uri.scheme == "content") {
+            loaded = try {
+                context.contentResolver.loadThumbnail(uri, Size(360, 360), null)
+            } catch (_: Throwable) {
+                null
+            }
         }
-        if (bmp != null) {
-            thumbnailCache.put(uri, bmp)
+        if (loaded == null) {
+            val mime = try { context.contentResolver.getType(uri) } catch (_: Throwable) { null }
+            val uriLower = uri.toString().lowercase()
+            val isLikelyVideo = mime?.startsWith("video/") == true ||
+                uriLower.endsWith(".mp4") || uriLower.endsWith(".mov") ||
+                uriLower.endsWith(".mkv") || uriLower.endsWith(".webm") ||
+                uriLower.endsWith(".3gp") || uriLower.endsWith(".m4v")
+            if (!isLikelyVideo) {
+                loaded = try {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+                    var sample = 1
+                    val longest = maxOf(bounds.outWidth, bounds.outHeight)
+                    while (longest > 0 && longest / sample > 360) sample *= 2
+                    val opts = BitmapFactory.Options().apply { inSampleSize = sample }
+                    context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
+                } catch (_: Throwable) {
+                    null
+                }
+            }
+            if (loaded == null) {
+                val retriever = MediaMetadataRetriever()
+                loaded = try {
+                    retriever.setDataSource(context, uri)
+                    retriever.getFrameAtTime(0L, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: retriever.frameAtTime
+                } catch (_: Throwable) {
+                    null
+                } finally {
+                    try { retriever.release() } catch (_: Throwable) {}
+                }
+            }
         }
-        bmp
-    } catch (_: Exception) {
+        loaded
+    } catch (_: Throwable) {
         null
     }
+    if (bmp != null) {
+        thumbnailCache.put(uri, bmp)
+    }
+    return bmp
 }
 
 /**
@@ -955,8 +1045,7 @@ internal fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
             val bucketIdx = c.getColumnIndex(MediaStore.Images.Media.BUCKET_DISPLAY_NAME)
             val dateIdx = c.getColumnIndex(MediaStore.Images.Media.DATE_ADDED)
 
-            var count = 0
-            while (c.moveToNext() && count < 200) {
+            while (c.moveToNext()) {
                 val id = if (idIdx >= 0) c.getLong(idIdx) else 0L
                 val bucket = if (bucketIdx >= 0) c.getString(bucketIdx) ?: "" else ""
                 val dateAdded = if (dateIdx >= 0) c.getLong(dateIdx) else 0L
@@ -969,7 +1058,6 @@ internal fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
                         dateAdded = dateAdded
                     )
                 )
-                count++
             }
         }
     } catch (_: Exception) {}
@@ -990,8 +1078,7 @@ internal fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
             val durIdx = c.getColumnIndex(MediaStore.Video.Media.DURATION)
             val dateIdx = c.getColumnIndex(MediaStore.Video.Media.DATE_ADDED)
 
-            var count = 0
-            while (c.moveToNext() && count < 100) {
+            while (c.moveToNext()) {
                 val id = if (idIdx >= 0) c.getLong(idIdx) else 0L
                 val bucket = if (bucketIdx >= 0) c.getString(bucketIdx) ?: "" else ""
                 val dur = if (durIdx >= 0) c.getLong(durIdx) else 0L
@@ -1006,10 +1093,109 @@ internal fun loadDeviceGalleryMedia(context: Context): List<GalleryMedia> {
                         dateAdded = dateAdded
                     )
                 )
-                count++
             }
         }
     } catch (_: Exception) {}
 
     return list.sortedByDescending { it.dateAdded }
+}
+
+@Composable
+private fun GalleryFastScrollBar(
+    gridState: androidx.compose.foundation.lazy.grid.LazyGridState,
+    filteredMedia: List<GalleryMedia>,
+    visible: Boolean,
+    isDragging: Boolean,
+    onDraggingChange: (Boolean) -> Unit,
+    dateFormatter: (Long) -> String,
+    onScrollToIndex: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val scheme = LocalAnonGramScheme.current
+    val density = LocalDensity.current
+    var trackHeightPx by remember { mutableStateOf(1f) }
+    val thumbHeightDp = 48.dp
+    val thumbHeightPx = with(density) { thumbHeightDp.toPx() }
+    val usableHeightPx = (trackHeightPx - thumbHeightPx).coerceAtLeast(1f)
+
+    val totalGridItems = (filteredMedia.size - 4).coerceAtLeast(0) + 1
+    val totalRows = 1 + ((filteredMedia.size - 4).coerceAtLeast(0) + 2) / 3
+    val firstIdx = gridState.firstVisibleItemIndex
+    val currentRow = if (firstIdx == 0) 0 else 1 + (firstIdx - 1) / 3
+    val autoFraction = (currentRow.toFloat() / (totalRows - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
+    var dragFraction by remember { mutableStateOf(0f) }
+
+    val activeFraction = if (isDragging) dragFraction else autoFraction
+    val thumbOffsetY = (activeFraction * usableHeightPx).roundToInt()
+
+    val visibleMediaIdx = if (firstIdx == 0) 0 else (firstIdx + 3).coerceIn(0, (filteredMedia.size - 1).coerceAtLeast(0))
+    val dateSec = filteredMedia.getOrNull(visibleMediaIdx)?.dateAdded ?: 0L
+    val dateLabel = remember(dateSec) { dateFormatter(dateSec) }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(150)),
+        exit = fadeOut(tween(250)),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(180.dp)
+                .onSizeChanged { trackHeightPx = it.height.toFloat().coerceAtLeast(1f) }
+        ) {
+            if (isDragging && dateLabel.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset { IntOffset(x = -with(density) { 42.dp.roundToPx() }, y = thumbOffsetY + with(density) { 6.dp.roundToPx() }) }
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(scheme.islandBg.copy(alpha = 0.96f))
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = dateLabel,
+                        color = scheme.textPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset { IntOffset(x = 0, y = thumbOffsetY) }
+                    .width(28.dp)
+                    .height(thumbHeightDp)
+                    .pointerInput(totalGridItems, usableHeightPx) {
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                dragFraction = autoFraction
+                                onDraggingChange(true)
+                            },
+                            onDragEnd = { onDraggingChange(false) },
+                            onDragCancel = { onDraggingChange(false) },
+                            onVerticalDrag = { change, dragAmount ->
+                                change.consume()
+                                dragFraction = (dragFraction + dragAmount / usableHeightPx).coerceIn(0f, 1f)
+                                val target = (dragFraction * (totalGridItems - 1)).roundToInt().coerceIn(0, totalGridItems - 1)
+                                onScrollToIndex(target)
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(if (isDragging) 8.dp else 5.dp)
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(if (isDragging) scheme.accent else scheme.textPrimary.copy(alpha = 0.65f))
+                )
+            }
+        }
+    }
 }

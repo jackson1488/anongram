@@ -1,6 +1,11 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
+import android.graphics.Matrix
+import android.graphics.SurfaceTexture
+import android.media.MediaPlayer
 import android.net.Uri
+import android.view.Surface
+import android.view.TextureView
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -8,6 +13,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -23,11 +29,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.VolumeOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -46,6 +56,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.components.SpoilerOverlay
 import com.anongram.app.features.chats.attach.tabs.gallery.AlbumLayoutPlan
@@ -58,6 +69,7 @@ import com.anongram.app.features.chats.attach.tabs.gallery.resolveMediaDimension
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -599,14 +611,21 @@ internal fun ChatRealPhotoBox(
     var localSpoilerRevealed by remember(uriString) { mutableStateOf(false) }
     val showSpoiler = hasSpoiler && !localSpoilerRevealed
 
-    LaunchedEffect(parsedUri) {
+    LaunchedEffect(parsedUri, isVideo) {
         if (parsedUri != null) {
             val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
             if (bitmap == null) bitmap = quick?.asImageBitmap()
-            val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, parsedUri) }
-            if (hd != null) bitmap = hd.asImageBitmap()
+            if (!isVideo) {
+                val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, parsedUri) }
+                if (hd != null) bitmap = hd.asImageBitmap()
+            }
         }
     }
+
+    var isVideoPrepared by remember(uriString) { mutableStateOf(false) }
+    var videoDurationMs by remember(uriString) { mutableIntStateOf(0) }
+    var videoProgress by remember(uriString) { mutableFloatStateOf(0f) }
+    var videoRemainingMs by remember(uriString) { mutableIntStateOf(0) }
 
     Box(
         modifier = modifier
@@ -638,7 +657,84 @@ internal fun ChatRealPhotoBox(
             )
         }
 
-        if (isVideo && !showSpoiler) {
+        if (isVideo && !showSpoiler && parsedUri != null) {
+            InlineMutedVideoPreview(
+                uri = parsedUri,
+                onPrepared = { durMs ->
+                    videoDurationMs = durMs
+                    videoRemainingMs = durMs
+                    isVideoPrepared = true
+                },
+                onProgress = { posMs, durMs ->
+                    if (durMs > 0) {
+                        videoDurationMs = durMs
+                        videoRemainingMs = (durMs - posMs).coerceAtLeast(0)
+                        videoProgress = (posMs.toFloat() / durMs).coerceIn(0f, 1f)
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            if (!isVideoPrepared) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.55f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            if (videoDurationMs > 0) {
+                val totalSec = (videoRemainingMs / 1000).coerceAtLeast(0)
+                val badgeText = String.format("%d:%02d", totalSec / 60, totalSec % 60)
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.52f))
+                        .padding(horizontal = 6.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Icon(
+                        imageVector = Icons.Outlined.VolumeOff,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(Color.White.copy(alpha = 0.25f))
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(videoProgress)
+                            .background(Color.White)
+                    )
+                }
+            }
+        } else if (isVideo && !showSpoiler) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -648,7 +744,7 @@ internal fun ChatRealPhotoBox(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.PlayArrow,
-                    contentDescription = "Воспроизвести",
+                    contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(22.dp)
                 )
@@ -682,4 +778,96 @@ internal fun ChatRealPhotoBox(
             }
         }
     }
+}
+
+@Composable
+private fun InlineMutedVideoPreview(
+    uri: Uri,
+    onPrepared: (Int) -> Unit,
+    onProgress: (Int, Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    var mediaPlayer by remember(uri) { mutableStateOf<MediaPlayer?>(null) }
+
+    LaunchedEffect(mediaPlayer) {
+        val mp = mediaPlayer ?: return@LaunchedEffect
+        while (true) {
+            runCatching {
+                if (mp.isPlaying) {
+                    onProgress(mp.currentPosition, mp.duration)
+                }
+            }
+            delay(100L)
+        }
+    }
+
+    DisposableEffect(uri) {
+        onDispose {
+            runCatching {
+                mediaPlayer?.stop()
+                mediaPlayer?.release()
+            }
+            mediaPlayer = null
+        }
+    }
+
+    AndroidView(
+        modifier = modifier,
+        factory = { ctx ->
+            TextureView(ctx).apply {
+                isOpaque = false
+                surfaceTextureListener = object : TextureView.SurfaceTextureListener {
+                    override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+                        val mp = MediaPlayer()
+                        mediaPlayer = mp
+                        runCatching {
+                            mp.setDataSource(ctx, uri)
+                            mp.setSurface(Surface(surface))
+                            mp.isLooping = true
+                            mp.setVolume(0f, 0f)
+                            mp.setOnVideoSizeChangedListener { _, videoW, videoH ->
+                                if (videoW > 0 && videoH > 0 && width > 0 && height > 0) {
+                                    val viewRatio = width.toFloat() / height
+                                    val videoRatio = videoW.toFloat() / videoH
+                                    val scaleX: Float
+                                    val scaleY: Float
+                                    if (videoRatio > viewRatio) {
+                                        scaleX = videoRatio / viewRatio
+                                        scaleY = 1f
+                                    } else {
+                                        scaleX = 1f
+                                        scaleY = viewRatio / videoRatio
+                                    }
+                                    val matrix = Matrix()
+                                    matrix.setScale(scaleX, scaleY, width / 2f, height / 2f)
+                                    setTransform(matrix)
+                                }
+                            }
+                            mp.setOnPreparedListener { preparedMp ->
+                                preparedMp.setVolume(0f, 0f)
+                                preparedMp.isLooping = true
+                                preparedMp.start()
+                                onPrepared(preparedMp.duration)
+                            }
+                            mp.prepareAsync()
+                        }
+                    }
+
+                    override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
+
+                    override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
+                        runCatching {
+                            mediaPlayer?.stop()
+                            mediaPlayer?.release()
+                        }
+                        mediaPlayer = null
+                        return true
+                    }
+
+                    override fun onSurfaceTextureUpdated(surface: SurfaceTexture) = Unit
+                }
+            }
+        }
+    )
 }

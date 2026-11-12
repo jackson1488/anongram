@@ -72,6 +72,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.DpOffset
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
@@ -80,9 +85,6 @@ import com.anongram.app.features.chats.viewer.i18n.ViewerI18n
 import com.anongram.app.features.chats.viewer.video.ViewerVideoPlaybackState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-private val ViewerOverlayGlass = Color(0xCC0D0F14)
-private val ViewerOverlayGlassExpanded = Color(0xEB0D0F14)
 
 @Composable
 internal fun ViewerTopBar(
@@ -119,7 +121,7 @@ internal fun ViewerTopBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(ViewerOverlayGlass)
+                .background(scheme.islandBg.copy(alpha = 0.88f))
                 .safeStatusBarPadding()
         ) {
             Row(
@@ -133,7 +135,7 @@ internal fun ViewerTopBar(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = strings.back,
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -146,7 +148,7 @@ internal fun ViewerTopBar(
                 ) {
                     Text(
                         text = senderTitle,
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
@@ -154,7 +156,7 @@ internal fun ViewerTopBar(
                     )
                     Text(
                         text = dateSubTitle,
-                        color = Color.White.copy(alpha = 0.72f),
+                        color = scheme.textSecondary,
                         fontSize = 12.5.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
@@ -166,7 +168,7 @@ internal fun ViewerTopBar(
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Reply,
                         contentDescription = strings.forward,
-                        tint = Color.White,
+                        tint = scheme.textPrimary,
                         modifier = Modifier
                             .size(23.dp)
                             .graphicsLayer { scaleX = -1f }
@@ -180,7 +182,7 @@ internal fun ViewerTopBar(
                             Icon(
                                 imageVector = Icons.Outlined.Settings,
                                 contentDescription = strings.settings,
-                                tint = Color.White,
+                                tint = scheme.textPrimary,
                                 modifier = Modifier.size(22.dp)
                             )
                         }
@@ -188,6 +190,7 @@ internal fun ViewerTopBar(
                         DropdownMenu(
                             expanded = isSettingsMenuOpen,
                             onDismissRequest = { onSettingsMenuOpenChange(false) },
+                            offset = DpOffset(0.dp, 4.dp),
                             shape = RoundedCornerShape(18.dp),
                             containerColor = scheme.card,
                             border = BorderStroke(1.dp, scheme.islandBorder),
@@ -279,7 +282,7 @@ internal fun ViewerTopBar(
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
                             contentDescription = strings.menu,
-                            tint = Color.White,
+                            tint = scheme.textPrimary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -287,6 +290,7 @@ internal fun ViewerTopBar(
                     DropdownMenu(
                         expanded = isMoreMenuOpen,
                         onDismissRequest = { onMoreMenuOpenChange(false) },
+                        offset = DpOffset(0.dp, 4.dp),
                         shape = RoundedCornerShape(18.dp),
                         containerColor = scheme.card,
                         border = BorderStroke(1.dp, scheme.islandBorder),
@@ -301,6 +305,10 @@ internal fun ViewerTopBar(
                                 onMoreMenuOpenChange(false)
                                 onSaveToGallery()
                             }
+                        )
+                        HorizontalDivider(
+                            color = scheme.divider,
+                            modifier = Modifier.padding(vertical = 2.dp)
                         )
                         DropdownMenuItem(
                             text = { Text(strings.showInChat, color = scheme.textPrimary, fontSize = 15.sp) },
@@ -367,14 +375,14 @@ internal fun ViewerTopBar(
                 modifier = Modifier
                     .padding(top = 6.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(ViewerOverlayGlass)
-                    .border(0.5.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(14.dp))
+                    .background(scheme.islandBg.copy(alpha = 0.88f))
+                    .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(14.dp))
                     .padding(horizontal = 12.dp, vertical = 4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = globalMediaCounterText,
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -405,7 +413,7 @@ internal fun ViewerBottomBar(
         modifier = modifier
             .fillMaxWidth()
             .background(
-                color = if (isCaptionExpanded) ViewerOverlayGlassExpanded else ViewerOverlayGlass,
+                color = scheme.islandBg.copy(alpha = if (isCaptionExpanded) 0.96f else 0.88f),
                 shape = if (isCaptionExpanded) RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp) else RoundedCornerShape(0.dp)
             )
             .safeNavigationBarPadding()
@@ -431,7 +439,7 @@ internal fun ViewerBottomBar(
                             modifier = Modifier
                                 .size(width = 36.dp, height = 4.dp)
                                 .clip(RoundedCornerShape(2.dp))
-                                .background(Color.White.copy(alpha = 0.45f))
+                                .background(scheme.textMuted.copy(alpha = 0.45f))
                         )
                     }
                 }
@@ -453,7 +461,7 @@ internal fun ViewerBottomBar(
                 ) {
                     Text(
                         text = caption,
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 14.5.sp,
                         lineHeight = 19.sp,
                         maxLines = if (isCaptionExpanded) Int.MAX_VALUE else 3,
@@ -520,34 +528,66 @@ internal fun ViewerBottomBar(
             }
         }
 
-        // Полоса перемотки видео + таймер 00:16 / 00:28 (как на скрине 2)
+        // Аккуратная полоса перемотки видео в стиле Telegram + таймер 00:16 / 00:28
         if (isVideo) {
             val durMs = videoPlaybackState.durationMs.coerceAtLeast(1L)
             val posMs = videoPlaybackState.currentPositionMs.coerceIn(0L, durMs)
+            val progressFrac = (posMs.toFloat() / durMs.toFloat()).coerceIn(0f, 1f)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 2.dp),
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Slider(
-                    value = (posMs.toFloat() / durMs.toFloat()).coerceIn(0f, 1f),
-                    onValueChange = { frac ->
-                        videoPlaybackState.seekTo((frac * durMs).toLong())
-                    },
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = Color.White,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.28f)
-                    ),
+                BoxWithConstraints(
                     modifier = Modifier
                         .weight(1f)
                         .height(28.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+                        .pointerInput(durMs) {
+                            detectTapGestures { offset ->
+                                val frac = (offset.x / size.width.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
+                                videoPlaybackState.seekTo((frac * durMs).toLong())
+                            }
+                        }
+                        .pointerInput(durMs) {
+                            detectHorizontalDragGestures { change, _ ->
+                                change.consume()
+                                val frac = (change.position.x / size.width.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
+                                videoPlaybackState.seekTo((frac * durMs).toLong())
+                            }
+                        },
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    val trackWidth = maxWidth
+                    val thumbSize = 12.dp
+                    val thumbOffset = ((trackWidth - thumbSize) * progressFrac).coerceAtLeast(0.dp)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(1.5.dp))
+                            .background(scheme.textMuted.copy(alpha = 0.35f))
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(progressFrac)
+                                .height(3.dp)
+                                .clip(RoundedCornerShape(1.5.dp))
+                                .background(scheme.accent)
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .padding(start = thumbOffset)
+                            .size(thumbSize)
+                            .clip(CircleShape)
+                            .background(scheme.accent)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
                     text = "${formatDurationMmSs(posMs)} / ${formatDurationMmSs(videoPlaybackState.durationMs)}",
-                    color = Color.White.copy(alpha = 0.9f),
+                    color = scheme.textPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
@@ -565,6 +605,7 @@ internal fun ViewerMiniThumbnail(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
     var thumbBitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
 
@@ -579,12 +620,12 @@ internal fun ViewerMiniThumbnail(
     Box(
         modifier = modifier
             .clip(shape)
-            .background(Color(0xFF22252E))
+            .background(scheme.card)
             .then(
                 if (isSelected) {
-                    Modifier.border(2.dp, Color.White, shape)
+                    Modifier.border(2.dp, scheme.accent, shape)
                 } else {
-                    Modifier.border(0.75.dp, Color.White.copy(alpha = 0.22f), shape)
+                    Modifier.border(0.75.dp, scheme.islandBorder, shape)
                 }
             )
             .clickable(
