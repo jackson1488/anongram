@@ -104,9 +104,7 @@ internal class AttachSheetDragState(
     fun release(velocityY: Float) {
         animJob?.cancel()
         if (offsetPx <= halfOffset) {
-            val shouldExpand = velocityY < -600f || (velocityY <= 600f && offsetPx < halfOffset * 0.55f)
-            val target = if (shouldExpand) 0f else halfOffset
-            animateTo(target, ms = 220, isFling = kotlin.math.abs(velocityY) > 600f)
+            offsetPx = offsetPx.coerceIn(0f, halfOffset)
             return
         }
         if (velocityY > 2000f || offsetPx > halfOffset + 80f) {
@@ -161,16 +159,10 @@ internal class AttachSheetDragState(
             return Offset.Zero
         }
 
-        override suspend fun onPreFling(available: Velocity): Velocity {
-            if (offsetPx > 0f && offsetPx < totalHeightPx && available.y < -600f) {
-                release(available.y)
-                return Velocity(0f, available.y)
-            }
-            return Velocity.Zero
-        }
+        override suspend fun onPreFling(available: Velocity): Velocity = Velocity.Zero
 
         override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-            if (offsetPx > 0f && offsetPx < totalHeightPx) {
+            if (offsetPx > halfOffset) {
                 release(available.y)
             }
             return Velocity.Zero
