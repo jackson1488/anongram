@@ -137,7 +137,8 @@ fun ContactsTab(
         AttachHeaderScrim(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .zIndex(5f)
+                .zIndex(5f),
+            includeStatusBar = isFullscreen
         )
 
         // Парящая строка поиска сверху (zIndex = 10f)

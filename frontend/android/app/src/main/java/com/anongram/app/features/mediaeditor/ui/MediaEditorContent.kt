@@ -84,6 +84,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.api.MediaTtl
+import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.mediaeditor.api.EditedMedia
 import kotlinx.coroutines.Dispatchers
@@ -373,15 +374,16 @@ fun MediaEditorContent(
                                     modifier = Modifier.padding(8.dp)
                                 )
 
+                                val attachStrings = LocalAttachStrings.current
                                 val ttlOptions = listOf(
-                                    "Один просмотр" to MediaTtl.OneView,
-                                    "3 сек." to MediaTtl.Sec3,
-                                    "10 сек." to MediaTtl.Sec10,
-                                    "30 сек." to MediaTtl.Sec30,
-                                    "Никогда" to MediaTtl.Never
+                                    MediaTtl.OneView,
+                                    MediaTtl.Sec3,
+                                    MediaTtl.Sec10,
+                                    MediaTtl.Sec30,
+                                    MediaTtl.Never
                                 )
 
-                                ttlOptions.forEach { (title, ttlVal) ->
+                                ttlOptions.forEach { ttlVal ->
                                     DropdownMenuItem(
                                         text = {
                                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -394,7 +396,7 @@ fun MediaEditorContent(
                                                     )
                                                 )
                                                 Spacer(modifier = Modifier.width(8.dp))
-                                                Text(text = title, color = scheme.textPrimary, fontSize = 14.sp)
+                                                Text(text = ttlVal.label(attachStrings), color = scheme.textPrimary, fontSize = 14.sp)
                                             }
                                         },
                                         onClick = {

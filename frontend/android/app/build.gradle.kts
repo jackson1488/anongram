@@ -18,6 +18,8 @@ android {
         versionName = "1.0.$runNumber"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val mapboxToken = (System.getenv("MAPBOX_ACCESS_TOKEN") ?: "").replace("\"", "\\\"")
+        buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxToken\"")
     }
 
     // Ключ и пароли приходят только из секретов CI (env). В репозитории их нет.
@@ -57,6 +59,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

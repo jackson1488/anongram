@@ -221,70 +221,76 @@ fun LocationTab(
             )
         }
 
-        // Верхний правый стек: выбор слоёв карты и кнопка "Моё местоположение"
-        Column(
+        // Верхний правый угол: выбор слоёв карты
+        Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(
                     top = if (isFullscreen) statusBarTop + 68.dp else 12.dp,
                     end = 12.dp
-                ),
-            horizontalAlignment = Alignment.CenterHorizontally
+                )
         ) {
-            Box {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .shadow(6.dp, CircleShape)
-                        .clip(CircleShape)
-                        .background(scheme.islandBg.copy(alpha = 0.94f))
-                        .border(1.dp, scheme.islandBorder, CircleShape)
-                        .clickable { isLayerMenuOpen = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Layers,
-                        contentDescription = strings.mapLayer,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                DropdownMenu(
-                    expanded = isLayerMenuOpen,
-                    onDismissRequest = { isLayerMenuOpen = false },
-                    containerColor = scheme.card
-                ) {
-                    val options = listOf(
-                        MapLayerMode.AUTO to strings.mapLayerAuto,
-                        MapLayerMode.STANDARD to strings.mapLayerStandard,
-                        MapLayerMode.DARK to strings.mapLayerDark,
-                        MapLayerMode.SATELLITE to strings.mapLayerSatellite,
-                        MapLayerMode.HYBRID to strings.mapLayerHybrid
-                    )
-                    options.forEach { (mode, title) ->
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    text = title,
-                                    color = if (layerMode == mode) scheme.accent else scheme.textPrimary,
-                                    fontWeight = if (layerMode == mode) FontWeight.Bold else FontWeight.Normal,
-                                    fontSize = 14.sp
-                                )
-                            },
-                            onClick = {
-                                layerMode = mode
-                                isLayerMenuOpen = false
-                            }
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
             Box(
                 modifier = Modifier
+                    .size(44.dp)
+                    .shadow(6.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(scheme.islandBg.copy(alpha = 0.94f))
+                    .border(1.dp, scheme.islandBorder, CircleShape)
+                    .clickable { isLayerMenuOpen = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Layers,
+                    contentDescription = strings.mapLayer,
+                    tint = scheme.textPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            DropdownMenu(
+                expanded = isLayerMenuOpen,
+                onDismissRequest = { isLayerMenuOpen = false },
+                containerColor = scheme.card
+            ) {
+                val options = listOf(
+                    MapLayerMode.AUTO to strings.mapLayerAuto,
+                    MapLayerMode.STANDARD to strings.mapLayerStandard,
+                    MapLayerMode.DARK to strings.mapLayerDark,
+                    MapLayerMode.SATELLITE to strings.mapLayerSatellite,
+                    MapLayerMode.HYBRID to strings.mapLayerHybrid
+                )
+                options.forEach { (mode, title) ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = title,
+                                color = if (layerMode == mode) scheme.accent else scheme.textPrimary,
+                                fontWeight = if (layerMode == mode) FontWeight.Bold else FontWeight.Normal,
+                                fontSize = 14.sp
+                            )
+                        },
+                        onClick = {
+                            layerMode = mode
+                            isLayerMenuOpen = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Нижний блок: кнопка "Моё местоположение" справа и карточка "Отправить выбранную геопозицию"
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp)
+                .padding(bottom = tabBarClearance)
+                .imePadding()
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.End)
                     .size(44.dp)
                     .shadow(6.dp, CircleShape)
                     .clip(CircleShape)
@@ -321,66 +327,64 @@ fun LocationTab(
                     modifier = Modifier.size(21.dp)
                 )
             }
-        }
 
-        // Карточка "Отправить выбранную геопозицию" как в Telegram
-        Row(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp)
-                .padding(bottom = tabBarClearance)
-                .imePadding()
-                .shadow(10.dp, RoundedCornerShape(18.dp))
-                .clip(RoundedCornerShape(18.dp))
-                .background(scheme.islandBg.copy(alpha = 0.96f))
-                .border(1.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
-                .clickable {
-                    onSendLocation(
-                        AttachmentDraft.Location(
-                            lat = pinLat,
-                            lon = pinLon,
-                            address = currentAddress
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Карточка "Отправить выбранную геопозицию" как в Telegram
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(10.dp, RoundedCornerShape(18.dp))
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(scheme.islandBg.copy(alpha = 0.96f))
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
+                    .clickable {
+                        onSendLocation(
+                            AttachmentDraft.Location(
+                                lat = pinLat,
+                                lon = pinLon,
+                                address = currentAddress
+                            )
                         )
+                    }
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(scheme.accent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = scheme.onAccent,
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .clip(CircleShape)
-                    .background(scheme.accent),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.LocationOn,
-                    contentDescription = null,
-                    tint = scheme.onAccent,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
 
-            Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(12.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = strings.sendSelectedLocation,
-                    color = scheme.accent,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = currentAddress,
-                    color = scheme.textSecondary,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = strings.sendSelectedLocation,
+                        color = scheme.accent,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = currentAddress,
+                        color = scheme.textSecondary,
+                        fontSize = 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
         }
     }

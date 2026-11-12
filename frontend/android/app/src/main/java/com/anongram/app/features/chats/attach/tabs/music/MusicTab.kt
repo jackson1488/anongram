@@ -177,7 +177,8 @@ fun MusicTab(
         AttachHeaderScrim(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .zIndex(5f)
+                .zIndex(5f),
+            includeStatusBar = isFullscreen
         )
 
         // Парящая шапка поиска и мини-плеера (zIndex = 10f)

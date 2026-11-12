@@ -117,9 +117,9 @@ data class DeviceFileItem(
     val extension: String
 )
 
-enum class FileSortOrder(val title: String) {
-    BY_DATE("Недавние файлы"),
-    BY_NAME("Файлы А-Я");
+enum class FileSortOrder {
+    BY_DATE,
+    BY_NAME;
 
     fun label(strings: AttachI18nStrings): String = when (this) {
         BY_DATE -> strings.recentFiles

@@ -16,10 +16,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.MapTileIndex
 import java.io.File
 import java.net.HttpURLConnection
@@ -41,6 +40,9 @@ enum class MapLayerMode {
 }
 
 object OsmMapHelper {
+
+    private val MAPBOX_ACCESS_TOKEN: String
+        get() = com.anongram.app.BuildConfig.MAPBOX_ACCESS_TOKEN
 
     private var initialized = false
 
@@ -71,67 +73,56 @@ object OsmMapHelper {
         }
     }
 
-    val CARTO_VOYAGER_SOURCE: OnlineTileSourceBase = XYTileSource(
-        "CartoVoyager",
+    private fun mapboxTileSource(
+        name: String,
+        styleId: String,
+        ext: String = ".png",
+        maxZoom: Int = 20
+    ): OnlineTileSourceBase = object : OnlineTileSourceBase(
+        name,
         0,
-        19,
+        maxZoom,
         256,
-        ".png",
-        arrayOf(
-            "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-            "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-            "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
-        )
-    )
-
-    val DARK_MATTER_SOURCE: OnlineTileSourceBase = XYTileSource(
-        "CartoDarkMatter",
-        0,
-        19,
-        256,
-        ".png",
-        arrayOf(
-            "https://a.basemaps.cartocdn.com/dark_all/",
-            "https://b.basemaps.cartocdn.com/dark_all/",
-            "https://c.basemaps.cartocdn.com/dark_all/"
-        )
-    )
-
-    val ESRI_SATELLITE_SOURCE: OnlineTileSourceBase = object : OnlineTileSourceBase(
-        "EsriWorldImagery",
-        0,
-        18,
-        256,
-        ".jpg",
-        arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/")
+        ext,
+        arrayOf("https://api.mapbox.com/styles/v1/mapbox/$styleId/tiles/256/")
     ) {
         override fun getTileURLString(pMapTileIndex: Long): String {
             val z = MapTileIndex.getZoom(pMapTileIndex)
-            val y = MapTileIndex.getY(pMapTileIndex)
             val x = MapTileIndex.getX(pMapTileIndex)
-            return "$baseUrl$z/$y/$x"
+            val y = MapTileIndex.getY(pMapTileIndex)
+            return "https://api.mapbox.com/styles/v1/mapbox/$styleId/tiles/256/$z/$x/$y@2x?access_token=$MAPBOX_ACCESS_TOKEN"
         }
     }
 
-    val HYBRID_SOURCE: OnlineTileSourceBase = object : OnlineTileSourceBase(
-        "GoogleHybrid", 0, 19, 256, ".jpg",
-        arrayOf("https://mt1.google.com/vt/lyrs=y")
-    ) {
-        override fun getTileURLString(pMapTileIndex: Long): String {
-            val z = MapTileIndex.getZoom(pMapTileIndex)
-            val y = MapTileIndex.getY(pMapTileIndex)
-            val x = MapTileIndex.getX(pMapTileIndex)
-            return "$baseUrl&x=$x&y=$y&z=$z"
-        }
-    }
+    val MAPBOX_STREETS_SOURCE: OnlineTileSourceBase = mapboxTileSource(
+        name = "MapboxStreets",
+        styleId = "streets-v12"
+    )
+
+    val MAPBOX_DARK_SOURCE: OnlineTileSourceBase = mapboxTileSource(
+        name = "MapboxDark",
+        styleId = "dark-v11"
+    )
+
+    val MAPBOX_SATELLITE_SOURCE: OnlineTileSourceBase = mapboxTileSource(
+        name = "MapboxSatellite",
+        styleId = "satellite-v9",
+        ext = ".jpg"
+    )
+
+    val MAPBOX_HYBRID_SOURCE: OnlineTileSourceBase = mapboxTileSource(
+        name = "MapboxHybrid",
+        styleId = "satellite-streets-v12",
+        ext = ".jpg"
+    )
 
     fun resolveTileSource(mode: MapLayerMode, isDarkTheme: Boolean): OnlineTileSourceBase {
         return when (mode) {
-            MapLayerMode.AUTO -> if (isDarkTheme) DARK_MATTER_SOURCE else CARTO_VOYAGER_SOURCE
-            MapLayerMode.STANDARD -> CARTO_VOYAGER_SOURCE
-            MapLayerMode.DARK -> DARK_MATTER_SOURCE
-            MapLayerMode.SATELLITE -> ESRI_SATELLITE_SOURCE
-            MapLayerMode.HYBRID -> HYBRID_SOURCE
+            MapLayerMode.AUTO -> if (isDarkTheme) MAPBOX_DARK_SOURCE else MAPBOX_STREETS_SOURCE
+            MapLayerMode.STANDARD -> MAPBOX_STREETS_SOURCE
+            MapLayerMode.DARK -> MAPBOX_DARK_SOURCE
+            MapLayerMode.SATELLITE -> MAPBOX_SATELLITE_SOURCE
+            MapLayerMode.HYBRID -> MAPBOX_HYBRID_SOURCE
         }
     }
 
@@ -192,9 +183,38 @@ object OsmMapHelper {
         return BitmapDrawable(context.resources, bmp)
     }
 
+    private fun fetchMapboxGeocodeJson(urlStr: String): JSONObject? {
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 4500
+                readTimeout = 4500
+            }
+            if (conn.responseCode == 200) {
+                val body = conn.inputStream.bufferedReader().use { it.readText() }
+                JSONObject(body)
+            } else {
+                null
+            }
+        } catch (_: Throwable) {
+            null
+        } finally {
+            conn?.disconnect()
+        }
+    }
+
     suspend fun reverseGeocode(context: Context, lat: Double, lon: Double): String {
         val fallback = String.format(Locale.US, "%.5f, %.5f", lat, lon)
         return withContext(Dispatchers.IO) {
+            val lang = Uri.encode(Locale.getDefault().language.ifBlank { "en" })
+            val mapboxUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/$lon,$lat.json?access_token=$MAPBOX_ACCESS_TOKEN&limit=1&language=$lang"
+            val feature = fetchMapboxGeocodeJson(mapboxUrl)
+                ?.optJSONArray("features")
+                ?.optJSONObject(0)
+            val mapboxName = feature?.optString("place_name")?.takeIf { it.isNotBlank() }
+                ?: feature?.optString("text")?.takeIf { it.isNotBlank() }
+            if (mapboxName != null) return@withContext mapboxName
+
             try {
                 val geocoder = Geocoder(context, Locale.getDefault())
                 val list = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -230,6 +250,21 @@ object OsmMapHelper {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) return null
         return withContext(Dispatchers.IO) {
+            val lang = Uri.encode(Locale.getDefault().language.ifBlank { "en" })
+            val encodedQuery = Uri.encode(trimmed)
+            val mapboxUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/$encodedQuery.json?access_token=$MAPBOX_ACCESS_TOKEN&limit=1&language=$lang"
+            val center = fetchMapboxGeocodeJson(mapboxUrl)
+                ?.optJSONArray("features")
+                ?.optJSONObject(0)
+                ?.optJSONArray("center")
+            if (center != null && center.length() >= 2) {
+                val lon = center.optDouble(0, Double.NaN)
+                val lat = center.optDouble(1, Double.NaN)
+                if (!lat.isNaN() && !lon.isNaN()) {
+                    return@withContext lat to lon
+                }
+            }
+
             try {
                 val geocoder = Geocoder(context, Locale.getDefault())
                 val list = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -341,13 +376,11 @@ object OsmMapHelper {
         tileMemoryCache.get(key)?.let { return it to (fracX to fracY) }
 
         val bmp = withContext(Dispatchers.IO) {
+            var conn: HttpURLConnection? = null
             try {
-                val urlStr = if (isDark) {
-                    "https://a.basemaps.cartocdn.com/dark_all/$zoom/$tileX/$tileY.png"
-                } else {
-                    "https://a.basemaps.cartocdn.com/rastertiles/voyager/$zoom/$tileX/$tileY.png"
-                }
-                val conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
+                val style = if (isDark) "dark-v11" else "streets-v12"
+                val urlStr = "https://api.mapbox.com/styles/v1/mapbox/$style/tiles/256/$zoom/$tileX/$tileY@2x?access_token=$MAPBOX_ACCESS_TOKEN"
+                conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 4500
                     readTimeout = 4500
                     setRequestProperty("User-Agent", context.packageName)
@@ -357,6 +390,8 @@ object OsmMapHelper {
                 } else null
             } catch (_: Throwable) {
                 null
+            } finally {
+                conn?.disconnect()
             }
         } ?: return null
 

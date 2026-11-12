@@ -645,9 +645,10 @@ fun AttachSheetContent(
                         indication = null
                     ) { /* поглощаем клики внутри шторки */ }
             ) {
-                // В полноэкранном режиме учитываем верхний статус-бар
+                // В полноэкранном режиме статус-бар учитывается только для Галереи;
+                // FilesTab, ContactsTab, MusicTab и LocationTab обрабатывают statusBarTop сами
                 val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-                val topHandlePad = if (isFull) statusBarTop else 0.dp
+                val topHandlePad = if (isFull && selectedTab == AttachTab.GALLERY) statusBarTop else 0.dp
                 if (topHandlePad > 0.dp) {
                     Spacer(modifier = Modifier.height(topHandlePad))
                 }
@@ -657,68 +658,75 @@ fun AttachSheetContent(
                 val isExpanded95 = offsetPx <= H * 0.05f
                 val isGallery = (selectedTab == AttachTab.GALLERY)
                 val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty() && !isExpanded95)
-                val handleHeight = if (isGalleryWithSelection) 44.dp else if (selectedTab == AttachTab.LOCATION) 28.dp else 18.dp
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(handleHeight)
-                        .background(scheme.surface)
-                        .draggable(
-                            orientation = Orientation.Vertical,
-                            state = rememberDraggableState { d ->
-                                val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
-                                offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
-                            },
-                            onDragStarted = { anim?.cancel() },
-                            onDragStopped = { v -> release(v) }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isGalleryWithSelection) {
-                        GallerySelectionBar(
-                            title = getGallerySelectionTitle(selectedMedia, attachStrings),
-                            hasMoreItems = selectedMedia.isNotEmpty(),
-                            onOpenPreviewOrder = {
-                                if (selectedMedia.isNotEmpty()) {
-                                    isPreviewOrderOpen = true
+                val handleHeight = when {
+                    isGalleryWithSelection -> 44.dp
+                    isFull && selectedTab != AttachTab.GALLERY -> 0.dp
+                    selectedTab == AttachTab.LOCATION -> 28.dp
+                    else -> 18.dp
+                }
+                if (handleHeight > 0.dp) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(handleHeight)
+                            .background(scheme.surface)
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { d ->
+                                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
+                                    offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
+                                },
+                                onDragStarted = { anim?.cancel() },
+                                onDragStopped = { v -> release(v) }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (isGalleryWithSelection) {
+                            GallerySelectionBar(
+                                title = getGallerySelectionTitle(selectedMedia, attachStrings),
+                                hasMoreItems = selectedMedia.isNotEmpty(),
+                                onOpenPreviewOrder = {
+                                    if (selectedMedia.isNotEmpty()) {
+                                        isPreviewOrderOpen = true
+                                    }
+                                },
+                                onOptionsClick = { isGalleryOptionsMenuOpen = true },
+                                onBack = null,
+                                menuContent = {
+                                    GallerySelectionOptionsMenu(
+                                        expanded = isGalleryOptionsMenuOpen,
+                                        onDismissRequest = { isGalleryOptionsMenuOpen = false },
+                                        canUngroup = selectedMedia.size >= 2,
+                                        allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
+                                        onOpenPreview = {
+                                            if (selectedMedia.isNotEmpty()) {
+                                                isPreviewOrderOpen = true
+                                            }
+                                        },
+                                        onSendUncompressed = { sendAsUncompressed() },
+                                        onSendUngrouped = { sendAsUngrouped() },
+                                        onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
+                                        onSendHd = { sendAsHd() }
+                                    )
                                 }
-                            },
-                            onOptionsClick = { isGalleryOptionsMenuOpen = true },
-                            onBack = null,
-                            menuContent = {
-                                GallerySelectionOptionsMenu(
-                                    expanded = isGalleryOptionsMenuOpen,
-                                    onDismissRequest = { isGalleryOptionsMenuOpen = false },
-                                    canUngroup = selectedMedia.size >= 2,
-                                    allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
-                                    onOpenPreview = {
-                                        if (selectedMedia.isNotEmpty()) {
-                                            isPreviewOrderOpen = true
-                                        }
-                                    },
-                                    onSendUncompressed = { sendAsUncompressed() },
-                                    onSendUngrouped = { sendAsUngrouped() },
-                                    onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
-                                    onSendHd = { sendAsHd() }
-                                )
-                            }
-                        )
-                    } else if (selectedTab == AttachTab.LOCATION) {
-                        AttachHandleBar()
-                    } else {
-                        // Тонкая полоска ручки: высота всегда фиксированная, сетка ниже не прыгает
-                        val isThinHandle = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.MUSIC)
-                        Box(
-                            modifier = Modifier
-                                .graphicsLayer {
-                                    val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
-                                    alpha = fadeProgress
-                                }
-                                .width(if (isThinHandle) 24.dp else 28.dp)
-                                .height(if (isThinHandle) 1.5.dp else 2.5.dp)
-                                .clip(CircleShape)
-                                .background(scheme.textMuted.copy(alpha = if (isThinHandle) 0.25f else 0.35f))
-                        )
+                            )
+                        } else if (selectedTab == AttachTab.LOCATION) {
+                            AttachHandleBar()
+                        } else {
+                            // Тонкая полоска ручки: высота всегда фиксированная, сетка ниже не прыгает
+                            val isThinHandle = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.MUSIC)
+                            Box(
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
+                                        alpha = fadeProgress
+                                    }
+                                    .width(if (isThinHandle) 24.dp else 28.dp)
+                                    .height(if (isThinHandle) 1.5.dp else 2.5.dp)
+                                    .clip(CircleShape)
+                                    .background(scheme.textMuted.copy(alpha = if (isThinHandle) 0.25f else 0.35f))
+                            )
+                        }
                     }
                 }
 

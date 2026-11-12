@@ -83,18 +83,35 @@ fun OsmMapView(
         }
     }
 
-    // Слушатель перемещения/зума карты
+    // Слушатель перемещения/зума карты (throttled чтобы не перегружать Compose при драге/зуме)
     DisposableEffect(mapView) {
+        var lastDispatchMs = 0L
+        var lastLat = centerLat
+        var lastLon = centerLon
+
+        fun dispatchCenterIfNeeded() {
+            val c = mapView.mapCenter
+            val lat = c.latitude
+            val lon = c.longitude
+            val now = System.currentTimeMillis()
+            val movedEnough = kotlin.math.abs(lat - lastLat) > 0.00003 ||
+                kotlin.math.abs(lon - lastLon) > 0.00003
+            if (movedEnough && now - lastDispatchMs >= 80L) {
+                lastDispatchMs = now
+                lastLat = lat
+                lastLon = lon
+                currentOnCenterChanged(lat, lon)
+            }
+        }
+
         val listener = object : MapListener {
             override fun onScroll(event: ScrollEvent?): Boolean {
-                val c = mapView.mapCenter
-                currentOnCenterChanged(c.latitude, c.longitude)
+                dispatchCenterIfNeeded()
                 return false
             }
 
             override fun onZoom(event: ZoomEvent?): Boolean {
-                val c = mapView.mapCenter
-                currentOnCenterChanged(c.latitude, c.longitude)
+                dispatchCenterIfNeeded()
                 return false
             }
         }

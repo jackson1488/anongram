@@ -18,8 +18,8 @@ enum class MediaTtl(val title: String, val seconds: Int) {
     fun label(strings: AttachI18nStrings): String = when (this) {
         Never -> strings.ttlNever
         OneView -> strings.ttlOneView
-        Sec3 -> strings.ttl3s
-        Sec10 -> strings.ttl10s
-        Sec30 -> strings.ttl30s
+        Sec3 -> strings.ttl3Sec
+        Sec10 -> strings.ttl10Sec
+        Sec30 -> strings.ttl30Sec
     }
 }

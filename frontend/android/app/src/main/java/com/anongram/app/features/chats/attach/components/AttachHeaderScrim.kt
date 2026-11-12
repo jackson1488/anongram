@@ -22,10 +22,11 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 @Composable
 fun AttachHeaderScrim(
     modifier: Modifier = Modifier,
-    alpha: Float = 1f
+    alpha: Float = 1f,
+    includeStatusBar: Boolean = true
 ) {
     val scheme = LocalAnonGramScheme.current
-    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val statusBarTop = if (includeStatusBar) WindowInsets.statusBars.asPaddingValues().calculateTopPadding() else 0.dp
     val scrimHeight = statusBarTop + 68.dp
 
     Box(
