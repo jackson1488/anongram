@@ -573,7 +573,7 @@ fun AlbumDropdownRowItem(
         Spacer(modifier = Modifier.width(12.dp))
 
         // Название альбома жирным и сразу количество
-        val displayName = if (album.name == ALL_MEDIA_ALBUM_ID || album.name == "Все медиа") LocalAttachStrings.current.allMedia else album.name
+        val displayName = if (album.name == ALL_MEDIA_ALBUM_ID || album.name == "Все медиа") LocalAttachStrings.current.tabGallery else album.name
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically

@@ -653,7 +653,6 @@ fun AttachSheetContent(
                 val handleHeight = when {
                     isGalleryWithSelection -> 44.dp
                     isFull -> 0.dp
-                    selectedTab == AttachTab.LOCATION -> 28.dp
                     else -> 18.dp
                 }
                 if (handleHeight > 0.dp) {
@@ -913,7 +912,7 @@ fun AttachSheetContent(
                     }
             )
             AttachTopBar(
-                title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.allMedia else selectedAlbum) else selectedTab.label(attachStrings),
+                title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum) else selectedTab.label(attachStrings),
                 searchQuery = if (selectedTab == AttachTab.LOCATION) locationSearchQuery else "",
                 isSearchActive = (selectedTab == AttachTab.LOCATION && isLocationSearchActive),
                 searchPlaceholder = attachStrings.locationSearchPlaceholder,
@@ -1019,7 +1018,7 @@ fun AttachSheetContent(
                 } else null,
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
-                        val displayAlbumTitle = if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.allMedia else selectedAlbum
+                        val displayAlbumTitle = if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()

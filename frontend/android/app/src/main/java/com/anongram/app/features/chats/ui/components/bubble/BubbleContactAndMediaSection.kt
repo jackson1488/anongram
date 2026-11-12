@@ -1,6 +1,7 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -1066,8 +1067,14 @@ internal fun ChatVideoCircleSection(
                             clipToOutline = true
                             outlineProvider = object : android.view.ViewOutlineProvider() {
                                 override fun getOutline(view: android.view.View, outline: android.graphics.Outline) {
-                                    outline.setOval(0, 0, view.width, view.height)
+                                    val s = minOf(view.width, view.height)
+                                    if (s > 0) {
+                                        outline.setOval(0, 0, s, s)
+                                    }
                                 }
+                            }
+                            addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
+                                v.invalidateOutline()
                             }
                             textureViewRef = this
                             surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
@@ -1116,10 +1123,17 @@ internal fun ChatVideoCircleSection(
                             }
                         }
                     },
+                    update = { tv ->
+                        tv.invalidateOutline()
+                    },
                     modifier = Modifier
                         .fillMaxSize()
+                        .graphicsLayer {
+                            clip = true
+                            shape = CircleShape
+                        }
                         .clip(CircleShape)
-                        .alpha(if (hasRenderedVideoFrame || isExpanded) 1f else 0f)
+                        .alpha(if (hasRenderedVideoFrame) 1f else 0f)
                 )
             }
 
