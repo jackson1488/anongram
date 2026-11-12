@@ -116,7 +116,31 @@ object OsmMapHelper {
         ext = ".jpg"
     )
 
+    private val OSM_FALLBACK_SOURCE: OnlineTileSourceBase = TileSourceFactory.MAPNIK
+
+    private val ESRI_SATELLITE_FALLBACK_SOURCE: OnlineTileSourceBase = object : OnlineTileSourceBase(
+        "EsriWorldImagery",
+        0,
+        18,
+        256,
+        ".jpg",
+        arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/")
+    ) {
+        override fun getTileURLString(pMapTileIndex: Long): String {
+            val z = MapTileIndex.getZoom(pMapTileIndex)
+            val y = MapTileIndex.getY(pMapTileIndex)
+            val x = MapTileIndex.getX(pMapTileIndex)
+            return "$baseUrl$z/$y/$x"
+        }
+    }
+
     fun resolveTileSource(mode: MapLayerMode, isDarkTheme: Boolean): OnlineTileSourceBase {
+        if (MAPBOX_ACCESS_TOKEN.isBlank()) {
+            return when (mode) {
+                MapLayerMode.SATELLITE, MapLayerMode.HYBRID -> ESRI_SATELLITE_FALLBACK_SOURCE
+                else -> OSM_FALLBACK_SOURCE
+            }
+        }
         return when (mode) {
             MapLayerMode.AUTO -> if (isDarkTheme) MAPBOX_DARK_SOURCE else MAPBOX_STREETS_SOURCE
             MapLayerMode.STANDARD -> MAPBOX_STREETS_SOURCE
@@ -252,17 +276,39 @@ object OsmMapHelper {
         return withContext(Dispatchers.IO) {
             val lang = Uri.encode(Locale.getDefault().language.ifBlank { "en" })
             val encodedQuery = Uri.encode(trimmed)
-            val mapboxUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/$encodedQuery.json?access_token=$MAPBOX_ACCESS_TOKEN&limit=1&language=$lang"
-            val center = fetchMapboxGeocodeJson(mapboxUrl)
-                ?.optJSONArray("features")
-                ?.optJSONObject(0)
-                ?.optJSONArray("center")
-            if (center != null && center.length() >= 2) {
-                val lon = center.optDouble(0, Double.NaN)
-                val lat = center.optDouble(1, Double.NaN)
-                if (!lat.isNaN() && !lon.isNaN()) {
-                    return@withContext lat to lon
+            if (MAPBOX_ACCESS_TOKEN.isNotBlank()) {
+                val mapboxUrl = "https://api.mapbox.com/geocoding/v5/mapbox.places/$encodedQuery.json?access_token=$MAPBOX_ACCESS_TOKEN&limit=1&language=$lang"
+                val center = fetchMapboxGeocodeJson(mapboxUrl)
+                    ?.optJSONArray("features")
+                    ?.optJSONObject(0)
+                    ?.optJSONArray("center")
+                if (center != null && center.length() >= 2) {
+                    val lon = center.optDouble(0, Double.NaN)
+                    val lat = center.optDouble(1, Double.NaN)
+                    if (!lat.isNaN() && !lon.isNaN()) {
+                        return@withContext lat to lon
+                    }
                 }
+            } else {
+                try {
+                    val nomUrl = "https://nominatim.openstreetmap.org/search?format=json&limit=1&q=$encodedQuery"
+                    val conn = (URL(nomUrl).openConnection() as HttpURLConnection).apply {
+                        connectTimeout = 4500
+                        readTimeout = 4500
+                        setRequestProperty("User-Agent", context.packageName)
+                        setRequestProperty("Accept-Language", lang)
+                    }
+                    if (conn.responseCode == 200) {
+                        val body = conn.inputStream.bufferedReader().use { it.readText() }
+                        val arr = org.json.JSONArray(body)
+                        val first = arr.optJSONObject(0)
+                        val lat = first?.optString("lat")?.toDoubleOrNull()
+                        val lon = first?.optString("lon")?.toDoubleOrNull()
+                        if (lat != null && lon != null) {
+                            return@withContext lat to lon
+                        }
+                    }
+                } catch (_: Throwable) {}
             }
 
             try {
@@ -330,23 +376,25 @@ object OsmMapHelper {
             Intent.ACTION_VIEW,
             Uri.parse("geo:0,0?q=$lat,$lon($encoded)")
         )
-        val pm = context.packageManager
-        val hasNav = pm.queryIntentActivities(navIntent, 0).isNotEmpty()
-        val hasGeo = pm.queryIntentActivities(geoFallbackIntent, 0).isNotEmpty()
+        val webFallbackIntent = Intent(
+            Intent.ACTION_VIEW,
+            Uri.parse("https://maps.google.com/maps?daddr=$lat,$lon")
+        )
 
         return try {
-            val baseIntent = if (hasGeo) geoFallbackIntent else navIntent
-            if (!hasNav && !hasGeo) return false
-            val chooser = Intent.createChooser(baseIntent, chooserTitle).apply {
-                if (hasNav && hasGeo) {
-                    putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(navIntent))
-                }
+            val chooser = Intent.createChooser(geoFallbackIntent, chooserTitle).apply {
+                putExtra(Intent.EXTRA_INITIAL_INTENTS, arrayOf(navIntent, webFallbackIntent))
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
             context.startActivity(chooser)
             true
         } catch (_: Throwable) {
-            false
+            try {
+                context.startActivity(webFallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                true
+            } catch (_: Throwable) {
+                false
+            }
         }
     }
 
@@ -378,8 +426,12 @@ object OsmMapHelper {
         val bmp = withContext(Dispatchers.IO) {
             var conn: HttpURLConnection? = null
             try {
-                val style = if (isDark) "dark-v11" else "streets-v12"
-                val urlStr = "https://api.mapbox.com/styles/v1/mapbox/$style/tiles/256/$zoom/$tileX/$tileY@2x?access_token=$MAPBOX_ACCESS_TOKEN"
+                val urlStr = if (MAPBOX_ACCESS_TOKEN.isNotBlank()) {
+                    val style = if (isDark) "dark-v11" else "streets-v12"
+                    "https://api.mapbox.com/styles/v1/mapbox/$style/tiles/256/$zoom/$tileX/$tileY@2x?access_token=$MAPBOX_ACCESS_TOKEN"
+                } else {
+                    "https://tile.openstreetmap.org/$zoom/$tileX/$tileY.png"
+                }
                 conn = (URL(urlStr).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 4500
                     readTimeout = 4500

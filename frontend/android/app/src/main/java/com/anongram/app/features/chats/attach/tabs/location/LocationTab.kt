@@ -161,10 +161,11 @@ fun LocationTab(
         }
     }
 
-    // Поиск по внешнему запросу из TopBar (если передан)
+    // Поиск по внешнему запросу из TopBar (с debounce)
     LaunchedEffect(searchQuery) {
         val q = searchQuery.trim()
-        if (q.isNotBlank()) {
+        if (q.length >= 2) {
+            delay(350)
             val coords = OsmMapHelper.searchLocation(context, q)
             if (coords != null) {
                 pinLat = coords.first
