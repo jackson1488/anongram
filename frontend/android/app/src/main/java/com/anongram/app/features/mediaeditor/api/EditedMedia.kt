@@ -1,7 +1,7 @@
 package com.anongram.app.features.mediaeditor.api
 
 import android.net.Uri
-import com.anongram.app.features.chats.ui.attach.api.MediaTtl
+import com.anongram.app.features.chats.attach.api.MediaTtl
 
 /**
  * Результат обработки медиафайла в редакторе (ТЗ, mediaeditor: onSend(List<EditedMedia>)).

@@ -68,11 +68,11 @@ import com.anongram.app.features.auth.data.crypto.KeystoreVault
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
-import com.anongram.app.features.chats.ui.attach.i18n.AttachI18n
-import com.anongram.app.features.chats.ui.attach.ui.tabs.location.MapLayerMode
-import com.anongram.app.features.chats.ui.attach.ui.tabs.location.OsmMapHelper
-import com.anongram.app.features.chats.ui.attach.ui.tabs.location.OsmMapView
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.attach.i18n.AttachI18n
+import com.anongram.app.features.chats.attach.ui.tabs.location.MapLayerMode
+import com.anongram.app.features.chats.attach.ui.tabs.location.OsmMapHelper
+import com.anongram.app.features.chats.attach.ui.tabs.location.OsmMapView
+import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import java.util.Locale
 import kotlin.math.roundToInt
 

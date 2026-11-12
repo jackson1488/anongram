@@ -1,0 +1,269 @@
+package com.anongram.app.features.chats.attach.ui.components
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.SentimentSatisfiedAlt
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.input.emoji.EmojiStickerPanel
+import com.anongram.app.features.chats.input.i18n.LocalInputStrings
+
+/**
+ * Плавающая нижняя панель ввода подписи:
+ * - Появляется вместо панели вкладок, как только выбран хотя бы один элемент.
+ * - Кнопка стикеров/эмодзи вместо счетчика выбора (как в чате, с открытием панели стикеров и эмодзи).
+ * - Поле подписи, текст передается в драфт.
+ * - Круглая акцентная кнопка отправки.
+ * - Поддерживает imePadding: при открытии клавиатуры поднимается над ней.
+ */
+@Composable
+fun AttachInputBar(
+    caption: String,
+    onCaptionChange: (String) -> Unit,
+    selectedCount: Int,
+    visible: Boolean,
+    onSend: () -> Unit,
+    modifier: Modifier = Modifier,
+    isEmojiOpen: Boolean = false,
+    onToggleEmoji: (() -> Unit)? = null,
+    onCloseEmoji: (() -> Unit)? = null
+) {
+    val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var internalEmojiOpen by remember { mutableStateOf(false) }
+    val effectiveEmojiOpen = onToggleEmoji?.let { isEmojiOpen } ?: internalEmojiOpen
+
+    fun toggleEmoji() {
+        if (onToggleEmoji != null) {
+            onToggleEmoji()
+        } else {
+            internalEmojiOpen = !internalEmojiOpen
+        }
+    }
+
+    fun closeEmoji() {
+        if (onCloseEmoji != null) {
+            onCloseEmoji()
+        } else {
+            internalEmojiOpen = false
+        }
+    }
+
+    LaunchedEffect(selectedCount) {
+        if (selectedCount == 0) {
+            closeEmoji()
+        }
+    }
+
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 8.dp
+
+    AnimatedVisibility(
+        visible = visible && selectedCount > 0,
+        enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(240)) + fadeIn(tween(200)),
+        exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(220)) + fadeOut(tween(160)),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .padding(bottom = if (effectiveEmojiOpen) 0.dp else navBottom),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .padding(bottom = if (effectiveEmojiOpen) 8.dp else 0.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val captionScrollState = rememberScrollState()
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .shadow(elevation = 16.dp, shape = RoundedCornerShape(28.dp), ambientColor = Color.Black, spotColor = Color.Black)
+                        .clip(RoundedCornerShape(28.dp))
+                        .background(scheme.inputBg)
+                        .border(1.dp, scheme.inputBorder, RoundedCornerShape(28.dp))
+                        .padding(start = 6.dp, end = 6.dp, top = 4.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    // Кнопка эмодзи / стикеров (как в чате, вместо счетчика)
+                    IconButton(
+                        onClick = {
+                            if (!effectiveEmojiOpen) {
+                                keyboardController?.hide()
+                            }
+                            toggleEmoji()
+                        },
+                        modifier = Modifier
+                            .padding(bottom = 2.dp)
+                            .size(40.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (effectiveEmojiOpen) Icons.Outlined.Keyboard else Icons.Outlined.SentimentSatisfiedAlt,
+                            contentDescription = strings.emoji,
+                            tint = if (effectiveEmojiOpen) scheme.accent else scheme.textMuted,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    // Поле ввода подписи, раздувается до ~110 dp, далее скролл
+                    BasicTextField(
+                        value = caption,
+                        onValueChange = { onCaptionChange(it.take(1000)) },
+                        textStyle = TextStyle(
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            lineHeight = 20.sp
+                        ),
+                        cursorBrush = SolidColor(scheme.accent),
+                        decorationBox = { innerTextField ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 36.dp, max = 110.dp)
+                                    .verticalScroll(captionScrollState)
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                if (caption.isEmpty()) {
+                                    Text(
+                                        text = strings.captionPlaceholder,
+                                        color = scheme.textMuted,
+                                        fontSize = 15.sp
+                                    )
+                                }
+                                innerTextField()
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused && effectiveEmojiOpen) {
+                                    closeEmoji()
+                                }
+                            }
+                    )
+
+                    if (caption.length >= 800) {
+                        Text(
+                            text = "${caption.length}/1000",
+                            color = if (caption.length >= 1000) Color(0xFFFF3B30) else scheme.textSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .align(Alignment.Bottom)
+                                .padding(start = 4.dp, end = 4.dp, bottom = 12.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(4.dp))
+
+                    // Круглая кнопка отправки с бейджем количества
+                    Box(contentAlignment = Alignment.TopStart) {
+                        IconButton(
+                            onClick = onSend,
+                            modifier = Modifier
+                                .size(42.dp)
+                                .clip(CircleShape)
+                                .background(scheme.accent)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = strings.send,
+                                tint = scheme.onAccent,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                        if (selectedCount > 1) {
+                            Box(
+                                modifier = Modifier
+                                    .offset(x = (-3).dp, y = (-3).dp)
+                                    .size(18.dp)
+                                    .clip(CircleShape)
+                                    .background(scheme.accent.copy(alpha = 0.85f))
+                                    .border(1.5.dp, scheme.inputBg, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = selectedCount.toString(),
+                                    color = scheme.onAccent,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (effectiveEmojiOpen) {
+                EmojiStickerPanel(
+                    onEmojiClick = { emoji ->
+                        if ((caption + emoji).length <= 1000) onCaptionChange(caption + emoji)
+                    },
+                    onStickerClick = { symbol, _ ->
+                        if ((caption + symbol).length <= 1000) onCaptionChange(caption + symbol)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(260.dp)
+                )
+            }
+        }
+    }
+}

@@ -36,7 +36,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
+import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 
 /**
  * Аутентичная цитата и выноска в стиле Telegram (макеты media_1794333692036.png и media_1794333701837.png):

@@ -71,7 +71,12 @@ sealed interface MessageAttachment {
         val uri: String? = null
     ) : MessageAttachment
 
-    data class Contact(val name: String, val phone: String) : MessageAttachment
+    data class Contact(
+        val name: String,
+        val phone: String = "",
+        val fingerprint: String = "",
+        val isSasVerified: Boolean = false
+    ) : MessageAttachment
 
     data class Geo(
         val address: String,

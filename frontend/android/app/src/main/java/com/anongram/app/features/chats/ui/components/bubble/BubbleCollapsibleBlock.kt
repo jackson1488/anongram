@@ -41,7 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
+import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 
 /**
  * Аутентичный сворачиваемый блок по макету media_1794256738911.png (^ Заголовок / Тело / Автор):

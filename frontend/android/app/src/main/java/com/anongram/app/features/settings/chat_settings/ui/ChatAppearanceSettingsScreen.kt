@@ -61,7 +61,7 @@ fun ChatAppearanceSettingsScreen(
     BackHandler(onBack = onBack)
 
     val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
-    val strings = com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings.current
+    val strings = com.anongram.app.features.chats.input.i18n.LocalInputStrings.current
 
     Column(
         modifier = modifier

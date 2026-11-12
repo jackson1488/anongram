@@ -41,7 +41,7 @@ import com.anongram.app.features.chats.ui.components.bubble.saveFileToDeviceDown
 import com.anongram.app.features.chats.ui.components.bubble.saveMessageMediaToDevice
 import com.anongram.app.features.chats.ui.components.bubble.saveMusicToDeviceMusic
 import com.anongram.app.features.chats.ui.components.bubble.shareMessageMediaSystem
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import kotlinx.coroutines.launch
 
 /**

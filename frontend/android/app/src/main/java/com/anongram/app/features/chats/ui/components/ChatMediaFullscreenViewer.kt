@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
@@ -92,8 +92,8 @@ import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
-import com.anongram.app.features.chats.ui.attach.ui.tabs.loadHdBitmap
-import com.anongram.app.features.chats.ui.attach.ui.tabs.loadMediaThumbnail
+import com.anongram.app.features.chats.attach.ui.tabs.loadHdBitmap
+import com.anongram.app.features.chats.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment

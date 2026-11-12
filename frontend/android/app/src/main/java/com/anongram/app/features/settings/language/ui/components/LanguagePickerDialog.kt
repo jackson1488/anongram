@@ -29,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
+import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 
 /**
  * Диалоговое окно выбора языка интерфейса внутри модуля `language`:

@@ -2,7 +2,7 @@ package com.anongram.app.features.chats.media.player
 
 import android.content.Context
 import android.content.Intent
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutLinearInEasing

@@ -49,7 +49,7 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageStatus
 import com.anongram.app.features.chats.messages.domain.timeLabel
-import com.anongram.app.features.chats.ui.input.editor.CodeLanguages
+import com.anongram.app.features.chats.input.editor.CodeLanguages
 import kotlin.math.ceil
 
 /**

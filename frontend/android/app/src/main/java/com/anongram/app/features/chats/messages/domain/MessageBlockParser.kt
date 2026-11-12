@@ -1,6 +1,6 @@
 package com.anongram.app.features.chats.messages.domain
 
-import com.anongram.app.features.chats.ui.input.editor.CodeLanguages
+import com.anongram.app.features.chats.input.editor.CodeLanguages
 
 /**
  * Последовательный парсер форматированного текста сообщения в цепочку блоков [MessageBlock].

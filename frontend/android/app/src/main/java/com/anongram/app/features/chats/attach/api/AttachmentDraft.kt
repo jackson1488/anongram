@@ -1,0 +1,52 @@
+package com.anongram.app.features.chats.attach.api
+
+import android.net.Uri
+
+/**
+ * Контракт вложений (ТЗ):
+ * Модуль ничего не отправляет сам, только отдаёт драфты.
+ */
+sealed interface AttachmentDraft {
+    /** Фото или видео */
+    data class Media(
+        val uri: Uri,
+        val isVideo: Boolean,
+        val caption: String = "",
+        val hd: Boolean = false,
+        val ttl: MediaTtl = MediaTtl.Never,
+        val hasSpoiler: Boolean = false,
+        val ungrouped: Boolean = false
+    ) : AttachmentDraft
+
+    /** Файл любого типа без сжатия */
+    data class File(
+        val uri: Uri,
+        val name: String,
+        val size: Long,
+        val caption: String = ""
+    ) : AttachmentDraft
+
+    /** Фиксированная геопозиция */
+    data class Location(
+        val lat: Double,
+        val lon: Double,
+        val address: String? = null
+    ) : AttachmentDraft
+
+    /** Контакт AnonGram */
+    data class Contact(
+        val name: String,
+        val fingerprint: String = "",
+        val isSasVerified: Boolean = false,
+        val phones: List<String> = emptyList()
+    ) : AttachmentDraft
+
+    /** Аудиотрек */
+    data class Audio(
+        val uri: Uri,
+        val title: String,
+        val artist: String,
+        val durationMs: Long,
+        val caption: String = ""
+    ) : AttachmentDraft
+}

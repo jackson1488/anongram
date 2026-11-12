@@ -83,7 +83,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.ui.attach.api.MediaTtl
+import com.anongram.app.features.chats.attach.api.MediaTtl
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.mediaeditor.api.EditedMedia
 import kotlinx.coroutines.Dispatchers

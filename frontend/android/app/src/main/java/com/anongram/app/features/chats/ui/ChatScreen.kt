@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.chats.ui.attach.ui.AttachTab
+import com.anongram.app.features.chats.attach.ui.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
 import com.anongram.app.features.chats.media.player.ChatAudioController
@@ -41,11 +41,11 @@ import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.messages.state.RecordMode
 import com.anongram.app.features.chats.ui.components.ChatMessagesBody
 import com.anongram.app.features.chats.ui.components.ChatOverlaysHost
-import com.anongram.app.features.chats.ui.input.ChatInputDock
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerHost
-import com.anongram.app.features.chats.ui.input.banner.SelectionLimitBannerHost
-import com.anongram.app.features.chats.ui.input.rememberChatImeMetrics
+import com.anongram.app.features.chats.input.ChatInputDock
+import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.input.banner.ChatActionBannerHost
+import com.anongram.app.features.chats.input.banner.SelectionLimitBannerHost
+import com.anongram.app.features.chats.input.rememberChatImeMetrics
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map

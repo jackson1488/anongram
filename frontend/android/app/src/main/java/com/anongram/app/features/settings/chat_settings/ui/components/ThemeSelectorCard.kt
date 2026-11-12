@@ -64,8 +64,8 @@ import com.anongram.app.core.theme.ThemePaletteEngine
 import com.anongram.app.core.theme.ThemePolarity
 import com.anongram.app.core.theme.ThemeSpec
 import com.anongram.app.core.theme.ThemeTintMode
-import com.anongram.app.features.chats.ui.input.i18n.InputI18nStrings
-import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
+import com.anongram.app.features.chats.input.i18n.InputI18nStrings
+import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 import java.util.Locale
 
 private enum class ThemeStudioTab {

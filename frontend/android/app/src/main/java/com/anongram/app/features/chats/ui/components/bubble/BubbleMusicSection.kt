@@ -1,6 +1,6 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

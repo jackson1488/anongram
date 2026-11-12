@@ -17,8 +17,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.anongram.app.core.i18n.LanguageSettingsStore
-import com.anongram.app.features.chats.ui.input.i18n.InputI18n
-import com.anongram.app.features.chats.ui.input.i18n.LocalInputStrings
+import com.anongram.app.features.chats.input.i18n.InputI18n
+import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 
 /** Активная цветовая схема; компоненты читают её вместо хардкода цветов и акцентов. */
 val LocalAnonGramScheme = staticCompositionLocalOf { AnonGramThemes.CyberStealth }

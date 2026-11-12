@@ -8,7 +8,7 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.RecordingState
 
 /**
- * Прокси для обратной совместимости: делегирует в модульный [com.anongram.app.features.chats.ui.input.video.VideoCircleRecordOverlay].
+ * Прокси для обратной совместимости: делегирует в модульный [com.anongram.app.features.chats.input.video.VideoCircleRecordOverlay].
  */
 @Composable
 fun VideoCircleRecordOverlay(
@@ -36,7 +36,7 @@ fun VideoCircleRecordOverlay(
     onSendVideo: ((uri: String, durationLabel: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    com.anongram.app.features.chats.ui.input.video.VideoCircleRecordOverlay(
+    com.anongram.app.features.chats.input.video.VideoCircleRecordOverlay(
         recordingState = recordingState,
         isLocked = isLocked,
         isKeyboardVisible = isKeyboardVisible,

@@ -3,7 +3,7 @@ package com.anongram.app.features.chats.ui.components.bubble
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import com.anongram.app.features.chats.ui.input.banner.ChatActionBannerBus
+import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

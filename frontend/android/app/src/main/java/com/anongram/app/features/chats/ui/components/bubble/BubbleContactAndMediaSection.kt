@@ -30,6 +30,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material.icons.outlined.LocationOn
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -180,24 +181,36 @@ internal fun ChatContactCardSection(
                     }
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (searchQuery.isNotBlank()) {
-                                buildHighlightedText(attachment.name, searchQuery, accent)
-                            } else {
-                                AnnotatedString(attachment.name)
-                            },
-                            color = primaryText,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (searchQuery.isNotBlank()) {
+                                    buildHighlightedText(attachment.name, searchQuery, accent)
+                                } else {
+                                    AnnotatedString(attachment.name)
+                                },
+                                color = primaryText,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (attachment.isSasVerified) {
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Icon(
+                                    imageVector = Icons.Filled.Verified,
+                                    contentDescription = null,
+                                    tint = accent,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(1.dp))
+                        val displaySub = attachment.fingerprint.ifBlank { attachment.phone }
                         Text(
                             text = if (searchQuery.isNotBlank()) {
-                                buildHighlightedText(attachment.phone, searchQuery, accent)
+                                buildHighlightedText(displaySub, searchQuery, accent)
                             } else {
-                                AnnotatedString(attachment.phone)
+                                AnnotatedString(displaySub)
                             },
                             color = secondaryText,
                             fontSize = 13.sp,
@@ -251,7 +264,7 @@ internal fun ChatGeoSection(
         key2 = attachment.lon,
         key3 = scheme.isDark
     ) {
-        value = com.anongram.app.features.chats.ui.attach.ui.tabs.location.OsmMapHelper
+        value = com.anongram.app.features.chats.attach.ui.tabs.location.OsmMapHelper
             .loadStaticPreviewTile(
                 context = context,
                 lat = attachment.lat,

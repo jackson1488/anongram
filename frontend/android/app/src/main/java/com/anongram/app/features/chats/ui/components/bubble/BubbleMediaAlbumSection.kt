@@ -45,11 +45,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.ui.attach.ui.components.SpoilerOverlay
-import com.anongram.app.features.chats.ui.attach.ui.components.calculateAlbumRows
-import com.anongram.app.features.chats.ui.attach.ui.components.getRowHeightDp
-import com.anongram.app.features.chats.ui.attach.ui.tabs.loadHdBitmap
-import com.anongram.app.features.chats.ui.attach.ui.tabs.loadMediaThumbnail
+import com.anongram.app.features.chats.attach.ui.components.SpoilerOverlay
+import com.anongram.app.features.chats.attach.ui.components.calculateAlbumRows
+import com.anongram.app.features.chats.attach.ui.components.getRowHeightDp
+import com.anongram.app.features.chats.attach.ui.tabs.loadHdBitmap
+import com.anongram.app.features.chats.attach.ui.tabs.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import kotlinx.coroutines.Dispatchers
