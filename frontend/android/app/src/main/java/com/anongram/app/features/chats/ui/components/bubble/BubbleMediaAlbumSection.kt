@@ -50,7 +50,7 @@ import android.media.MediaMetadataRetriever
 import android.util.LruCache
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalDensity
-import androidx.exifinterface.media.ExifInterface
+import android.media.ExifInterface
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.components.SpoilerOverlay
 import com.anongram.app.features.chats.attach.tabs.gallery.calculateAlbumRows
