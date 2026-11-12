@@ -15,6 +15,7 @@ import androidx.compose.ui.text.AnnotatedString
 import com.anongram.app.features.chats.attach.api.AttachSheet
 import com.anongram.app.features.chats.attach.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
+import com.anongram.app.features.chats.media.MediaCompressor
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
@@ -169,6 +170,7 @@ private fun ChatInputAndMediaOverlays(
     onUpdateMediaViewer: (ChatMessage?) -> Unit,
     onCloseMediaViewer: (restoreKeyboard: Boolean) -> Unit
 ) {
+    val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -224,8 +226,11 @@ private fun ChatInputAndMediaOverlays(
             onSend = { drafts ->
                 imeMetrics.imeState.wasKeyboardOpenWhenAttached = false
                 imeMetrics.imeState.frozenKeyboardHeightPx = 0
-                sendAttachDraftsToChat(drafts, viewModel)
                 viewModel.closeAttach()
+                scope.launch {
+                    val processed = MediaCompressor.compressDraftsIfNeeded(context, drafts)
+                    sendAttachDraftsToChat(processed, viewModel)
+                }
             }
         )
     }

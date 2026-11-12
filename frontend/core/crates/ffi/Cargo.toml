@@ -19,4 +19,6 @@ push = { path = "../push" }
 security = { path = "../security" }
 storage = { path = "../storage" }
 libc = "0.2"
+jni = "0.21"
+sha2 = "0.10"
 zeroize = { version = "1", features = ["derive"] }

@@ -30,6 +30,15 @@ interface ICryptoBridge {
      * Возвращает true при успешном wipe — используется при burn-жесте OTP-чатов.
      */
     suspend fun wipeSessionKeys(sessionId: String): Boolean
+
+    /** Удаление EXIF/GPS/метаданных изображения через Rust media-пайплайн. */
+    suspend fun stripImageMetadata(data: ByteArray): ByteArray
+
+    /** Зачистка метаданных, Zstd-сжатие и AEAD-упаковка медиа в бинарный контейнер. */
+    suspend fun sealMedia(key: ByteArray, mediaType: Int, data: ByteArray): ByteArray?
+
+    /** Расшифровка и распаковка медиа-контейнера. */
+    suspend fun openMedia(key: ByteArray, sealed: ByteArray): ByteArray?
 }
 
 /** Защищённый конверт сообщения: шифротекст, одноразовый nonce, идентификатор алгоритма. */

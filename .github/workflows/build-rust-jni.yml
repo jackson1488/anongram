@@ -1,0 +1,66 @@
+name: Build Precompiled Rust JNI (.so) for Android
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "frontend/core/**"
+      - ".github/workflows/build-rust-jni.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: rust-jni-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-jni:
+    name: 🦀 Build libanongram_ffi.so (All Android ABIs)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🦀 Setup Rust Toolchain + Android Targets
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android,i686-linux-android
+
+      - name: 📦 Cache Rust Build
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: frontend/core
+
+      - name: 🛠️ Install cargo-ndk
+        uses: taiki-e/install-action@cargo-ndk
+
+      - name: 📱 Locate Android NDK & Build .so for all ABIs
+        working-directory: frontend/core
+        run: |
+          if [ -z "$ANDROID_NDK_HOME" ]; then
+            NDK_DIR=$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null | sort -V | tail -n 1)
+            export ANDROID_NDK_HOME="$NDK_DIR"
+          fi
+          echo "Using ANDROID_NDK_HOME=$ANDROID_NDK_HOME"
+          cargo ndk \
+            -t arm64-v8a \
+            -t armeabi-v7a \
+            -t x86_64 \
+            -t x86 \
+            -o ../android/app/src/main/jniLibs \
+            build --release -p anongram_ffi
+          ls -lh ../android/app/src/main/jniLibs/*/libanongram_ffi.so
+
+      - name: 📤 Commit precompiled .so libraries to jniLibs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add frontend/android/app/src/main/jniLibs
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(jni): update precompiled libanongram_ffi.so for all Android ABIs [skip ci]"
+            git push origin main
+          else
+            echo "No changes in jniLibs"
+          fi

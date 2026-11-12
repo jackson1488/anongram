@@ -11,6 +11,7 @@
 //! 8. `security`: Master password KDF, biometrics enclave, and device revocation.
 //! 9. `storage`: Encrypted local database and panic wipe.
 
+pub mod android_jni;
 pub mod buffer;
 
 use std::ffi::{CStr, CString};
