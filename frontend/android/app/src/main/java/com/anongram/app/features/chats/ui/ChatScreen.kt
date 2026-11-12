@@ -31,7 +31,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.chats.attach.ui.AttachTab
+import com.anongram.app.features.chats.attach.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.media.circle.VideoCircleRecordOverlay
 import com.anongram.app.features.chats.media.player.ChatAudioController

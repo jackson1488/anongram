@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import com.anongram.app.features.chats.attach.api.AttachSheet
-import com.anongram.app.features.chats.attach.ui.AttachTab
+import com.anongram.app.features.chats.attach.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet

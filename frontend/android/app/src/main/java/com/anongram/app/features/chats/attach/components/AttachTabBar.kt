@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.components
+package com.anongram.app.features.chats.attach.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
-import com.anongram.app.features.chats.attach.ui.AttachTab
+import com.anongram.app.features.chats.attach.AttachTab
 
 /**
  * Парящая нижняя панель-таблетка вкладок:

@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.tabs
+package com.anongram.app.features.chats.attach.tabs.gallery
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -78,7 +78,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
-import com.anongram.app.features.chats.attach.ui.components.AttachInputBar
+import com.anongram.app.features.chats.attach.components.AttachInputBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -102,15 +102,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.features.chats.attach.ui.components.PartialAccessBanner
-import com.anongram.app.features.chats.attach.ui.components.PermissionDeniedView
+import com.anongram.app.features.chats.attach.components.PartialAccessBanner
+import com.anongram.app.features.chats.attach.components.PermissionDeniedView
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 import androidx.compose.runtime.Immutable
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.attach.ui.components.SpoilerOverlay
+import com.anongram.app.features.chats.attach.components.SpoilerOverlay
 
 @Immutable
 data class GalleryMedia(
@@ -247,7 +247,7 @@ fun GalleryTab(
             }
 
             if (isLoading) {
-                com.anongram.app.features.chats.attach.ui.components.GalleryGridSkeleton(
+                com.anongram.app.features.chats.attach.components.GalleryGridSkeleton(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),

@@ -264,7 +264,7 @@ internal fun ChatGeoSection(
         key2 = attachment.lon,
         key3 = scheme.isDark
     ) {
-        value = com.anongram.app.features.chats.attach.ui.tabs.location.OsmMapHelper
+        value = com.anongram.app.features.chats.attach.tabs.location.OsmMapHelper
             .loadStaticPreviewTile(
                 context = context,
                 lat = attachment.lat,

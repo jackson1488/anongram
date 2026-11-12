@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.components
+package com.anongram.app.features.chats.attach.components
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
@@ -92,9 +92,9 @@ import kotlin.math.roundToInt
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
-import com.anongram.app.features.chats.attach.ui.tabs.GalleryMedia
-import com.anongram.app.features.chats.attach.ui.tabs.loadMediaThumbnail
-import com.anongram.app.features.chats.attach.ui.tabs.loadHdBitmap
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
+import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
+import com.anongram.app.features.chats.attach.tabs.gallery.loadHdBitmap
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

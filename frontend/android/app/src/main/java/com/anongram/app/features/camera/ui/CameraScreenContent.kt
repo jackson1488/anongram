@@ -76,7 +76,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.attach.ui.components.PermissionDeniedView
+import com.anongram.app.features.chats.attach.components.PermissionDeniedView
 import com.anongram.app.features.camera.api.CapturedMedia
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

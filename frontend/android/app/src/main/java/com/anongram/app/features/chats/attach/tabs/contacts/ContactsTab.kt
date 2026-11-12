@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.tabs
+package com.anongram.app.features.chats.attach.tabs.contacts
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -16,11 +16,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -48,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -62,9 +64,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.NeonEmerald
+import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
-import com.anongram.app.features.chats.attach.ui.components.ContactsListSkeleton
+import com.anongram.app.features.chats.attach.components.ContactsListSkeleton
 import com.anongram.app.features.contacts.common.Contact
 import com.anongram.app.features.contacts.data.InMemoryContactRepository
 import kotlinx.coroutines.Dispatchers
@@ -125,21 +129,15 @@ fun ContactsTab(
         }
     }
 
+    val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val topListPadding = if (isFullscreen) statusBarTopDp + 64.dp else 64.dp
+
     Box(modifier = modifier.fillMaxSize()) {
         // Фоновый градиент (scrim) СЗАДИ поиска, переходящий в прозрачность (zIndex = 5f)
-        Box(
+        AttachHeaderScrim(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(68.dp)
                 .zIndex(5f)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to scheme.surface,
-                        0.75f to scheme.surface.copy(alpha = 0.95f),
-                        1.0f to Color.Transparent
-                    )
-                )
         )
 
         // Парящая строка поиска сверху (zIndex = 10f)
@@ -147,21 +145,18 @@ fun ContactsTab(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(
-                    start = 14.dp,
-                    end = 14.dp,
-                    top = if (isFullscreen) 6.dp else 4.dp
-                )
+                .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
                 .zIndex(10f)
         ) {
             var isFocused by remember { mutableStateOf(false) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .clip(RoundedCornerShape(24.dp))
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(25.dp))
                     .background(scheme.inputBg)
-                    .border(1.dp, if (isFocused) scheme.accent else scheme.inputBorder, RoundedCornerShape(24.dp))
+                    .border(1.dp, if (isFocused) scheme.accent else scheme.inputBorder, RoundedCornerShape(25.dp))
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -222,7 +217,7 @@ fun ContactsTab(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 58.dp)
+                    .padding(top = topListPadding)
                     .zIndex(1f)
             ) {
                 ContactsListSkeleton()
@@ -247,7 +242,7 @@ fun ContactsTab(
                     .padding(horizontal = 14.dp)
                     .zIndex(1f),
                 contentPadding = PaddingValues(
-                    top = 58.dp,
+                    top = topListPadding,
                     bottom = 84.dp
                 )
             ) {

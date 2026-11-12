@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.components
+package com.anongram.app.features.chats.attach.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -38,7 +38,7 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.i18n.AttachI18nStrings
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
-import com.anongram.app.features.chats.attach.ui.tabs.GalleryMedia
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
 
 internal fun getGallerySelectionTitle(
     items: List<GalleryMedia>,

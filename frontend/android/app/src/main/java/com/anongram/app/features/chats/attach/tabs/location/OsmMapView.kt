@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.tabs.location
+package com.anongram.app.features.chats.attach.tabs.location
 
 import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable

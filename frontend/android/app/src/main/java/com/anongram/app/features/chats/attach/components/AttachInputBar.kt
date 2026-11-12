@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.components
+package com.anongram.app.features.chats.attach.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween

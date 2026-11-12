@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.tabs
+package com.anongram.app.features.chats.attach.tabs.music
 
 import android.content.ContentUris
 import android.content.Context
@@ -64,7 +64,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -73,7 +72,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
-import com.anongram.app.features.chats.attach.ui.components.PermissionDeniedView
+import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
+import com.anongram.app.features.chats.attach.components.PermissionDeniedView
 import com.anongram.app.features.player.api.MiniPlayer
 import com.anongram.app.features.player.api.Track
 import com.anongram.app.features.player.logic.AudioPlayerController
@@ -167,27 +167,17 @@ fun MusicTab(
 
     val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val isPlayerVisible = playerState.isVisible && playerState.currentTrack != null
-    val topOffsetDp = if (isFullscreen) 6.dp else 4.dp
-    val headerContentHeight = if (isPlayerVisible) 96.dp else 44.dp
-    val totalHeaderHeight = topOffsetDp + headerContentHeight
+    val headerContentHeight = if (isPlayerVisible) 102.dp else 50.dp
+    val totalHeaderHeight = (if (isFullscreen) statusBarTopDp else 0.dp) + 6.dp + headerContentHeight + 6.dp
 
     Box(
         modifier = modifier.fillMaxSize()
     ) {
         // Фоновый градиент (scrim) СЗАДИ поиска и мини-плеера (zIndex = 5f)
-        Box(
+        AttachHeaderScrim(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(totalHeaderHeight + 14.dp)
                 .zIndex(5f)
-                .background(
-                    Brush.verticalGradient(
-                        0.0f to scheme.surface,
-                        0.8f to scheme.surface.copy(alpha = 0.95f),
-                        1.0f to Color.Transparent
-                    )
-                )
         )
 
         // Парящая шапка поиска и мини-плеера (zIndex = 10f)
@@ -195,27 +185,24 @@ fun MusicTab(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .padding(
-                    start = 14.dp,
-                    end = 14.dp,
-                    top = topOffsetDp
-                )
+                .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier)
+                .padding(horizontal = 8.dp, vertical = 6.dp)
                 .zIndex(10f)
         ) {
             var isFocused by remember { mutableStateOf(false) }
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(44.dp)
-                    .clip(RoundedCornerShape(22.dp))
+                    .height(50.dp)
+                    .clip(RoundedCornerShape(25.dp))
                     .background(scheme.inputBg)
-                    .border(1.dp, if (isFocused) scheme.accent else scheme.inputBorder, RoundedCornerShape(22.dp))
+                    .border(1.dp, if (isFocused) scheme.accent else scheme.inputBorder, RoundedCornerShape(25.dp))
                     .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Default.Search,
-                    contentDescription = "Search",
+                    contentDescription = strings.search,
                     tint = scheme.textMuted,
                     modifier = Modifier.size(19.dp)
                 )
@@ -281,10 +268,10 @@ fun MusicTab(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = totalHeaderHeight + 6.dp)
+                    .padding(top = totalHeaderHeight + 2.dp)
                     .zIndex(1f)
             ) {
-                com.anongram.app.features.chats.attach.ui.components.MusicListSkeleton()
+                com.anongram.app.features.chats.attach.components.MusicListSkeleton()
             }
         } else if (filteredTracks.isEmpty()) {
             Box(
@@ -306,7 +293,7 @@ fun MusicTab(
                     .padding(horizontal = 14.dp)
                     .zIndex(1f),
                 contentPadding = PaddingValues(
-                    top = totalHeaderHeight + 6.dp,
+                    top = totalHeaderHeight + 2.dp,
                     bottom = 84.dp
                 )
             ) {

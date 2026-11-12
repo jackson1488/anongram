@@ -2,8 +2,8 @@ package com.anongram.app.features.chats.attach.api
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import com.anongram.app.features.chats.attach.ui.AttachSheetContent
-import com.anongram.app.features.chats.attach.ui.AttachTab
+import com.anongram.app.features.chats.attach.AttachSheetContent
+import com.anongram.app.features.chats.attach.AttachTab
 
 /**
  * Публичная точка входа модуля вложений (ТЗ, attach: AttachSheet).

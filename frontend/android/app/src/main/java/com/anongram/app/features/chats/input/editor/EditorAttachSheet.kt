@@ -3,8 +3,8 @@ package com.anongram.app.features.chats.input.editor
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
-import com.anongram.app.features.chats.attach.ui.AttachSheetContent
-import com.anongram.app.features.chats.attach.ui.AttachTab
+import com.anongram.app.features.chats.attach.AttachSheetContent
+import com.anongram.app.features.chats.attach.AttachTab
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.input.i18n.LocalInputStrings

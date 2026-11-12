@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.components
+package com.anongram.app.features.chats.attach.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -51,6 +51,7 @@ fun AttachTopBar(
     onToggleSearch: () -> Unit = {},
     onActionClick: () -> Unit = {},
     hasActionMenu: Boolean = true,
+    hasSearchToggle: Boolean = false,
     actionMenuContent: (@Composable () -> Unit)? = null,
     centerContent: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -152,7 +153,7 @@ fun AttachTopBar(
             } else {
                 Row(
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .clickable(onClick = onToggleSearch),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -173,10 +174,10 @@ fun AttachTopBar(
             }
         }
 
-        if (hasActionMenu) {
+        if (hasActionMenu || hasSearchToggle) {
             Spacer(modifier = Modifier.width(8.dp))
 
-            // Островок 3: Меню действий
+            // Островок 3: Меню действий или переключатель поиска
             Box(
                 modifier = Modifier.size(50.dp),
                 contentAlignment = Alignment.Center
@@ -189,19 +190,52 @@ fun AttachTopBar(
                         .border(1.dp, scheme.islandBorder, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    IconButton(
-                        onClick = onActionClick,
-                        modifier = Modifier.size(50.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.MoreVert,
-                            contentDescription = strings.actionMenu,
-                            tint = scheme.textPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
+                    if (hasSearchToggle) {
+                        if (isSearchActive) {
+                            IconButton(
+                                onClick = {
+                                    onSearchQueryChange("")
+                                    onToggleSearch()
+                                },
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = strings.clear,
+                                    tint = scheme.textPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        } else {
+                            IconButton(
+                                onClick = onToggleSearch,
+                                modifier = Modifier.size(50.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Search,
+                                    contentDescription = strings.search,
+                                    tint = scheme.textPrimary,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        IconButton(
+                            onClick = onActionClick,
+                            modifier = Modifier.size(50.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.MoreVert,
+                                contentDescription = strings.actionMenu,
+                                tint = scheme.textPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
                     }
                 }
-                actionMenuContent?.invoke()
+                if (!hasSearchToggle) {
+                    actionMenuContent?.invoke()
+                }
             }
         }
     }

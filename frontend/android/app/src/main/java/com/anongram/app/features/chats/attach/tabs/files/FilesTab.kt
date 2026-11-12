@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.tabs
+package com.anongram.app.features.chats.attach.tabs.files
 
 import android.content.ContentUris
 import android.content.Context
@@ -11,13 +11,13 @@ import android.provider.OpenableColumns
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import com.anongram.app.features.chats.attach.ui.tabs.files.FilesGallerySubScreen
+import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.Brush
+import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.defaultMinSize
@@ -255,29 +255,22 @@ fun FilesTab(
     ) {
         // Плавающие таблетки сверху в полном экране (высота 50dp как у ChatTopBar)
         if (isFullscreen) {
+            AttachHeaderScrim(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .zIndex(5f)
+            )
+
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
                     .zIndex(10f)
             ) {
-                // Фоновый градиент (scrim) СЗАДИ плавающей шапки
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(64.dp)
-                        .background(
-                            Brush.verticalGradient(
-                                0.0f to scheme.surface,
-                                0.75f to scheme.surface.copy(alpha = 0.95f),
-                                1.0f to Color.Transparent
-                            )
-                        )
-                )
-
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier)
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -425,7 +418,7 @@ fun FilesTab(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = if (isFullscreen) 62.dp else 10.dp,
+                top = if (isFullscreen) statusBarTopDp + 64.dp else 10.dp,
                 bottom = 84.dp
             )
         ) {
@@ -512,7 +505,7 @@ fun FilesTab(
 
             if (isLoading) {
                 item(key = "files_loading_skeleton") {
-                    com.anongram.app.features.chats.attach.ui.components.RecentFilesSkeleton()
+                    com.anongram.app.features.chats.attach.components.RecentFilesSkeleton()
                 }
             } else if (sortedFiles.isEmpty()) {
                 item(key = "empty_state") {

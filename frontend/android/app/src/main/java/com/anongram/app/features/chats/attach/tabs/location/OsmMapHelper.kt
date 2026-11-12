@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.tabs.location
+package com.anongram.app.features.chats.attach.tabs.location
 
 import android.content.Context
 import android.content.Intent
@@ -36,7 +36,8 @@ enum class MapLayerMode {
     AUTO,
     STANDARD,
     DARK,
-    SATELLITE
+    SATELLITE,
+    HYBRID
 }
 
 object OsmMapHelper {
@@ -112,12 +113,25 @@ object OsmMapHelper {
         }
     }
 
+    val HYBRID_SOURCE: OnlineTileSourceBase = object : OnlineTileSourceBase(
+        "GoogleHybrid", 0, 19, 256, ".jpg",
+        arrayOf("https://mt1.google.com/vt/lyrs=y")
+    ) {
+        override fun getTileURLString(pMapTileIndex: Long): String {
+            val z = MapTileIndex.getZoom(pMapTileIndex)
+            val y = MapTileIndex.getY(pMapTileIndex)
+            val x = MapTileIndex.getX(pMapTileIndex)
+            return "$baseUrl&x=$x&y=$y&z=$z"
+        }
+    }
+
     fun resolveTileSource(mode: MapLayerMode, isDarkTheme: Boolean): OnlineTileSourceBase {
         return when (mode) {
             MapLayerMode.AUTO -> if (isDarkTheme) DARK_MATTER_SOURCE else CARTO_VOYAGER_SOURCE
             MapLayerMode.STANDARD -> CARTO_VOYAGER_SOURCE
             MapLayerMode.DARK -> DARK_MATTER_SOURCE
             MapLayerMode.SATELLITE -> ESRI_SATELLITE_SOURCE
+            MapLayerMode.HYBRID -> HYBRID_SOURCE
         }
     }
 

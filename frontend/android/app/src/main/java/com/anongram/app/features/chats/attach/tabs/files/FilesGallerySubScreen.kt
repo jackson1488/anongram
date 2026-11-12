@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui.tabs.files
+package com.anongram.app.features.chats.attach.tabs.files
 
 import android.content.Context
 import android.content.Intent
@@ -75,13 +75,13 @@ import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
-import com.anongram.app.features.chats.attach.ui.components.AttachHeaderScrim
-import com.anongram.app.features.chats.attach.ui.components.GalleryGridSkeleton
-import com.anongram.app.features.chats.attach.ui.tabs.GalleryMedia
-import com.anongram.app.features.chats.attach.ui.tabs.formatFileSize
-import com.anongram.app.features.chats.attach.ui.tabs.getFileMetadata
-import com.anongram.app.features.chats.attach.ui.tabs.loadDeviceGalleryMedia
-import com.anongram.app.features.chats.attach.ui.tabs.loadMediaThumbnail
+import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
+import com.anongram.app.features.chats.attach.components.GalleryGridSkeleton
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
+import com.anongram.app.features.chats.attach.tabs.files.formatFileSize
+import com.anongram.app.features.chats.attach.tabs.files.getFileMetadata
+import com.anongram.app.features.chats.attach.tabs.gallery.loadDeviceGalleryMedia
+import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale

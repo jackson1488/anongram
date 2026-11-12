@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui
+package com.anongram.app.features.chats.attach
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -80,11 +81,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
 import com.anongram.app.core.ui.safeStatusBarPadding
-import com.anongram.app.features.chats.attach.ui.components.AttachDiscardDialog
-import com.anongram.app.features.chats.attach.ui.components.GallerySelectionBar
-import com.anongram.app.features.chats.attach.ui.components.GallerySelectionOptionsMenu
-import com.anongram.app.features.chats.attach.ui.components.PreviewOrderScreen
-import com.anongram.app.features.chats.attach.ui.components.getGallerySelectionTitle
+import com.anongram.app.features.chats.attach.components.AttachDiscardDialog
+import com.anongram.app.features.chats.attach.components.GallerySelectionBar
+import com.anongram.app.features.chats.attach.components.GallerySelectionOptionsMenu
+import com.anongram.app.features.chats.attach.components.PreviewOrderScreen
+import com.anongram.app.features.chats.attach.components.getGallerySelectionTitle
 import android.app.Activity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.runtime.snapshotFlow
@@ -129,22 +130,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.mutableStateListOf
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
-import com.anongram.app.features.chats.attach.ui.components.AttachInputBar
-import com.anongram.app.features.chats.attach.ui.components.AttachTabBar
-import com.anongram.app.features.chats.attach.ui.components.AttachTopBar
-import com.anongram.app.features.chats.attach.ui.tabs.ContactQuickCardSheet
+import com.anongram.app.features.chats.attach.components.AttachInputBar
+import com.anongram.app.features.chats.attach.components.AttachTabBar
+import com.anongram.app.features.chats.attach.components.AttachTopBar
+import com.anongram.app.features.chats.attach.tabs.contacts.ContactQuickCardSheet
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.contacts.common.Contact
-import com.anongram.app.features.chats.attach.ui.components.AttachHeaderScrim
-import com.anongram.app.features.chats.attach.ui.components.AttachHandleBar
-import com.anongram.app.features.chats.attach.ui.tabs.ContactsTab
-import com.anongram.app.features.chats.attach.ui.tabs.DeviceFileItem
-import com.anongram.app.features.chats.attach.ui.tabs.files.FilesGallerySubScreen
-import com.anongram.app.features.chats.attach.ui.tabs.FilesTab
-import com.anongram.app.features.chats.attach.ui.tabs.GalleryMedia
-import com.anongram.app.features.chats.attach.ui.tabs.GalleryTab
-import com.anongram.app.features.chats.attach.ui.tabs.LocationTab
-import com.anongram.app.features.chats.attach.ui.tabs.MusicTab
+import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
+import com.anongram.app.features.chats.attach.components.AttachHandleBar
+import com.anongram.app.features.chats.attach.tabs.contacts.ContactsTab
+import com.anongram.app.features.chats.attach.tabs.files.DeviceFileItem
+import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
+import com.anongram.app.features.chats.attach.tabs.files.FilesTab
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryTab
+import com.anongram.app.features.chats.attach.tabs.location.LocationTab
+import com.anongram.app.features.chats.attach.tabs.music.MusicTab
 import com.anongram.app.features.camera.api.CameraScreen
 import com.anongram.app.features.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.mediaeditor.api.MediaEditorScreen
@@ -159,9 +160,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.mutableIntStateOf
-import com.anongram.app.features.chats.attach.ui.tabs.AlbumDropdownRowItem
-import com.anongram.app.features.chats.attach.ui.tabs.GalleryAlbum
-import com.anongram.app.features.chats.attach.ui.tabs.GalleryMediaViewer
+import com.anongram.app.features.chats.attach.tabs.gallery.AlbumDropdownRowItem
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryAlbum
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMediaViewer
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.features.chats.attach.i18n.AttachI18n
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
@@ -912,12 +913,16 @@ fun AttachSheetContent(
             AttachTopBar(
                 title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum) else selectedTab.label(attachStrings),
                 searchQuery = if (selectedTab == AttachTab.LOCATION) locationSearchQuery else "",
-                isSearchActive = (selectedTab == AttachTab.LOCATION),
+                isSearchActive = (selectedTab == AttachTab.LOCATION && isLocationSearchActive),
                 searchPlaceholder = attachStrings.locationSearchPlaceholder,
                 onBack = { requestDismiss() },
                 onSearchQueryChange = { locationSearchQuery = it },
-                onToggleSearch = { isLocationSearchActive = !isLocationSearchActive },
+                onToggleSearch = {
+                    isLocationSearchActive = !isLocationSearchActive
+                    if (!isLocationSearchActive) locationSearchQuery = ""
+                },
                 hasActionMenu = (selectedTab == AttachTab.GALLERY),
+                hasSearchToggle = (selectedTab == AttachTab.LOCATION),
                 actionMenuContent = if (selectedTab == AttachTab.GALLERY) {
                     {
                         var isTopBarMenuOpen by remember { mutableStateOf(false) }
@@ -1054,18 +1059,26 @@ fun AttachSheetContent(
         Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
+                .imePadding()
                 .graphicsLayer {
                     translationY = -minOf(offsetPx, halfOffset)
                 }
         ) {
             AttachTabBar(
                 selectedTab = selectedTab,
-                onSelectTab = { selectedTab = it },
+                onSelectTab = { newTab ->
+                    val wasFullLocation = (selectedTab == AttachTab.LOCATION && offsetPx <= H * 0.08f)
+                    selectedTab = newTab
+                    if (wasFullLocation && newTab != AttachTab.LOCATION) {
+                        animateTo(halfOffset, 260)
+                    }
+                },
                 visible = !isSingleReplaceMode,
                 modifier = Modifier.graphicsLayer {
                     val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
-                    alpha = if (isCardOrSelectionOpen) 0f else 1f
-                    translationY = if (isCardOrSelectionOpen) 200f else 0f
+                    val topNavP = if (selectedTab == AttachTab.LOCATION) 0f else ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                    alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavP)
+                    translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavP)
                 }
             )
 

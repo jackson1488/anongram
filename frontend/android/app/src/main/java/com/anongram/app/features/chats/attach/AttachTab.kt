@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.ui
+package com.anongram.app.features.chats.attach
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Audiotrack
