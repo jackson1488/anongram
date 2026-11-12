@@ -226,7 +226,7 @@ fun AttachSheetContent(
                         isGalleryWithSelection -> 44.dp
                         dragState.isFull -> 0.dp
                         sheetState.selectedTab == AttachTab.LOCATION -> 28.dp
-                        else -> 18.dp
+                        else -> 0.dp
                     }
                     val handleHeight by animateDpAsState(
                         targetValue = targetHandleHeight,
@@ -489,6 +489,39 @@ fun AttachSheetContent(
                                 )
                             }
                         }
+                    }
+                }
+
+                val showThinHandleOverlay = !(sheetState.selectedTab == AttachTab.GALLERY && sheetState.selectedMedia.isNotEmpty() && !dragState.isExpanded95) &&
+                    sheetState.selectedTab != AttachTab.LOCATION
+                if (showThinHandleOverlay) {
+                    val isThinHandle = (sheetState.selectedTab == AttachTab.GALLERY || sheetState.selectedTab == AttachTab.MUSIC)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .height(18.dp)
+                            .graphicsLayer {
+                                alpha = ((dragState.offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
+                            }
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { d ->
+                                    val maxOffset = if (sheetState.totalSelectedCount > 0) dragState.halfOffset + 120f else H
+                                    dragState.offsetPx = (dragState.offsetPx + d).coerceIn(0f, maxOffset)
+                                },
+                                onDragStarted = { dragState.animJob?.cancel() },
+                                onDragStopped = { v -> dragState.release(v) }
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(if (isThinHandle) 24.dp else 28.dp)
+                                .height(if (isThinHandle) 1.5.dp else 2.5.dp)
+                                .clip(CircleShape)
+                                .background(scheme.textMuted.copy(alpha = if (isThinHandle) 0.25f else 0.35f))
+                        )
                     }
                 }
 

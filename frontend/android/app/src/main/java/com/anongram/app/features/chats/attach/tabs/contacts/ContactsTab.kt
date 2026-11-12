@@ -132,6 +132,11 @@ fun ContactsTab(
     }
 
     val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val headerTopInset by animateDpAsState(
+        targetValue = if (isFullscreen) statusBarTopDp else 0.dp,
+        animationSpec = tween(durationMillis = 220),
+        label = "contactsHeaderTopInset"
+    )
     val topListPadding by animateDpAsState(
         targetValue = if (isFullscreen) statusBarTopDp + 64.dp else 64.dp,
         animationSpec = tween(durationMillis = 220),
@@ -152,7 +157,7 @@ fun ContactsTab(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier)
+                .padding(top = headerTopInset)
                 .padding(horizontal = 8.dp, vertical = 6.dp)
                 .zIndex(10f)
         ) {

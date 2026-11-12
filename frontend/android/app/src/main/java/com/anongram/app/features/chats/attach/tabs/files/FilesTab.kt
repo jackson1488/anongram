@@ -14,9 +14,12 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
 import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import com.anongram.app.core.ui.safeStatusBarPadding
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.graphicsLayer
@@ -257,26 +260,35 @@ fun FilesTab(
         modifier = modifier.fillMaxSize()
     ) {
         // Плавающие таблетки сверху в полном экране (высота 50dp как у ChatTopBar)
-        if (isFullscreen) {
-            AttachHeaderScrim(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .zIndex(5f)
-            )
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .zIndex(10f)
-            ) {
-                Row(
+        AnimatedVisibility(
+            visible = isFullscreen,
+            enter = fadeIn(animationSpec = tween(180)),
+            exit = fadeOut(animationSpec = tween(180)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .zIndex(10f)
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()) {
+                AttachHeaderScrim(
                     modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .zIndex(5f)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
                         .fillMaxWidth()
-                        .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier)
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .zIndex(10f)
                 ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = statusBarTopDp)
+                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
                 // Кнопка назад (в режиме поиска выходит из поиска, иначе закрывает полноэкранный режим)
                 Box(
                     modifier = Modifier
@@ -415,6 +427,7 @@ fun FilesTab(
                     }
                 }
             }
+        }
         }
     }
 

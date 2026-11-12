@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.WindowInsets
@@ -166,9 +167,14 @@ fun MusicTab(
     }
 
     val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+    val headerTopInset by animateDpAsState(
+        targetValue = if (isFullscreen) statusBarTopDp else 0.dp,
+        animationSpec = tween(durationMillis = 220),
+        label = "musicHeaderTopInset"
+    )
     val isPlayerVisible = playerState.isVisible && playerState.currentTrack != null
     val headerContentHeight = if (isPlayerVisible) 102.dp else 50.dp
-    val totalHeaderHeight = (if (isFullscreen) statusBarTopDp else 0.dp) + 6.dp + headerContentHeight + 6.dp
+    val totalHeaderHeight = headerTopInset + 6.dp + headerContentHeight + 6.dp
 
     Box(
         modifier = modifier.fillMaxSize()
@@ -186,7 +192,7 @@ fun MusicTab(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .then(if (isFullscreen) Modifier.safeStatusBarPadding() else Modifier)
+                .padding(top = headerTopInset)
                 .padding(horizontal = 8.dp, vertical = 6.dp)
                 .zIndex(10f)
         ) {
