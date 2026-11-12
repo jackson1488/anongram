@@ -1,6 +1,8 @@
-package com.anongram.app.features.chats.attach.components
+package com.anongram.app.features.chats.attach.tabs.gallery
 
 import android.net.Uri
+import com.anongram.app.features.chats.attach.components.AttachInputBar
+import com.anongram.app.features.chats.attach.components.SpoilerOverlay
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState

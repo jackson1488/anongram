@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.attach.components
+package com.anongram.app.features.chats.attach.tabs.gallery
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

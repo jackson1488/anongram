@@ -1,26 +1,16 @@
 package com.anongram.app.features.chats.attach
 
+import android.app.Activity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.AnimationState
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.animateDecay
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.exponentialDecay
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideOutVertically
-import android.content.Intent
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
@@ -29,144 +19,65 @@ import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.statusBars
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.HighQuality
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.InsertDriveFile
-import androidx.compose.material.icons.outlined.LayersClear
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.PhotoLibrary
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material.icons.outlined.GridOff
-import androidx.compose.material3.Surface
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.window.Dialog
-import com.anongram.app.core.ui.safeStatusBarPadding
-import com.anongram.app.features.chats.attach.components.AttachDiscardDialog
-import com.anongram.app.features.chats.attach.components.GallerySelectionBar
-import com.anongram.app.features.chats.attach.components.GallerySelectionOptionsMenu
-import com.anongram.app.features.chats.attach.components.PreviewOrderScreen
-import com.anongram.app.features.chats.attach.components.getGallerySelectionTitle
-import android.app.Activity
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.runtime.snapshotFlow
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.Job
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.util.VelocityTracker
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.awaitVerticalDragOrCancellation
-import androidx.compose.ui.input.pointer.positionChange
-import kotlinx.coroutines.channels.Channel
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.zIndex
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.zIndex
+import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.attach.components.AttachDiscardDialog
+import com.anongram.app.features.chats.attach.components.AttachHandleBar
 import com.anongram.app.features.chats.attach.components.AttachInputBar
 import com.anongram.app.features.chats.attach.components.AttachTabBar
-import com.anongram.app.features.chats.attach.components.AttachTopBar
-import com.anongram.app.features.chats.attach.tabs.contacts.ContactQuickCardSheet
-import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.contacts.common.Contact
-import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
-import com.anongram.app.features.chats.attach.components.AttachHandleBar
-import com.anongram.app.features.chats.attach.tabs.contacts.ContactsTab
-import com.anongram.app.features.chats.attach.tabs.files.DeviceFileItem
-import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
-import com.anongram.app.features.chats.attach.tabs.files.FilesTab
-import com.anongram.app.features.chats.attach.tabs.gallery.ALL_MEDIA_ALBUM_ID
-import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
-import com.anongram.app.features.chats.attach.tabs.gallery.GalleryTab
-import com.anongram.app.features.chats.attach.tabs.location.LocationTab
-import com.anongram.app.features.chats.attach.tabs.music.MusicTab
-import com.anongram.app.features.camera.api.CameraScreen
-import com.anongram.app.features.mediaeditor.api.EditableMediaItem
-import com.anongram.app.features.mediaeditor.api.MediaEditorScreen
-import com.anongram.app.features.player.api.FullPlayerSheet
-import com.anongram.app.features.player.api.Track
-import android.content.Context
-import android.net.Uri
-import android.provider.OpenableColumns
-import com.anongram.app.features.player.logic.AudioPlayerController
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.runtime.mutableIntStateOf
-import com.anongram.app.features.chats.attach.tabs.gallery.AlbumDropdownRowItem
-import com.anongram.app.features.chats.attach.tabs.gallery.GalleryAlbum
-import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMediaViewer
-import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.features.chats.attach.i18n.AttachI18n
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
+import com.anongram.app.features.chats.attach.state.rememberAttachSheetDragState
+import com.anongram.app.features.chats.attach.state.rememberAttachSheetState
+import com.anongram.app.features.chats.attach.tabs.contacts.ContactQuickCardSheet
+import com.anongram.app.features.chats.attach.tabs.contacts.ContactsTab
+import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
+import com.anongram.app.features.chats.attach.tabs.files.FilesTab
+import com.anongram.app.features.chats.attach.tabs.files.buildDraftsFromPickedUris
+import com.anongram.app.features.chats.attach.tabs.files.buildUncompressedGalleryDrafts
+import com.anongram.app.features.chats.attach.tabs.files.getFileMetadataHelper
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryFloatingTopBar
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryOverlays
+import com.anongram.app.features.chats.attach.tabs.gallery.GallerySelectionBar
+import com.anongram.app.features.chats.attach.tabs.gallery.GallerySelectionOptionsMenu
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryTab
+import com.anongram.app.features.chats.attach.tabs.gallery.buildGalleryMediaDrafts
+import com.anongram.app.features.chats.attach.tabs.gallery.getGallerySelectionTitle
+import com.anongram.app.features.chats.attach.tabs.gallery.toggleSpoilerForMediaSelection
+import com.anongram.app.features.chats.attach.tabs.location.LocationFloatingTopBar
+import com.anongram.app.features.chats.attach.tabs.location.LocationTab
+import com.anongram.app.features.chats.attach.tabs.music.MusicTab
+import com.anongram.app.features.player.api.FullPlayerSheet
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @Composable
@@ -186,1012 +97,502 @@ fun AttachSheetContent(
     val scheme = LocalAnonGramScheme.current
     val appLanguage by LanguageSettingsStore.language.collectAsState()
     val attachStrings = remember(appLanguage) { AttachI18n.forLanguage(appLanguage) }
-    val currentOnDismiss by rememberUpdatedState(onDismiss)
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val H = constraints.maxHeight.toFloat()
-        val halfOffset = H * 0.5f   // шторка видна на 50%
-        val openOffset = H * 0.45f  // открывается на 55%
-
-        // 0 = полностью открыта, H = закрыта
-        var offsetPx by remember(H) { mutableFloatStateOf(H) }
-        val scope = rememberCoroutineScope()
-        var anim by remember { mutableStateOf<Job?>(null) }
-        var isClosing by remember { mutableStateOf(false) }
-
-        // Выбранные элементы по всем вкладкам (ТЗ, шаг 11)
-        val selectedMedia = remember { mutableStateListOf<GalleryMedia>() }
-        val selectedFiles = remember { mutableStateListOf<DeviceFileItem>() }
-        val selectedTracks = remember { mutableStateListOf<Track>() }
-        val selectedContacts = remember { mutableStateListOf<Contact>() }
-        val capturedMediaList = remember { mutableStateListOf<GalleryMedia>() }
-        var captionText by remember { mutableStateOf("") }
-        var showDiscardDialog by remember { mutableStateOf(false) }
-        var locationSearchQuery by remember { mutableStateOf("") }
-        var isLocationSearchActive by remember { mutableStateOf(false) }
-
-        val totalSelectedCount by remember {
-            derivedStateOf { selectedMedia.size + selectedFiles.size + selectedTracks.size + selectedContacts.size }
-        }
-
-        var availableAlbums by remember { mutableStateOf<List<GalleryAlbum>>(emptyList()) }
-        var viewingMediaList by remember { mutableStateOf<List<GalleryMedia>?>(null) }
-        var viewingMediaIndex by remember { mutableIntStateOf(0) }
-
-        val DecelerateEasing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
-        val SmoothInOutEasing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
-
-        fun animateTo(target: Float, ms: Int = 260, isFling: Boolean = false, end: () -> Unit = {}) {
-            anim?.cancel()
-            val easing = if (isFling) DecelerateEasing else SmoothInOutEasing
-            anim = scope.launch {
-                animate(
-                    initialValue = offsetPx,
-                    targetValue = target,
-                    animationSpec = tween(ms, easing = easing)
-                ) { v, _ -> offsetPx = v }
-                end()
-            }
-        }
-
-        fun forceDismiss() {
-            if (isClosing) return
-            isClosing = true
-            try {
-                AudioPlayerController.getInstance(context).stop()
-            } catch (_: Exception) {}
-            if (wasKeyboardOpen) {
-                onRestoreKeyboard()
-            }
-            animateTo(H, 240, isFling = true) { currentOnDismiss() }
-        }
-
-        fun close() {
-            if (totalSelectedCount > 0) {
-                showDiscardDialog = true
-                animateTo(halfOffset, 200, isFling = false)
-                return
-            }
-            forceDismiss()
-        }
-
-        fun release(velocityY: Float) {
-            anim?.cancel()
-            // Плавное отпускание и скролл (плавучая шторка от 50% до 100%):
-            // В диапазоне от 50% до 100% (0..halfOffset) шторка фиксируется ровно там, где остановился палец (хоть 56%, хоть 80%).
-            if (offsetPx <= halfOffset) {
-                offsetPx = offsetPx.coerceIn(0f, halfOffset)
-                return
-            }
-
-            // Ниже 50% (палец потянул шторку вниз ниже половины экрана):
-            if (velocityY > 2000f || offsetPx > halfOffset + 80f) {
-                if (totalSelectedCount > 0) {
-                    showDiscardDialog = true
-                    animateTo(halfOffset, ms = 200, isFling = true)
-                } else {
-                    close()
-                }
-            } else {
-                animateTo(halfOffset, ms = 200, isFling = false)
-            }
-        }
+        val sheetState = rememberAttachSheetState(initialTab)
+        val dragState = rememberAttachSheetDragState(
+            totalHeightPx = H,
+            context = context,
+            wasKeyboardOpen = wasKeyboardOpen,
+            onRestoreKeyboard = onRestoreKeyboard,
+            onDismiss = onDismiss,
+            sheetState = sheetState
+        )
 
         LaunchedEffect(H) {
             if (wasKeyboardOpen && keyboardHeightPx > 0) {
                 launch {
-                    snapshotFlow { H - offsetPx }
+                    snapshotFlow { H - dragState.offsetPx }
                         .first { it >= keyboardHeightPx * 0.90f && it > 0 }
                     keyboardController?.hide()
                 }
             } else if (wasKeyboardOpen) {
                 keyboardController?.hide()
             }
-            animateTo(openOffset, 300)
+            dragState.animateTo(dragState.openOffset, 300)
         }
 
-        val isFull by remember(H) { derivedStateOf { offsetPx <= 20f || (H > 0f && offsetPx <= H * 0.05f) } }
+        LaunchedEffect(dragState.offsetPx) {
+            if (dragState.offsetPx > 10f && sheetState.isAlbumsSheetOpen) {
+                sheetState.isAlbumsSheetOpen = false
+            }
+        }
 
-        fun dismissAnimated() {
-            if (isClosing) return
-            if (totalSelectedCount > 0) {
-                showDiscardDialog = true
-                animateTo(halfOffset, 200, isFling = false)
+        fun sendAllSelected() {
+            val drafts = sheetState.buildAllSelectedDrafts(context)
+            if (drafts.isEmpty()) return
+            if (isSingleReplaceMode && onSingleReplace != null) {
+                drafts.firstOrNull()?.let { onSingleReplace(it) }
+                dragState.forceDismiss()
                 return
             }
-            forceDismiss()
-        }
-
-    var selectedTab by remember { mutableStateOf(initialTab) }
-    var selectedAlbum by remember { mutableStateOf(ALL_MEDIA_ALBUM_ID) }
-    var isAlbumsSheetOpen by remember { mutableStateOf(false) }
-
-    LaunchedEffect(offsetPx) {
-        if (offsetPx > 10f && isAlbumsSheetOpen) {
-            isAlbumsSheetOpen = false
-        }
-    }
-    var quickCardContact by remember { mutableStateOf<Contact?>(null) }
-    val isQuickContactOpen by remember { derivedStateOf { quickCardContact != null } }
-
-    fun sendAllSelected() {
-        if (totalSelectedCount == 0) return
-        val drafts = mutableListOf<AttachmentDraft>()
-
-        selectedMedia.forEachIndexed { index, media ->
-            drafts.add(
-                AttachmentDraft.Media(
-                    uri = media.uri,
-                    isVideo = media.isVideo,
-                    caption = if (index == selectedMedia.lastIndex) captionText else "",
-                    hasSpoiler = media.hasSpoiler
-                )
-            )
-        }
-
-        selectedFiles.forEachIndexed { index, file ->
-            drafts.add(
-                AttachmentDraft.File(
-                    uri = file.uri,
-                    name = file.name,
-                    size = file.size,
-                    caption = if (selectedMedia.isEmpty() && index == selectedFiles.lastIndex) captionText else ""
-                )
-            )
-        }
-
-        selectedTracks.forEachIndexed { index, track ->
-            drafts.add(
-                AttachmentDraft.Audio(
-                    uri = track.uri,
-                    title = track.title,
-                    artist = track.artist,
-                    durationMs = track.durationMs,
-                    caption = if (selectedMedia.isEmpty() && selectedFiles.isEmpty() && index == selectedTracks.lastIndex) captionText else ""
-                )
-            )
-        }
-
-        selectedContacts.forEach { contact ->
-            drafts.add(
-                AttachmentDraft.Contact(
-                    name = contact.name,
-                    fingerprint = contact.fingerprint,
-                    isSasVerified = contact.isSasVerified
-                )
-            )
-        }
-
-        if (isSingleReplaceMode && onSingleReplace != null) {
-            drafts.firstOrNull()?.let { onSingleReplace(it) }
-            forceDismiss()
-            return
-        }
-
-        onSend(drafts)
-        dismissAnimated()
-    }
-
-    // Overlays
-    var isCameraOpen by remember { mutableStateOf(false) }
-    var isEditorOpen by remember { mutableStateOf(false) }
-    var isFullPlayerOpen by remember { mutableStateOf(false) }
-    var isPreviewOrderOpen by remember { mutableStateOf(false) }
-    var isUncompressedGalleryOpen by remember { mutableStateOf(false) }
-    val uncompressedGalleryPicked = remember { mutableStateListOf<GalleryMedia>() }
-    var uncompressedGalleryCaption by remember { mutableStateOf("") }
-    var isGalleryOptionsMenuOpen by remember { mutableStateOf(false) }
-    var editorItems by remember { mutableStateOf<List<EditableMediaItem>>(emptyList()) }
-    var isMoreMenuOpen by remember { mutableStateOf(false) }
-    var isAttachEmojiOpen by remember { mutableStateOf(false) }
-
-    val systemChooserLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-            val data = result.data
-            val uris = mutableListOf<Uri>()
-            data?.clipData?.let { clip ->
-                for (i in 0 until clip.itemCount) {
-                    clip.getItemAt(i)?.uri?.let { uris.add(it) }
-                }
-            } ?: data?.data?.let { uri ->
-                uris.add(uri)
-            }
-            if (uris.isNotEmpty()) {
-                val drafts = uris.map { uri ->
-                    val mime = try {
-                        context.contentResolver.getType(uri) ?: ""
-                    } catch (_: Exception) {
-                        ""
-                    }
-                    if (mime.startsWith("video")) {
-                        AttachmentDraft.Media(uri = uri, isVideo = true)
-                    } else if (mime.startsWith("image")) {
-                        AttachmentDraft.Media(uri = uri, isVideo = false)
-                    } else {
-                        val meta = getFileMetadataHelper(context, uri)
-                        AttachmentDraft.File(uri = uri, name = meta.name, size = meta.size)
-                    }
-                }
-                onSend(drafts)
-                dismissAnimated()
-            }
-        }
-    }
-
-    val systemPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (!uris.isNullOrEmpty()) {
-            val drafts = uris.map { uri ->
-                val mime = try {
-                    context.contentResolver.getType(uri) ?: ""
-                } catch (_: Exception) {
-                    ""
-                }
-                if (mime.startsWith("video")) {
-                    AttachmentDraft.Media(uri = uri, isVideo = true)
-                } else if (mime.startsWith("image")) {
-                    AttachmentDraft.Media(uri = uri, isVideo = false)
-                } else {
-                    val meta = getFileMetadataHelper(context, uri)
-                    AttachmentDraft.File(uri = uri, name = meta.name, size = meta.size)
-                }
-            }
             onSend(drafts)
-            dismissAnimated()
+            dragState.dismissAnimated()
         }
-    }
 
-    val uncompressedPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (!uris.isNullOrEmpty()) {
-            val drafts = uris.map { uri ->
-                val meta = getFileMetadataHelper(context, uri)
-                AttachmentDraft.File(uri = uri, name = meta.name, size = meta.size)
-            }
-            onSend(drafts)
-            dismissAnimated()
-        }
-    }
-
-    val systemGalleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (!uris.isNullOrEmpty()) {
-            val drafts = uris.map { uri ->
-                val mime = try {
-                    context.contentResolver.getType(uri) ?: ""
-                } catch (_: Exception) {
-                    ""
+        val systemChooserLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.StartActivityForResult()
+        ) { result ->
+            if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+                val data = result.data
+                val uris = buildList {
+                    data?.clipData?.let { clip ->
+                        for (i in 0 until clip.itemCount) {
+                            clip.getItemAt(i)?.uri?.let { add(it) }
+                        }
+                    } ?: data?.data?.let { add(it) }
                 }
-                AttachmentDraft.Media(uri = uri, isVideo = mime.startsWith("video"))
-            }
-            onSend(drafts)
-            dismissAnimated()
-        }
-    }
-
-    fun sendAsUncompressed() {
-        if (selectedMedia.isEmpty()) return
-        val drafts = selectedMedia.mapIndexed { index, media ->
-            val meta = getFileMetadataHelper(context, media.uri)
-            AttachmentDraft.File(
-                uri = media.uri,
-                name = meta.name,
-                size = meta.size,
-                caption = if (index == selectedMedia.lastIndex) captionText else ""
-            )
-        }
-        onSend(drafts)
-        dismissAnimated()
-    }
-
-    fun sendAsUngrouped() {
-        if (selectedMedia.isEmpty()) return
-        val drafts = selectedMedia.mapIndexed { index, media ->
-            AttachmentDraft.Media(
-                uri = media.uri,
-                isVideo = media.isVideo,
-                caption = if (index == selectedMedia.lastIndex) captionText else "",
-                hasSpoiler = media.hasSpoiler,
-                ungrouped = true
-            )
-        }
-        onSend(drafts)
-        dismissAnimated()
-    }
-
-    fun toggleSpoilerForSelectedMedia() {
-        if (selectedMedia.isEmpty()) return
-        val allHaveSpoiler = selectedMedia.all { it.hasSpoiler }
-        val target = !allHaveSpoiler
-        val updated = selectedMedia.map { it.copy(hasSpoiler = target) }
-        selectedMedia.clear()
-        selectedMedia.addAll(updated)
-    }
-
-    fun sendAsHd() {
-        if (selectedMedia.isEmpty()) return
-        val drafts = selectedMedia.mapIndexed { index, media ->
-            AttachmentDraft.Media(
-                uri = media.uri,
-                isVideo = media.isVideo,
-                caption = if (index == selectedMedia.lastIndex) captionText else "",
-                hasSpoiler = media.hasSpoiler,
-                hd = true
-            )
-        }
-        onSend(drafts)
-        dismissAnimated()
-    }
-
-    fun clearAllSelected() {
-        selectedMedia.clear()
-        selectedFiles.clear()
-        selectedTracks.clear()
-        selectedContacts.clear()
-        uncompressedGalleryPicked.clear()
-        uncompressedGalleryCaption = ""
-        captionText = ""
-        isAttachEmojiOpen = false
-    }
-
-    fun requestDismiss() {
-        if (totalSelectedCount > 0) {
-            showDiscardDialog = true
-        } else {
-            dismissAnimated()
-        }
-    }
-
-    // Обработка кнопки "Назад" (закрывает шторку с любой высоты, либо показывает диалог сброса если есть выбранные)
-    BackHandler {
-        when {
-            isUncompressedGalleryOpen -> isUncompressedGalleryOpen = false
-            isPreviewOrderOpen -> isPreviewOrderOpen = false
-            viewingMediaList != null -> viewingMediaList = null
-            showDiscardDialog -> showDiscardDialog = false
-            isAttachEmojiOpen -> isAttachEmojiOpen = false
-            quickCardContact != null -> quickCardContact = null
-            isAlbumsSheetOpen -> isAlbumsSheetOpen = false
-            isGalleryOptionsMenuOpen -> isGalleryOptionsMenuOpen = false
-            isMoreMenuOpen -> isMoreMenuOpen = false
-            isCameraOpen -> isCameraOpen = false
-            isEditorOpen -> isEditorOpen = false
-            isFullPlayerOpen -> isFullPlayerOpen = false
-            else -> requestDismiss()
-        }
-    }
-
-    val connection = remember(H) {
-        object : NestedScrollConnection {
-            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (isAlbumsSheetOpen) isAlbumsSheetOpen = false
-                val dy = available.y
-                if (dy < 0f && offsetPx > 0f) {        // палец вверх: растёт шторка плавно до любой высоты
-                    anim?.cancel()
-                    val new = (offsetPx + dy).coerceAtLeast(0f)
-                    val used = new - offsetPx
-                    offsetPx = new
-                    return Offset(0f, used)
+                if (uris.isNotEmpty()) {
+                    onSend(buildDraftsFromPickedUris(context, uris))
+                    dragState.dismissAnimated()
                 }
-                return Offset.Zero
-            }
-            override fun onPostScroll(
-                consumed: Offset, available: Offset, source: NestedScrollSource
-            ): Offset {
-                if (isAlbumsSheetOpen) isAlbumsSheetOpen = false
-                val dy = available.y
-                if (dy > 0f) {                         // палец вниз, список уже в начале
-                    anim?.cancel()
-                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
-                    val new = (offsetPx + dy).coerceAtMost(maxOffset)
-                    val used = new - offsetPx
-                    offsetPx = new
-                    return Offset(0f, used)
-                }
-                return Offset.Zero
-            }
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                // Не перехватываем флинг в диапазоне 50%..100%, чтобы шторка останавливалась в любом положении (56%, 80% и т.д.)
-                return Velocity.Zero
-            }
-            override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (offsetPx > halfOffset) {
-                    release(available.y)
-                }
-                return Velocity.Zero
             }
         }
-    }
 
-    // Затемнение
-    Box(
-        Modifier.fillMaxSize()
-            .graphicsLayer {
-                alpha = ((H - offsetPx) / H * 0.70f).coerceIn(0f, 0.70f)
+        BackHandler {
+            when {
+                sheetState.isUncompressedGalleryOpen -> sheetState.isUncompressedGalleryOpen = false
+                sheetState.isPreviewOrderOpen -> sheetState.isPreviewOrderOpen = false
+                sheetState.viewingMediaList != null -> sheetState.viewingMediaList = null
+                sheetState.showDiscardDialog -> sheetState.showDiscardDialog = false
+                sheetState.isAttachEmojiOpen -> sheetState.isAttachEmojiOpen = false
+                sheetState.quickCardContact != null -> sheetState.quickCardContact = null
+                sheetState.isAlbumsSheetOpen -> sheetState.isAlbumsSheetOpen = false
+                sheetState.isGalleryOptionsMenuOpen -> sheetState.isGalleryOptionsMenuOpen = false
+                sheetState.isMoreMenuOpen -> sheetState.isMoreMenuOpen = false
+                sheetState.isCameraOpen -> sheetState.isCameraOpen = false
+                sheetState.isEditorOpen -> sheetState.isEditorOpen = false
+                sheetState.isFullPlayerOpen -> sheetState.isFullPlayerOpen = false
+                else -> dragState.requestDismiss()
             }
-            .background(Color.Black)
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) { requestDismiss() }
-    )
+        }
 
-    // Шторка: ВСЕГДА на всю высоту, двигается только translationY
-    @OptIn(ExperimentalFoundationApi::class)
-    CompositionLocalProvider(
-        LocalOverscrollConfiguration provides null,
-        LocalAttachStrings provides attachStrings
-    ) {
+        // Затемнение фона
         Box(
-            Modifier.fillMaxSize()
-                .graphicsLayer { translationY = offsetPx }
-                .then(
-                    if (selectedTab == AttachTab.LOCATION) Modifier
-                    else Modifier.nestedScroll(connection)
-                )
-        ) {
-            Column(
-                Modifier.fillMaxSize()
-                    .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                    .background(scheme.surface)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { /* поглощаем клики внутри шторки */ }
-            ) {
-                // В полноэкранном режиме все вкладки начинаются от y = 0 и сами учитывают statusBarTop
-                val isExpanded95 = offsetPx <= H * 0.05f
-                val isGallery = (selectedTab == AttachTab.GALLERY)
-                val isGalleryWithSelection = (isGallery && selectedMedia.isNotEmpty() && !isExpanded95)
-                val handleHeight = when {
-                    isGalleryWithSelection -> 44.dp
-                    isFull -> 0.dp
-                    selectedTab == AttachTab.LOCATION -> 28.dp
-                    else -> 18.dp
-                }
-                if (handleHeight > 0.dp) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(handleHeight)
-                            .background(scheme.surface)
-                            .draggable(
-                                orientation = Orientation.Vertical,
-                                state = rememberDraggableState { d ->
-                                    val maxOffset = if (totalSelectedCount > 0) halfOffset + 120f else H
-                                    offsetPx = (offsetPx + d).coerceIn(0f, maxOffset)
-                                },
-                                onDragStarted = { anim?.cancel() },
-                                onDragStopped = { v -> release(v) }
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isGalleryWithSelection) {
-                            GallerySelectionBar(
-                                title = getGallerySelectionTitle(selectedMedia, attachStrings),
-                                hasMoreItems = selectedMedia.isNotEmpty(),
-                                onOpenPreviewOrder = {
-                                    if (selectedMedia.isNotEmpty()) {
-                                        isPreviewOrderOpen = true
-                                    }
-                                },
-                                onOptionsClick = { isGalleryOptionsMenuOpen = true },
-                                onBack = null,
-                                menuContent = {
-                                    GallerySelectionOptionsMenu(
-                                        expanded = isGalleryOptionsMenuOpen,
-                                        onDismissRequest = { isGalleryOptionsMenuOpen = false },
-                                        canUngroup = selectedMedia.size >= 2,
-                                        allHaveSpoiler = selectedMedia.all { it.hasSpoiler },
-                                        onOpenPreview = {
-                                            if (selectedMedia.isNotEmpty()) {
-                                                isPreviewOrderOpen = true
-                                            }
-                                        },
-                                        onSendUncompressed = { sendAsUncompressed() },
-                                        onSendUngrouped = { sendAsUngrouped() },
-                                        onToggleSpoiler = { toggleSpoilerForSelectedMedia() },
-                                        onSendHd = { sendAsHd() }
-                                    )
-                                }
-                            )
-                        } else if (selectedTab == AttachTab.LOCATION) {
-                            AttachHandleBar()
-                        } else {
-                            // Тонкая полоска ручки: высота всегда фиксированная, сетка ниже не прыгает
-                            val isThinHandle = (selectedTab == AttachTab.GALLERY || selectedTab == AttachTab.MUSIC)
-                            Box(
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        val fadeProgress = ((offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
-                                        alpha = fadeProgress
-                                    }
-                                    .width(if (isThinHandle) 24.dp else 28.dp)
-                                    .height(if (isThinHandle) 1.5.dp else 2.5.dp)
-                                    .clip(CircleShape)
-                                    .background(scheme.textMuted.copy(alpha = if (isThinHandle) 0.25f else 0.35f))
-                            )
-                        }
-                    }
-                }
-
-            Box(Modifier.weight(1f).fillMaxWidth()) {
-                when (selectedTab) {
-                    AttachTab.GALLERY -> {
-                        GalleryTab(
-                            onLaunchCamera = { isCameraOpen = true },
-                            onOpenEditor = { items ->
-                                editorItems = items
-                                isEditorOpen = true
-                            },
-                            selectedAlbum = selectedAlbum,
-                            onSelectAlbum = { selectedAlbum = it },
-                            isAlbumsSheetOpen = isAlbumsSheetOpen,
-                            onCloseAlbumsSheet = { isAlbumsSheetOpen = false },
-                            onOpenAlbumsSheet = { isAlbumsSheetOpen = true },
-                            selectedMedia = selectedMedia,
-                            onToggleSelectMedia = { media ->
-                                isAlbumsSheetOpen = false
-                                if (isSingleReplaceMode) {
-                                    if (selectedMedia.any { it.uri == media.uri }) {
-                                        selectedMedia.clear()
-                                    } else {
-                                        selectedMedia.clear()
-                                        selectedMedia.add(media)
-                                    }
-                                } else {
-                                    if (selectedMedia.any { it.uri == media.uri }) {
-                                        selectedMedia.removeAll { it.uri == media.uri }
-                                    } else {
-                                        if (selectedMedia.size < 99) {
-                                            selectedMedia.add(media)
-                                        }
-                                    }
-                                }
-                            },
-                            caption = captionText,
-                            onCaptionChange = { captionText = it },
-                            onSend = { sendAllSelected() },
-                            capturedMediaItems = capturedMediaList,
-                            isFullscreen = isFull,
-                            onOpenViewer = { list, idx ->
-                                isAlbumsSheetOpen = false
-                                viewingMediaList = list
-                                viewingMediaIndex = idx
-                            },
-                            onAlbumsLoaded = { availableAlbums = it },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    AttachTab.FILE -> {
-                        FilesTab(
-                            onSelectFile = { fileDraft ->
-                                if (isSingleReplaceMode && onSingleReplace != null) {
-                                    onSingleReplace(fileDraft)
-                                    forceDismiss()
-                                } else {
-                                    onSend(listOf(fileDraft))
-                                    dismissAnimated()
-                                }
-                            },
-                            onExpandToFullscreen = {
-                                animateTo(0f, 240)
-                            },
-                            selectedFiles = selectedFiles,
-                            onToggleSelectFile = { file ->
-                                if (isSingleReplaceMode) {
-                                    if (selectedFiles.any { it.uri == file.uri }) {
-                                        selectedFiles.clear()
-                                    } else {
-                                        selectedFiles.clear()
-                                        selectedFiles.add(file)
-                                    }
-                                } else {
-                                    if (selectedFiles.any { it.uri == file.uri }) {
-                                        selectedFiles.removeAll { it.uri == file.uri }
-                                    } else {
-                                        selectedFiles.add(file)
-                                    }
-                                }
-                            },
-                            isFullscreen = isFull,
-                            onBack = { requestDismiss() },
-                            onSelectFiles = { drafts ->
-                                if (isSingleReplaceMode && onSingleReplace != null) {
-                                    drafts.firstOrNull()?.let { onSingleReplace(it) }
-                                    forceDismiss()
-                                } else {
-                                    onSend(drafts)
-                                    dismissAnimated()
-                                }
-                            },
-                            onOpenUncompressedGallery = {
-                                isUncompressedGalleryOpen = true
-                            },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    AttachTab.LOCATION -> {
-                        val sheetOffsetDp = with(LocalDensity.current) { offsetPx.coerceAtLeast(0f).toDp() }
-                        LocationTab(
-                            onSendLocation = { locDraft ->
-                                onSend(listOf(locDraft))
-                                dismissAnimated()
-                            },
-                            searchQuery = locationSearchQuery,
-                            isFullscreen = offsetPx <= H * 0.05f,
-                            sheetOffsetDp = sheetOffsetDp,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    AttachTab.CONTACT -> {
-                        ContactsTab(
-                            onSelectContact = { contactDraft ->
-                                onSend(listOf(contactDraft))
-                                dismissAnimated()
-                            },
-                            onExpandToFullscreen = {
-                                animateTo(0f, 240)
-                            },
-                            selectedContacts = selectedContacts,
-                            onToggleSelectContact = { contact ->
-                                if (selectedContacts.any { it.name == contact.name }) {
-                                    selectedContacts.removeAll { it.name == contact.name }
-                                } else {
-                                    selectedContacts.add(contact)
-                                }
-                            },
-                            isFullscreen = isFull,
-                            onBack = { requestDismiss() },
-                            onQuickCardVisibilityChange = {},
-                            onOpenQuickCard = { quickCardContact = it },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-
-                    AttachTab.MUSIC -> {
-                        MusicTab(
-                            onSelectAudio = { audioDraft ->
-                                if (isSingleReplaceMode && onSingleReplace != null) {
-                                    onSingleReplace(audioDraft)
-                                    forceDismiss()
-                                } else {
-                                    onSend(listOf(audioDraft))
-                                    dismissAnimated()
-                                }
-                            },
-                            onExpandPlayer = { isFullPlayerOpen = true },
-                            onExpandToFullscreen = {
-                                animateTo(0f, 240)
-                            },
-                            selectedTracks = selectedTracks,
-                            onToggleSelectTrack = { track ->
-                                if (isSingleReplaceMode) {
-                                    if (selectedTracks.any { it.id == track.id }) {
-                                        selectedTracks.clear()
-                                    } else {
-                                        selectedTracks.clear()
-                                        selectedTracks.add(track)
-                                    }
-                                } else {
-                                    if (selectedTracks.any { it.id == track.id }) {
-                                        selectedTracks.removeAll { it.id == track.id }
-                                    } else {
-                                        selectedTracks.add(track)
-                                    }
-                                }
-                            },
-                            isFullscreen = isFull || (offsetPx <= H * 0.20f),
-                            onBack = { requestDismiss() },
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-
-            }
-        }
-
-        // 4. Плавающая шапка с блюр-скримом для Галереи (95%) и Геопозиции (с 80%)
-        val topBarThreshold = if (selectedTab == AttachTab.LOCATION) H * 0.20f else H * 0.05f
-        val showTopBar = (selectedTab == AttachTab.LOCATION || selectedTab == AttachTab.GALLERY) && (offsetPx <= topBarThreshold)
-        if (showTopBar) {
-            val topBarAlpha = if (selectedTab == AttachTab.LOCATION) {
-                ((H * 0.20f - offsetPx) / (H * 0.12f)).coerceIn(0f, 1f)
-            } else {
-                ((H * 0.05f - offsetPx) / (H * 0.05f)).coerceIn(0f, 1f)
-            }
-            AttachHeaderScrim(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .zIndex(9f)
-                    .graphicsLayer {
-                        alpha = topBarAlpha
-                    }
-            )
-            AttachTopBar(
-                title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum) else selectedTab.label(attachStrings),
-                searchQuery = if (selectedTab == AttachTab.LOCATION) locationSearchQuery else "",
-                isSearchActive = (selectedTab == AttachTab.LOCATION && isLocationSearchActive),
-                searchPlaceholder = attachStrings.locationSearchPlaceholder,
-                onBack = { requestDismiss() },
-                onSearchQueryChange = { locationSearchQuery = it },
-                onToggleSearch = {
-                    isLocationSearchActive = !isLocationSearchActive
-                    if (!isLocationSearchActive) locationSearchQuery = ""
-                },
-                hasActionMenu = (selectedTab == AttachTab.GALLERY),
-                hasSearchToggle = (selectedTab == AttachTab.LOCATION),
-                actionMenuContent = if (selectedTab == AttachTab.GALLERY) {
-                    {
-                        var isTopBarMenuOpen by remember { mutableStateOf(false) }
-                        IconButton(onClick = { isTopBarMenuOpen = true }) {
-                            Icon(Icons.Outlined.MoreVert, contentDescription = attachStrings.menu, tint = scheme.textPrimary)
-                        }
-                        DropdownMenu(
-                            expanded = isTopBarMenuOpen,
-                            onDismissRequest = { isTopBarMenuOpen = false },
-                            containerColor = scheme.card,
-                            modifier = Modifier
-                                .background(scheme.card, RoundedCornerShape(16.dp))
-                                .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
-                        ) {
-
-                            if (selectedMedia.isNotEmpty()) {
-                                DropdownMenuItem(
-                                    text = {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(attachStrings.viewMessage, color = scheme.textPrimary, fontSize = 14.5.sp)
-                                            Spacer(modifier = Modifier.weight(1f))
-                                            Icon(
-                                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                                                contentDescription = null,
-                                                tint = scheme.textSecondary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    },
-                                    onClick = {
-                                        isTopBarMenuOpen = false
-                                        isPreviewOrderOpen = true
-                                    },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.Visibility, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
-                                    }
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text(attachStrings.openInDots, color = scheme.textPrimary, fontSize = 14.5.sp) },
-                                onClick = {
-                                    isTopBarMenuOpen = false
-                                    val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-                                        type = "*/*"
-                                        addCategory(Intent.CATEGORY_OPENABLE)
-                                        putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
-                                    }
-                                    systemChooserLauncher.launch(Intent.createChooser(intent, attachStrings.openWithDots))
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Outlined.Folder, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
-                                }
-                            )
-                            if (selectedMedia.isNotEmpty()) {
-                                DropdownMenuItem(
-                                    text = {
-                                        Text(
-                                            text = if (selectedMedia.all { it.hasSpoiler }) attachStrings.removeSpoiler else attachStrings.hideUnderSpoiler,
-                                            color = scheme.textPrimary,
-                                            fontSize = 14.5.sp
-                                        )
-                                    },
-                                    onClick = {
-                                        isTopBarMenuOpen = false
-                                        toggleSpoilerForSelectedMedia()
-                                    },
-                                    leadingIcon = {
-                                        Icon(
-                                            imageVector = if (selectedMedia.all { it.hasSpoiler }) Icons.Outlined.Visibility else Icons.Outlined.VisibilityOff,
-                                            contentDescription = null,
-                                            tint = scheme.textPrimary,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text(attachStrings.sendInHd, color = scheme.textPrimary, fontSize = 14.5.sp) },
-                                onClick = {
-                                    isTopBarMenuOpen = false
-                                    sendAsHd()
-                                },
-                                leadingIcon = {
-                                    Icon(Icons.Default.HighQuality, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
-                                }
-                            )
-                        }
-                    }
-                } else null,
-                centerContent = if (selectedTab == AttachTab.GALLERY) {
-                    {
-                        val displayAlbumTitle = if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum
-                        Row(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable { isAlbumsSheetOpen = !isAlbumsSheetOpen }
-                                .padding(horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = displayAlbumTitle,
-                                color = scheme.textPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = attachStrings.albums,
-                                tint = scheme.accent,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                } else null,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .safeStatusBarPadding()
-                    .zIndex(10f)
-                    .graphicsLayer {
-                        alpha = topBarAlpha
-                        translationY = -8.dp.toPx() * (1f - topBarAlpha)
-                    }
-            )
-        }
-
-        // 5. Нижняя панель вкладок и ввода (парящая над экраном, управляется через translationY)
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .imePadding()
+            Modifier
+                .fillMaxSize()
                 .graphicsLayer {
-                    translationY = -minOf(offsetPx, halfOffset)
+                    alpha = ((H - dragState.offsetPx) / H * 0.70f).coerceIn(0f, 0.70f)
                 }
+                .background(Color.Black)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) { dragState.requestDismiss() }
+        )
+
+        @OptIn(ExperimentalFoundationApi::class)
+        CompositionLocalProvider(
+            LocalOverscrollConfiguration provides null,
+            LocalAttachStrings provides attachStrings
         ) {
-            AttachTabBar(
-                selectedTab = selectedTab,
-                onSelectTab = { newTab ->
-                    val wasFullLocation = (selectedTab == AttachTab.LOCATION && offsetPx <= H * 0.08f)
-                    selectedTab = newTab
-                    if (wasFullLocation && newTab != AttachTab.LOCATION) {
-                        animateTo(halfOffset, 260)
-                    }
-                },
-                visible = !isSingleReplaceMode,
-                modifier = Modifier.graphicsLayer {
-                    val isCardOrSelectionOpen = totalSelectedCount > 0 || isQuickContactOpen
-                    val topNavP = if (selectedTab == AttachTab.LOCATION) 0f else ((H * 0.08f - offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
-                    alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavP)
-                    translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavP)
-                }
-            )
-
-            AttachInputBar(
-                caption = captionText,
-                onCaptionChange = { captionText = it },
-                selectedCount = totalSelectedCount,
-                visible = totalSelectedCount > 0,
-                onSend = { sendAllSelected() },
-                isEmojiOpen = isAttachEmojiOpen,
-                onToggleEmoji = {
-                    if (!isAttachEmojiOpen && offsetPx > 0f) {
-                        animateTo(0f, 240)
-                    }
-                    isAttachEmojiOpen = !isAttachEmojiOpen
-                },
-                onCloseEmoji = { isAttachEmojiOpen = false },
-                modifier = Modifier.graphicsLayer {
-                    alpha = if (totalSelectedCount > 0) 1f else 0f
-                    translationY = if (totalSelectedCount > 0) 0f else 200f
-                }
-            )
-        }
-    }
-}
-
-        // Выпадающее меню альбомов (адаптивное по высоте меню прямо под шапкой с высоким zIndex)
-        if (isAlbumsSheetOpen && availableAlbums.isNotEmpty() && offsetPx <= H * 0.08f) {
-            val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
             Box(
-                modifier = Modifier
+                Modifier
                     .fillMaxSize()
-                    .zIndex(50f)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { isAlbumsSheetOpen = false }
+                    .graphicsLayer { translationY = dragState.offsetPx }
+                    .then(
+                        if (sheetState.selectedTab == AttachTab.LOCATION) Modifier
+                        else Modifier.nestedScroll(dragState.nestedScrollConnection)
+                    )
             ) {
                 Column(
-                    modifier = Modifier
-                        .padding(
-                            start = 58.dp,
-                            top = statusBarTop + 58.dp,
-                            end = 24.dp,
-                            bottom = 24.dp
-                        )
-                        .widthIn(min = 230.dp, max = 290.dp)
-                        .wrapContentHeight()
-                        .heightIn(max = 380.dp)
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(scheme.card)
-                        .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+                    Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                        .background(scheme.surface)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
-                        ) { /* consume clicks inside menu */ }
-                        .padding(vertical = 8.dp)
+                        ) { /* поглощаем клики внутри шторки */ }
                 ) {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .wrapContentHeight()
-                    ) {
-                        items(availableAlbums, key = { it.name }) { album ->
-                            AlbumDropdownRowItem(
-                                album = album,
-                                isSelected = (album.name == selectedAlbum || ((album.name == ALL_MEDIA_ALBUM_ID || album.name == "Все медиа") && (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея"))),
-                                onClick = {
-                                    selectedAlbum = album.name
-                                    isAlbumsSheetOpen = false
+                    val isExpanded95 = dragState.offsetPx <= H * 0.05f
+                    val isGallery = (sheetState.selectedTab == AttachTab.GALLERY)
+                    val isGalleryWithSelection = (isGallery && sheetState.selectedMedia.isNotEmpty() && !isExpanded95)
+                    val handleHeight = when {
+                        isGalleryWithSelection -> 44.dp
+                        dragState.isFull -> 0.dp
+                        sheetState.selectedTab == AttachTab.LOCATION -> 28.dp
+                        else -> 18.dp
+                    }
+
+                    if (handleHeight > 0.dp) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(handleHeight)
+                                .background(scheme.surface)
+                                .draggable(
+                                    orientation = Orientation.Vertical,
+                                    state = rememberDraggableState { d ->
+                                        val maxOffset = if (sheetState.totalSelectedCount > 0) dragState.halfOffset + 120f else H
+                                        dragState.offsetPx = (dragState.offsetPx + d).coerceIn(0f, maxOffset)
+                                    },
+                                    onDragStarted = { dragState.animJob?.cancel() },
+                                    onDragStopped = { v -> dragState.release(v) }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            when {
+                                isGalleryWithSelection -> {
+                                    GallerySelectionBar(
+                                        title = getGallerySelectionTitle(sheetState.selectedMedia, attachStrings),
+                                        hasMoreItems = sheetState.selectedMedia.isNotEmpty(),
+                                        onOpenPreviewOrder = {
+                                            if (sheetState.selectedMedia.isNotEmpty()) {
+                                                sheetState.isPreviewOrderOpen = true
+                                            }
+                                        },
+                                        onOptionsClick = { sheetState.isGalleryOptionsMenuOpen = true },
+                                        onBack = null,
+                                        menuContent = {
+                                            GallerySelectionOptionsMenu(
+                                                expanded = sheetState.isGalleryOptionsMenuOpen,
+                                                onDismissRequest = { sheetState.isGalleryOptionsMenuOpen = false },
+                                                canUngroup = sheetState.selectedMedia.size >= 2,
+                                                allHaveSpoiler = sheetState.selectedMedia.all { it.hasSpoiler },
+                                                onOpenPreview = {
+                                                    if (sheetState.selectedMedia.isNotEmpty()) {
+                                                        sheetState.isPreviewOrderOpen = true
+                                                    }
+                                                },
+                                                onSendUncompressed = {
+                                                    val drafts = buildGalleryMediaDrafts(
+                                                        context = context,
+                                                        mediaList = sheetState.selectedMedia,
+                                                        caption = sheetState.captionText,
+                                                        uncompressed = true
+                                                    )
+                                                    if (drafts.isNotEmpty()) {
+                                                        onSend(drafts)
+                                                        dragState.dismissAnimated()
+                                                    }
+                                                },
+                                                onSendUngrouped = {
+                                                    val drafts = buildGalleryMediaDrafts(
+                                                        context = context,
+                                                        mediaList = sheetState.selectedMedia,
+                                                        caption = sheetState.captionText,
+                                                        ungrouped = true
+                                                    )
+                                                    if (drafts.isNotEmpty()) {
+                                                        onSend(drafts)
+                                                        dragState.dismissAnimated()
+                                                    }
+                                                },
+                                                onToggleSpoiler = { toggleSpoilerForMediaSelection(sheetState.selectedMedia) },
+                                                onSendHd = {
+                                                    val drafts = buildGalleryMediaDrafts(
+                                                        context = context,
+                                                        mediaList = sheetState.selectedMedia,
+                                                        caption = sheetState.captionText,
+                                                        hd = true
+                                                    )
+                                                    if (drafts.isNotEmpty()) {
+                                                        onSend(drafts)
+                                                        dragState.dismissAnimated()
+                                                    }
+                                                }
+                                            )
+                                        }
+                                    )
                                 }
-                            )
+                                sheetState.selectedTab == AttachTab.LOCATION -> AttachHandleBar()
+                                else -> {
+                                    val isThinHandle = (sheetState.selectedTab == AttachTab.GALLERY || sheetState.selectedTab == AttachTab.MUSIC)
+                                    Box(
+                                        modifier = Modifier
+                                            .graphicsLayer {
+                                                alpha = ((dragState.offsetPx - H * 0.03f) / (H * 0.05f)).coerceIn(0f, 1f)
+                                            }
+                                            .width(if (isThinHandle) 24.dp else 28.dp)
+                                            .height(if (isThinHandle) 1.5.dp else 2.5.dp)
+                                            .clip(CircleShape)
+                                            .background(scheme.textMuted.copy(alpha = if (isThinHandle) 0.25f else 0.35f))
+                                    )
+                                }
+                            }
                         }
                     }
+
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        when (sheetState.selectedTab) {
+                            AttachTab.GALLERY -> {
+                                GalleryTab(
+                                    onLaunchCamera = { sheetState.isCameraOpen = true },
+                                    onOpenEditor = { items ->
+                                        sheetState.editorItems = items
+                                        sheetState.isEditorOpen = true
+                                    },
+                                    selectedAlbum = sheetState.selectedAlbum,
+                                    onSelectAlbum = { sheetState.selectedAlbum = it },
+                                    isAlbumsSheetOpen = sheetState.isAlbumsSheetOpen,
+                                    onCloseAlbumsSheet = { sheetState.isAlbumsSheetOpen = false },
+                                    onOpenAlbumsSheet = { sheetState.isAlbumsSheetOpen = true },
+                                    selectedMedia = sheetState.selectedMedia,
+                                    onToggleSelectMedia = { media ->
+                                        sheetState.isAlbumsSheetOpen = false
+                                        if (isSingleReplaceMode) {
+                                            val already = sheetState.selectedMedia.any { it.uri == media.uri }
+                                            sheetState.selectedMedia.clear()
+                                            if (!already) sheetState.selectedMedia.add(media)
+                                        } else {
+                                            if (sheetState.selectedMedia.any { it.uri == media.uri }) {
+                                                sheetState.selectedMedia.removeAll { it.uri == media.uri }
+                                            } else if (sheetState.selectedMedia.size < 99) {
+                                                sheetState.selectedMedia.add(media)
+                                            }
+                                        }
+                                    },
+                                    caption = sheetState.captionText,
+                                    onCaptionChange = { sheetState.captionText = it },
+                                    onSend = { sendAllSelected() },
+                                    capturedMediaItems = sheetState.capturedMediaList,
+                                    isFullscreen = dragState.isFull,
+                                    onOpenViewer = { list, idx ->
+                                        sheetState.isAlbumsSheetOpen = false
+                                        sheetState.viewingMediaList = list
+                                        sheetState.viewingMediaIndex = idx
+                                    },
+                                    onAlbumsLoaded = { sheetState.availableAlbums = it },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            AttachTab.FILE -> {
+                                FilesTab(
+                                    onSelectFile = { fileDraft ->
+                                        if (isSingleReplaceMode && onSingleReplace != null) {
+                                            onSingleReplace(fileDraft)
+                                            dragState.forceDismiss()
+                                        } else {
+                                            onSend(listOf(fileDraft))
+                                            dragState.dismissAnimated()
+                                        }
+                                    },
+                                    onExpandToFullscreen = { dragState.animateTo(0f, 240) },
+                                    selectedFiles = sheetState.selectedFiles,
+                                    onToggleSelectFile = { file ->
+                                        if (isSingleReplaceMode) {
+                                            val already = sheetState.selectedFiles.any { it.uri == file.uri }
+                                            sheetState.selectedFiles.clear()
+                                            if (!already) sheetState.selectedFiles.add(file)
+                                        } else {
+                                            if (sheetState.selectedFiles.any { it.uri == file.uri }) {
+                                                sheetState.selectedFiles.removeAll { it.uri == file.uri }
+                                            } else {
+                                                sheetState.selectedFiles.add(file)
+                                            }
+                                        }
+                                    },
+                                    isFullscreen = dragState.isFull,
+                                    onBack = { dragState.requestDismiss() },
+                                    onSelectFiles = { drafts ->
+                                        if (isSingleReplaceMode && onSingleReplace != null) {
+                                            drafts.firstOrNull()?.let { onSingleReplace(it) }
+                                            dragState.forceDismiss()
+                                        } else {
+                                            onSend(drafts)
+                                            dragState.dismissAnimated()
+                                        }
+                                    },
+                                    onOpenUncompressedGallery = { sheetState.isUncompressedGalleryOpen = true },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            AttachTab.LOCATION -> {
+                                val sheetOffsetDp = with(LocalDensity.current) { dragState.offsetPx.coerceAtLeast(0f).toDp() }
+                                LocationTab(
+                                    onSendLocation = { locDraft ->
+                                        onSend(listOf(locDraft))
+                                        dragState.dismissAnimated()
+                                    },
+                                    searchQuery = sheetState.locationSearchQuery,
+                                    isFullscreen = dragState.isFull || (dragState.offsetPx <= H * 0.20f),
+                                    sheetOffsetDp = sheetOffsetDp,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            AttachTab.CONTACT -> {
+                                ContactsTab(
+                                    onSelectContact = { contactDraft ->
+                                        onSend(listOf(contactDraft))
+                                        dragState.dismissAnimated()
+                                    },
+                                    onExpandToFullscreen = { dragState.animateTo(0f, 240) },
+                                    selectedContacts = sheetState.selectedContacts,
+                                    onToggleSelectContact = { contact ->
+                                        if (sheetState.selectedContacts.any { it.name == contact.name }) {
+                                            sheetState.selectedContacts.removeAll { it.name == contact.name }
+                                        } else {
+                                            sheetState.selectedContacts.add(contact)
+                                        }
+                                    },
+                                    isFullscreen = dragState.isFull,
+                                    onBack = { dragState.requestDismiss() },
+                                    onQuickCardVisibilityChange = {},
+                                    onOpenQuickCard = { sheetState.quickCardContact = it },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+
+                            AttachTab.MUSIC -> {
+                                MusicTab(
+                                    onSelectAudio = { audioDraft ->
+                                        if (isSingleReplaceMode && onSingleReplace != null) {
+                                            onSingleReplace(audioDraft)
+                                            dragState.forceDismiss()
+                                        } else {
+                                            onSend(listOf(audioDraft))
+                                            dragState.dismissAnimated()
+                                        }
+                                    },
+                                    onExpandPlayer = { sheetState.isFullPlayerOpen = true },
+                                    onExpandToFullscreen = { dragState.animateTo(0f, 240) },
+                                    selectedTracks = sheetState.selectedTracks,
+                                    onToggleSelectTrack = { track ->
+                                        if (isSingleReplaceMode) {
+                                            val already = sheetState.selectedTracks.any { it.id == track.id }
+                                            sheetState.selectedTracks.clear()
+                                            if (!already) sheetState.selectedTracks.add(track)
+                                        } else {
+                                            if (sheetState.selectedTracks.any { it.id == track.id }) {
+                                                sheetState.selectedTracks.removeAll { it.id == track.id }
+                                            } else {
+                                                sheetState.selectedTracks.add(track)
+                                            }
+                                        }
+                                    },
+                                    isFullscreen = dragState.isFull,
+                                    onBack = { dragState.requestDismiss() },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Плавающая шапка для Галереи (с 95%) и Геопозиции (с 80%)
+                if (sheetState.selectedTab == AttachTab.GALLERY && dragState.offsetPx <= H * 0.05f) {
+                    val alpha = ((H * 0.05f - dragState.offsetPx) / (H * 0.05f)).coerceIn(0f, 1f)
+                    GalleryFloatingTopBar(
+                        selectedAlbum = sheetState.selectedAlbum,
+                        selectedMedia = sheetState.selectedMedia,
+                        attachStrings = attachStrings,
+                        topBarAlpha = alpha,
+                        isAlbumsSheetOpen = sheetState.isAlbumsSheetOpen,
+                        onToggleAlbumsSheet = { sheetState.isAlbumsSheetOpen = !sheetState.isAlbumsSheetOpen },
+                        onBack = { dragState.requestDismiss() },
+                        onOpenPreviewOrder = { sheetState.isPreviewOrderOpen = true },
+                        onLaunchSystemChooser = { systemChooserLauncher.launch(it) },
+                        onToggleSpoiler = { toggleSpoilerForMediaSelection(sheetState.selectedMedia) },
+                        onSendHd = {
+                            val drafts = buildGalleryMediaDrafts(
+                                context = context,
+                                mediaList = sheetState.selectedMedia,
+                                caption = sheetState.captionText,
+                                hd = true
+                            )
+                            if (drafts.isNotEmpty()) {
+                                onSend(drafts)
+                                dragState.dismissAnimated()
+                            }
+                        }
+                    )
+                } else if (sheetState.selectedTab == AttachTab.LOCATION && dragState.offsetPx <= H * 0.20f) {
+                    val alpha = ((H * 0.20f - dragState.offsetPx) / (H * 0.12f)).coerceIn(0f, 1f)
+                    LocationFloatingTopBar(
+                        attachStrings = attachStrings,
+                        searchQuery = sheetState.locationSearchQuery,
+                        isSearchActive = sheetState.isLocationSearchActive,
+                        topBarAlpha = alpha,
+                        onBack = { dragState.requestDismiss() },
+                        onSearchQueryChange = { sheetState.locationSearchQuery = it },
+                        onToggleSearch = {
+                            sheetState.isLocationSearchActive = !sheetState.isLocationSearchActive
+                            if (!sheetState.isLocationSearchActive) sheetState.locationSearchQuery = ""
+                        }
+                    )
+                }
+
+                // Нижняя парящая панель вкладок и ввода
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .imePadding()
+                        .graphicsLayer {
+                            translationY = -minOf(dragState.offsetPx, dragState.halfOffset)
+                        }
+                ) {
+                    AttachTabBar(
+                        selectedTab = sheetState.selectedTab,
+                        onSelectTab = { newTab ->
+                            val wasFullLocation = (sheetState.selectedTab == AttachTab.LOCATION && dragState.offsetPx <= H * 0.08f)
+                            sheetState.selectedTab = newTab
+                            if (wasFullLocation && newTab != AttachTab.LOCATION) {
+                                dragState.animateTo(dragState.halfOffset, 260)
+                            }
+                        },
+                        visible = !isSingleReplaceMode,
+                        modifier = Modifier.graphicsLayer {
+                            val isCardOrSelectionOpen = sheetState.totalSelectedCount > 0 || sheetState.isQuickContactOpen
+                            val topNavP = if (sheetState.selectedTab == AttachTab.LOCATION) 0f else ((H * 0.08f - dragState.offsetPx) / (H * 0.08f)).coerceIn(0f, 1f)
+                            alpha = if (isCardOrSelectionOpen) 0f else (1f - topNavP)
+                            translationY = if (isCardOrSelectionOpen) 200f else (200f * topNavP)
+                        }
+                    )
+
+                    AttachInputBar(
+                        caption = sheetState.captionText,
+                        onCaptionChange = { sheetState.captionText = it },
+                        selectedCount = sheetState.totalSelectedCount,
+                        visible = sheetState.totalSelectedCount > 0,
+                        onSend = { sendAllSelected() },
+                        isEmojiOpen = sheetState.isAttachEmojiOpen,
+                        onToggleEmoji = {
+                            if (!sheetState.isAttachEmojiOpen && dragState.offsetPx > 0f) {
+                                dragState.animateTo(0f, 240)
+                            }
+                            sheetState.isAttachEmojiOpen = !sheetState.isAttachEmojiOpen
+                        },
+                        onCloseEmoji = { sheetState.isAttachEmojiOpen = false },
+                        modifier = Modifier.graphicsLayer {
+                            alpha = if (sheetState.totalSelectedCount > 0) 1f else 0f
+                            translationY = if (sheetState.totalSelectedCount > 0) 0f else 200f
+                        }
+                    )
                 }
             }
         }
 
-        // Полноэкранный просмотр фото со свайпом влево-вправо поверх всего экрана
-        if (viewingMediaList != null) {
-            GalleryMediaViewer(
-                mediaList = viewingMediaList!!,
-                initialIndex = viewingMediaIndex,
-                selectedMedia = selectedMedia,
-                onToggleSelect = { media ->
-                    if (selectedMedia.any { it.uri == media.uri }) {
-                        selectedMedia.removeAll { it.uri == media.uri }
-                    } else {
-                        if (selectedMedia.size < 99) {
-                            selectedMedia.add(media)
-                        }
-                    }
-                },
-                caption = captionText,
-                onCaptionChange = { captionText = it },
-                onSend = { sendAllSelected() },
-                onClose = { viewingMediaList = null },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(100f)
-            )
-        }
+        // Оверлеи Галереи
+        GalleryOverlays(
+            chatId = chatId,
+            recipientName = recipientName,
+            context = context,
+            sheetState = sheetState,
+            dragState = dragState,
+            onSend = onSend,
+            onSendAllSelected = { sendAllSelected() }
+        )
 
-        // Отдельный полноэкранный раздел «Галерея без сжатия» (Файлы -> Галерея) — не шторка, шапка строго на уровне остальных
+        // Полноэкранный раздел «Галерея без сжатия» (Файлы -> Галерея)
         AnimatedVisibility(
-            visible = isUncompressedGalleryOpen,
+            visible = sheetState.isUncompressedGalleryOpen,
             enter = slideInHorizontally(
                 initialOffsetX = { fullWidth -> fullWidth },
                 animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
@@ -1206,7 +607,7 @@ fun AttachSheetContent(
         ) {
             FilesGallerySubScreen(
                 isFullscreen = true,
-                onBack = { isUncompressedGalleryOpen = false },
+                onBack = { sheetState.isUncompressedGalleryOpen = false },
                 onSelectMediaAsFile = { media ->
                     val meta = getFileMetadataHelper(context, media.uri)
                     onSend(
@@ -1218,214 +619,60 @@ fun AttachSheetContent(
                             )
                         )
                     )
-                    isUncompressedGalleryOpen = false
-                    dismissAnimated()
+                    sheetState.isUncompressedGalleryOpen = false
+                    dragState.dismissAnimated()
                 },
-                selectedMedia = uncompressedGalleryPicked,
+                selectedMedia = sheetState.uncompressedGalleryPicked,
                 onToggleMedia = { media ->
-                    val idx = uncompressedGalleryPicked.indexOfFirst { it.uri == media.uri }
-                    if (idx >= 0) uncompressedGalleryPicked.removeAt(idx) else uncompressedGalleryPicked.add(media)
+                    val idx = sheetState.uncompressedGalleryPicked.indexOfFirst { it.uri == media.uri }
+                    if (idx >= 0) sheetState.uncompressedGalleryPicked.removeAt(idx) else sheetState.uncompressedGalleryPicked.add(media)
                 },
-                caption = uncompressedGalleryCaption,
-                onCaptionChange = { uncompressedGalleryCaption = it },
+                caption = sheetState.uncompressedGalleryCaption,
+                onCaptionChange = { sheetState.uncompressedGalleryCaption = it },
                 onSendSelected = {
-                    val drafts = uncompressedGalleryPicked.mapIndexed { i, m ->
-                        val meta = getFileMetadataHelper(context, m.uri)
-                        AttachmentDraft.File(
-                            uri = m.uri,
-                            name = meta.name,
-                            size = meta.size,
-                            caption = if (i == 0) uncompressedGalleryCaption else ""
-                        )
-                    }
-                    uncompressedGalleryPicked.clear()
-                    uncompressedGalleryCaption = ""
-                    isUncompressedGalleryOpen = false
-                    onSend(drafts)
-                    dismissAnimated()
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // Экран предпросмотра порядка и спойлера (ТЗ: Экран предпросмотра выбора сообщений)
-        AnimatedVisibility(
-            visible = isPreviewOrderOpen,
-            enter = slideInHorizontally(
-                initialOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(durationMillis = 280, easing = FastOutSlowInEasing)
-            ) + fadeIn(animationSpec = tween(280)),
-            exit = slideOutHorizontally(
-                targetOffsetX = { fullWidth -> fullWidth },
-                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
-            ) + fadeOut(animationSpec = tween(240)),
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(120f)
-        ) {
-            PreviewOrderScreen(
-                initialMediaList = selectedMedia.toList(),
-                caption = captionText,
-                onCaptionChange = { captionText = it },
-                onClose = { isPreviewOrderOpen = false },
-                chatId = chatId,
-                initialOffsetPx = offsetPx,
-                onOffsetChange = { offsetPx = it },
-                onDiscardSelection = {
-                    selectedMedia.clear()
-                    isPreviewOrderOpen = false
-                    dismissAnimated()
-                },
-                onDismissAll = {
-                    selectedMedia.clear()
-                    isPreviewOrderOpen = false
-                    dismissAnimated()
-                },
-                onUpdateOrderAndSpoilers = { newOrder ->
-                    selectedMedia.clear()
-                    selectedMedia.addAll(newOrder)
-                },
-                onSend = { orderedMedia, isUncompressed, isUngrouped, isHd ->
-                    val drafts = mutableListOf<AttachmentDraft>()
-                    orderedMedia.forEachIndexed { index, media ->
-                        val isCaptionTarget = (index == orderedMedia.lastIndex)
-                        if (isUncompressed) {
-                            val meta = getFileMetadataHelper(context, media.uri)
-                            drafts.add(
-                                AttachmentDraft.File(
-                                    uri = media.uri,
-                                    name = meta.name,
-                                    size = meta.size,
-                                    caption = if (isCaptionTarget) captionText else ""
-                                )
-                            )
-                        } else {
-                            drafts.add(
-                                AttachmentDraft.Media(
-                                    uri = media.uri,
-                                    isVideo = media.isVideo,
-                                    caption = if (isCaptionTarget) captionText else "",
-                                    hd = isHd,
-                                    hasSpoiler = media.hasSpoiler,
-                                    ungrouped = isUngrouped
-                                )
-                            )
-                        }
-                    }
-                    onSend(drafts)
-                    isPreviewOrderOpen = false
-                    dismissAnimated()
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // Окно Камеры (CameraX / Camera2, ТЗ шаг 5 и шаг 8)
-        if (isCameraOpen) {
-            CameraScreen(
-                onResult = { media ->
-                    isCameraOpen = false
-                    // Снял фото/видео: попадает в выбор (в Галерею первым, уже с галочкой) и открывается на предпросмотр (ТЗ шаг 8)
-                    val galleryMedia = GalleryMedia(
-                        uri = media.uri,
-                        isVideo = media.isVideo,
-                        dateAdded = System.currentTimeMillis()
+                    val drafts = buildUncompressedGalleryDrafts(
+                        context = context,
+                        pickedMedia = sheetState.uncompressedGalleryPicked,
+                        caption = sheetState.uncompressedGalleryCaption
                     )
-                    capturedMediaList.add(0, galleryMedia)
-                    selectedMedia.add(0, galleryMedia)
-                    selectedTab = AttachTab.GALLERY
-                    editorItems = listOf(
-                        EditableMediaItem(
-                            uri = media.uri,
-                            isVideo = media.isVideo
-                        )
-                    )
-                    isEditorOpen = true
-                },
-                onClose = { isCameraOpen = false },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // Редактор медиа (MediaEditorScreen)
-        if (isEditorOpen) {
-            MediaEditorScreen(
-                items = editorItems,
-                recipientName = recipientName,
-                onSend = { editedList ->
-                    val drafts = editedList.map { m ->
-                        AttachmentDraft.Media(
-                            uri = m.uri,
-                            isVideo = m.isVideo,
-                            caption = m.caption,
-                            hd = m.hd,
-                            ttl = m.ttl
-                        )
-                    }
+                    sheetState.uncompressedGalleryPicked.clear()
+                    sheetState.uncompressedGalleryCaption = ""
+                    sheetState.isUncompressedGalleryOpen = false
                     onSend(drafts)
-                    isEditorOpen = false
-                    dismissAnimated()
-                },
-                onAddMore = {
-                    isEditorOpen = false
-                },
-                onBack = {
-                    isEditorOpen = false
+                    dragState.dismissAnimated()
                 },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
-        // Нижнее окно полного плеера (ТЗ, шаг 7)
-        if (isFullPlayerOpen) {
+        if (sheetState.isFullPlayerOpen) {
             FullPlayerSheet(
-                onDismiss = { isFullPlayerOpen = false },
+                onDismiss = { sheetState.isFullPlayerOpen = false },
                 modifier = Modifier.fillMaxSize()
             )
         }
 
-        // Диалог подтверждения сброса выбора при выходе
-        if (showDiscardDialog) {
+        if (sheetState.showDiscardDialog) {
             AttachDiscardDialog(
-                onDismiss = { showDiscardDialog = false },
+                onDismiss = { sheetState.showDiscardDialog = false },
                 onConfirmDiscard = {
-                    showDiscardDialog = false
-                    clearAllSelected()
-                    forceDismiss()
+                    sheetState.showDiscardDialog = false
+                    sheetState.clearAllSelected()
+                    dragState.forceDismiss()
                 }
             )
         }
 
-        if (quickCardContact != null) {
+        if (sheetState.quickCardContact != null) {
             ContactQuickCardSheet(
-                contact = quickCardContact!!,
+                contact = sheetState.quickCardContact!!,
                 onSelectContact = { contactDraft ->
                     onSend(listOf(contactDraft))
-                    quickCardContact = null
-                    dismissAnimated()
+                    sheetState.quickCardContact = null
+                    dragState.dismissAnimated()
                 },
-                onDismiss = { quickCardContact = null }
+                onDismiss = { sheetState.quickCardContact = null }
             )
         }
     }
 }
-
-private data class FileMeta(val name: String, val size: Long)
-
-private fun getFileMetadataHelper(context: Context, uri: Uri): FileMeta {
-    var name = "file"
-    var size = 0L
-    try {
-        val cursor = context.contentResolver.query(uri, null, null, null, null)
-        cursor?.use { c ->
-            val nameIndex = c.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            val sizeIndex = c.getColumnIndex(OpenableColumns.SIZE)
-            if (c.moveToFirst()) {
-                if (nameIndex >= 0) name = c.getString(nameIndex) ?: "file"
-                if (sizeIndex >= 0) size = c.getLong(sizeIndex)
-            }
-        }
-    } catch (_: Exception) {}
-    return FileMeta(name, size)
-}
-
