@@ -46,8 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.components.SpoilerOverlay
-import com.anongram.app.features.chats.attach.components.calculateAlbumRows
-import com.anongram.app.features.chats.attach.components.getRowHeightDp
+import com.anongram.app.features.chats.attach.tabs.gallery.calculateAlbumRows
+import com.anongram.app.features.chats.attach.tabs.gallery.getRowHeightDp
 import com.anongram.app.features.chats.attach.tabs.gallery.loadHdBitmap
 import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.MessageAttachment

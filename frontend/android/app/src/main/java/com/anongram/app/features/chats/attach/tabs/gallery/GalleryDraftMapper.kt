@@ -3,7 +3,7 @@ package com.anongram.app.features.chats.attach.tabs.gallery
 import android.content.Context
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
 import com.anongram.app.features.chats.attach.tabs.files.getFileMetadataHelper
-import com.anongram.app.features.mediaeditor.api.EditableMediaItem
+import com.anongram.app.features.mediaeditor.api.EditedMedia
 
 internal fun buildGalleryMediaDrafts(
     context: Context,
@@ -38,7 +38,7 @@ internal fun buildGalleryMediaDrafts(
 }
 
 internal fun buildEditedMediaDrafts(
-    editedList: List<EditableMediaItem>
+    editedList: List<EditedMedia>
 ): List<AttachmentDraft.Media> = editedList.map { m ->
     AttachmentDraft.Media(
         uri = m.uri,
