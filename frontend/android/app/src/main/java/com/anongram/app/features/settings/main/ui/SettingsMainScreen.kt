@@ -37,8 +37,6 @@ import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -55,6 +53,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.LanguageSettingsStore
@@ -293,17 +292,17 @@ fun SettingsMainScreen(
                     )
                 )
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .safeStatusBarPadding()
-                    .padding(horizontal = 14.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 14.dp, vertical = 4.dp)
+                    .height(44.dp)
             ) {
-                // Круглая кнопка QR (с матовой стеклянной подложкой и тонкой окантовкой)
+                // Круглая кнопка QR (с матовой стеклянной подложкой и тонкой окантовкой) - слева
                 Box(
                     modifier = Modifier
+                        .align(Alignment.CenterStart)
                         .size(38.dp)
                         .clip(CircleShape)
                         .background(scheme.islandBg.copy(alpha = 0.90f))
@@ -319,17 +318,20 @@ fun SettingsMainScreen(
                     )
                 }
 
-                // Заголовок в центре шапки: по дефолту надпись «Настройки», всегда остаётся сверху
+                // Заголовок строго по центру всего экрана (адаптивно для любых размеров)
                 Text(
-                    text = "Настройки",
+                    text = if (currentLanguage == "ru") "Настройки" else "Settings",
                     color = scheme.textPrimary,
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.align(Alignment.Center)
                 )
 
-                // Островок Поиск + Меню 3 точки (с матовой стеклянной подложкой)
+                // Островок Поиск + Меню 3 точки (с матовой стеклянной подложкой) - справа
                 Row(
                     modifier = Modifier
+                        .align(Alignment.CenterEnd)
                         .clip(RoundedCornerShape(22.dp))
                         .background(scheme.islandBg.copy(alpha = 0.90f))
                         .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
@@ -345,7 +347,7 @@ fun SettingsMainScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Search,
-                            contentDescription = "Поиск настроек",
+                            contentDescription = if (currentLanguage == "ru") "Поиск настроек" else "Search settings",
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(19.dp)
                         )
@@ -362,19 +364,12 @@ fun SettingsMainScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Default.MoreVert,
-                            contentDescription = "Меню",
+                            contentDescription = if (currentLanguage == "ru") "Меню" else "Menu",
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
                 }
-            }
-
-            if (animatedHeaderAlpha > 0.08f) {
-                HorizontalDivider(
-                    color = scheme.divider.copy(alpha = animatedHeaderAlpha),
-                    thickness = 0.5.dp
-                )
             }
         }
 
