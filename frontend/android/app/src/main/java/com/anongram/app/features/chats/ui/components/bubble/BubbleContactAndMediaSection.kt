@@ -1055,6 +1055,10 @@ internal fun ChatVideoCircleSection(
                 androidx.compose.ui.viewinterop.AndroidView(
                     factory = { ctx ->
                         android.view.TextureView(ctx).apply {
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
                             isOpaque = false
                             clipToOutline = true
                             outlineProvider = object : android.view.ViewOutlineProvider() {
@@ -1067,6 +1071,9 @@ internal fun ChatVideoCircleSection(
                             }
                             addOnLayoutChangeListener { v, _, _, _, _, _, _, _, _ ->
                                 v.invalidateOutline()
+                                (v as? android.view.TextureView)?.let { tv ->
+                                    applyVideoCircleCenterCrop(tv, videoMeta.width, videoMeta.height)
+                                }
                             }
                             textureViewRef = this
                             surfaceTextureListener = object : android.view.TextureView.SurfaceTextureListener {
@@ -1117,6 +1124,7 @@ internal fun ChatVideoCircleSection(
                     },
                     update = { tv ->
                         tv.invalidateOutline()
+                        applyVideoCircleCenterCrop(tv, videoMeta.width, videoMeta.height)
                     },
                     modifier = Modifier
                         .fillMaxSize()

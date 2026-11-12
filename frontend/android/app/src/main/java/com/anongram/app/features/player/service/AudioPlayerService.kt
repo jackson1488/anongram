@@ -10,7 +10,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
@@ -20,6 +22,7 @@ import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import com.anongram.app.MainActivity
 import com.anongram.app.R
+import com.anongram.app.features.auth.data.crypto.KeystoreVault
 import com.anongram.app.features.chats.media.player.AudioMetadataHelper
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatPlayerState
@@ -92,7 +95,8 @@ class AudioPlayerService : Service() {
         val chatController = ChatAudioController.getInstance(this)
         syncJob = serviceScope.launch {
             chatController.state.collect { state ->
-                if (state.currentTrack == null) {
+                val track = state.currentTrack
+                if (track == null || (track.isVoice && !state.isPlaying && !state.isVisible)) {
                     stopForeground(STOP_FOREGROUND_REMOVE)
                     stopSelf()
                     return@collect
@@ -118,7 +122,8 @@ class AudioPlayerService : Service() {
             }
         }
         val state = chatController.state.value
-        if (state.currentTrack != null) {
+        val track = state.currentTrack
+        if (track != null && !(track.isVoice && !state.isPlaying && !state.isVisible)) {
             syncState(state, forceNotify = true)
         } else {
             val notification = buildNotification(state, "AnonGram", "Плеер", null)
@@ -134,8 +139,16 @@ class AudioPlayerService : Service() {
         val isVoice = track.isVoice
 
         val isOut = track.isOutgoing || track.title == "Вы"
+        val identity = if (isVoice && isOut) {
+            runCatching { KeystoreVault(this).loadIdentity() }.getOrNull()
+        } else null
+
         val title = if (isVoice) {
-            if (isOut) "Вы" else track.chatTitle.ifBlank { track.title.ifBlank { "Голосовое сообщение" } }
+            if (isOut) {
+                identity?.nickname?.takeIf { it.isNotBlank() } ?: "AnonGram"
+            } else {
+                track.chatTitle.ifBlank { track.title.ifBlank { "Голосовое сообщение" } }
+            }
         } else {
             track.title.ifBlank { "AnonGram Music" }
         }
@@ -149,7 +162,14 @@ class AudioPlayerService : Service() {
         }
 
         val largeIcon: Bitmap? = if (isVoice) {
-            AudioMetadataHelper.generateAvatarBitmap(title, isOutgoing = isOut)
+            val profileAvatarBmp = if (isOut && !identity?.avatarUri.isNullOrBlank()) {
+                runCatching {
+                    contentResolver.openInputStream(Uri.parse(identity!!.avatarUri))?.use {
+                        BitmapFactory.decodeStream(it)
+                    }
+                }.getOrNull()
+            } else null
+            profileAvatarBmp ?: AudioMetadataHelper.generateAvatarBitmap(title, isOutgoing = isOut)
         } else {
             track.albumArtBitmap
                 ?: AudioMetadataHelper.getCachedArt(track.uri.toString())

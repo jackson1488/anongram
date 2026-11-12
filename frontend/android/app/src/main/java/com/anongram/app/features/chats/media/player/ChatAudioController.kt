@@ -139,8 +139,11 @@ class ChatAudioController private constructor(
                         .setUsage(AudioAttributes.USAGE_MEDIA)
                         .build()
                 )
-                if (track.isVideoCircle && videoSurfaceTrackId == track.id) {
-                    videoSurface?.let { runCatching { setSurface(it) } }
+                if (track.isVideoCircle) {
+                    runCatching { setVideoScalingMode(MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING) }
+                    if (videoSurfaceTrackId == track.id) {
+                        videoSurface?.let { runCatching { setSurface(it) } }
+                    }
                 }
                 if (track.uri.scheme == "content" || track.uri.scheme == "file") {
                     setDataSource(appContext, track.uri)
@@ -314,13 +317,23 @@ class ChatAudioController private constructor(
     }
 
     fun stop() {
-        if (_state.value.currentTrack?.isVideoCircle == true) {
+        val current = _state.value.currentTrack
+        if (current?.isVideoCircle == true) {
             stopVideoCircle()
             return
         }
+        val isVoice = current?.isVoice == true
         userPaused = true
         releasePlayer()
-        _state.update { it.copy(isPlaying = false, isVisible = false, positionMs = 0L) }
+        _state.update {
+            it.copy(
+                currentTrack = if (isVoice) null else it.currentTrack,
+                queue = if (isVoice) emptyList() else it.queue,
+                isPlaying = false,
+                isVisible = false,
+                positionMs = 0L
+            )
+        }
     }
 
     fun openSheet() {
