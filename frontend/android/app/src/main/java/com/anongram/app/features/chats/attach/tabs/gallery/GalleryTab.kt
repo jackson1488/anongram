@@ -23,6 +23,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
@@ -239,7 +240,11 @@ fun GalleryTab(
             }
 
             val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-            val topGridPadding = if (isFullscreen) statusBarTopDp + 64.dp else 12.dp
+            val topGridPadding by animateDpAsState(
+                targetValue = if (isFullscreen) statusBarTopDp + 64.dp else 12.dp,
+                animationSpec = tween(durationMillis = 220),
+                label = "galleryTopGridPadding"
+            )
 
             val openViewerHelper: (Int) -> Unit = { index ->
                 if (onOpenViewer != null) {

@@ -46,6 +46,14 @@ internal class AttachSheetDragState(
         offsetPx <= 20f || (totalHeightPx > 0f && offsetPx <= totalHeightPx * 0.05f)
     }
 
+    val isExpanded95 by derivedStateOf {
+        totalHeightPx > 0f && offsetPx <= totalHeightPx * 0.05f
+    }
+
+    val isLocationHeaderVisible by derivedStateOf {
+        totalHeightPx > 0f && offsetPx <= totalHeightPx * 0.20f
+    }
+
     private val decelerateEasing = CubicBezierEasing(0.0f, 0.0f, 0.2f, 1.0f)
     private val smoothInOutEasing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
 
@@ -96,7 +104,9 @@ internal class AttachSheetDragState(
     fun release(velocityY: Float) {
         animJob?.cancel()
         if (offsetPx <= halfOffset) {
-            offsetPx = offsetPx.coerceIn(0f, halfOffset)
+            val shouldExpand = velocityY < -600f || (velocityY <= 600f && offsetPx < halfOffset * 0.55f)
+            val target = if (shouldExpand) 0f else halfOffset
+            animateTo(target, ms = 220, isFling = kotlin.math.abs(velocityY) > 600f)
             return
         }
         if (velocityY > 2000f || offsetPx > halfOffset + 80f) {
@@ -151,10 +161,16 @@ internal class AttachSheetDragState(
             return Offset.Zero
         }
 
-        override suspend fun onPreFling(available: Velocity): Velocity = Velocity.Zero
+        override suspend fun onPreFling(available: Velocity): Velocity {
+            if (offsetPx > 0f && offsetPx < totalHeightPx && available.y < -600f) {
+                release(available.y)
+                return Velocity(0f, available.y)
+            }
+            return Velocity.Zero
+        }
 
         override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-            if (offsetPx > halfOffset) {
+            if (offsetPx > 0f && offsetPx < totalHeightPx) {
                 release(available.y)
             }
             return Velocity.Zero

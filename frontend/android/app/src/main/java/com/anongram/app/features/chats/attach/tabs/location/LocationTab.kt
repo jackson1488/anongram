@@ -8,6 +8,8 @@ import android.location.LocationManager
 import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -244,11 +246,16 @@ fun LocationTab(
         }
 
         // Верхний правый угол: выбор слоёв карты (всегда ниже плавающей шапки/поиска)
+        val layerButtonTopPadding by animateDpAsState(
+            targetValue = if (isFullscreen) statusBarTop + 72.dp else 12.dp,
+            animationSpec = tween(durationMillis = 220),
+            label = "locationLayerTopPadding"
+        )
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(
-                    top = if (isFullscreen) statusBarTop + 72.dp else 12.dp,
+                    top = layerButtonTopPadding,
                     end = 12.dp
                 )
         ) {

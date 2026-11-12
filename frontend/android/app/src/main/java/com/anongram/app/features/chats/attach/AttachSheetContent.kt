@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -218,15 +219,20 @@ fun AttachSheetContent(
                             indication = null
                         ) { /* поглощаем клики внутри шторки */ }
                 ) {
-                    val isExpanded95 = dragState.offsetPx <= H * 0.05f
+                    val isExpanded95 = dragState.isExpanded95
                     val isGallery = (sheetState.selectedTab == AttachTab.GALLERY)
                     val isGalleryWithSelection = (isGallery && sheetState.selectedMedia.isNotEmpty() && !isExpanded95)
-                    val handleHeight = when {
+                    val targetHandleHeight = when {
                         isGalleryWithSelection -> 44.dp
                         dragState.isFull -> 0.dp
                         sheetState.selectedTab == AttachTab.LOCATION -> 28.dp
                         else -> 18.dp
                     }
+                    val handleHeight by animateDpAsState(
+                        targetValue = targetHandleHeight,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "attachHandleHeight"
+                    )
 
                     if (handleHeight > 0.dp) {
                         Box(
@@ -421,7 +427,7 @@ fun AttachSheetContent(
                                         dragState.dismissAnimated()
                                     },
                                     searchQuery = sheetState.locationSearchQuery,
-                                    isFullscreen = dragState.isFull || (dragState.offsetPx <= H * 0.20f),
+                                    isFullscreen = dragState.isFull || dragState.isLocationHeaderVisible,
                                     sheetOffsetDp = sheetOffsetDp,
                                     modifier = Modifier.fillMaxSize()
                                 )
@@ -487,7 +493,7 @@ fun AttachSheetContent(
                 }
 
                 // Плавающая шапка для Галереи (с 95%) и Геопозиции (с 80%)
-                if (sheetState.selectedTab == AttachTab.GALLERY && dragState.offsetPx <= H * 0.05f) {
+                if (sheetState.selectedTab == AttachTab.GALLERY && dragState.isExpanded95) {
                     val alpha = ((H * 0.05f - dragState.offsetPx) / (H * 0.05f)).coerceIn(0f, 1f)
                     GalleryFloatingTopBar(
                         selectedAlbum = sheetState.selectedAlbum,
@@ -513,7 +519,7 @@ fun AttachSheetContent(
                             }
                         }
                     )
-                } else if (sheetState.selectedTab == AttachTab.LOCATION && dragState.offsetPx <= H * 0.20f) {
+                } else if (sheetState.selectedTab == AttachTab.LOCATION && dragState.isLocationHeaderVisible) {
                     val alpha = ((H * 0.20f - dragState.offsetPx) / (H * 0.12f)).coerceIn(0f, 1f)
                     LocationFloatingTopBar(
                         attachStrings = attachStrings,

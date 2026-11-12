@@ -1,6 +1,8 @@
 package com.anongram.app.features.chats.attach.tabs.contacts
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -130,7 +132,11 @@ fun ContactsTab(
     }
 
     val statusBarTopDp = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-    val topListPadding = if (isFullscreen) statusBarTopDp + 64.dp else 64.dp
+    val topListPadding by animateDpAsState(
+        targetValue = if (isFullscreen) statusBarTopDp + 64.dp else 64.dp,
+        animationSpec = tween(durationMillis = 220),
+        label = "contactsTopPadding"
+    )
 
     Box(modifier = modifier.fillMaxSize()) {
         // Фоновый градиент (scrim) СЗАДИ поиска, переходящий в прозрачность (zIndex = 5f)

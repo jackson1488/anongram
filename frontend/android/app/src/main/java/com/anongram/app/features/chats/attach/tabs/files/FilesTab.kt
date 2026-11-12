@@ -14,6 +14,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
 import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import com.anongram.app.core.ui.safeStatusBarPadding
@@ -417,10 +418,15 @@ fun FilesTab(
         }
     }
 
+        val topFilesPadding by animateDpAsState(
+            targetValue = if (isFullscreen) statusBarTopDp + 64.dp else 10.dp,
+            animationSpec = tween(durationMillis = 220),
+            label = "filesTopPadding"
+        )
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = if (isFullscreen) statusBarTopDp + 64.dp else 10.dp,
+                top = topFilesPadding,
                 bottom = 84.dp
             )
         ) {
