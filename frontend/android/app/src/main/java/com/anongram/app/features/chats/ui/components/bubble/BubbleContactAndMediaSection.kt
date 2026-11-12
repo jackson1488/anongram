@@ -1042,7 +1042,7 @@ internal fun ChatVideoCircleSection(
             contentAlignment = Alignment.Center
         ) {
             val bmp = videoMeta.bitmap
-            if (bmp != null) {
+            if (bmp != null && !hasRenderedVideoFrame) {
                 Image(
                     bitmap = bmp.asImageBitmap(),
                     contentDescription = "Видео-сообщение",
