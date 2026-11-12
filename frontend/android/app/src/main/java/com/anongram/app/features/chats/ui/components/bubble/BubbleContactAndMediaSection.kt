@@ -971,18 +971,6 @@ internal fun ChatVideoCircleSection(
         Box(
             modifier = Modifier
                 .size(currentSize)
-                .graphicsLayer {
-                    compositingStrategy = CompositingStrategy.Offscreen
-                    clip = true
-                    shape = CircleShape
-                }
-                .drawWithContent {
-                    drawContent()
-                    drawCircle(
-                        color = Color.Black,
-                        blendMode = BlendMode.DstIn
-                    )
-                }
                 .clip(CircleShape)
                 .background(scheme.surface)
                 .border(

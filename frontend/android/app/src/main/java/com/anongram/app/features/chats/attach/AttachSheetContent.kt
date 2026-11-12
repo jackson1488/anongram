@@ -891,7 +891,7 @@ fun AttachSheetContent(
                                     }
                                 }
                             },
-                            isFullscreen = isFull,
+                            isFullscreen = isFull || (offsetPx <= H * 0.20f),
                             onBack = { requestDismiss() },
                             modifier = Modifier.fillMaxSize()
                         )
