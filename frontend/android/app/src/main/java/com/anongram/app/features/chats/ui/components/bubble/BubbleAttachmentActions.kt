@@ -19,7 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.core.content.FileProvider
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
-import com.anongram.app.features.chats.ui.components.savePhotoToDeviceGallery
+import com.anongram.app.features.chats.viewer.savePhotoToDeviceGallery
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File

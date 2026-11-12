@@ -66,8 +66,8 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.timeLabel
-import com.anongram.app.features.chats.ui.components.savePhotoToDeviceGallery
-import com.anongram.app.features.chats.ui.components.sharePhotoSystemChooser
+import com.anongram.app.features.chats.viewer.savePhotoToDeviceGallery
+import com.anongram.app.features.chats.viewer.sharePhotoSystemChooser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

@@ -34,6 +34,8 @@ import com.anongram.app.features.chats.input.attach.sendAttachDraftsToChat
 import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import com.anongram.app.features.chats.input.editor.ChatFullTextEditorScreen
 import com.anongram.app.features.chats.input.reply.ReplyPreviewDialog
+import com.anongram.app.features.chats.viewer.ChatGeoViewerScreen
+import com.anongram.app.features.chats.viewer.ChatMediaFullscreenViewer
 import com.anongram.app.features.wallpapers.api.WallpaperRoute
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -345,6 +347,10 @@ private fun ChatInputAndMediaOverlays(
                         keyboardController?.show()
                     }
                 }
+            },
+            onForward = { ids ->
+                onCloseMediaViewer(false)
+                onStartForward(ids)
             },
             onRequestDelete = { msg, photoIdx ->
                 when (msg.attachment) {

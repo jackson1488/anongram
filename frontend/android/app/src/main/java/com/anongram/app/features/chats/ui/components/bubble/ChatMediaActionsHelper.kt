@@ -8,7 +8,7 @@ import androidx.compose.material.icons.outlined.FileDownload
 import com.anongram.app.features.chats.media.circle.VideoCircleExportHelper
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
-import com.anongram.app.features.chats.ui.components.savePhotoToDeviceGallery
+import com.anongram.app.features.chats.viewer.savePhotoToDeviceGallery
 import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import com.anongram.app.features.chats.input.i18n.InputI18nStrings
 

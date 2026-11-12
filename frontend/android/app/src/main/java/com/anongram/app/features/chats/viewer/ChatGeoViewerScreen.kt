@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.ui.components
+package com.anongram.app.features.chats.viewer
 
 import android.annotation.SuppressLint
 import android.content.Context
