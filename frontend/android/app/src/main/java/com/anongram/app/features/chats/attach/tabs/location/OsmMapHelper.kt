@@ -42,6 +42,15 @@ enum class MapLayerMode {
 
 object OsmMapHelper {
 
+    var rememberedPinLat: Double = 42.8746
+    var rememberedPinLon: Double = 74.5698
+    var rememberedUserLat: Double? = null
+    var rememberedUserLon: Double? = null
+    var rememberedAddress: String = ""
+    var rememberedLayerMode: MapLayerMode = MapLayerMode.AUTO
+    var hasUserMovedPin: Boolean = false
+    var hasGpsFix: Boolean = false
+
     private val MAPBOX_ACCESS_TOKEN: String
         get() = com.anongram.app.BuildConfig.MAPBOX_ACCESS_TOKEN
 

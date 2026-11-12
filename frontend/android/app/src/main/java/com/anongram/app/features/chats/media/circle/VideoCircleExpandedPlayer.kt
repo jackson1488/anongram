@@ -1,11 +1,18 @@
 package com.anongram.app.features.chats.media.circle
 
+import android.graphics.Bitmap
+import android.graphics.Outline
 import android.graphics.SurfaceTexture
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
+import android.util.LruCache
 import android.view.Surface
 import android.view.TextureView
+import android.view.View
+import android.view.ViewOutlineProvider
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,8 +24,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -32,6 +37,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,22 +47,30 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.theme.FlameOrange
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.withContext
 import java.io.File
 import kotlin.math.PI
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
+
+private val videoThumbnailCache = LruCache<String, Bitmap>(32)
 
 /**
  * Развёрнутый плеер видео-кружочка с круговым SeekBar-ом:
@@ -94,6 +108,31 @@ fun VideoCircleExpandedPlayer(
     var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
     val videoFile = remember(attachment?.uri) {
         attachment?.uri?.let { File(it) }?.takeIf { it.exists() }
+    }
+
+    val cachedThumb = remember(videoFile?.absolutePath) {
+        videoFile?.absolutePath?.let { videoThumbnailCache.get(it) }
+    }
+    val thumbnailBitmap by produceState(initialValue = cachedThumb, key1 = videoFile?.absolutePath) {
+        if (cachedThumb != null) {
+            value = cachedThumb
+            return@produceState
+        }
+        val file = videoFile ?: return@produceState
+        withContext(Dispatchers.IO) {
+            val mmr = MediaMetadataRetriever()
+            try {
+                mmr.setDataSource(file.absolutePath)
+                val bmp = mmr.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                if (bmp != null) {
+                    videoThumbnailCache.put(file.absolutePath, bmp)
+                    value = bmp
+                }
+            } catch (_: Exception) {
+            } finally {
+                runCatching { mmr.release() }
+            }
+        }
     }
 
     DisposableEffect(Unit) {
@@ -211,13 +250,30 @@ fun VideoCircleExpandedPlayer(
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
+                if (thumbnailBitmap != null) {
+                    Image(
+                        bitmap = thumbnailBitmap!!.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
                 if (videoFile != null) {
                     // Реальное воспроизведение видеофайла через TextureView
                     AndroidView(
                         factory = { ctx ->
                             TextureView(ctx).apply {
+                                isOpaque = false
+                                clipToOutline = true
+                                outlineProvider = object : ViewOutlineProvider() {
+                                    override fun getOutline(view: View, outline: Outline) {
+                                        outline.setOval(0, 0, view.width, view.height)
+                                    }
+                                }
                                 surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                                     override fun onSurfaceTextureAvailable(st: SurfaceTexture, w: Int, h: Int) {
+                                        invalidateOutline()
                                         try {
                                             val mp = MediaPlayer().apply {
                                                 setSurface(Surface(st))
@@ -230,7 +286,9 @@ fun VideoCircleExpandedPlayer(
                                         } catch (_: Exception) {}
                                     }
 
-                                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {}
+                                    override fun onSurfaceTextureSizeChanged(st: SurfaceTexture, w: Int, h: Int) {
+                                        invalidateOutline()
+                                    }
                                     override fun onSurfaceTextureDestroyed(st: SurfaceTexture): Boolean {
                                         mediaPlayer?.run {
                                             runCatching { stop() }

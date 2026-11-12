@@ -142,6 +142,7 @@ import com.anongram.app.features.chats.attach.tabs.contacts.ContactsTab
 import com.anongram.app.features.chats.attach.tabs.files.DeviceFileItem
 import com.anongram.app.features.chats.attach.tabs.files.FilesGallerySubScreen
 import com.anongram.app.features.chats.attach.tabs.files.FilesTab
+import com.anongram.app.features.chats.attach.tabs.gallery.ALL_MEDIA_ALBUM_ID
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryTab
 import com.anongram.app.features.chats.attach.tabs.location.LocationTab
@@ -291,7 +292,7 @@ fun AttachSheetContent(
             animateTo(openOffset, 300)
         }
 
-        val isFull by remember { derivedStateOf { offsetPx <= 20f } }
+        val isFull by remember(H) { derivedStateOf { offsetPx <= 20f || (H > 0f && offsetPx <= H * 0.05f) } }
 
         fun dismissAnimated() {
             if (isClosing) return
@@ -304,7 +305,7 @@ fun AttachSheetContent(
         }
 
     var selectedTab by remember { mutableStateOf(initialTab) }
-    var selectedAlbum by remember { mutableStateOf("Все медиа") }
+    var selectedAlbum by remember { mutableStateOf(ALL_MEDIA_ALBUM_ID) }
     var isAlbumsSheetOpen by remember { mutableStateOf(false) }
 
     LaunchedEffect(offsetPx) {
@@ -912,7 +913,7 @@ fun AttachSheetContent(
                     }
             )
             AttachTopBar(
-                title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum) else selectedTab.label(attachStrings),
+                title = if (selectedTab == AttachTab.GALLERY) (if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.allMedia else selectedAlbum) else selectedTab.label(attachStrings),
                 searchQuery = if (selectedTab == AttachTab.LOCATION) locationSearchQuery else "",
                 isSearchActive = (selectedTab == AttachTab.LOCATION && isLocationSearchActive),
                 searchPlaceholder = attachStrings.locationSearchPlaceholder,
@@ -1018,7 +1019,7 @@ fun AttachSheetContent(
                 } else null,
                 centerContent = if (selectedTab == AttachTab.GALLERY) {
                     {
-                        val displayAlbumTitle = if (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.tabGallery else selectedAlbum
+                        val displayAlbumTitle = if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея" || selectedAlbum == "Все" || selectedAlbum.isBlank()) attachStrings.allMedia else selectedAlbum
                         Row(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -1146,7 +1147,7 @@ fun AttachSheetContent(
                         items(availableAlbums, key = { it.name }) { album ->
                             AlbumDropdownRowItem(
                                 album = album,
-                                isSelected = (album.name == selectedAlbum || (album.name == "Все медиа" && (selectedAlbum == "Все медиа" || selectedAlbum == "Галерея"))),
+                                isSelected = (album.name == selectedAlbum || ((album.name == ALL_MEDIA_ALBUM_ID || album.name == "Все медиа") && (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Галерея"))),
                                 onClick = {
                                     selectedAlbum = album.name
                                     isAlbumsSheetOpen = false

@@ -122,6 +122,8 @@ data class GalleryMedia(
     val hasSpoiler: Boolean = false
 )
 
+const val ALL_MEDIA_ALBUM_ID = "__all_media__"
+
 @Immutable
 data class GalleryAlbum(
     val name: String,
@@ -133,7 +135,7 @@ data class GalleryAlbum(
 fun GalleryTab(
     onLaunchCamera: () -> Unit,
     onOpenEditor: (List<EditableMediaItem>) -> Unit,
-    selectedAlbum: String = "Все медиа",
+    selectedAlbum: String = ALL_MEDIA_ALBUM_ID,
     onSelectAlbum: (String) -> Unit = {},
     isAlbumsSheetOpen: Boolean = false,
     onCloseAlbumsSheet: () -> Unit = {},
@@ -197,7 +199,7 @@ fun GalleryTab(
 
     val albumsList = remember(allCombinedMedia) {
         val all = GalleryAlbum(
-            name = "Все медиа",
+            name = ALL_MEDIA_ALBUM_ID,
             count = allCombinedMedia.size,
             coverUri = allCombinedMedia.firstOrNull()?.uri
         )
@@ -219,7 +221,7 @@ fun GalleryTab(
     }
 
     val filteredMedia = remember(allCombinedMedia, selectedAlbum) {
-        if (selectedAlbum == "Все медиа" || selectedAlbum == "Все" || selectedAlbum.isBlank()) {
+        if (selectedAlbum == ALL_MEDIA_ALBUM_ID || selectedAlbum == "Все медиа" || selectedAlbum == "Все" || selectedAlbum.isBlank()) {
             allCombinedMedia
         } else {
             allCombinedMedia.filter { it.bucketName.equals(selectedAlbum, ignoreCase = true) }
@@ -571,7 +573,7 @@ fun AlbumDropdownRowItem(
         Spacer(modifier = Modifier.width(12.dp))
 
         // Название альбома жирным и сразу количество
-        val displayName = if (album.name == "Все медиа") LocalAttachStrings.current.tabGallery else album.name
+        val displayName = if (album.name == ALL_MEDIA_ALBUM_ID || album.name == "Все медиа") LocalAttachStrings.current.allMedia else album.name
         Row(
             modifier = Modifier.weight(1f),
             verticalAlignment = Alignment.CenterVertically

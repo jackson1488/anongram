@@ -152,9 +152,7 @@ fun AttachTopBar(
                 }
             } else {
                 Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(onClick = onToggleSearch),
+                    modifier = Modifier.fillMaxSize(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
@@ -163,12 +161,6 @@ fun AttachTopBar(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
-                    )
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = strings.search,
-                        tint = scheme.textSecondary,
-                        modifier = Modifier.size(18.dp)
                     )
                 }
             }

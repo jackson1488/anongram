@@ -95,16 +95,21 @@ fun LocationTab(
         hasPermission = PermissionUtils.hasLocationPermission(context)
     }
 
-    var pinLat by remember { mutableDoubleStateOf(42.8746) }
-    var pinLon by remember { mutableDoubleStateOf(74.5698) }
-    var userLat by remember { mutableStateOf<Double?>(null) }
-    var userLon by remember { mutableStateOf<Double?>(null) }
+    var pinLat by remember { mutableDoubleStateOf(OsmMapHelper.rememberedPinLat) }
+    var pinLon by remember { mutableDoubleStateOf(OsmMapHelper.rememberedPinLon) }
+    var userLat by remember { mutableStateOf(OsmMapHelper.rememberedUserLat) }
+    var userLon by remember { mutableStateOf(OsmMapHelper.rememberedUserLon) }
     var recenterNonce by remember { mutableIntStateOf(0) }
-    var hasInitialFix by remember { mutableStateOf(false) }
 
-    var currentAddress by remember { mutableStateOf(strings.resolvingAddress) }
-    var layerMode by remember { mutableStateOf(MapLayerMode.AUTO) }
+    var currentAddress by remember {
+        mutableStateOf(OsmMapHelper.rememberedAddress.ifBlank { strings.resolvingAddress })
+    }
+    var layerMode by remember { mutableStateOf(OsmMapHelper.rememberedLayerMode) }
     var isLayerMenuOpen by remember { mutableStateOf(false) }
+
+    LaunchedEffect(layerMode) {
+        OsmMapHelper.rememberedLayerMode = layerMode
+    }
 
     // Реальное отслеживание GPS / Network через Android LocationManager
     DisposableEffect(hasPermission) {
@@ -113,12 +118,16 @@ fun LocationTab(
             override fun onLocationChanged(loc: Location) {
                 userLat = loc.latitude
                 userLon = loc.longitude
-                if (!hasInitialFix) {
-                    hasInitialFix = true
+                OsmMapHelper.rememberedUserLat = loc.latitude
+                OsmMapHelper.rememberedUserLon = loc.longitude
+                if (!OsmMapHelper.hasUserMovedPin && !OsmMapHelper.hasGpsFix) {
                     pinLat = loc.latitude
                     pinLon = loc.longitude
+                    OsmMapHelper.rememberedPinLat = loc.latitude
+                    OsmMapHelper.rememberedPinLon = loc.longitude
                     recenterNonce++
                 }
+                OsmMapHelper.hasGpsFix = true
             }
             override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {}
             override fun onProviderEnabled(provider: String) {}
@@ -132,12 +141,16 @@ fun LocationTab(
             if (best != null) {
                 userLat = best.latitude
                 userLon = best.longitude
-                if (!hasInitialFix) {
-                    hasInitialFix = true
+                OsmMapHelper.rememberedUserLat = best.latitude
+                OsmMapHelper.rememberedUserLon = best.longitude
+                if (!OsmMapHelper.hasUserMovedPin && !OsmMapHelper.hasGpsFix) {
                     pinLat = best.latitude
                     pinLon = best.longitude
+                    OsmMapHelper.rememberedPinLat = best.latitude
+                    OsmMapHelper.rememberedPinLon = best.longitude
                     recenterNonce++
                 }
+                OsmMapHelper.hasGpsFix = true
             }
 
             locationManager?.requestLocationUpdates(
@@ -170,6 +183,9 @@ fun LocationTab(
             if (coords != null) {
                 pinLat = coords.first
                 pinLon = coords.second
+                OsmMapHelper.rememberedPinLat = coords.first
+                OsmMapHelper.rememberedPinLon = coords.second
+                OsmMapHelper.hasUserMovedPin = true
                 recenterNonce++
             }
         }
@@ -179,6 +195,7 @@ fun LocationTab(
     LaunchedEffect(pinLat, pinLon) {
         delay(350)
         currentAddress = OsmMapHelper.reverseGeocode(context, pinLat, pinLon)
+        OsmMapHelper.rememberedAddress = currentAddress
     }
 
     val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
@@ -197,6 +214,9 @@ fun LocationTab(
             onCenterChanged = { newLat, newLon ->
                 pinLat = newLat
                 pinLon = newLon
+                OsmMapHelper.rememberedPinLat = newLat
+                OsmMapHelper.rememberedPinLon = newLon
+                OsmMapHelper.hasUserMovedPin = true
             },
             modifier = Modifier.fillMaxSize()
         )
@@ -274,6 +294,7 @@ fun LocationTab(
                         },
                         onClick = {
                             layerMode = mode
+                            OsmMapHelper.rememberedLayerMode = mode
                             isLayerMenuOpen = false
                         }
                     )
@@ -312,10 +333,18 @@ fun LocationTab(
                                 userLon = loc.longitude
                                 pinLat = loc.latitude
                                 pinLon = loc.longitude
+                                OsmMapHelper.rememberedUserLat = loc.latitude
+                                OsmMapHelper.rememberedUserLon = loc.longitude
+                                OsmMapHelper.rememberedPinLat = loc.latitude
+                                OsmMapHelper.rememberedPinLon = loc.longitude
+                                OsmMapHelper.hasUserMovedPin = true
                                 recenterNonce++
                             } else if (userLat != null && userLon != null) {
                                 pinLat = userLat!!
                                 pinLon = userLon!!
+                                OsmMapHelper.rememberedPinLat = userLat!!
+                                OsmMapHelper.rememberedPinLon = userLon!!
+                                OsmMapHelper.hasUserMovedPin = true
                                 recenterNonce++
                             }
                         } catch (_: Exception) {}
