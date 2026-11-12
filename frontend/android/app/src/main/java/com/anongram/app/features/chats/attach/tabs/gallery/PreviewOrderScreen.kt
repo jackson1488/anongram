@@ -855,12 +855,15 @@ private fun AlbumBubble(
 ) {
     val scheme = LocalAnonGramScheme.current
     val bubbleShape = RoundedCornerShape(16.dp)
-    val count = mediaItems.size
+    val aspects = rememberMediaAspects(mediaItems.map { it.uri.toString() to it.isVideo })
+    val plan = computeAlbumLayoutPlan(aspects, targetWidthDp = 300f)
 
-    // Для 2, 3, 4 фото сужаем баббл (~86%), чтобы и левое большое, и правые малые фото были выраженно вертикальными
-    val bubbleWidthFraction = when (count) {
-        2 -> 0.88f
-        3, 4 -> 0.86f
+    // Для вертикальных альбомов 2, 3, 4 фото сужаем баббл (~86%), чтобы миниатюры оставались выраженно вертикальными;
+    // для широких/адаптивных альбомов используем всю ширину баббла
+    val bubbleWidthFraction = when (plan) {
+        is AlbumLayoutPlan.TwoVertical -> 0.88f
+        is AlbumLayoutPlan.ThreeLeftTall,
+        is AlbumLayoutPlan.FourLeftTall -> 0.86f
         else -> 1f
     }
 
@@ -876,9 +879,8 @@ private fun AlbumBubble(
                 .border(1.5.dp, scheme.accent, bubbleShape)
                 .background(scheme.outgoingBubbleStart)
         ) {
-            when (count) {
-                2 -> {
-                    // 2 фото: рядом друг с другом с разделительной полосой, каждое вертикальное (~3×6 см)
+            when (plan) {
+                is AlbumLayoutPlan.TwoVertical -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -924,9 +926,49 @@ private fun AlbumBubble(
                         )
                     }
                 }
-                3 -> {
-                    // 3 фото: 1 большое вертикальное слева (weight 1.12f) + 2 меньших справа (weight 0.85f),
-                    // при общей высоте 430.dp правые фото имеют пропорцию ~130×214dp (выраженно вертикальные, не квадрат!)
+                is AlbumLayoutPlan.TwoStacked -> {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        PreviewCollageItem(
+                            media = mediaItems[0],
+                            orderNumber = startOrderNumber,
+                            globalIndex = startGlobalIndex,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex,
+                            onPhotoClick = onPhotoClick,
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(plan.topHeightDp.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.5.dp)
+                                .background(scheme.accent)
+                        )
+                        PreviewCollageItem(
+                            media = mediaItems[1],
+                            orderNumber = startOrderNumber + 1,
+                            globalIndex = startGlobalIndex + 1,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex + 1,
+                            onPhotoClick = onPhotoClick,
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(plan.bottomHeightDp.dp)
+                        )
+                    }
+                }
+                is AlbumLayoutPlan.ThreeLeftTall -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -959,50 +1001,95 @@ private fun AlbumBubble(
                                 .weight(0.85f)
                                 .fillMaxHeight()
                         ) {
-                            PreviewCollageItem(
-                                media = mediaItems[1],
-                                orderNumber = startOrderNumber + 1,
-                                globalIndex = startGlobalIndex + 1,
-                                isBeingDragged = draggingGlobalIdx == startGlobalIndex + 1,
-                                onPhotoClick = onPhotoClick,
-                                onRemoveItem = onRemoveItem,
-                                onBoundsChanged = onBoundsChanged,
-                                onDragStart = onDragStart,
-                                onDragMove = onDragMove,
-                                onDragEnd = onDragEnd,
-                                onDragCancel = onDragCancel,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(1.5.dp)
-                                    .background(scheme.accent)
-                            )
-                            PreviewCollageItem(
-                                media = mediaItems[2],
-                                orderNumber = startOrderNumber + 2,
-                                globalIndex = startGlobalIndex + 2,
-                                isBeingDragged = draggingGlobalIdx == startGlobalIndex + 2,
-                                onPhotoClick = onPhotoClick,
-                                onRemoveItem = onRemoveItem,
-                                onBoundsChanged = onBoundsChanged,
-                                onDragStart = onDragStart,
-                                onDragMove = onDragMove,
-                                onDragEnd = onDragEnd,
-                                onDragCancel = onDragCancel,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxWidth()
-                            )
+                            for (idx in 1..2) {
+                                if (idx > 1) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(1.5.dp)
+                                            .background(scheme.accent)
+                                    )
+                                }
+                                PreviewCollageItem(
+                                    media = mediaItems[idx],
+                                    orderNumber = startOrderNumber + idx,
+                                    globalIndex = startGlobalIndex + idx,
+                                    isBeingDragged = draggingGlobalIdx == startGlobalIndex + idx,
+                                    onPhotoClick = onPhotoClick,
+                                    onRemoveItem = onRemoveItem,
+                                    onBoundsChanged = onBoundsChanged,
+                                    onDragStart = onDragStart,
+                                    onDragMove = onDragMove,
+                                    onDragEnd = onDragEnd,
+                                    onDragCancel = onDragCancel,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth()
+                                )
+                            }
                         }
                     }
                 }
-                4 -> {
-                    // 4 фото: 1 большое вертикальное слева (weight 1.15f) + 3 вертикальных столбиком справа (weight 0.82f),
-                    // при высоте 470.dp правые фото имеют размер ~125×155dp (вертикальные портретные!)
+                is AlbumLayoutPlan.ThreeTopWide -> {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        PreviewCollageItem(
+                            media = mediaItems[0],
+                            orderNumber = startOrderNumber,
+                            globalIndex = startGlobalIndex,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex,
+                            onPhotoClick = onPhotoClick,
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(plan.topHeightDp.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.5.dp)
+                                .background(scheme.accent)
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(plan.bottomHeightDp.dp)
+                        ) {
+                            for (i in 0..1) {
+                                if (i > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(1.5.dp)
+                                            .fillMaxHeight()
+                                            .background(scheme.accent)
+                                    )
+                                }
+                                val idx = i + 1
+                                PreviewCollageItem(
+                                    media = mediaItems[idx],
+                                    orderNumber = startOrderNumber + idx,
+                                    globalIndex = startGlobalIndex + idx,
+                                    isBeingDragged = draggingGlobalIdx == startGlobalIndex + idx,
+                                    onPhotoClick = onPhotoClick,
+                                    onRemoveItem = onRemoveItem,
+                                    onBoundsChanged = onBoundsChanged,
+                                    onDragStart = onDragStart,
+                                    onDragMove = onDragMove,
+                                    onDragEnd = onDragEnd,
+                                    onDragCancel = onDragCancel,
+                                    modifier = Modifier
+                                        .weight(plan.bottomWeights.getOrElse(i) { 1f })
+                                        .fillMaxHeight()
+                                )
+                            }
+                        }
+                    }
+                }
+                is AlbumLayoutPlan.FourLeftTall -> {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1064,11 +1151,68 @@ private fun AlbumBubble(
                         }
                     }
                 }
-                else -> {
-                    val rowCounts = remember(count) { calculateAlbumRows(count) }
+                is AlbumLayoutPlan.FourTopWide -> {
                     Column(modifier = Modifier.fillMaxWidth()) {
-                        var itemPointer = 0
-                        rowCounts.forEachIndexed { rowIndex, countInRow ->
+                        PreviewCollageItem(
+                            media = mediaItems[0],
+                            orderNumber = startOrderNumber,
+                            globalIndex = startGlobalIndex,
+                            isBeingDragged = draggingGlobalIdx == startGlobalIndex,
+                            onPhotoClick = onPhotoClick,
+                            onRemoveItem = onRemoveItem,
+                            onBoundsChanged = onBoundsChanged,
+                            onDragStart = onDragStart,
+                            onDragMove = onDragMove,
+                            onDragEnd = onDragEnd,
+                            onDragCancel = onDragCancel,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(plan.topHeightDp.dp)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.5.dp)
+                                .background(scheme.accent)
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(plan.bottomHeightDp.dp)
+                        ) {
+                            for (i in 0..2) {
+                                if (i > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(1.5.dp)
+                                            .fillMaxHeight()
+                                            .background(scheme.accent)
+                                    )
+                                }
+                                val idx = i + 1
+                                PreviewCollageItem(
+                                    media = mediaItems[idx],
+                                    orderNumber = startOrderNumber + idx,
+                                    globalIndex = startGlobalIndex + idx,
+                                    isBeingDragged = draggingGlobalIdx == startGlobalIndex + idx,
+                                    onPhotoClick = onPhotoClick,
+                                    onRemoveItem = onRemoveItem,
+                                    onBoundsChanged = onBoundsChanged,
+                                    onDragStart = onDragStart,
+                                    onDragMove = onDragMove,
+                                    onDragEnd = onDragEnd,
+                                    onDragCancel = onDragCancel,
+                                    modifier = Modifier
+                                        .weight(plan.bottomWeights.getOrElse(i) { 1f })
+                                        .fillMaxHeight()
+                                )
+                            }
+                        }
+                    }
+                }
+                is AlbumLayoutPlan.MultiRow -> {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        plan.rows.forEachIndexed { rowIndex, row ->
                             if (rowIndex > 0) {
                                 Box(
                                     modifier = Modifier
@@ -1077,17 +1221,14 @@ private fun AlbumBubble(
                                         .background(scheme.accent)
                                 )
                             }
-
-                            val rowHeight = getRowHeightDp(countInRow)
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(rowHeight)
+                                    .height(row.heightDp.dp)
                             ) {
-                                for (c in 0 until countInRow) {
-                                    val currentItemIdx = itemPointer + c
+                                row.indices.forEachIndexed { colIdx, currentItemIdx ->
                                     if (currentItemIdx < mediaItems.size) {
-                                        if (c > 0) {
+                                        if (colIdx > 0) {
                                             Box(
                                                 modifier = Modifier
                                                     .width(1.5.dp)
@@ -1095,13 +1236,10 @@ private fun AlbumBubble(
                                                     .background(scheme.accent)
                                             )
                                         }
-                                        val media = mediaItems[currentItemIdx]
                                         val globalIdx = startGlobalIndex + currentItemIdx
-                                        val orderNum = startOrderNumber + currentItemIdx
-
                                         PreviewCollageItem(
-                                            media = media,
-                                            orderNumber = orderNum,
+                                            media = mediaItems[currentItemIdx],
+                                            orderNumber = startOrderNumber + currentItemIdx,
                                             globalIndex = globalIdx,
                                             isBeingDragged = draggingGlobalIdx == globalIdx,
                                             onPhotoClick = onPhotoClick,
@@ -1112,13 +1250,12 @@ private fun AlbumBubble(
                                             onDragEnd = onDragEnd,
                                             onDragCancel = onDragCancel,
                                             modifier = Modifier
-                                                .weight(1f)
+                                                .weight(row.weights.getOrElse(colIdx) { 1f })
                                                 .fillMaxHeight()
                                         )
                                     }
                                 }
                             }
-                            itemPointer += countInRow
                         }
                     }
                 }

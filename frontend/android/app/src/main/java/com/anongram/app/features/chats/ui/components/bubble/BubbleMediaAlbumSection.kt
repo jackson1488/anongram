@@ -44,83 +44,19 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.content.Context
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
-import android.util.LruCache
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.platform.LocalDensity
-import android.media.ExifInterface
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.components.SpoilerOverlay
-import com.anongram.app.features.chats.attach.tabs.gallery.calculateAlbumRows
-import com.anongram.app.features.chats.attach.tabs.gallery.getRowHeightDp
+import com.anongram.app.features.chats.attach.tabs.gallery.AlbumLayoutPlan
+import com.anongram.app.features.chats.attach.tabs.gallery.computeAlbumLayoutPlan
 import com.anongram.app.features.chats.attach.tabs.gallery.loadHdBitmap
 import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
+import com.anongram.app.features.chats.attach.tabs.gallery.mediaSizeCache
+import com.anongram.app.features.chats.attach.tabs.gallery.rememberMediaAspects
+import com.anongram.app.features.chats.attach.tabs.gallery.resolveMediaDimensions
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-
-private val mediaSizeCache = LruCache<String, Pair<Int, Int>>(256)
-
-private suspend fun resolveMediaDimensions(
-    context: Context,
-    uriString: String,
-    isVideo: Boolean
-): Pair<Int, Int>? {
-    mediaSizeCache.get(uriString)?.let { return it }
-    return withContext(Dispatchers.IO) {
-        val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: return@withContext null
-        val dims: Pair<Int, Int>? = if (isVideo) {
-            val retriever = MediaMetadataRetriever()
-            try {
-                retriever.setDataSource(context, uri)
-                val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
-                val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
-                val rot = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
-                if (w > 0 && h > 0) {
-                    if (rot == 90 || rot == 270) h to w else w to h
-                } else null
-            } catch (_: Exception) {
-                null
-            } finally {
-                runCatching { retriever.release() }
-            }
-        } else {
-            try {
-                val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, opts) }
-                var w = opts.outWidth
-                var h = opts.outHeight
-                if (w > 0 && h > 0) {
-                    val orientation = context.contentResolver.openInputStream(uri)?.use { stream ->
-                        ExifInterface(stream).getAttributeInt(
-                            ExifInterface.TAG_ORIENTATION,
-                            ExifInterface.ORIENTATION_NORMAL
-                        )
-                    } ?: ExifInterface.ORIENTATION_NORMAL
-                    if (orientation == ExifInterface.ORIENTATION_ROTATE_90 ||
-                        orientation == ExifInterface.ORIENTATION_ROTATE_270 ||
-                        orientation == ExifInterface.ORIENTATION_TRANSPOSE ||
-                        orientation == ExifInterface.ORIENTATION_TRANSVERSE
-                    ) {
-                        val tmp = w
-                        w = h
-                        h = tmp
-                    }
-                    w to h
-                } else null
-            } catch (_: Exception) {
-                null
-            }
-        }
-        if (dims != null) {
-            mediaSizeCache.put(uriString, dims)
-        }
-        dims
-    }
-}
 
 /**
  * Одиночное сжатое фото или видео в пузыре сообщения.
@@ -273,168 +209,92 @@ internal fun ChatMediaAlbumGrid(
     val dividerColor = accent.copy(alpha = 0.55f)
     val isFullAlbumSelected = isSelectionMode && count > 0 && selectedPhotoIndices.size == count
 
-    val context = LocalContext.current
-    val aspects by produceState<List<Float>>(
-        initialValue = items.map { item ->
-            mediaSizeCache.get(item.uri)?.let { it.first.toFloat() / it.second.toFloat() } ?: 0.8f
-        },
-        key1 = items.map { it.uri }
-    ) {
-        value = items.map { item ->
-            val dims = resolveMediaDimensions(context, item.uri, item.isVideo)
-            if (dims != null) dims.first.toFloat() / dims.second.toFloat() else 0.8f
-        }
-    }
-    val allVertical = aspects.all { it < 1.1f }
+    val aspects = rememberMediaAspects(items.map { it.uri to it.isVideo })
+    val plan = computeAlbumLayoutPlan(aspects, targetWidthDp = 270f)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
     ) {
-        when (count) {
-            2 -> {
-                if (allVertical) {
-                    Row(
+        when (plan) {
+            is AlbumLayoutPlan.TwoVertical -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(340.dp)
+                ) {
+                    ChatRealPhotoBox(
+                        uriString = items[0].uri,
+                        isVideo = items[0].isVideo,
+                        hasSpoiler = items[0].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 0 in selectedPhotoIndices,
+                        accent = accent,
+                        onPhotoClick = { onPhotoClick(0) },
+                        onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(340.dp)
-                    ) {
-                        ChatRealPhotoBox(
-                            uriString = items[0].uri,
-                            isVideo = items[0].isVideo,
-                            hasSpoiler = items[0].hasSpoiler,
-                            showSelectionBadge = isSelectionMode,
-                            isPhotoSelected = 0 in selectedPhotoIndices,
-                            accent = accent,
-                            onPhotoClick = { onPhotoClick(0) },
-                            onPhotoLongClick = { onPhotoLongClick(0) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .width(1.5.dp)
-                                .fillMaxHeight()
-                                .background(dividerColor)
-                        )
-                        ChatRealPhotoBox(
-                            uriString = items[1].uri,
-                            isVideo = items[1].isVideo,
-                            hasSpoiler = items[1].hasSpoiler,
-                            showSelectionBadge = isSelectionMode,
-                            isPhotoSelected = 1 in selectedPhotoIndices,
-                            accent = accent,
-                            onPhotoClick = { onPhotoClick(1) },
-                            onPhotoLongClick = { onPhotoLongClick(1) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-                    }
-                } else {
-                    val h0 = (270f / aspects.getOrElse(0) { 1.5f }.coerceIn(0.9f, 2.5f)).coerceIn(110f, 185f)
-                    val h1 = (270f / aspects.getOrElse(1) { 1.5f }.coerceIn(0.9f, 2.5f)).coerceIn(110f, 185f)
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ChatRealPhotoBox(
-                            uriString = items[0].uri,
-                            isVideo = items[0].isVideo,
-                            hasSpoiler = items[0].hasSpoiler,
-                            showSelectionBadge = isSelectionMode,
-                            isPhotoSelected = 0 in selectedPhotoIndices,
-                            accent = accent,
-                            onPhotoClick = { onPhotoClick(0) },
-                            onPhotoLongClick = { onPhotoLongClick(0) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(h0.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.5.dp)
-                                .background(dividerColor)
-                        )
-                        ChatRealPhotoBox(
-                            uriString = items[1].uri,
-                            isVideo = items[1].isVideo,
-                            hasSpoiler = items[1].hasSpoiler,
-                            showSelectionBadge = isSelectionMode,
-                            isPhotoSelected = 1 in selectedPhotoIndices,
-                            accent = accent,
-                            onPhotoClick = { onPhotoClick(1) },
-                            onPhotoLongClick = { onPhotoLongClick(1) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(h1.dp)
-                        )
-                    }
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
+                    Box(
+                        modifier = Modifier
+                            .width(1.5.dp)
+                            .fillMaxHeight()
+                            .background(dividerColor)
+                    )
+                    ChatRealPhotoBox(
+                        uriString = items[1].uri,
+                        isVideo = items[1].isVideo,
+                        hasSpoiler = items[1].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 1 in selectedPhotoIndices,
+                        accent = accent,
+                        onPhotoClick = { onPhotoClick(1) },
+                        onPhotoLongClick = { onPhotoLongClick(1) },
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
                 }
             }
-            3 -> {
-                if (!allVertical && aspects.firstOrNull()?.let { it >= 1.1f } == true) {
-                    val topH = (270f / aspects[0].coerceIn(1.1f, 2.5f)).coerceIn(120f, 185f)
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        ChatRealPhotoBox(
-                            uriString = items[0].uri,
-                            isVideo = items[0].isVideo,
-                            hasSpoiler = items[0].hasSpoiler,
-                            showSelectionBadge = isSelectionMode,
-                            isPhotoSelected = 0 in selectedPhotoIndices,
-                            accent = accent,
-                            onPhotoClick = { onPhotoClick(0) },
-                            onPhotoLongClick = { onPhotoLongClick(0) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(topH.dp)
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.5.dp)
-                                .background(dividerColor)
-                        )
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(130.dp)
-                        ) {
-                            ChatRealPhotoBox(
-                                uriString = items[1].uri,
-                                isVideo = items[1].isVideo,
-                                hasSpoiler = items[1].hasSpoiler,
-                                showSelectionBadge = isSelectionMode,
-                                isPhotoSelected = 1 in selectedPhotoIndices,
-                                accent = accent,
-                                onPhotoClick = { onPhotoClick(1) },
-                                onPhotoLongClick = { onPhotoLongClick(1) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .width(1.5.dp)
-                                    .fillMaxHeight()
-                                    .background(dividerColor)
-                            )
-                            ChatRealPhotoBox(
-                                uriString = items[2].uri,
-                                isVideo = items[2].isVideo,
-                                hasSpoiler = items[2].hasSpoiler,
-                                showSelectionBadge = isSelectionMode,
-                                isPhotoSelected = 2 in selectedPhotoIndices,
-                                accent = accent,
-                                onPhotoClick = { onPhotoClick(2) },
-                                onPhotoLongClick = { onPhotoLongClick(2) },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .fillMaxHeight()
-                            )
-                        }
-                    }
-                } else {
+            is AlbumLayoutPlan.TwoStacked -> {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ChatRealPhotoBox(
+                        uriString = items[0].uri,
+                        isVideo = items[0].isVideo,
+                        hasSpoiler = items[0].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 0 in selectedPhotoIndices,
+                        accent = accent,
+                        onPhotoClick = { onPhotoClick(0) },
+                        onPhotoLongClick = { onPhotoLongClick(0) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(plan.topHeightDp.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.5.dp)
+                            .background(dividerColor)
+                    )
+                    ChatRealPhotoBox(
+                        uriString = items[1].uri,
+                        isVideo = items[1].isVideo,
+                        hasSpoiler = items[1].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 1 in selectedPhotoIndices,
+                        accent = accent,
+                        onPhotoClick = { onPhotoClick(1) },
+                        onPhotoLongClick = { onPhotoLongClick(1) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(plan.bottomHeightDp.dp)
+                    )
+                }
+            }
+            is AlbumLayoutPlan.ThreeLeftTall -> {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -464,43 +324,86 @@ internal fun ChatMediaAlbumGrid(
                             .weight(0.85f)
                             .fillMaxHeight()
                     ) {
-                        ChatRealPhotoBox(
-                            uriString = items[1].uri,
-                            isVideo = items[1].isVideo,
-                            hasSpoiler = items[1].hasSpoiler,
-                            showSelectionBadge = isSelectionMode,
-                            isPhotoSelected = 1 in selectedPhotoIndices,
-                            accent = accent,
-                            onPhotoClick = { onPhotoClick(1) },
-                            onPhotoLongClick = { onPhotoLongClick(1) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(1.5.dp)
-                                .background(dividerColor)
-                        )
-                        ChatRealPhotoBox(
-                            uriString = items[2].uri,
-                            isVideo = items[2].isVideo,
-                            hasSpoiler = items[2].hasSpoiler,
-                            showSelectionBadge = isSelectionMode,
-                            isPhotoSelected = 2 in selectedPhotoIndices,
-                            accent = accent,
-                            onPhotoClick = { onPhotoClick(2) },
-                            onPhotoLongClick = { onPhotoLongClick(2) },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                        )
+                        for (idx in 1..2) {
+                            if (idx > 1) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(1.5.dp)
+                                        .background(dividerColor)
+                                )
+                            }
+                            ChatRealPhotoBox(
+                                uriString = items[idx].uri,
+                                isVideo = items[idx].isVideo,
+                                hasSpoiler = items[idx].hasSpoiler,
+                                showSelectionBadge = isSelectionMode,
+                                isPhotoSelected = idx in selectedPhotoIndices,
+                                accent = accent,
+                                onPhotoClick = { onPhotoClick(idx) },
+                                onPhotoLongClick = { onPhotoLongClick(idx) },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxWidth()
+                            )
+                        }
                     }
                 }
+            }
+            is AlbumLayoutPlan.ThreeTopWide -> {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    ChatRealPhotoBox(
+                        uriString = items[0].uri,
+                        isVideo = items[0].isVideo,
+                        hasSpoiler = items[0].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 0 in selectedPhotoIndices,
+                        accent = accent,
+                        onPhotoClick = { onPhotoClick(0) },
+                        onPhotoLongClick = { onPhotoLongClick(0) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(plan.topHeightDp.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.5.dp)
+                            .background(dividerColor)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(plan.bottomHeightDp.dp)
+                    ) {
+                        for (i in 0..1) {
+                            if (i > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.5.dp)
+                                        .fillMaxHeight()
+                                        .background(dividerColor)
+                                )
+                            }
+                            val idx = i + 1
+                            ChatRealPhotoBox(
+                                uriString = items[idx].uri,
+                                isVideo = items[idx].isVideo,
+                                hasSpoiler = items[idx].hasSpoiler,
+                                showSelectionBadge = isSelectionMode,
+                                isPhotoSelected = idx in selectedPhotoIndices,
+                                accent = accent,
+                                onPhotoClick = { onPhotoClick(idx) },
+                                onPhotoLongClick = { onPhotoLongClick(idx) },
+                                modifier = Modifier
+                                    .weight(plan.bottomWeights.getOrElse(i) { 1f })
+                                    .fillMaxHeight()
+                            )
+                        }
+                    }
                 }
             }
-            4 -> {
+            is AlbumLayoutPlan.FourLeftTall -> {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -556,11 +459,62 @@ internal fun ChatMediaAlbumGrid(
                     }
                 }
             }
-            else -> {
-                val rowCounts = remember(count) { calculateAlbumRows(count) }
+            is AlbumLayoutPlan.FourTopWide -> {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    var itemPointer = 0
-                    rowCounts.forEachIndexed { rowIndex, countInRow ->
+                    ChatRealPhotoBox(
+                        uriString = items[0].uri,
+                        isVideo = items[0].isVideo,
+                        hasSpoiler = items[0].hasSpoiler,
+                        showSelectionBadge = isSelectionMode,
+                        isPhotoSelected = 0 in selectedPhotoIndices,
+                        accent = accent,
+                        onPhotoClick = { onPhotoClick(0) },
+                        onPhotoLongClick = { onPhotoLongClick(0) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(plan.topHeightDp.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(1.5.dp)
+                            .background(dividerColor)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(plan.bottomHeightDp.dp)
+                    ) {
+                        for (i in 0..2) {
+                            if (i > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(1.5.dp)
+                                        .fillMaxHeight()
+                                        .background(dividerColor)
+                                )
+                            }
+                            val idx = i + 1
+                            ChatRealPhotoBox(
+                                uriString = items[idx].uri,
+                                isVideo = items[idx].isVideo,
+                                hasSpoiler = items[idx].hasSpoiler,
+                                showSelectionBadge = isSelectionMode,
+                                isPhotoSelected = idx in selectedPhotoIndices,
+                                accent = accent,
+                                onPhotoClick = { onPhotoClick(idx) },
+                                onPhotoLongClick = { onPhotoLongClick(idx) },
+                                modifier = Modifier
+                                    .weight(plan.bottomWeights.getOrElse(i) { 1f })
+                                    .fillMaxHeight()
+                            )
+                        }
+                    }
+                }
+            }
+            is AlbumLayoutPlan.MultiRow -> {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    plan.rows.forEachIndexed { rowIndex, row ->
                         if (rowIndex > 0) {
                             Box(
                                 modifier = Modifier
@@ -569,16 +523,14 @@ internal fun ChatMediaAlbumGrid(
                                     .background(dividerColor)
                             )
                         }
-                        val rowHeight = getRowHeightDp(countInRow)
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(rowHeight)
+                                .height(row.heightDp.dp)
                         ) {
-                            for (c in 0 until countInRow) {
-                                val currentIdx = itemPointer + c
+                            row.indices.forEachIndexed { colIdx, currentIdx ->
                                 if (currentIdx < items.size) {
-                                    if (c > 0) {
+                                    if (colIdx > 0) {
                                         Box(
                                             modifier = Modifier
                                                 .width(1.5.dp)
@@ -597,13 +549,12 @@ internal fun ChatMediaAlbumGrid(
                                         onPhotoClick = { onPhotoClick(currentIdx) },
                                         onPhotoLongClick = { onPhotoLongClick(currentIdx) },
                                         modifier = Modifier
-                                            .weight(1f)
+                                            .weight(row.weights.getOrElse(colIdx) { 1f })
                                             .fillMaxHeight()
                                     )
                                 }
                             }
                         }
-                        itemPointer += countInRow
                     }
                 }
             }
