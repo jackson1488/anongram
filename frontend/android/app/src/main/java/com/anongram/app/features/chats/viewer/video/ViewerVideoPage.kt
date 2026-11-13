@@ -124,6 +124,7 @@ internal fun ViewerVideoPage(
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
 
     var videoAspect by remember(uriString) { mutableFloatStateOf(16f / 9f) }
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var mediaPlayer by remember(uriString) { mutableStateOf<MediaPlayer?>(null) }
     var isPrepared by remember(uriString) { mutableStateOf(false) }
@@ -327,8 +328,6 @@ internal fun ViewerVideoPage(
             },
         contentAlignment = Alignment.Center
     ) {
-        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-
         // Видео-поверхность (адаптивная под пропорции видео, никогда не растягивается)
         BoxWithConstraints(
             modifier = Modifier
