@@ -53,6 +53,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -60,6 +61,11 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import androidx.compose.ui.layout.boundsInWindow
+import com.anongram.app.features.chats.ui.animations.LocalMessageSnapshotRegistry
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -317,6 +323,12 @@ internal fun MessageBubble(
         val selectionViolet = scheme.selectedGlow
 
         val isStandaloneCircle = message.attachment is MessageAttachment.VideoCircle && message.text.isBlank()
+        val snapshotRegistry = LocalMessageSnapshotRegistry.current
+        val deleteCaptureLayer = rememberGraphicsLayer()
+
+        DisposableEffect(message.id, snapshotRegistry) {
+            onDispose { snapshotRegistry?.unregister(message.id) }
+        }
 
         MessageAppearWrapper(
             animateKey = message.id,
@@ -334,6 +346,10 @@ internal fun MessageBubble(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetPx.roundToInt(), 0) }
+                .drawWithContent {
+                    deleteCaptureLayer.record { this@drawWithContent.drawContent() }
+                    drawLayer(deleteCaptureLayer)
+                }
                 .then(
                     if (!isStandaloneCircle) {
                         Modifier.combinedClickable(
@@ -364,6 +380,12 @@ internal fun MessageBubble(
                     val y = coordinates.positionInRoot().y
                     bubbleTopYHolder[0] = y
                     bubbleBottomYHolder[0] = y + coordinates.size.height
+                    snapshotRegistry?.register(
+                        messageId = message.id,
+                        layer = deleteCaptureLayer,
+                        boundsInWindow = coordinates.boundsInWindow(),
+                        isIncoming = isIncoming
+                    )
                 }
                 .padding(vertical = 1.dp)
         ) {

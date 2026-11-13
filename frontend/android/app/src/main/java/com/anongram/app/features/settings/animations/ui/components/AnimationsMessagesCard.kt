@@ -40,6 +40,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.ui.animations.MessageAppearWrapper
 import com.anongram.app.features.chats.ui.animations.rememberStreamedMessageText
 import com.anongram.app.features.settings.animations.data.MessageAppearStyle
+import com.anongram.app.features.settings.animations.data.MessageDeleteStyle
 import com.anongram.app.features.settings.animations.data.TokenStreamSpeed
 import com.anongram.app.features.settings.animations.i18n.AnimationsI18n
 
@@ -54,6 +55,8 @@ fun AnimationsMessagesCard(
     onAppearStyleChange: (MessageAppearStyle) -> Unit,
     tokenStreamSpeed: TokenStreamSpeed,
     onTokenStreamSpeedChange: (TokenStreamSpeed) -> Unit,
+    deleteStyle: MessageDeleteStyle,
+    onDeleteStyleChange: (MessageDeleteStyle) -> Unit,
     listItemShiftEnabled: Boolean,
     onListItemShiftEnabledChange: (Boolean) -> Unit,
     statusCheckAnimEnabled: Boolean,
@@ -347,6 +350,65 @@ fun AnimationsMessagesCard(
                         }
                     }
                 }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        HorizontalDivider(color = scheme.divider)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // 3b. Анимация удаления сообщений
+        Text(
+            text = strings.deleteStyleHeader,
+            color = scheme.textSecondary,
+            fontSize = 12.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(bottom = 6.dp)
+        )
+
+        val deleteOptions = listOf(
+            Triple(MessageDeleteStyle.PARTICLES, strings.deleteParticlesTitle, strings.deleteParticlesDesc),
+            Triple(MessageDeleteStyle.PUZZLE, strings.deletePuzzleTitle, strings.deletePuzzleDesc),
+            Triple(MessageDeleteStyle.SLIDE_OUT, strings.deleteSlideTitle, strings.deleteSlideDesc),
+            Triple(MessageDeleteStyle.NONE, strings.deleteNoneTitle, strings.deleteNoneDesc)
+        )
+
+        deleteOptions.forEachIndexed { idx, (style, title, desc) ->
+            val selected = deleteStyle == style
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .clickable { onDeleteStyleChange(style) }
+                    .padding(vertical = 8.dp, horizontal = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 10.dp)) {
+                    Text(
+                        text = title,
+                        color = if (selected) scheme.accent else scheme.textPrimary,
+                        fontSize = 14.5.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                    )
+                    Text(
+                        text = desc,
+                        color = scheme.textSecondary,
+                        fontSize = 12.sp,
+                        lineHeight = 15.5.sp
+                    )
+                }
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Outlined.Check,
+                        contentDescription = null,
+                        tint = scheme.accent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            if (idx < deleteOptions.lastIndex) {
+                HorizontalDivider(color = scheme.divider.copy(alpha = 0.4f))
             }
         }
 

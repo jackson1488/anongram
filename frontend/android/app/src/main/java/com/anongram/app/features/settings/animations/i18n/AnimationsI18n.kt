@@ -33,7 +33,16 @@ data class AnimationsI18nStrings(
     val previewReplayBtn: String,
     val previewIncomingSample: String,
     val previewOutgoingSample: String,
-    val messagesRowDisabled: String
+    val messagesRowDisabled: String,
+    val deleteStyleHeader: String,
+    val deleteParticlesTitle: String,
+    val deleteParticlesDesc: String,
+    val deletePuzzleTitle: String,
+    val deletePuzzleDesc: String,
+    val deleteSlideTitle: String,
+    val deleteSlideDesc: String,
+    val deleteNoneTitle: String,
+    val deleteNoneDesc: String
 )
 
 private val RuAnimationsStrings = AnimationsI18nStrings(
@@ -64,7 +73,16 @@ private val RuAnimationsStrings = AnimationsI18nStrings(
     previewReplayBtn = "Проверить",
     previewIncomingSample = "Привет! Как работает стриминг сообщений в AnonGram?",
     previewOutgoingSample = "Всё летает локально, токен за токеном и без задержек!",
-    messagesRowDisabled = "Отключено"
+    messagesRowDisabled = "Отключено",
+    deleteStyleHeader = "Анимация удаления сообщений",
+    deleteParticlesTitle = "Щелчок Таноса (частицы)",
+    deleteParticlesDesc = "Распад сообщения на микро-пыль как в Telegram",
+    deletePuzzleTitle = "Пазл",
+    deletePuzzleDesc = "Пузырь рассыпается на плитки, разъезжающиеся в стороны",
+    deleteSlideTitle = "Уезд в сторону",
+    deleteSlideDesc = "Плавный сдвиг влево или вправо с затуханием",
+    deleteNoneTitle = "Без анимации",
+    deleteNoneDesc = "Мгновенное удаление без эффектов"
 )
 
 private val EnAnimationsStrings = AnimationsI18nStrings(
@@ -95,7 +113,16 @@ private val EnAnimationsStrings = AnimationsI18nStrings(
     previewReplayBtn = "Replay",
     previewIncomingSample = "Hey! How does message streaming work in AnonGram?",
     previewOutgoingSample = "Everything runs smoothly, token by token with zero lag!",
-    messagesRowDisabled = "Disabled"
+    messagesRowDisabled = "Disabled",
+    deleteStyleHeader = "Message deletion animation",
+    deleteParticlesTitle = "Thanos Snap (Particles)",
+    deleteParticlesDesc = "Disintegrate the message bubble into drifting dust",
+    deletePuzzleTitle = "Puzzle",
+    deletePuzzleDesc = "Split the bubble into tiles sliding left and right",
+    deleteSlideTitle = "Slide out",
+    deleteSlideDesc = "Smoothly slide left or right with fade-out",
+    deleteNoneTitle = "None",
+    deleteNoneDesc = "Instant deletion without extra effects"
 )
 
 object AnimationsI18n {

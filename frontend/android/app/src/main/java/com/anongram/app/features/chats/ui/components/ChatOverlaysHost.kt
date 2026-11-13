@@ -28,9 +28,11 @@ import com.anongram.app.features.chats.tools.ForwardTargetPickerScreen
 import com.anongram.app.features.chats.tools.MessageContextMenu
 import com.anongram.app.features.chats.tools.PinnedMessagesScreen
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
+import com.anongram.app.features.chats.ui.animations.LocalMessageSnapshotRegistry
 import com.anongram.app.features.chats.ui.components.bubble.MessageFullTextViewerModal
 import com.anongram.app.features.chats.ui.components.bubble.saveMessageMediaToDevice
 import com.anongram.app.features.chats.ui.components.bubble.shareMessageMediaSystem
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.chats.input.ChatImeMetrics
 import com.anongram.app.features.chats.input.attach.formatFullEditorMessageText
 import com.anongram.app.features.chats.input.attach.mapSingleReplaceDraft
@@ -483,11 +485,24 @@ private fun ChatMessageActionAndSettingsOverlays(
         )
     }
 
+    val deleteSnapshotRegistry = LocalMessageSnapshotRegistry.current
+    val deleteCoroutineScope = rememberCoroutineScope()
     state.deleteDialogFor?.let { targets ->
         DeleteMessageDialog(
             count = targets.size,
             peerName = session.title,
-            onConfirm = viewModel::confirmDelete,
+            onConfirm = { forEveryone ->
+                val animState = AnimationsSettingsStore.state.value
+                deleteCoroutineScope.launch {
+                    deleteSnapshotRegistry?.triggerDeleteAnimations(
+                        targetKeys = targets,
+                        style = animState.messageDeleteStyle,
+                        speedMultiplier = animState.speedMultiplier,
+                        reduceMotion = animState.reduceMotionEnabled
+                    )
+                    viewModel.confirmDelete(forEveryone)
+                }
+            },
             onDismiss = viewModel::dismissDeleteDialog
         )
     }

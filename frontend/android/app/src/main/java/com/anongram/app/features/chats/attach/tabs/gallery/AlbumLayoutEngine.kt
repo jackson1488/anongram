@@ -128,7 +128,55 @@ internal fun computeAlbumLayoutPlan(
     targetWidthDp: Float = 340f
 ): AlbumLayoutPlan {
     val count = aspects.size
-    val allVertical = aspects.all { it < 1.1f }
+    if (count == 0) return AlbumLayoutPlan.MultiRow(emptyList())
+
+    val wideIndices = (0 until count).filter { aspects[it] >= 1.1f }
+    val tallIndices = (0 until count).filter { aspects[it] < 1.1f }
+
+    // Смешанный альбом (горизонтальные видео/фото + вертикальные фото/видео):
+    // горизонтальные поднимаем вверх (чуть выше и шире), вертикальные выстраиваем сеткой снизу.
+    if (wideIndices.isNotEmpty() && tallIndices.isNotEmpty()) {
+        val rows = mutableListOf<AlbumRowPlan>()
+        if (wideIndices.size == 1) {
+            val wIdx = wideIndices[0]
+            val topH = (targetWidthDp / aspects[wIdx].coerceIn(1.1f, 2.2f)).coerceIn(150f, 220f)
+            rows.add(AlbumRowPlan(listOf(wIdx), listOf(1f), topH))
+        } else {
+            // 2+ горизонтальных: по 1–2 в верхних широких рядах (для 2+2 — 2 широких сверху, 2 вертикальных снизу)
+            val topChunks = if (wideIndices.size == 2 && tallIndices.size <= 2) {
+                listOf(wideIndices)
+            } else {
+                wideIndices.chunked(2)
+            }
+            for (chunk in topChunks) {
+                val weights = chunk.map { idx -> aspects[idx].coerceIn(1.1f, 2.2f) }
+                val h = if (chunk.size == 1) {
+                    (targetWidthDp / weights[0]).coerceIn(145f, 215f)
+                } else {
+                    (targetWidthDp / weights.sum()).coerceIn(120f, 175f)
+                }
+                rows.add(AlbumRowPlan(chunk, weights, h))
+            }
+        }
+
+        val bottomChunks = when {
+            tallIndices.size <= 3 -> listOf(tallIndices)
+            tallIndices.size == 4 -> tallIndices.chunked(2)
+            else -> tallIndices.chunked(3)
+        }
+        for (chunk in bottomChunks) {
+            val weights = chunk.map { idx -> aspects[idx].coerceIn(0.55f, 1.3f) }
+            val h = if (chunk.size == 1) {
+                (targetWidthDp / weights[0].coerceAtLeast(0.75f)).coerceIn(150f, 230f)
+            } else {
+                (targetWidthDp / weights.sum().coerceAtLeast(1f)).coerceIn(130f, 200f)
+            }
+            rows.add(AlbumRowPlan(chunk, weights, h))
+        }
+        return AlbumLayoutPlan.MultiRow(rows)
+    }
+
+    val allVertical = tallIndices.size == count
     val firstIsWide = aspects.firstOrNull()?.let { it >= 1.1f } == true
 
     return when (count) {

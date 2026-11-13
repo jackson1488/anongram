@@ -30,6 +30,18 @@ enum class TokenStreamSpeed(val id: String, val tokenDelayMs: Long) {
     }
 }
 
+enum class MessageDeleteStyle(val id: String) {
+    PARTICLES("particles"),
+    PUZZLE("puzzle"),
+    SLIDE_OUT("slide_out"),
+    NONE("none");
+
+    companion object {
+        fun fromId(id: String?): MessageDeleteStyle =
+            entries.firstOrNull { it.id == id } ?: PARTICLES
+    }
+}
+
 data class AnimationsSettingsState(
     val screenTransitionsEnabled: Boolean = true,
     val glassBlurEnabled: Boolean = true,
@@ -41,6 +53,7 @@ data class AnimationsSettingsState(
     val messageAppearEnabled: Boolean = true,
     val messageAppearStyle: MessageAppearStyle = MessageAppearStyle.TOKEN_STREAM,
     val tokenStreamSpeed: TokenStreamSpeed = TokenStreamSpeed.FAST,
+    val messageDeleteStyle: MessageDeleteStyle = MessageDeleteStyle.PARTICLES,
     val listItemShiftEnabled: Boolean = true,
     val statusCheckAnimEnabled: Boolean = true
 ) {
@@ -65,6 +78,7 @@ object AnimationsSettingsStore {
     private const val KEY_MESSAGE_APPEAR_ENABLED = "key_message_appear_enabled"
     private const val KEY_MESSAGE_APPEAR_STYLE = "key_message_appear_style"
     private const val KEY_TOKEN_STREAM_SPEED = "key_token_stream_speed"
+    private const val KEY_MESSAGE_DELETE_STYLE = "key_message_delete_style"
     private const val KEY_LIST_SHIFT_ENABLED = "key_list_shift_enabled"
     private const val KEY_STATUS_CHECK_ANIM = "key_status_check_anim"
 
@@ -93,6 +107,9 @@ object AnimationsSettingsStore {
                 ),
                 tokenStreamSpeed = TokenStreamSpeed.fromId(
                     prefs.getString(KEY_TOKEN_STREAM_SPEED, TokenStreamSpeed.FAST.id)
+                ),
+                messageDeleteStyle = MessageDeleteStyle.fromId(
+                    prefs.getString(KEY_MESSAGE_DELETE_STYLE, MessageDeleteStyle.PARTICLES.id)
                 ),
                 listItemShiftEnabled = prefs.getBoolean(KEY_LIST_SHIFT_ENABLED, true),
                 statusCheckAnimEnabled = prefs.getBoolean(KEY_STATUS_CHECK_ANIM, true)
@@ -162,6 +179,12 @@ object AnimationsSettingsStore {
         ensureInitialized(context)
         prefs(context).edit().putString(KEY_TOKEN_STREAM_SPEED, speed.id).apply()
         _state.update { it.copy(tokenStreamSpeed = speed) }
+    }
+
+    fun setMessageDeleteStyle(context: Context, style: MessageDeleteStyle) {
+        ensureInitialized(context)
+        prefs(context).edit().putString(KEY_MESSAGE_DELETE_STYLE, style.id).apply()
+        _state.update { it.copy(messageDeleteStyle = style) }
     }
 
     fun setListItemShiftEnabled(context: Context, enabled: Boolean) {

@@ -50,6 +50,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -237,11 +238,34 @@ internal fun ChatMediaAlbumGrid(
     onPhotoLongClick: (Int) -> Unit = {}
 ) {
     val count = items.size
+    if (count == 0) return
     val dividerColor = accent.copy(alpha = 0.55f)
     val isFullAlbumSelected = isSelectionMode && count > 0 && selectedPhotoIndices.size == count
 
+    if (count == 1) {
+        val single = items[0]
+        CompositionLocalProvider(LocalUploadingMessageId provides messageId) {
+            ChatRealPhotoBox(
+                uriString = single.uri,
+                isVideo = single.isVideo,
+                hasSpoiler = single.hasSpoiler,
+                showSelectionBadge = isSelectionMode,
+                isPhotoSelected = 0 in selectedPhotoIndices,
+                accent = accent,
+                onPhotoClick = { onPhotoClick(0) },
+                onPhotoLongClick = { onPhotoLongClick(0) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(220.dp)
+                    .clip(RoundedCornerShape(14.dp))
+            )
+        }
+        return
+    }
+
     val aspects = rememberMediaAspects(items.map { it.uri to it.isVideo })
-    val plan = computeAlbumLayoutPlan(aspects, targetWidthDp = 270f)
+    val safeAspects = List(count) { idx -> aspects.getOrElse(idx) { 1f } }
+    val plan = computeAlbumLayoutPlan(safeAspects, targetWidthDp = 270f)
 
     CompositionLocalProvider(LocalUploadingMessageId provides messageId) {
     Box(
@@ -651,6 +675,7 @@ internal fun ChatRealPhotoBox(
 
     Box(
         modifier = modifier
+            .clipToBounds()
             .background(scheme.surface)
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -873,10 +898,27 @@ private fun InlineMutedVideoPreview(
 ) {
     val context = LocalContext.current
     var mediaPlayer by remember(uri) { mutableStateOf<MediaPlayer?>(null) }
+    var activeSurface by remember(uri) { mutableStateOf<Surface?>(null) }
+    var isDisposed by remember(uri) { mutableStateOf(false) }
+
+    fun safeReleasePlayer() {
+        val mp = mediaPlayer
+        mediaPlayer = null
+        if (mp != null) {
+            runCatching {
+                if (mp.isPlaying) mp.stop()
+            }
+            runCatching { mp.reset() }
+            runCatching { mp.release() }
+        }
+        val surf = activeSurface
+        activeSurface = null
+        runCatching { surf?.release() }
+    }
 
     LaunchedEffect(mediaPlayer) {
         val mp = mediaPlayer ?: return@LaunchedEffect
-        while (true) {
+        while (!isDisposed) {
             runCatching {
                 if (mp.isPlaying) {
                     onProgress(mp.currentPosition, mp.duration)
@@ -888,29 +930,31 @@ private fun InlineMutedVideoPreview(
 
     DisposableEffect(uri) {
         onDispose {
-            runCatching {
-                mediaPlayer?.stop()
-                mediaPlayer?.release()
-            }
-            mediaPlayer = null
+            isDisposed = true
+            safeReleasePlayer()
         }
     }
 
     AndroidView(
-        modifier = modifier,
+        modifier = modifier.clipToBounds(),
         factory = { ctx ->
             TextureView(ctx).apply {
                 isOpaque = false
                 surfaceTextureListener = object : TextureView.SurfaceTextureListener {
                     override fun onSurfaceTextureAvailable(surface: SurfaceTexture, width: Int, height: Int) {
+                        if (isDisposed) return
+                        safeReleasePlayer()
                         val mp = MediaPlayer()
+                        val winSurface = Surface(surface)
                         mediaPlayer = mp
+                        activeSurface = winSurface
                         runCatching {
                             mp.setDataSource(ctx, uri)
-                            mp.setSurface(Surface(surface))
+                            mp.setSurface(winSurface)
                             mp.isLooping = true
                             mp.setVolume(0f, 0f)
                             mp.setOnVideoSizeChangedListener { _, videoW, videoH ->
+                                if (isDisposed) return@setOnVideoSizeChangedListener
                                 if (videoW > 0 && videoH > 0 && width > 0 && height > 0) {
                                     val viewRatio = width.toFloat() / height
                                     val videoRatio = videoW.toFloat() / videoH
@@ -929,23 +973,29 @@ private fun InlineMutedVideoPreview(
                                 }
                             }
                             mp.setOnPreparedListener { preparedMp ->
-                                preparedMp.setVolume(0f, 0f)
-                                preparedMp.isLooping = true
-                                preparedMp.start()
-                                onPrepared(preparedMp.duration)
+                                if (isDisposed || mediaPlayer !== preparedMp) {
+                                    runCatching { preparedMp.release() }
+                                    return@setOnPreparedListener
+                                }
+                                runCatching {
+                                    preparedMp.setVolume(0f, 0f)
+                                    preparedMp.isLooping = true
+                                    preparedMp.start()
+                                    onPrepared(preparedMp.duration)
+                                }
                             }
+                            mp.setOnErrorListener { _, _, _ -> true }
                             mp.prepareAsync()
+                        }.onFailure {
+                            safeReleasePlayer()
                         }
                     }
 
                     override fun onSurfaceTextureSizeChanged(surface: SurfaceTexture, width: Int, height: Int) = Unit
 
                     override fun onSurfaceTextureDestroyed(surface: SurfaceTexture): Boolean {
-                        runCatching {
-                            mediaPlayer?.stop()
-                            mediaPlayer?.release()
-                        }
-                        mediaPlayer = null
+                        isDisposed = true
+                        safeReleasePlayer()
                         return true
                     }
 

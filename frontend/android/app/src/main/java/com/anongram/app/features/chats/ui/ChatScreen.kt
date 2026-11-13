@@ -11,7 +11,11 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import com.anongram.app.features.chats.ui.animations.LocalMessageSnapshotRegistry
+import com.anongram.app.features.chats.ui.animations.MessageDeleteOverlay
+import com.anongram.app.features.chats.ui.animations.rememberMessageSnapshotRegistry
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -206,6 +210,9 @@ fun ChatScreen(
     var videoReviewSeekCount by remember(videoReviewKey) { mutableIntStateOf(0) }
     var videoReviewSeekTrigger by remember(videoReviewKey) { mutableStateOf<Pair<Int, Float>?>(null) }
 
+    val snapshotRegistry = rememberMessageSnapshotRegistry()
+
+    CompositionLocalProvider(LocalMessageSnapshotRegistry provides snapshotRegistry) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -414,11 +421,17 @@ fun ChatScreen(
             )
         }
 
+        MessageDeleteOverlay(
+            registry = snapshotRegistry,
+            modifier = Modifier.zIndex(2f)
+        )
+
         SelectionLimitBannerHost(
             warningText = state.limitWarning,
             bottomOffsetDp = imeMetrics.bottomInputTopDp,
             onDismiss = viewModel::dismissLimitWarning
         )
         ChatActionBannerHost(bottomOffsetDp = imeMetrics.bottomInputTopDp)
+    }
     }
 }

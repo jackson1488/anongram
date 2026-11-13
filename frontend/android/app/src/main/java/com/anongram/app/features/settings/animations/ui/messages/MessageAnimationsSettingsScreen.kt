@@ -63,6 +63,10 @@ fun MessageAnimationsSettingsScreen(
                     onTokenStreamSpeedChange = {
                         AnimationsSettingsStore.setTokenStreamSpeed(context, it)
                     },
+                    deleteStyle = state.messageDeleteStyle,
+                    onDeleteStyleChange = {
+                        AnimationsSettingsStore.setMessageDeleteStyle(context, it)
+                    },
                     listItemShiftEnabled = state.listItemShiftEnabled,
                     onListItemShiftEnabledChange = {
                         AnimationsSettingsStore.setListItemShiftEnabled(context, it)
