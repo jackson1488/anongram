@@ -25,7 +25,11 @@ data class ModulesSettingsState(
     val whisperModelId: String = ModuleAssetManifest.WHISPER_TINY_Q5.id,
     val whisperLanguage: String = "auto",
     val voskAssetId: String = ModuleAssetManifest.VOSK_RU.id,
-    val systemLanguage: String = "ru-RU"
+    val systemLanguage: String = "ru-RU",
+    // Настройки локального перевода сообщений
+    val showTranslateButton: Boolean = true,
+    val autoTranslateIncoming: Boolean = false,
+    val targetTranslateLanguage: String = "auto"
 )
 
 /**
@@ -38,6 +42,9 @@ object ModulesSettingsStore {
     private const val KEY_WHISPER_LANG = "key_whisper_lang"
     private const val KEY_VOSK_ASSET_ID = "key_vosk_asset_id"
     private const val KEY_SYSTEM_LANG = "key_system_lang"
+    private const val KEY_SHOW_TRANSLATE_BUTTON = "key_show_translate_button"
+    private const val KEY_AUTO_TRANSLATE_INCOMING = "key_auto_translate_incoming"
+    private const val KEY_TARGET_TRANSLATE_LANG = "key_target_translate_lang"
 
     private val _state = MutableStateFlow(ModulesSettingsState())
     val state: StateFlow<ModulesSettingsState> = _state.asStateFlow()
@@ -57,7 +64,10 @@ object ModulesSettingsStore {
                 whisperLanguage = prefs.getString(KEY_WHISPER_LANG, "auto") ?: "auto",
                 voskAssetId = prefs.getString(KEY_VOSK_ASSET_ID, ModuleAssetManifest.VOSK_RU.id)
                     ?: ModuleAssetManifest.VOSK_RU.id,
-                systemLanguage = prefs.getString(KEY_SYSTEM_LANG, "ru-RU") ?: "ru-RU"
+                systemLanguage = prefs.getString(KEY_SYSTEM_LANG, "ru-RU") ?: "ru-RU",
+                showTranslateButton = prefs.getBoolean(KEY_SHOW_TRANSLATE_BUTTON, true),
+                autoTranslateIncoming = prefs.getBoolean(KEY_AUTO_TRANSLATE_INCOMING, false),
+                targetTranslateLanguage = prefs.getString(KEY_TARGET_TRANSLATE_LANG, "auto") ?: "auto"
             )
             initialized = true
         }
@@ -96,5 +106,26 @@ object ModulesSettingsStore {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit().putString(KEY_SYSTEM_LANG, langTag).apply()
         _state.value = _state.value.copy(systemLanguage = langTag)
+    }
+
+    fun setShowTranslateButton(context: Context, show: Boolean) {
+        ensureInitialized(context)
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_SHOW_TRANSLATE_BUTTON, show).apply()
+        _state.value = _state.value.copy(showTranslateButton = show)
+    }
+
+    fun setAutoTranslateIncoming(context: Context, auto: Boolean) {
+        ensureInitialized(context)
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_AUTO_TRANSLATE_INCOMING, auto).apply()
+        _state.value = _state.value.copy(autoTranslateIncoming = auto)
+    }
+
+    fun setTargetTranslateLanguage(context: Context, langCode: String) {
+        ensureInitialized(context)
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit().putString(KEY_TARGET_TRANSLATE_LANG, langCode).apply()
+        _state.value = _state.value.copy(targetTranslateLanguage = langCode)
     }
 }

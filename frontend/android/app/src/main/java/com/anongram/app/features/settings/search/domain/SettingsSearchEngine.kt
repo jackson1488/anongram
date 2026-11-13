@@ -154,6 +154,19 @@ object SettingsSearchEngine {
                 )
             ),
             SettingsSearchItem(
+                id = "modules_translation",
+                title = if (isRu) "Локальный перевод сообщений" else "Local Message Translation",
+                subtitle = if (isRu) "Офлайн-перевод, автоперевод входящих, языковые пакеты" else "Offline translation, auto-translate incoming, language packs",
+                targetRoute = SettingsRoute.ModulesTranslation,
+                category = categoryName,
+                icon = Icons.Default.Extension,
+                iconBackgroundColor = Color(0xFF00ACC1),
+                keywords = listOf(
+                    "перевод", "перевести", "автоперевод", "языки", "mlkit", "офлайн", "локальный",
+                    "translate", "translation", "auto-translate", "languages", "mlkit", "offline", "local"
+                )
+            ),
+            SettingsSearchItem(
                 id = "battery",
                 title = if (isRu) "Энергосбережение" else "Power Saving",
                 subtitle = if (isRu) "Экономия энергии при низком заряде аккумулятора" else "Save battery power at low charge level",

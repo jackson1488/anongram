@@ -29,10 +29,14 @@ import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Reply
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,6 +54,9 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
+import com.anongram.app.features.chats.tools.translate.LocalMessageTranslator
+import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
+import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 
 private val QUICK_REACTIONS = listOf("❤️", "👍", "👎", "🔥", "🥰", "👏", "😁")
 
@@ -74,11 +82,19 @@ internal fun MessageContextMenu(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val scheme = LocalAnonGramScheme.current
     val strings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
+    val moduleStrings = ModulesI18n.current
+    val moduleSettings by ModulesSettingsStore.state.collectAsState()
+    val translations by LocalMessageTranslator.translations.collectAsState()
+    LaunchedEffect(Unit) { ModulesSettingsStore.ensureInitialized(context) }
+
     val isMyMessage = message.direction == MessageDirection.OUTGOING
     val att = message.attachment
     val isEditable = isMyMessage && att !is MessageAttachment.Sticker
+    val showTranslate = moduleSettings.showTranslateButton && message.text.isNotBlank()
+    val translationEntry = translations[message.id]
 
     val saveLabel: String? = when (att) {
         is MessageAttachment.VideoCircle -> strings.saveToGallery
@@ -248,6 +264,24 @@ internal fun MessageContextMenu(
                             icon = Icons.Outlined.ContentCopy,
                             label = strings.copy,
                             onClick = { onCopy(); onDismiss() }
+                        )
+                    }
+                    if (showTranslate) {
+                        ContextMenuRow(
+                            icon = Icons.Outlined.Translate,
+                            label = if (translationEntry?.isShowingTranslation == true) {
+                                moduleStrings.showOriginalAction
+                            } else {
+                                moduleStrings.translateAction
+                            },
+                            onClick = {
+                                LocalMessageTranslator.translateOrToggle(
+                                    context = context,
+                                    messageId = message.id,
+                                    text = message.text
+                                )
+                                onDismiss()
+                            }
                         )
                     }
                     if (isEditable) {

@@ -39,6 +39,7 @@ import com.anongram.app.core.assets.ModuleAssetManifest
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.features.chats.tools.translate.LocalMessageTranslator
 import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
 import com.anongram.app.features.settings.modules.data.VoiceSttEngine
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
@@ -52,6 +53,7 @@ import com.anongram.app.features.settings.modules.ui.voice.formatMb
 @Composable
 fun ModulesSettingsScreen(
     onOpenVoiceModule: () -> Unit,
+    onOpenTranslationModule: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -62,10 +64,12 @@ fun ModulesSettingsScreen(
     val assetManager = remember { ExternalAssetManager.getInstance(context) }
     val assetStates by assetManager.states.collectAsState()
     val settings by ModulesSettingsStore.state.collectAsState()
+    val downloadedTranslatePacks by LocalMessageTranslator.downloadedLanguages.collectAsState()
 
     LaunchedEffect(Unit) {
         ModulesSettingsStore.ensureInitialized(context)
         assetManager.refreshAllStates()
+        LocalMessageTranslator.refreshDownloadedModels()
     }
 
     BackHandler(onBack = onBack)
@@ -165,12 +169,11 @@ fun ModulesSettingsScreen(
                     modifier = Modifier.padding(start = 56.dp)
                 )
 
-                // 2. Локальный перевод сообщений — своя память и статус
-                val translationBytes = remember(assetStates) {
-                    assetManager.installedBytesForSpecs(ModuleAssetManifest.allTranslation)
-                }
+                // 2. Локальный перевод сообщений — статус и переход в настройки
                 TranslationModuleSection(
-                    memoryLabel = strings.moduleMemoryLabel(formatMb(translationBytes))
+                    isEnabled = settings.showTranslateButton || settings.autoTranslateIncoming,
+                    downloadedCount = downloadedTranslatePacks.size,
+                    onClick = onOpenTranslationModule
                 )
 
                 HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)

@@ -40,6 +40,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Reply
@@ -66,6 +67,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
@@ -88,6 +90,9 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.MessageStatus
+import com.anongram.app.features.chats.tools.translate.LocalMessageTranslator
+import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
+import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.chats.messages.domain.timeLabel
 import com.anongram.app.features.chats.ui.components.LocalMessageTextSizeSp
@@ -140,6 +145,7 @@ internal fun MessageBubble(
     onOpenFullTextMessage: (ChatMessage) -> Unit = {},
     onOpenGeoViewer: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val scheme = LocalAnonGramScheme.current
     val message = item.message
     val isIncoming = message.direction == MessageDirection.INCOMING
@@ -147,6 +153,28 @@ internal fun MessageBubble(
     val messageTextSizeSp = LocalMessageTextSizeSp.current
     val textScale = remember(messageTextSizeSp) {
         (messageTextSizeSp / 16f).coerceIn(0.35f, 1.5f)
+    }
+
+    val moduleStrings = ModulesI18n.current
+    val moduleSettings by ModulesSettingsStore.state.collectAsState()
+    val translations by LocalMessageTranslator.translations.collectAsState()
+    val translationEntry = translations[message.id]
+
+    LaunchedEffect(Unit) {
+        ModulesSettingsStore.ensureInitialized(context)
+    }
+
+    LaunchedEffect(message.id, message.text, moduleSettings.autoTranslateIncoming, isIncoming) {
+        if (isIncoming && message.text.isNotBlank() && moduleSettings.autoTranslateIncoming) {
+            LocalMessageTranslator.autoTranslateIfNeeded(context, message.id, message.text)
+        }
+    }
+
+    var isPartialTextSelect by remember(message.id) { mutableStateOf(false) }
+    LaunchedEffect(isSelectionMode, isSelected) {
+        if (!isSelectionMode || !isSelected) {
+            isPartialTextSelect = false
+        }
     }
 
     val pulseAnim = remember { Animatable(0f) }
@@ -278,11 +306,16 @@ internal fun MessageBubble(
                 .then(
                     if (!isStandaloneCircle) {
                         Modifier.combinedClickable(
+                            enabled = !isPartialTextSelect,
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null,
                             onClick = {
                                 if (isSelectionMode) {
-                                    onSelect()
+                                    if (isSelected && message.text.isNotBlank()) {
+                                        isPartialTextSelect = true
+                                    } else {
+                                        onSelect()
+                                    }
                                 } else {
                                     onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                                 }
@@ -345,11 +378,16 @@ internal fun MessageBubble(
                     .align(if (isIncoming) Alignment.TopStart else Alignment.TopEnd)
                     .offset(x = incomingShiftDp)
                     .combinedClickable(
+                        enabled = !isPartialTextSelect,
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null,
                         onClick = {
                             if (isSelectionMode) {
-                                onSelect()
+                                if (isSelected && message.text.isNotBlank()) {
+                                    isPartialTextSelect = true
+                                } else {
+                                    onSelect()
+                                }
                             } else {
                                 onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                             }
@@ -622,21 +660,87 @@ internal fun MessageBubble(
 
                                     // Текст сообщения + отдельный блок времени (модульный BubbleTextMessage)
                                     if (message.text.isNotBlank()) {
-                                        Box(
+                                        val effectiveMessage = if (
+                                            translationEntry?.isShowingTranslation == true &&
+                                            !translationEntry.translatedText.isNullOrBlank()
+                                        ) {
+                                            message.copy(text = translationEntry.translatedText)
+                                        } else {
+                                            message
+                                        }
+                                        Column(
                                             modifier = if (isEdgeToEdgeMedia || isFlushGroupAttachment) {
                                                 Modifier.padding(horizontal = (10f * textScale).coerceIn(5f, 12f).dp)
                                             } else {
                                                 Modifier
                                             }
                                         ) {
-                                            BubbleTextMessage(
-                                                message = message,
-                                                textSizeSp = messageTextSizeSp,
-                                                textScale = textScale,
-                                                searchQuery = searchQuery,
-                                                onOpenFullText = { onOpenFullTextMessage(message) },
-                                                onRetry = onRetry
-                                            )
+                                            if (isPartialTextSelect) {
+                                                SelectionContainer {
+                                                    BubbleTextMessage(
+                                                        message = effectiveMessage,
+                                                        textSizeSp = messageTextSizeSp,
+                                                        textScale = textScale,
+                                                        searchQuery = searchQuery,
+                                                        onOpenFullText = { onOpenFullTextMessage(effectiveMessage) },
+                                                        onRetry = onRetry
+                                                    )
+                                                }
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(8.dp))
+                                                        .background(scheme.accent.copy(alpha = 0.16f))
+                                                        .clickable { isPartialTextSelect = false }
+                                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                                ) {
+                                                    Text(
+                                                        text = moduleStrings.partialSelectDone,
+                                                        color = scheme.accent,
+                                                        fontSize = 11.5.sp,
+                                                        fontWeight = FontWeight.SemiBold
+                                                    )
+                                                }
+                                            } else {
+                                                BubbleTextMessage(
+                                                    message = effectiveMessage,
+                                                    textSizeSp = messageTextSizeSp,
+                                                    textScale = textScale,
+                                                    searchQuery = searchQuery,
+                                                    onOpenFullText = { onOpenFullTextMessage(effectiveMessage) },
+                                                    onRetry = onRetry
+                                                )
+                                            }
+
+                                            if (translationEntry != null && (translationEntry.isTranslating || translationEntry.translatedText != null || translationEntry.error != null)) {
+                                                Spacer(modifier = Modifier.height(5.dp))
+                                                val badgeLabel = when {
+                                                    translationEntry.isTranslating -> "🌐 ${moduleStrings.translatingLabel}"
+                                                    translationEntry.error != null -> "🌐 ${translationEntry.error}"
+                                                    translationEntry.isShowingTranslation -> "🌐 ${moduleStrings.translatedLocallyBadge} • ${moduleStrings.showOriginalAction}"
+                                                    else -> "🌐 ${moduleStrings.showTranslationAction}"
+                                                }
+                                                Text(
+                                                    text = badgeLabel,
+                                                    color = if (translationEntry.error != null) scheme.danger else scheme.accent,
+                                                    fontSize = 11.5.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .clickable(enabled = !translationEntry.isTranslating) {
+                                                            if (translationEntry.error != null) {
+                                                                LocalMessageTranslator.translateOrToggle(
+                                                                    context = context,
+                                                                    messageId = message.id,
+                                                                    text = message.text
+                                                                )
+                                                            } else {
+                                                                LocalMessageTranslator.toggleShowOriginal(message.id)
+                                                            }
+                                                        }
+                                                        .padding(vertical = 2.dp)
+                                                )
+                                            }
                                         }
                                     } else if (!isOverlayTimestampOnMedia && !isTimestampHandledInsideAttachment) {
                                         BubbleTimestampRow(

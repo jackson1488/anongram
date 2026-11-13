@@ -66,7 +66,23 @@ data class ModulesI18nStrings(
     val voiceDownloadModelAction: (Int) -> String,
     val voiceOpenModulesSettings: String,
     val voiceSystemUnsupportedError: String,
-    val voiceCopiedToast: String
+    val voiceCopiedToast: String,
+    // Локальный перевод и частичное выделение текста
+    val translateAction: String,
+    val showOriginalAction: String,
+    val showTranslationAction: String,
+    val translatingLabel: String,
+    val translatedLocallyBadge: String,
+    val showTranslateButtonTitle: String,
+    val showTranslateButtonDesc: String,
+    val autoTranslateIncomingTitle: String,
+    val autoTranslateIncomingDesc: String,
+    val targetLanguageHeader: String,
+    val offlineLanguagePacksHeader: String,
+    val translationPrivacyNote: String,
+    val translationEnabledStatus: String,
+    val translationDisabledStatus: String,
+    val partialSelectDone: String
 )
 
 private val RuModulesStrings = ModulesI18nStrings(
@@ -119,7 +135,22 @@ private val RuModulesStrings = ModulesI18nStrings(
     voiceDownloadModelAction = { mb -> "Скачать (~$mb МБ)" },
     voiceOpenModulesSettings = "Настройки модулей",
     voiceSystemUnsupportedError = "Системный движок не поддерживается для файлов на Android < 13. Выберите Whisper или Vosk в Настройки → Модули.",
-    voiceCopiedToast = "Текст расшифровки скопирован"
+    voiceCopiedToast = "Текст расшифровки скопирован",
+    translateAction = "Перевести",
+    showOriginalAction = "Показать исходный текст",
+    showTranslationAction = "Показать перевод",
+    translatingLabel = "Перевод…",
+    translatedLocallyBadge = "Переведено локально",
+    showTranslateButtonTitle = "Показывать кнопку «Перевести»",
+    showTranslateButtonDesc = "Отображать кнопку быстрого перевода в меню сообщения",
+    autoTranslateIncomingTitle = "Автоперевод входящих",
+    autoTranslateIncomingDesc = "Автоматически переводить входящие сообщения на других языках локально на устройстве",
+    targetLanguageHeader = "Язык перевода",
+    offlineLanguagePacksHeader = "Офлайн-языки (ML Kit)",
+    translationPrivacyNote = "Перевод выполняется 100% локально на устройстве с помощью офлайн-пакетов без отправки текста на серверы.",
+    translationEnabledStatus = "Включено",
+    translationDisabledStatus = "Выключено",
+    partialSelectDone = "Готово"
 )
 
 private val EnModulesStrings = ModulesI18nStrings(
@@ -172,7 +203,22 @@ private val EnModulesStrings = ModulesI18nStrings(
     voiceDownloadModelAction = { mb -> "Download (~$mb MB)" },
     voiceOpenModulesSettings = "Module settings",
     voiceSystemUnsupportedError = "System speech engine is not supported for files on Android < 13. Select Whisper or Vosk in Settings → Modules.",
-    voiceCopiedToast = "Transcript copied"
+    voiceCopiedToast = "Transcript copied",
+    translateAction = "Translate",
+    showOriginalAction = "Show original",
+    showTranslationAction = "Show translation",
+    translatingLabel = "Translating…",
+    translatedLocallyBadge = "Translated locally",
+    showTranslateButtonTitle = "Show \"Translate\" button",
+    showTranslateButtonDesc = "Show quick translate action in the message menu",
+    autoTranslateIncomingTitle = "Auto-translate incoming",
+    autoTranslateIncomingDesc = "Automatically translate incoming foreign-language messages locally on device",
+    targetLanguageHeader = "Target language",
+    offlineLanguagePacksHeader = "Offline language packs (ML Kit)",
+    translationPrivacyNote = "Translation runs 100% locally on your device using offline language packs without sending messages to servers.",
+    translationEnabledStatus = "Enabled",
+    translationDisabledStatus = "Disabled",
+    partialSelectDone = "Done"
 )
 
 object ModulesI18n {
