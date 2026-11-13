@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.dp
 import com.anongram.app.features.settings.animations.data.MessageAppearStyle
 import com.anongram.app.features.settings.animations.data.TokenStreamSpeed
 import kotlinx.coroutines.coroutineScope
@@ -99,29 +100,25 @@ fun MessageAppearWrapper(
     onAnimationFinished: () -> Unit = {},
     content: @Composable () -> Unit
 ) {
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val startScale = when (style) {
+        MessageAppearStyle.CORNER_POP -> 0.35f
+        MessageAppearStyle.SPRING_FLY -> 0.85f
+        MessageAppearStyle.SLIDE_FADE -> 0.93f
+        MessageAppearStyle.TOKEN_STREAM -> 0.95f
+    }
+    val startOffsetY = with(density) {
+        when (style) {
+            MessageAppearStyle.SPRING_FLY -> 56.dp.toPx()
+            MessageAppearStyle.SLIDE_FADE -> 44.dp.toPx()
+            MessageAppearStyle.CORNER_POP -> 22.dp.toPx()
+            MessageAppearStyle.TOKEN_STREAM -> 16.dp.toPx()
+        }
+    }
+
     val alpha = remember(animateKey) { Animatable(if (shouldAnimate) 0f else 1f) }
-    val scale = remember(animateKey) {
-        Animatable(
-            if (!shouldAnimate) 1f
-            else when (style) {
-                MessageAppearStyle.CORNER_POP -> 0.55f
-                MessageAppearStyle.SPRING_FLY -> 0.90f
-                MessageAppearStyle.SLIDE_FADE -> 0.96f
-                MessageAppearStyle.TOKEN_STREAM -> 0.96f
-            }
-        )
-    }
-    val offsetY = remember(animateKey) {
-        Animatable(
-            if (!shouldAnimate) 0f
-            else when (style) {
-                MessageAppearStyle.SPRING_FLY -> 48f
-                MessageAppearStyle.SLIDE_FADE -> 36f
-                MessageAppearStyle.CORNER_POP -> 18f
-                MessageAppearStyle.TOKEN_STREAM -> 16f
-            }
-        )
-    }
+    val scale = remember(animateKey) { Animatable(if (shouldAnimate) startScale else 1f) }
+    val offsetY = remember(animateKey) { Animatable(if (shouldAnimate) startOffsetY else 0f) }
 
     LaunchedEffect(animateKey, shouldAnimate, style, speedMultiplier) {
         if (!shouldAnimate) {
@@ -131,18 +128,6 @@ fun MessageAppearWrapper(
             return@LaunchedEffect
         }
 
-        val startScale = when (style) {
-            MessageAppearStyle.CORNER_POP -> 0.55f
-            MessageAppearStyle.SPRING_FLY -> 0.90f
-            MessageAppearStyle.SLIDE_FADE -> 0.96f
-            MessageAppearStyle.TOKEN_STREAM -> 0.96f
-        }
-        val startOffsetY = when (style) {
-            MessageAppearStyle.SPRING_FLY -> 48f
-            MessageAppearStyle.SLIDE_FADE -> 36f
-            MessageAppearStyle.CORNER_POP -> 18f
-            MessageAppearStyle.TOKEN_STREAM -> 16f
-        }
         alpha.snapTo(0f)
         scale.snapTo(startScale)
         offsetY.snapTo(startOffsetY)
@@ -151,43 +136,43 @@ fun MessageAppearWrapper(
         coroutineScope {
             when (style) {
                 MessageAppearStyle.SPRING_FLY -> {
-                    launch { alpha.animateTo(1f, tween((180 * mult).toInt().coerceAtLeast(60))) }
+                    launch { alpha.animateTo(1f, tween((220 * mult).toInt().coerceAtLeast(70))) }
                     launch {
                         scale.animateTo(
                             1f,
-                            spring(dampingRatio = 0.68f, stiffness = 340f / mult)
+                            spring(dampingRatio = 0.58f, stiffness = 260f / mult)
                         )
                     }
                     launch {
                         offsetY.animateTo(
                             0f,
-                            spring(dampingRatio = 0.70f, stiffness = 320f / mult)
+                            spring(dampingRatio = 0.62f, stiffness = 250f / mult)
                         )
                     }
                 }
                 MessageAppearStyle.SLIDE_FADE -> {
-                    val dur = (260 * mult).toInt().coerceAtLeast(80)
+                    val dur = (320 * mult).toInt().coerceAtLeast(90)
                     launch { alpha.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
                     launch { scale.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
                     launch { offsetY.animateTo(0f, tween(dur, easing = FastOutSlowInEasing)) }
                 }
                 MessageAppearStyle.CORNER_POP -> {
-                    launch { alpha.animateTo(1f, tween((150 * mult).toInt().coerceAtLeast(50))) }
+                    launch { alpha.animateTo(1f, tween((160 * mult).toInt().coerceAtLeast(60))) }
                     launch {
                         scale.animateTo(
                             1f,
-                            spring(dampingRatio = 0.58f, stiffness = 420f / mult)
+                            spring(dampingRatio = 0.50f, stiffness = 340f / mult)
                         )
                     }
                     launch {
                         offsetY.animateTo(
                             0f,
-                            spring(dampingRatio = 0.68f, stiffness = 400f / mult)
+                            spring(dampingRatio = 0.62f, stiffness = 320f / mult)
                         )
                     }
                 }
                 MessageAppearStyle.TOKEN_STREAM -> {
-                    val dur = (150 * mult).toInt().coerceAtLeast(60)
+                    val dur = (160 * mult).toInt().coerceAtLeast(60)
                     launch { alpha.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
                     launch { scale.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
                     launch { offsetY.animateTo(0f, tween(dur, easing = FastOutSlowInEasing)) }

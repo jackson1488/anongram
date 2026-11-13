@@ -95,7 +95,7 @@ fun SettingsNavHost(
             if (!animState.screenTransitionsEnabled || animState.reduceMotionEnabled) {
                 fadeIn(snap()) togetherWith fadeOut(snap())
             } else {
-                val durationMs = (280f / animState.speedMultiplier.coerceAtLeast(0.25f))
+                val durationMs = (280f * animState.speedMultiplier)
                     .roundToInt()
                     .coerceIn(70, 800)
                 val isBack = targetState == SettingsRoute.Main ||

@@ -100,6 +100,27 @@ internal fun MessagesList(
     onOpenFullTextMessage: (ChatMessage) -> Unit = {},
     onOpenGeoViewer: (ChatMessage) -> Unit = {}
 ) {
+    val knownIds = remember { HashSet<String>() }
+    val animatingIds = remember { mutableStateMapOf<String, Boolean>() }
+    var initializedHistory by remember { mutableStateOf(false) }
+
+    remember(messages) {
+        if (!initializedHistory) {
+            messages.forEach { knownIds.add(it.id) }
+            initializedHistory = true
+        } else {
+            val now = System.currentTimeMillis()
+            messages.forEach { msg ->
+                if (knownIds.add(msg.id)) {
+                    if (now - msg.epochMs <= 5_000L || msg.epochMs == 0L) {
+                        animatingIds[msg.id] = true
+                    }
+                }
+            }
+        }
+        true
+    }
+
     if (messages.isEmpty()) {
         EmptyThreadHint()
         return
@@ -118,27 +139,6 @@ internal fun MessagesList(
     val animSettings by AnimationsSettingsStore.state.collectAsState()
     LaunchedEffect(Unit) {
         AnimationsSettingsStore.ensureInitialized(context)
-    }
-
-    val knownIds = remember { mutableStateMapOf<String, Boolean>() }
-    val animatingIds = remember { mutableStateMapOf<String, Boolean>() }
-    val initializedHistory = remember { mutableStateOf(false) }
-
-    LaunchedEffect(messages) {
-        if (!initializedHistory.value) {
-            messages.forEach { knownIds[it.id] = true }
-            initializedHistory.value = true
-        } else {
-            val now = System.currentTimeMillis()
-            messages.forEach { msg ->
-                if (!knownIds.containsKey(msg.id)) {
-                    knownIds[msg.id] = true
-                    if (now - msg.epochMs <= 5_000L || msg.epochMs == 0L) {
-                        animatingIds[msg.id] = true
-                    }
-                }
-            }
-        }
     }
 
     CompositionLocalProvider(
