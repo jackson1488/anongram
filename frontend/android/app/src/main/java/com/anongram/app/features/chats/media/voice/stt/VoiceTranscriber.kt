@@ -2,6 +2,7 @@ package com.anongram.app.features.chats.media.voice.stt
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioFormat
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -186,32 +187,42 @@ object VoiceTranscriber {
             return@callbackFlow
         }
 
-        val uri = Uri.parse(audioUri)
-        val file = if (uri.scheme == "file" && uri.path != null) File(uri.path!!) else File(audioUri)
-        val pfd: ParcelFileDescriptor? = runCatching {
-            if (file.exists()) {
-                ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-            } else {
-                context.contentResolver.openFileDescriptor(uri, "r")
-            }
-        }.getOrNull()
+        val tempPcm = File(context.cacheDir, "stt_sys_${System.nanoTime()}.pcm")
+        val pfd: ParcelFileDescriptor? = withContext(Dispatchers.IO) {
+            runCatching {
+                val pcmShorts = AudioPcmDecoder.decodeTo16kMonoPcm(context, audioUri)
+                val byteBuf = ByteBuffer.allocate(pcmShorts.size * 2).order(ByteOrder.LITTLE_ENDIAN)
+                for (s in pcmShorts) byteBuf.putShort(s)
+                tempPcm.writeBytes(byteBuf.array())
+                ParcelFileDescriptor.open(tempPcm, ParcelFileDescriptor.MODE_READ_ONLY)
+            }.getOrNull()
+        }
 
         if (pfd == null) {
-            trySend(TranscriptionEvent.Error("Audio file not accessible"))
+            tempPcm.delete()
+            trySend(TranscriptionEvent.Error("Audio decode error"))
             close()
             return@callbackFlow
         }
 
         var recognizer: SpeechRecognizer? = null
+        var lastPartial = ""
         withContext(Dispatchers.Main) {
-            if (!SpeechRecognizer.isRecognitionAvailable(context)) {
+            val useOnDevice = SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
+            val useStandard = SpeechRecognizer.isRecognitionAvailable(context)
+            if (!useOnDevice && !useStandard) {
                 runCatching { pfd.close() }
+                tempPcm.delete()
                 trySend(TranscriptionEvent.Error(strings.voiceSystemUnsupportedError))
                 close()
                 return@withContext
             }
 
-            recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+            recognizer = if (useOnDevice) {
+                SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
+            } else {
+                SpeechRecognizer.createSpeechRecognizer(context)
+            }.apply {
                 setRecognitionListener(object : RecognitionListener {
                     override fun onReadyForSpeech(params: Bundle?) {}
                     override fun onBeginningOfSpeech() {}
@@ -224,21 +235,30 @@ object VoiceTranscriber {
                         val list = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                         val text = list?.firstOrNull()?.trim().orEmpty()
                         if (text.isNotEmpty()) {
+                            lastPartial = text
                             trySend(TranscriptionEvent.Streaming(text))
                         }
                     }
 
                     override fun onResults(results: Bundle?) {
                         val list = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                        val text = list?.firstOrNull()?.trim().orEmpty()
+                        val text = list?.firstOrNull()?.trim().orEmpty().ifBlank { lastPartial }
                         trySend(TranscriptionEvent.Completed(text))
                         runCatching { pfd.close() }
+                        tempPcm.delete()
                         close()
                     }
 
                     override fun onError(error: Int) {
-                        trySend(TranscriptionEvent.Error("SpeechRecognizer error ($error)"))
+                        if (lastPartial.isNotBlank() &&
+                            (error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT)
+                        ) {
+                            trySend(TranscriptionEvent.Completed(lastPartial))
+                        } else {
+                            trySend(TranscriptionEvent.Error("Google Speech error ($error)"))
+                        }
                         runCatching { pfd.close() }
+                        tempPcm.delete()
                         close()
                     }
                 })
@@ -248,6 +268,9 @@ object VoiceTranscriber {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE, languageTag)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, pfd)
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
+                    putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_SAMPLING_RATE, 16000)
                 }
                 startListening(intent)
             }
@@ -256,6 +279,7 @@ object VoiceTranscriber {
         awaitClose {
             runCatching { recognizer?.destroy() }
             runCatching { pfd.close() }
+            tempPcm.delete()
         }
     }
 
