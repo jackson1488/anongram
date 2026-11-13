@@ -85,9 +85,14 @@ internal class ViewerVideoPlaybackState {
     var durationMs by mutableLongStateOf(0L)
     var isPlaying by mutableStateOf(false)
     internal var onSeekRequest: ((Long) -> Unit)? = null
+    internal var onTogglePlayPauseRequest: (() -> Unit)? = null
 
     fun seekTo(positionMs: Long) {
         onSeekRequest?.invoke(positionMs)
+    }
+
+    fun togglePlayPause() {
+        onTogglePlayPauseRequest?.invoke()
     }
 }
 
@@ -228,6 +233,7 @@ internal fun ViewerVideoPage(
     // Обновление прогресса воспроизведения
     LaunchedEffect(isActivePage, isPrepared, mediaPlayer) {
         if (isActivePage) {
+            playbackState.onTogglePlayPauseRequest = { togglePlayPause() }
             playbackState.onSeekRequest = { targetMs ->
                 val player = mediaPlayer
                 if (player != null && isPrepared) {

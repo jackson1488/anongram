@@ -54,6 +54,7 @@ import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.SessionGlyph
+import com.anongram.app.features.chats.tools.i18n.ToolsI18n
 import com.anongram.app.features.chats.ui.accentColor
 
 internal data class GlobalServerForwardItem(
@@ -97,6 +98,7 @@ internal fun ForwardTargetPickerScreen(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ToolsI18n.current
     var query by remember { mutableStateOf("") }
 
     BackHandler { onClose() }
@@ -128,7 +130,7 @@ internal fun ForwardTargetPickerScreen(
         }
     }
 
-    val globalServerMatches = remember(trimmedQuery, nonSavedSessions) {
+    val globalServerMatches = remember(trimmedQuery, nonSavedSessions, strings.globalServerOnlineSubtitle) {
         if (trimmedQuery.isEmpty()) {
             emptyList()
         } else {
@@ -152,7 +154,7 @@ internal fun ForwardTargetPickerScreen(
                         id = "srv_dyn_$cleanHandle",
                         title = trimmedQuery.removePrefix("@").replaceFirstChar { it.uppercase() },
                         handle = "@$cleanHandle",
-                        subtitle = "Глобальный сервер AnonGram • В сети",
+                        subtitle = strings.globalServerOnlineSubtitle,
                         kind = "user"
                     )
                 )
@@ -182,14 +184,14 @@ internal fun ForwardTargetPickerScreen(
             IconButton(onClick = onClose) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Назад",
+                    contentDescription = strings.back,
                     tint = scheme.textPrimary,
                     modifier = Modifier.size(24.dp)
                 )
             }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "Переслать...",
+                text = strings.forwardTitle,
                 color = scheme.textPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -226,7 +228,7 @@ internal fun ForwardTargetPickerScreen(
                 ) {
                     if (query.isEmpty()) {
                         Text(
-                            text = "Поиск чатов",
+                            text = strings.searchChatsPlaceholder,
                             color = scheme.textMuted,
                             fontSize = 15.sp
                         )
@@ -250,7 +252,7 @@ internal fun ForwardTargetPickerScreen(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Close,
-                            contentDescription = "Очистить",
+                            contentDescription = strings.clear,
                             tint = scheme.textMuted,
                             modifier = Modifier.size(18.dp)
                         )
@@ -286,7 +288,7 @@ internal fun ForwardTargetPickerScreen(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.BookmarkBorder,
-                                contentDescription = "Избранное",
+                                contentDescription = strings.savedMessagesTitle,
                                 tint = scheme.onAccent,
                                 modifier = Modifier.size(26.dp)
                             )
@@ -294,7 +296,7 @@ internal fun ForwardTargetPickerScreen(
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Избранное",
+                                text = strings.savedMessagesTitle,
                                 color = scheme.textPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold,
@@ -303,7 +305,7 @@ internal fun ForwardTargetPickerScreen(
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = "Сохранить на память",
+                                text = strings.savedMessagesSubtitle,
                                 color = scheme.textSecondary,
                                 fontSize = 14.sp,
                                 maxLines = 1,
@@ -345,7 +347,7 @@ internal fun ForwardTargetPickerScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Глобальный поиск по серверу",
+                                text = strings.globalServerSearchHeader,
                                 color = scheme.textSecondary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold

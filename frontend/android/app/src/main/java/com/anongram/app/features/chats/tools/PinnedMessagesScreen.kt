@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.ui.draw.shadow
 import com.anongram.app.core.theme.CrimsonKillSwitch
+import com.anongram.app.features.chats.tools.i18n.ToolsI18n
 import com.anongram.app.features.chats.ui.components.DateChip
 import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -76,12 +77,9 @@ internal fun PinnedMessagesScreen(
 ) {
     BackHandler(onBack = onBack)
 
+    val strings = ToolsI18n.current
     val count = pinnedMessages.size
-    val titleText = when {
-        count % 10 == 1 && count % 100 != 11 -> "$count закреплённое сообщение"
-        count % 10 in 2..4 && count % 100 !in 12..14 -> "$count закреплённых сообщения"
-        else -> "$count закреплённых сообщений"
-    }
+    val titleText = strings.pinnedCountTitle(count)
 
     val scheme = LocalAnonGramScheme.current
 
@@ -126,7 +124,7 @@ internal fun PinnedMessagesScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Назад",
+                            contentDescription = strings.back,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(24.dp)
                         )
@@ -166,7 +164,7 @@ internal fun PinnedMessagesScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Нет закреплённых сообщений",
+                            text = strings.noPinnedMessages,
                             color = scheme.textSecondary,
                             fontSize = 14.sp
                         )
@@ -235,7 +233,7 @@ internal fun PinnedMessagesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Открепить все сообщения",
+                        text = strings.unpinAllMessages,
                         color = scheme.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium

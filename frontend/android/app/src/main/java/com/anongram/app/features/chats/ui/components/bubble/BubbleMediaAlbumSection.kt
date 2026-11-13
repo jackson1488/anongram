@@ -687,7 +687,17 @@ internal fun ChatRealPhotoBox(
             )
         }
 
-        if (isVideo && !showSpoiler && !isUploading && parsedUri != null) {
+        var allowVideoAutoplay by remember(uriString) { mutableStateOf(false) }
+        LaunchedEffect(uriString, isVideo, isUploading) {
+            if (isVideo && !isUploading) {
+                kotlinx.coroutines.delay(320L)
+                allowVideoAutoplay = true
+            } else {
+                allowVideoAutoplay = false
+            }
+        }
+
+        if (isVideo && !showSpoiler && !isUploading && allowVideoAutoplay && parsedUri != null) {
             InlineMutedVideoPreview(
                 uri = parsedUri,
                 onPrepared = { durMs ->

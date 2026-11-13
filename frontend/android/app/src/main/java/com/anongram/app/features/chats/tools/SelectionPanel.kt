@@ -59,6 +59,8 @@ internal fun SelectionPanel(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -81,7 +83,7 @@ internal fun SelectionPanel(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Close,
-                    contentDescription = "Отмена выбора",
+                    contentDescription = strings.selectedCancel,
                     tint = scheme.textPrimary,
                     modifier = Modifier.size(22.dp)
                 )
@@ -100,7 +102,7 @@ internal fun SelectionPanel(
             contentAlignment = Alignment.CenterStart
         ) {
             Text(
-                text = "Выбрано $selectedCount",
+                text = if (strings.isRussian) "Выбрано $selectedCount" else "$selectedCount selected",
                 color = scheme.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
@@ -221,7 +223,7 @@ internal fun SelectionPanel(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Share,
-                            contentDescription = "Поделиться",
+                            contentDescription = strings.share,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -232,7 +234,7 @@ internal fun SelectionPanel(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Удалить",
+                            contentDescription = strings.delete,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -248,7 +250,7 @@ internal fun SelectionPanel(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Brush,
-                                    contentDescription = "Редактировать / Заменить",
+                                    contentDescription = strings.editOrReplace,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -259,7 +261,7 @@ internal fun SelectionPanel(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
-                                    contentDescription = "Сохранить в галерею",
+                                    contentDescription = strings.saveToGallery,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -270,7 +272,7 @@ internal fun SelectionPanel(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.Share,
-                                    contentDescription = "Поделиться",
+                                    contentDescription = strings.share,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -284,7 +286,7 @@ internal fun SelectionPanel(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
-                                    contentDescription = "Сохранить альбом в галерею",
+                                    contentDescription = strings.saveAlbumToGallery,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -298,7 +300,7 @@ internal fun SelectionPanel(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.FileDownload,
-                                    contentDescription = "Сохранить",
+                                    contentDescription = strings.save,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -312,7 +314,7 @@ internal fun SelectionPanel(
                             ) {
                                 Icon(
                                     imageVector = Icons.Outlined.ContentCopy,
-                                    contentDescription = "Копировать",
+                                    contentDescription = strings.copy,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -327,7 +329,7 @@ internal fun SelectionPanel(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.Reply,
-                            contentDescription = "Переслать",
+                            contentDescription = strings.forward,
                             tint = scheme.textPrimary,
                             modifier = Modifier
                                 .size(20.dp)
@@ -342,7 +344,7 @@ internal fun SelectionPanel(
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.Delete,
-                            contentDescription = "Удалить",
+                            contentDescription = strings.delete,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(20.dp)
                         )

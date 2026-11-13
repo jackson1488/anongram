@@ -67,6 +67,7 @@ internal fun ReactionChips(
 @Composable
 internal fun UnreadDivider(modifier: Modifier = Modifier) {
     val scheme = LocalAnonGramScheme.current
+    val strings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -80,7 +81,7 @@ internal fun UnreadDivider(modifier: Modifier = Modifier) {
                 .background(scheme.textSecondary.copy(alpha = 0.3f))
         )
         Text(
-            text = "Непрочитанные сообщения",
+            text = strings.unreadMessages,
             color = scheme.accent,
             fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,

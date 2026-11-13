@@ -269,10 +269,28 @@ internal fun MessageBubble(
 
         val selectionViolet = scheme.selectedGlow
 
+        val isStandaloneCircle = message.attachment is MessageAttachment.VideoCircle && message.text.isBlank()
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetPx.roundToInt(), 0) }
+                .then(
+                    if (!isStandaloneCircle) {
+                        Modifier.combinedClickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
+                                if (isSelectionMode) {
+                                    onSelect()
+                                } else {
+                                    onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
+                                }
+                            },
+                            onLongClick = onLongClick
+                        )
+                    } else Modifier
+                )
                 .then(
                     if (isSelected) {
                         Modifier.background(selectionViolet.copy(alpha = 0.14f))

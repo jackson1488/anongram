@@ -9,9 +9,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -73,19 +75,20 @@ internal fun MessageContextMenu(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
     val isMyMessage = message.direction == MessageDirection.OUTGOING
     val att = message.attachment
     val isEditable = isMyMessage && att !is MessageAttachment.Sticker
 
     val saveLabel: String? = when (att) {
-        is MessageAttachment.VideoCircle -> "Сохранить в галерею"
-        is MessageAttachment.Photo -> "Сохранить в галерею"
-        is MessageAttachment.MediaAlbum -> "Сохранить в галерею (${att.items.size})"
-        is MessageAttachment.Voice -> "Сохранить в Загрузки"
-        is MessageAttachment.File -> "Сохранить в Загрузки"
-        is MessageAttachment.FileGroup -> "Сохранить файлы (${att.items.size})"
-        is MessageAttachment.Music -> "Сохранить в Музыку"
-        is MessageAttachment.MusicGroup -> "Сохранить треки (${att.items.size})"
+        is MessageAttachment.VideoCircle -> strings.saveToGallery
+        is MessageAttachment.Photo -> strings.saveToGallery
+        is MessageAttachment.MediaAlbum -> strings.saveToGalleryCount(att.items.size)
+        is MessageAttachment.Voice -> strings.saveToDownloads
+        is MessageAttachment.File -> strings.saveToDownloads
+        is MessageAttachment.FileGroup -> strings.saveFilesCount(att.items.size)
+        is MessageAttachment.Music -> strings.saveToMusic
+        is MessageAttachment.MusicGroup -> strings.saveTracksCount(att.items.size)
         else -> null
     }
 
@@ -124,10 +127,12 @@ internal fun MessageContextMenu(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    val imeBottomPx = WindowInsets.ime.getBottom(density).toFloat()
     val menuHeightPx = with(density) { estimatedMenuDp.toPx() }
     val gapPx = with(density) { 6.dp.toPx() }
     val topBoundPx = with(density) { 60.dp.toPx() }
-    val bottomBoundPx = screenHeightPx - with(density) { 74.dp.toPx() }
+    val bottomBoundPx = (screenHeightPx - imeBottomPx - with(density) { 74.dp.toPx() })
+        .coerceAtLeast(topBoundPx + with(density) { 120.dp.toPx() })
     val maxTop = (bottomBoundPx - menuHeightPx).coerceAtLeast(topBoundPx)
 
     val computedYPx = when {
@@ -140,11 +145,11 @@ internal fun MessageContextMenu(
             anchorTopYPx - gapPx - menuHeightPx
         }
         anchorBottomYPx > 0f -> {
-            // Высокий пузырь — прижимаем к нижнему краю пузыря в пределах экрана
+            // Высокий пузырь — прижимаем к нижнему краю доступной области над клавиатурой
             (anchorBottomYPx - menuHeightPx).coerceIn(topBoundPx, maxTop)
         }
         else -> {
-            (screenHeightPx - menuHeightPx - with(density) { 80.dp.toPx() }).coerceIn(topBoundPx, maxTop)
+            (bottomBoundPx - menuHeightPx - with(density) { 6.dp.toPx() }).coerceIn(topBoundPx, maxTop)
         }
     }
 
@@ -209,7 +214,7 @@ internal fun MessageContextMenu(
                     ) {
                         Icon(
                             imageVector = Icons.Default.KeyboardArrowDown,
-                            contentDescription = "Ещё реакции",
+                            contentDescription = strings.moreReactions,
                             tint = scheme.textSecondary,
                             modifier = Modifier.size(14.dp)
                         )
@@ -228,7 +233,7 @@ internal fun MessageContextMenu(
                 ) {
                     ContextMenuRow(
                         icon = Icons.Outlined.Reply,
-                        label = "Ответить",
+                        label = strings.reply,
                         onClick = { onReply(); onDismiss() }
                     )
                     if (saveLabel != null) {
@@ -241,33 +246,33 @@ internal fun MessageContextMenu(
                     if (showCopy) {
                         ContextMenuRow(
                             icon = Icons.Outlined.ContentCopy,
-                            label = "Копировать",
+                            label = strings.copy,
                             onClick = { onCopy(); onDismiss() }
                         )
                     }
                     if (isEditable) {
                         ContextMenuRow(
                             icon = Icons.Outlined.Edit,
-                            label = "Изменить",
+                            label = strings.edit,
                             onClick = { onEdit(); onDismiss() }
                         )
                     }
                     ContextMenuRow(
                         icon = Icons.Outlined.Reply,
-                        label = "Переслать",
+                        label = strings.forward,
                         flipIcon = true,
                         onClick = { onForward(); onDismiss() }
                     )
                     if (showShare) {
                         ContextMenuRow(
                             icon = Icons.Outlined.Share,
-                            label = "Поделиться",
+                            label = strings.share,
                             onClick = { onShare(); onDismiss() }
                         )
                     }
                     ContextMenuRow(
                         icon = Icons.Outlined.PushPin,
-                        label = if (isPinned) "Открепить" else "Закрепить",
+                        label = if (isPinned) strings.unpin else strings.pin,
                         onClick = { onPin(); onDismiss() }
                     )
                     HorizontalDivider(
@@ -277,7 +282,7 @@ internal fun MessageContextMenu(
                     )
                     ContextMenuRow(
                         icon = Icons.Outlined.Delete,
-                        label = "Удалить",
+                        label = strings.delete,
                         color = Color(0xFFFF5252),
                         onClick = { onDelete(); onDismiss() }
                     )

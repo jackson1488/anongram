@@ -30,11 +30,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -48,6 +53,7 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.timeLabel
+import com.anongram.app.features.chats.tools.i18n.ToolsI18n
 
 /**
  * Верхняя парящая полоска поиска Telegram-style:
@@ -63,11 +69,19 @@ internal fun ChatSearchTopBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ToolsI18n.current
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(start = 8.dp, end = 8.dp, top = 14.dp, bottom = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -86,7 +100,7 @@ internal fun ChatSearchTopBar(
             ) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                    contentDescription = "Закрыть поиск",
+                    contentDescription = strings.closeSearch,
                     tint = scheme.textPrimary,
                     modifier = Modifier.size(22.dp)
                 )
@@ -110,7 +124,7 @@ internal fun ChatSearchTopBar(
             ) {
                 if (query.isEmpty()) {
                     Text(
-                        text = "Поиск",
+                        text = strings.searchPlaceholder,
                         color = scheme.textMuted,
                         fontSize = 15.sp
                     )
@@ -118,7 +132,9 @@ internal fun ChatSearchTopBar(
                 BasicTextField(
                     value = query,
                     onValueChange = onQueryChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
                     textStyle = TextStyle(
                         color = scheme.textPrimary,
                         fontSize = 15.sp,
@@ -132,11 +148,11 @@ internal fun ChatSearchTopBar(
             if (query.isNotEmpty()) {
                 IconButton(
                     onClick = { onQueryChange("") },
-                    modifier = Modifier.size(34.dp)
+                    modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Close,
-                        contentDescription = "Очистить запрос",
+                        contentDescription = strings.clearQuery,
                         tint = scheme.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
@@ -159,6 +175,7 @@ internal fun ChatSearchNavigationButtons(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ToolsI18n.current
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -176,7 +193,7 @@ internal fun ChatSearchNavigationButtons(
         ) {
             Icon(
                 imageVector = Icons.Outlined.KeyboardArrowUp,
-                contentDescription = "Предыдущее совпадение",
+                contentDescription = strings.prevMatch,
                 tint = if (canNavigate) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.4f),
                 modifier = Modifier.size(22.dp)
             )
@@ -194,7 +211,7 @@ internal fun ChatSearchNavigationButtons(
         ) {
             Icon(
                 imageVector = Icons.Outlined.KeyboardArrowDown,
-                contentDescription = "Следующее совпадение",
+                contentDescription = strings.nextMatch,
                 tint = if (canNavigate) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.4f),
                 modifier = Modifier.size(22.dp)
             )
@@ -216,6 +233,7 @@ internal fun ChatSearchBottomBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ToolsI18n.current
 
     Row(
         modifier = modifier
@@ -231,7 +249,7 @@ internal fun ChatSearchBottomBar(
     ) {
         // Счётчик результатов («1 из 3» или «273 результата»)
         Text(
-            text = if (counter.isBlank()) "0 из 0" else counter,
+            text = if (counter.isBlank()) strings.zeroOfZero else counter,
             color = if (enabled) scheme.textPrimary else scheme.textMuted.copy(alpha = 0.45f),
             fontSize = 14.sp,
             fontWeight = FontWeight.Medium
@@ -239,7 +257,7 @@ internal fun ChatSearchBottomBar(
 
         // Кнопка переключения режима («Списком» или «В чате»)
         Text(
-            text = if (isListMode) "В чате" else "Списком",
+            text = if (isListMode) strings.viewInChat else strings.viewAsList,
             color = if (enabled) scheme.accent else scheme.textMuted.copy(alpha = 0.35f),
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
@@ -249,19 +267,11 @@ internal fun ChatSearchBottomBar(
 }
 
 /**
- * Склонение количества результатов поиска на русском языке.
+ * Склонение количества результатов поиска.
  */
-internal fun formatResultsCount(count: Int): String {
-    val rem100 = count % 100
-    val rem10 = count % 10
-    val word = when {
-        rem100 in 11..19 -> "результатов"
-        rem10 == 1 -> "результат"
-        rem10 in 2..4 -> "результата"
-        else -> "результатов"
-    }
-    return "$count $word"
-}
+@Composable
+internal fun formatResultsCount(count: Int): String =
+    ToolsI18n.current.formatResultsCount(count)
 
 /**
  * Экран списка результатов поиска:
@@ -278,6 +288,7 @@ internal fun ChatSearchResultsList(
     bottomPadding: Dp = 80.dp
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ToolsI18n.current
 
     Box(
         modifier = modifier
@@ -292,7 +303,7 @@ internal fun ChatSearchResultsList(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Ничего не найдено",
+                    text = strings.nothingFound,
                     color = scheme.textMuted,
                     fontSize = 15.sp
                 )
@@ -304,7 +315,7 @@ internal fun ChatSearchResultsList(
             ) {
                 items(matches, key = { it.id }) { message ->
                     val isIncoming = message.direction == MessageDirection.INCOMING
-                    val senderName = if (isIncoming) peerName else "Вы"
+                    val senderName = if (isIncoming) peerName else strings.youLabel
 
                     Column(
                         modifier = Modifier
@@ -343,7 +354,7 @@ internal fun ChatSearchResultsList(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = "Вы",
+                                        text = strings.youLabel,
                                         color = scheme.onAccent,
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
@@ -379,7 +390,7 @@ internal fun ChatSearchResultsList(
                                 when (val att = message.attachment) {
                                     is MessageAttachment.Sticker -> {
                                         Text(
-                                            text = "${att.symbol} Стикер",
+                                            text = strings.stickerLabel(att.symbol),
                                             color = scheme.accent,
                                             fontSize = 14.sp
                                         )
@@ -399,7 +410,7 @@ internal fun ChatSearchResultsList(
                                         )
                                     }
                                     is MessageAttachment.Photo -> {
-                                        val photoText = if (message.text.isNotBlank()) message.text else "📷 Фотография"
+                                        val photoText = if (message.text.isNotBlank()) message.text else strings.photoLabel
                                         Text(
                                             text = buildHighlightedSnippet(
                                                 text = photoText,
@@ -415,7 +426,7 @@ internal fun ChatSearchResultsList(
                                     }
                                     is MessageAttachment.Voice -> {
                                         Text(
-                                            text = "🎙 Голосовое сообщение",
+                                            text = strings.voiceMessageLabel,
                                             color = scheme.textSecondary,
                                             fontSize = 14.sp
                                         )

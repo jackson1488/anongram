@@ -48,6 +48,8 @@ internal fun DeleteMessageDialog(
     var forEveryone by remember { mutableStateOf(false) }
     val scheme = LocalAnonGramScheme.current
 
+    val strings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
+
     Dialog(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -58,7 +60,7 @@ internal fun DeleteMessageDialog(
                 .padding(20.dp)
         ) {
             Text(
-                text = if (count > 1) "Удалить $count сообщений" else "Удалить сообщение",
+                text = if (count > 1) strings.deleteMultipleTitle(count) else strings.deleteSingleTitle,
                 color = scheme.textPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
@@ -67,14 +69,14 @@ internal fun DeleteMessageDialog(
             Spacer(modifier = Modifier.height(10.dp))
 
             Text(
-                text = if (count > 1) "Вы точно хотите удалить эти сообщения?" else "Вы точно хотите удалить это сообщение?",
+                text = if (count > 1) strings.deleteMultiplePrompt else strings.deleteSinglePrompt,
                 color = scheme.textSecondary,
                 fontSize = 14.sp
             )
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            val checkboxLabel = if (peerName.isNotBlank()) "Также удалить для $peerName" else "Также удалить для всех"
+            val checkboxLabel = if (peerName.isNotBlank()) strings.alsoDeleteForPeer(peerName) else strings.alsoDeleteForEveryone
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,12 +108,12 @@ internal fun DeleteMessageDialog(
                 horizontalArrangement = Arrangement.End
             ) {
                 TextButton(onClick = onDismiss) {
-                    Text(text = "Отмена", color = scheme.textSecondary, fontSize = 14.sp)
+                    Text(text = strings.cancel, color = scheme.textSecondary, fontSize = 14.sp)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 TextButton(onClick = { onConfirm(forEveryone) }) {
                     Text(
-                        text = "Удалить",
+                        text = strings.delete,
                         color = Color(0xFFFF5252),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold

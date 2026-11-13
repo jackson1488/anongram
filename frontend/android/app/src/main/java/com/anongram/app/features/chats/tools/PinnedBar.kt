@@ -59,50 +59,51 @@ internal fun PinnedBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
 
     val titleText = when (val att = pinned.attachment) {
         is MessageAttachment.Photo -> {
-            if (pinned.text.isNotBlank()) pinned.text else if (att.isVideo) "Видеозапись" else "Фотография"
+            if (pinned.text.isNotBlank()) pinned.text else if (att.isVideo) strings.videoType else strings.photoType
         }
         is MessageAttachment.File -> {
             if (pinned.text.isNotBlank()) pinned.text else att.name
         }
         is MessageAttachment.FileGroup -> {
-            if (pinned.text.isNotBlank()) pinned.text else "Файлы (${att.items.size} шт.)"
+            if (pinned.text.isNotBlank()) pinned.text else strings.filesCount(att.items.size)
         }
         is MessageAttachment.Music -> {
             if (pinned.text.isNotBlank()) pinned.text else "${att.artist} — ${att.title}"
         }
         is MessageAttachment.MusicGroup -> {
-            if (pinned.text.isNotBlank()) pinned.text else "Аудиозаписи (${att.items.size} шт.)"
+            if (pinned.text.isNotBlank()) pinned.text else strings.audiosCount(att.items.size)
         }
         is MessageAttachment.Voice -> {
-            if (pinned.text.isNotBlank()) pinned.text else "Голосовое сообщение (${att.durationLabel})"
+            if (pinned.text.isNotBlank()) pinned.text else strings.voiceWithDuration(att.durationLabel)
         }
         is MessageAttachment.VideoCircle -> {
-            if (pinned.text.isNotBlank()) pinned.text else "Видеосообщение"
+            if (pinned.text.isNotBlank()) pinned.text else strings.videoMessageType
         }
         is MessageAttachment.Contact -> {
-            if (pinned.text.isNotBlank()) pinned.text else "Контакт: ${att.name}"
+            if (pinned.text.isNotBlank()) pinned.text else strings.contactPrefix(att.name)
         }
         is MessageAttachment.Geo -> {
-            if (pinned.text.isNotBlank()) pinned.text else att.address.ifBlank { "Геопозиция" }
+            if (pinned.text.isNotBlank()) pinned.text else att.address.ifBlank { strings.locationType }
         }
         is MessageAttachment.Sticker -> {
-            if (pinned.text.isNotBlank()) pinned.text else "Стикер ${att.symbol}"
+            if (pinned.text.isNotBlank()) pinned.text else strings.stickerWithSymbol(att.symbol)
         }
         is MessageAttachment.MediaAlbum -> {
-            if (pinned.text.isNotBlank()) pinned.text else "Альбом (${att.items.size} медиа)"
+            if (pinned.text.isNotBlank()) pinned.text else strings.albumCount(att.items.size)
         }
         null -> {
-            pinned.text.ifBlank { "Сообщение" }
+            pinned.text.ifBlank { strings.messageFallback }
         }
     }
 
     val headerTitle = if (totalCount > 1) {
-        "#${currentIndex + 1} Закреплённое сообщение (${currentIndex + 1}/$totalCount)"
+        strings.pinnedHeaderMulti(currentIndex, totalCount)
     } else {
-        "#1 Закреплённое сообщение"
+        strings.pinnedHeaderSingle
     }
 
     Box(
@@ -309,7 +310,7 @@ internal fun PinnedBar(
             ) {
                 Icon(
                     imageVector = Icons.Outlined.PushPin,
-                    contentDescription = "Все закреплённые сообщения",
+                    contentDescription = strings.allPinnedMessages,
                     tint = scheme.textSecondary,
                     modifier = Modifier.size(18.dp)
                 )
