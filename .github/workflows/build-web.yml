@@ -46,14 +46,23 @@ jobs:
         working-directory: frontend/web
         run: |
           gradle wasmJsBrowserDistribution wasmJsBrowserDevelopmentExecutableDistribution --stacktrace --info || true
-          echo "=== LOCATING BUILT ASSETS ==="
-          find build -name "index.html" -o -name "*.wasm" -o -name "*.js"
           mkdir -p build/dist/bundle
-          if [ -d "build/dist/wasmJs/productionExecutable" ]; then
-            cp -r build/dist/wasmJs/productionExecutable/* build/dist/bundle/
-          elif [ -d "build/dist/wasmJs/developmentExecutable" ]; then
-            cp -r build/dist/wasmJs/developmentExecutable/* build/dist/bundle/
+          
+          # Находим каталог, где лежит скомпилированный index.html
+          INDEX_PATH=$(find build -name "index.html" | grep -E "(productionExecutable|developmentExecutable|dist)" | head -n 1)
+          if [ -n "$INDEX_PATH" ]; then
+            DIST_DIR=$(dirname "$INDEX_PATH")
+            echo "Copying web assets from $DIST_DIR to build/dist/bundle/"
+            cp -r "$DIST_DIR"/* build/dist/bundle/
           fi
+          
+          # Обязательно для GitHub Pages: отключаем Jekyll и дублируем 404 для SPA
+          touch build/dist/bundle/.nojekyll
+          if [ -f "build/dist/bundle/index.html" ]; then
+            cp build/dist/bundle/index.html build/dist/bundle/404.html
+          fi
+          
+          echo "=== FINAL BUNDLE CONTENTS ==="
           ls -la build/dist/bundle/
 
       - name: 📋 Upload Build Failure Log
