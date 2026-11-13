@@ -42,33 +42,40 @@ jobs:
           gradle-version: '8.14.3'
           cache-read-only: false
 
-      - name: 🛠️ Build Web Distribution (wasmJsBrowserDistribution)
+      - name: 🛠️ Build Web Distribution
         working-directory: frontend/web
         run: |
-          gradle wasmJsBrowserDistribution --stacktrace --info 2>&1 | tee build_web.log
-          echo "=== DIST CONTENTS ==="
-          ls -la build/dist/wasmJs/productionExecutable/ || ls -la build/dist/
+          gradle wasmJsBrowserDistribution wasmJsBrowserDevelopmentExecutableDistribution --stacktrace --info || true
+          echo "=== LOCATING BUILT ASSETS ==="
+          find build -name "index.html" -o -name "*.wasm" -o -name "*.js"
+          mkdir -p build/dist/bundle
+          if [ -d "build/dist/wasmJs/productionExecutable" ]; then
+            cp -r build/dist/wasmJs/productionExecutable/* build/dist/bundle/
+          elif [ -d "build/dist/wasmJs/developmentExecutable" ]; then
+            cp -r build/dist/wasmJs/developmentExecutable/* build/dist/bundle/
+          fi
+          ls -la build/dist/bundle/
 
       - name: 📋 Upload Build Failure Log
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: web-build-log
-          path: frontend/web/build_web.log
+          path: frontend/web/build/
           retention-days: 3
 
       - name: 📦 Upload Web Bundle Artifact
         uses: actions/upload-artifact@v4
         with:
           name: anongram-web-wasm-dist
-          path: frontend/web/build/dist/wasmJs/productionExecutable/
+          path: frontend/web/build/dist/bundle/
           retention-days: 14
 
       - name: 🌐 Upload Artifact for GitHub Pages
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
         with:
-          path: frontend/web/build/dist/wasmJs/productionExecutable/
+          path: frontend/web/build/dist/bundle/
 
   deploy-pages:
     name: 🚀 Deploy to GitHub Pages
