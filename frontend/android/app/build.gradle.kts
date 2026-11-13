@@ -69,6 +69,9 @@ android {
         jniLibs {
             useLegacyPackaging = true
         }
+        dex {
+            useLegacyPackaging = true
+        }
     }
     externalNativeBuild {
         cmake {
