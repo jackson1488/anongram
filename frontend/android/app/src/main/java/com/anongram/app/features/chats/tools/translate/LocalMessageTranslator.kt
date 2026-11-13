@@ -2,7 +2,6 @@ package com.anongram.app.features.chats.tools.translate
 
 import android.content.Context
 import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
-import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import com.google.android.gms.tasks.Task
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.common.model.RemoteModelManager
@@ -175,7 +174,7 @@ object LocalMessageTranslator {
         if (TranslateLanguage.fromLanguageTag(sysLang) != null) {
             return sysLang
         }
-        return if (ModulesI18n.current.isRussian) "ru" else "en"
+        return if (Locale.getDefault().language.startsWith("ru")) "ru" else "en"
     }
 
     private fun launchTranslation(

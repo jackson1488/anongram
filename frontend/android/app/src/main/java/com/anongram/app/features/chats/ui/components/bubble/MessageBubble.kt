@@ -722,7 +722,7 @@ internal fun MessageBubble(
                                                 }
                                                 Text(
                                                     text = badgeLabel,
-                                                    color = if (translationEntry.error != null) scheme.danger else scheme.accent,
+                                                    color = if (translationEntry.error != null) FlameOrange else scheme.accent,
                                                     fontSize = 11.5.sp,
                                                     fontWeight = FontWeight.Medium,
                                                     modifier = Modifier

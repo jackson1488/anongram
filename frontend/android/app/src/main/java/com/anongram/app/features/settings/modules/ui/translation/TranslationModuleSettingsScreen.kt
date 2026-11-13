@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.chats.tools.translate.LocalMessageTranslator
@@ -288,7 +289,7 @@ fun TranslationModuleSettingsScreen(
                             Text(
                                 text = sub,
                                 color = when {
-                                    errorText != null -> scheme.danger
+                                    errorText != null -> CrimsonKillSwitch
                                     isDownloaded -> scheme.accent
                                     else -> scheme.textSecondary
                                 },
@@ -314,7 +315,7 @@ fun TranslationModuleSettingsScreen(
                                     Icon(
                                         imageVector = Icons.Outlined.DeleteOutline,
                                         contentDescription = strings.deleteBtn,
-                                        tint = scheme.danger,
+                                        tint = CrimsonKillSwitch,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
