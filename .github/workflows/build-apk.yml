@@ -101,10 +101,10 @@ jobs:
       - name: 🛠️ Build Signed APK
         working-directory: frontend/android
         run: |
-          if [ "${{ github.event.inputs.build_type }}" = "release" ]; then
-            gradle assembleRelease --stacktrace
-          else
+          if [ "${{ github.event.inputs.build_type }}" = "debug" ]; then
             gradle assembleDebug --stacktrace
+          else
+            gradle assembleRelease --stacktrace
           fi
 
       - name: 🔍 Verify Signed APK & Display Certificate
