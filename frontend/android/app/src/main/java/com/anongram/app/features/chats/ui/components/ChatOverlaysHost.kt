@@ -394,16 +394,6 @@ private fun ChatMessageActionAndSettingsOverlays(
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    if (state.isGeoOpen) {
-        GeoPickerScreen(
-            onBack = viewModel::closeGeoPicker,
-            onSendGeo = { geoAttachment ->
-                viewModel.sendAttachment(geoAttachment)
-                viewModel.closeGeoPicker()
-            }
-        )
-    }
-
     state.actionMenuFor?.let { message ->
         MessageContextMenu(
             message = message,

@@ -1498,10 +1498,6 @@ class ChatMessagesViewModel(
 
     fun closeEmojiPanel() = _uiState.update { it.copy(isEmojiOpen = false) }
 
-    fun openGeoPicker() = _uiState.update { it.copy(isGeoOpen = true, isAttachOpen = false) }
-
-    fun closeGeoPicker() = _uiState.update { it.copy(isGeoOpen = false) }
-
     fun openKeyCheck() = _uiState.update { it.copy(isKeyCheckOpen = true) }
 
     fun closeKeyCheck() = _uiState.update { it.copy(isKeyCheckOpen = false) }

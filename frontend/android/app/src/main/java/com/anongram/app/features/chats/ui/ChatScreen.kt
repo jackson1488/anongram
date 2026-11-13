@@ -185,7 +185,6 @@ fun ChatScreen(
             state.isSelectionMode -> viewModel.clearSelection()
             state.isEmojiOpen -> viewModel.closeEmojiPanel()
             state.isAttachOpen -> viewModel.closeAttach()
-            state.isGeoOpen -> viewModel.closeGeoPicker()
             state.actionMenuFor != null -> viewModel.closeActionMenu()
             state.isNotificationsOpen -> viewModel.closeNotifications()
             state.isKeyCheckOpen -> viewModel.closeKeyCheck()

@@ -69,7 +69,6 @@ data class ChatMessagesUiState(
     val isCameraMode: Boolean = false,
     val isAttachOpen: Boolean = false,
     val isEmojiOpen: Boolean = false,
-    val isGeoOpen: Boolean = false,
     val isKeyCheckOpen: Boolean = false,
     val isNotificationsOpen: Boolean = false,
     val isNotificationsMuteDialogOpen: Boolean = false,
