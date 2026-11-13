@@ -253,6 +253,7 @@ internal fun MessageBubble(
         val configuration = androidx.compose.ui.platform.LocalConfiguration.current
         val screenWidth = configuration.screenWidthDp.dp
         val bubbleMaxWidth = when (message.attachment) {
+            is MessageAttachment.Photo, is MessageAttachment.MediaAlbum -> screenWidth * 0.88f
             is MessageAttachment.File -> screenWidth * 0.84f
             is MessageAttachment.FileGroup, is MessageAttachment.MusicGroup -> screenWidth * 0.77f
             is MessageAttachment.Contact -> screenWidth * 0.78f

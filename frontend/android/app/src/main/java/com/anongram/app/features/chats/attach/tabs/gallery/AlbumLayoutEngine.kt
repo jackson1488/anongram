@@ -125,7 +125,7 @@ internal sealed interface AlbumLayoutPlan {
  */
 internal fun computeAlbumLayoutPlan(
     aspects: List<Float>,
-    targetWidthDp: Float = 305f
+    targetWidthDp: Float = 340f
 ): AlbumLayoutPlan {
     val count = aspects.size
     val allVertical = aspects.all { it < 1.1f }
@@ -136,8 +136,8 @@ internal fun computeAlbumLayoutPlan(
             if (allVertical) {
                 AlbumLayoutPlan.TwoVertical
             } else {
-                val h0 = (targetWidthDp / aspects[0].coerceIn(0.85f, 2.5f)).coerceIn(130f, 215f)
-                val h1 = (targetWidthDp / aspects[1].coerceIn(0.85f, 2.5f)).coerceIn(130f, 215f)
+                val h0 = (targetWidthDp / aspects[0].coerceIn(0.85f, 2.5f)).coerceIn(135f, 235f)
+                val h1 = (targetWidthDp / aspects[1].coerceIn(0.85f, 2.5f)).coerceIn(135f, 235f)
                 AlbumLayoutPlan.TwoStacked(h0, h1)
             }
         }

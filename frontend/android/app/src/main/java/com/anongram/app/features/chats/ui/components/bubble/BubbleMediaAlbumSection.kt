@@ -102,18 +102,22 @@ internal fun ChatSinglePhotoSection(
         val sizeModifier = if (dims != null) {
             val (rawW, rawH) = dims!!
             val aspect = (rawW.toFloat() / rawH.toFloat()).coerceIn(0.42f, 2.8f)
-            if (singlePhotoStretch) {
-                val maxH = if (aspect < 0.95f) 460f else 360f
-                val targetH = (310f / aspect).coerceIn(150f, maxH)
+            if (aspect >= 1.1f) {
+                Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(aspect.coerceIn(1.1f, 2.4f))
+                    .clip(RoundedCornerShape(14.dp))
+            } else if (singlePhotoStretch) {
+                val targetH = (325f / aspect).coerceIn(180f, 490f)
                 Modifier
                     .fillMaxWidth()
                     .height(targetH.dp)
                     .clip(RoundedCornerShape(14.dp))
             } else {
-                val maxW = if (aspect >= 1.1f) 310f else 300f
-                val minW = 170f
-                val maxH = if (aspect < 0.95f) 460f else 340f
-                val minH = 145f
+                val maxW = 325f
+                val minW = 190f
+                val maxH = 490f
+                val minH = 180f
                 var targetW = maxW
                 var targetH = targetW / aspect
                 if (targetH > maxH) {
@@ -131,12 +135,12 @@ internal fun ChatSinglePhotoSection(
         } else if (singlePhotoStretch) {
             Modifier
                 .fillMaxWidth()
-                .height(270.dp)
+                .height(290.dp)
                 .clip(RoundedCornerShape(14.dp))
         } else {
             Modifier
-                .width(280.dp)
-                .height(360.dp)
+                .width(305.dp)
+                .height(390.dp)
                 .clip(RoundedCornerShape(14.dp))
         }
 
