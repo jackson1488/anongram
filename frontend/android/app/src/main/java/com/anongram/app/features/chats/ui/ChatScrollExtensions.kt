@@ -5,6 +5,8 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.lazy.LazyListState
+import com.anongram.app.core.ui.AppMotionDurationScale
+import kotlinx.coroutines.withContext
 
 /**
  * Плавная прокрутка с точным центрированием элемента по вертикали экрана в LazyColumn.
@@ -20,8 +22,8 @@ import androidx.compose.foundation.lazy.LazyListState
  */
 suspend fun LazyListState.animateScrollAndCenterItem(
     index: Int
-) {
-    if (index < 0) return
+) = withContext(AppMotionDurationScale) {
+    if (index < 0) return@withContext
 
     val visibleItem = layoutInfo.visibleItemsInfo.firstOrNull { it.index == index }
     val viewportSpan = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).takeIf { it > 0 }

@@ -1,6 +1,8 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
+import com.anongram.app.core.ui.AppMotionDurationScale
 import com.anongram.app.features.chats.media.player.ChatTrack
+import kotlinx.coroutines.withContext
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -188,13 +190,20 @@ internal fun MessageBubble(
     }
 
     val pulseAnim = remember { Animatable(0f) }
-    LaunchedEffect(isHighlighted) {
+    LaunchedEffect(isHighlighted, animSettings.reduceMotionEnabled, animSettings.speedMultiplier) {
         if (isHighlighted) {
-            pulseAnim.snapTo(0f)
-            pulseAnim.animateTo(1f, tween(durationMillis = 280, easing = FastOutSlowInEasing))
-            pulseAnim.animateTo(0.35f, tween(durationMillis = 200, easing = LinearOutSlowInEasing))
-            pulseAnim.animateTo(1f, tween(durationMillis = 260, easing = FastOutSlowInEasing))
-            pulseAnim.animateTo(0f, tween(durationMillis = 1100, easing = LinearOutSlowInEasing))
+            if (animSettings.reduceMotionEnabled) {
+                pulseAnim.snapTo(0.65f)
+            } else {
+                val mult = animSettings.speedMultiplier.coerceIn(0.4f, 2.0f)
+                withContext(AppMotionDurationScale) {
+                    pulseAnim.snapTo(0f)
+                    pulseAnim.animateTo(1f, tween(durationMillis = (280 * mult).toInt().coerceAtLeast(80), easing = FastOutSlowInEasing))
+                    pulseAnim.animateTo(0.35f, tween(durationMillis = (200 * mult).toInt().coerceAtLeast(60), easing = LinearOutSlowInEasing))
+                    pulseAnim.animateTo(1f, tween(durationMillis = (260 * mult).toInt().coerceAtLeast(80), easing = FastOutSlowInEasing))
+                    pulseAnim.animateTo(0f, tween(durationMillis = (1100 * mult).toInt().coerceAtLeast(250), easing = LinearOutSlowInEasing))
+                }
+            }
         } else {
             pulseAnim.snapTo(0f)
         }

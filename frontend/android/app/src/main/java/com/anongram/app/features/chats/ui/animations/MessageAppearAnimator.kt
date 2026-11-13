@@ -12,20 +12,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.MotionDurationScale
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
+import com.anongram.app.core.ui.AppMotionDurationScale
 import com.anongram.app.features.settings.animations.data.MessageAppearStyle
 import com.anongram.app.features.settings.animations.data.TokenStreamSpeed
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-private object AppMotionDurationScale : MotionDurationScale {
-    override val scaleFactor: Float = 1f
-}
 
 private val TOKEN_REGEX = Regex("\\S+\\s*|\\s+")
 
