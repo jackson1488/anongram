@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import com.anongram.app.features.settings.animations.data.MessageAppearStyle
 import com.anongram.app.features.settings.animations.data.TokenStreamSpeed
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -62,7 +63,7 @@ fun rememberStreamedMessageText(
 
     var visibleText by remember(animateKey) { mutableStateOf("") }
 
-    LaunchedEffect(animateKey, fullText, shouldStream) {
+    LaunchedEffect(animateKey, fullText, shouldStream, tokenSpeed, speedMultiplier) {
         if (!shouldStream) {
             visibleText = fullText
             return@LaunchedEffect
@@ -122,7 +123,7 @@ fun MessageAppearWrapper(
         )
     }
 
-    LaunchedEffect(animateKey, shouldAnimate, style) {
+    LaunchedEffect(animateKey, shouldAnimate, style, speedMultiplier) {
         if (!shouldAnimate) {
             alpha.snapTo(1f)
             scale.snapTo(1f)
@@ -130,49 +131,67 @@ fun MessageAppearWrapper(
             return@LaunchedEffect
         }
 
+        val startScale = when (style) {
+            MessageAppearStyle.CORNER_POP -> 0.55f
+            MessageAppearStyle.SPRING_FLY -> 0.90f
+            MessageAppearStyle.SLIDE_FADE -> 0.96f
+            MessageAppearStyle.TOKEN_STREAM -> 0.96f
+        }
+        val startOffsetY = when (style) {
+            MessageAppearStyle.SPRING_FLY -> 48f
+            MessageAppearStyle.SLIDE_FADE -> 36f
+            MessageAppearStyle.CORNER_POP -> 18f
+            MessageAppearStyle.TOKEN_STREAM -> 16f
+        }
+        alpha.snapTo(0f)
+        scale.snapTo(startScale)
+        offsetY.snapTo(startOffsetY)
+
         val mult = speedMultiplier.coerceIn(0.4f, 2.0f)
-        when (style) {
-            MessageAppearStyle.SPRING_FLY -> {
-                launch { alpha.animateTo(1f, tween((180 * mult).toInt())) }
-                launch {
-                    scale.animateTo(
-                        1f,
-                        spring(dampingRatio = 0.72f, stiffness = 380f / mult)
-                    )
+        coroutineScope {
+            when (style) {
+                MessageAppearStyle.SPRING_FLY -> {
+                    launch { alpha.animateTo(1f, tween((180 * mult).toInt().coerceAtLeast(60))) }
+                    launch {
+                        scale.animateTo(
+                            1f,
+                            spring(dampingRatio = 0.68f, stiffness = 340f / mult)
+                        )
+                    }
+                    launch {
+                        offsetY.animateTo(
+                            0f,
+                            spring(dampingRatio = 0.70f, stiffness = 320f / mult)
+                        )
+                    }
                 }
-                launch {
-                    offsetY.animateTo(
-                        0f,
-                        spring(dampingRatio = 0.74f, stiffness = 360f / mult)
-                    )
+                MessageAppearStyle.SLIDE_FADE -> {
+                    val dur = (260 * mult).toInt().coerceAtLeast(80)
+                    launch { alpha.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
+                    launch { scale.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
+                    launch { offsetY.animateTo(0f, tween(dur, easing = FastOutSlowInEasing)) }
                 }
-            }
-            MessageAppearStyle.SLIDE_FADE -> {
-                val dur = (240 * mult).toInt().coerceAtLeast(80)
-                launch { alpha.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
-                launch { scale.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
-                launch { offsetY.animateTo(0f, tween(dur, easing = FastOutSlowInEasing)) }
-            }
-            MessageAppearStyle.CORNER_POP -> {
-                launch { alpha.animateTo(1f, tween((140 * mult).toInt())) }
-                launch {
-                    scale.animateTo(
-                        1f,
-                        spring(dampingRatio = 0.62f, stiffness = 460f / mult)
-                    )
+                MessageAppearStyle.CORNER_POP -> {
+                    launch { alpha.animateTo(1f, tween((150 * mult).toInt().coerceAtLeast(50))) }
+                    launch {
+                        scale.animateTo(
+                            1f,
+                            spring(dampingRatio = 0.58f, stiffness = 420f / mult)
+                        )
+                    }
+                    launch {
+                        offsetY.animateTo(
+                            0f,
+                            spring(dampingRatio = 0.68f, stiffness = 400f / mult)
+                        )
+                    }
                 }
-                launch {
-                    offsetY.animateTo(
-                        0f,
-                        spring(dampingRatio = 0.72f, stiffness = 440f / mult)
-                    )
+                MessageAppearStyle.TOKEN_STREAM -> {
+                    val dur = (150 * mult).toInt().coerceAtLeast(60)
+                    launch { alpha.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
+                    launch { scale.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
+                    launch { offsetY.animateTo(0f, tween(dur, easing = FastOutSlowInEasing)) }
                 }
-            }
-            MessageAppearStyle.TOKEN_STREAM -> {
-                val dur = (150 * mult).toInt().coerceAtLeast(60)
-                launch { alpha.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
-                launch { scale.animateTo(1f, tween(dur, easing = FastOutSlowInEasing)) }
-                launch { offsetY.animateTo(0f, tween(dur, easing = FastOutSlowInEasing)) }
             }
         }
         onAnimationFinished()

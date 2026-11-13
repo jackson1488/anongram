@@ -1,38 +1,52 @@
 package com.anongram.app.features.settings.animations.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
+import com.anongram.app.features.settings.animations.data.MessageAppearStyle
 import com.anongram.app.features.settings.animations.i18n.AnimationsI18n
 import com.anongram.app.features.settings.animations.ui.components.AnimationsEffectsCard
-import com.anongram.app.features.settings.animations.ui.components.AnimationsMessagesCard
 import com.anongram.app.features.settings.animations.ui.components.AnimationsPerformanceCard
 import com.anongram.app.features.settings.animations.ui.components.AnimationsTopBar
 
 /**
  * Экран «Анимации» (`features/settings/animations/`).
- * Изолированный модуль управления анимациями сообщений (включая AI-стриминг), эффектами и производительностью.
+ * Плоский список разделов в стиле Telegram: переход в «Сообщения в чате», визуальные эффекты и производительность.
  */
 @Composable
 fun AnimationsSettingsScreen(
+    onOpenMessagesAnimations: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
     val strings = AnimationsI18n.current
     val state by AnimationsSettingsStore.state.collectAsState()
 
@@ -41,6 +55,17 @@ fun AnimationsSettingsScreen(
     }
 
     BackHandler(onBack = onBack)
+
+    val activeStyleLabel = if (!state.messageAppearEnabled) {
+        strings.messagesRowDisabled
+    } else {
+        when (state.messageAppearStyle) {
+            MessageAppearStyle.SPRING_FLY -> strings.styleSpringTitle
+            MessageAppearStyle.SLIDE_FADE -> strings.styleSlideTitle
+            MessageAppearStyle.CORNER_POP -> strings.stylePopTitle
+            MessageAppearStyle.TOKEN_STREAM -> strings.styleStreamTitle
+        }
+    }
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -53,37 +78,38 @@ fun AnimationsSettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                // Карточка анимаций отправки/получения сообщений + AI-стриминг + живой предпросмотр
-                AnimationsMessagesCard(
-                    messageAppearEnabled = state.messageAppearEnabled,
-                    onMessageAppearEnabledChange = {
-                        AnimationsSettingsStore.setMessageAppearEnabled(context, it)
-                    },
-                    appearStyle = state.messageAppearStyle,
-                    onAppearStyleChange = {
-                        AnimationsSettingsStore.setMessageAppearStyle(context, it)
-                    },
-                    tokenStreamSpeed = state.tokenStreamSpeed,
-                    onTokenStreamSpeedChange = {
-                        AnimationsSettingsStore.setTokenStreamSpeed(context, it)
-                    },
-                    listItemShiftEnabled = state.listItemShiftEnabled,
-                    onListItemShiftEnabledChange = {
-                        AnimationsSettingsStore.setListItemShiftEnabled(context, it)
-                    },
-                    statusCheckAnimEnabled = state.statusCheckAnimEnabled,
-                    onStatusCheckAnimEnabledChange = {
-                        AnimationsSettingsStore.setStatusCheckAnimEnabled(context, it)
-                    },
-                    speedMultiplier = state.speedMultiplier,
-                    reduceMotionEnabled = state.reduceMotionEnabled
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenMessagesAnimations)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = strings.messagesSectionTitle,
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = activeStyleLabel,
+                            color = scheme.accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = scheme.textMuted
+                    )
+                }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = scheme.divider)
 
-                // Карточка визуальных эффектов
                 AnimationsEffectsCard(
                     screenTransitionsEnabled = state.screenTransitionsEnabled,
                     onScreenTransitionsChange = {
@@ -107,9 +133,8 @@ fun AnimationsSettingsScreen(
                     }
                 )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(color = scheme.divider)
 
-                // Карточка производительности
                 AnimationsPerformanceCard(
                     reduceMotionEnabled = state.reduceMotionEnabled,
                     onReduceMotionChange = {

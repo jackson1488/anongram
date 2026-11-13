@@ -32,7 +32,8 @@ data class AnimationsI18nStrings(
     val previewHeader: String,
     val previewReplayBtn: String,
     val previewIncomingSample: String,
-    val previewOutgoingSample: String
+    val previewOutgoingSample: String,
+    val messagesRowDisabled: String
 )
 
 private val RuAnimationsStrings = AnimationsI18nStrings(
@@ -62,7 +63,8 @@ private val RuAnimationsStrings = AnimationsI18nStrings(
     previewHeader = "Предпросмотр",
     previewReplayBtn = "Проверить",
     previewIncomingSample = "Привет! Как работает стриминг сообщений в AnonGram?",
-    previewOutgoingSample = "Всё летает локально, токен за токеном и без задержек!"
+    previewOutgoingSample = "Всё летает локально, токен за токеном и без задержек!",
+    messagesRowDisabled = "Отключено"
 )
 
 private val EnAnimationsStrings = AnimationsI18nStrings(
@@ -92,7 +94,8 @@ private val EnAnimationsStrings = AnimationsI18nStrings(
     previewHeader = "Preview",
     previewReplayBtn = "Replay",
     previewIncomingSample = "Hey! How does message streaming work in AnonGram?",
-    previewOutgoingSample = "Everything runs smoothly, token by token with zero lag!"
+    previewOutgoingSample = "Everything runs smoothly, token by token with zero lag!",
+    messagesRowDisabled = "Disabled"
 )
 
 object AnimationsI18n {

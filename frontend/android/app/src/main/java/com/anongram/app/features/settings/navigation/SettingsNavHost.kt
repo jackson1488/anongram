@@ -2,12 +2,16 @@ package com.anongram.app.features.settings.navigation
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -21,7 +25,10 @@ import com.anongram.app.features.settings.battery.ui.BatterySettingsScreen
 import com.anongram.app.features.settings.chat_settings.ui.ChatAppearanceSettingsScreen
 import com.anongram.app.features.settings.data_storage.ui.DataStorageSettingsScreen
 import com.anongram.app.features.settings.devices.ui.DevicesSettingsScreen
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.animations.ui.AnimationsSettingsScreen
+import com.anongram.app.features.settings.animations.ui.messages.MessageAnimationsSettingsScreen
+import kotlin.math.roundToInt
 import com.anongram.app.features.settings.language.ui.LanguageSettingsScreen
 import com.anongram.app.features.settings.main.ui.SettingsMainScreen
 import com.anongram.app.features.settings.modules.ui.ModulesSettingsScreen
@@ -58,6 +65,11 @@ fun SettingsNavHost(
     }
     val publicKeyHex = identity?.masterVkHex ?: "8f91c2a0b47d12e8903fa12b94c8e391"
 
+    val animState by AnimationsSettingsStore.state.collectAsState()
+    LaunchedEffect(Unit) {
+        AnimationsSettingsStore.ensureInitialized(context)
+    }
+
     val backStack = remember { mutableStateListOf<SettingsRoute>(SettingsRoute.Main) }
     val currentRoute = backStack.lastOrNull() ?: SettingsRoute.Main
 
@@ -80,12 +92,21 @@ fun SettingsNavHost(
     AnimatedContent(
         targetState = currentRoute,
         transitionSpec = {
-            if (targetState == SettingsRoute.Main) {
-                (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
-                    (slideOutHorizontally { it } + fadeOut())
+            if (!animState.screenTransitionsEnabled || animState.reduceMotionEnabled) {
+                fadeIn(snap()) togetherWith fadeOut(snap())
             } else {
-                (slideInHorizontally { it } + fadeIn()) togetherWith
-                    (slideOutHorizontally { -it / 3 } + fadeOut())
+                val durationMs = (280f / animState.speedMultiplier.coerceAtLeast(0.25f))
+                    .roundToInt()
+                    .coerceIn(70, 800)
+                val isBack = targetState == SettingsRoute.Main ||
+                    (initialState == SettingsRoute.AnimationsMessages && targetState == SettingsRoute.Animations)
+                if (isBack) {
+                    (slideInHorizontally(tween(durationMs)) { -it / 3 } + fadeIn(tween(durationMs))) togetherWith
+                        (slideOutHorizontally(tween(durationMs)) { it } + fadeOut(tween(durationMs)))
+                } else {
+                    (slideInHorizontally(tween(durationMs)) { it } + fadeIn(tween(durationMs))) togetherWith
+                        (slideOutHorizontally(tween(durationMs)) { -it / 3 } + fadeOut(tween(durationMs)))
+                }
             }
         },
         label = "SettingsNavHostTransition",
@@ -168,6 +189,13 @@ fun SettingsNavHost(
 
             SettingsRoute.Animations -> {
                 AnimationsSettingsScreen(
+                    onOpenMessagesAnimations = { navigateTo(SettingsRoute.AnimationsMessages) },
+                    onBack = popBack
+                )
+            }
+
+            SettingsRoute.AnimationsMessages -> {
+                MessageAnimationsSettingsScreen(
                     onBack = popBack
                 )
             }

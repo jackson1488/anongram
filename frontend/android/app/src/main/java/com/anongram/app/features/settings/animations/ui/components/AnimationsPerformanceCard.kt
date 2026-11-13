@@ -44,10 +44,7 @@ fun AnimationsPerformanceCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(scheme.card)
-            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Text(
             text = "Производительность",

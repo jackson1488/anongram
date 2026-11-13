@@ -1,5 +1,12 @@
 package com.anongram.app.features.chats.ui.components.bubble
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -14,6 +21,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +37,7 @@ import com.anongram.app.core.theme.FlameOrange
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.MessageStatus
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 
 /**
  * Иконка статуса доставки сообщения (отправка, отправлено, прочитано, ошибка с повтором).
@@ -40,36 +50,56 @@ fun DeliveryStatus(
     mutedTint: Color = LocalContentColor.current.copy(alpha = 0.68f)
 ) {
     val scheme = LocalAnonGramScheme.current
-    when (status) {
-        MessageStatus.SENDING -> Icon(
-            imageVector = Icons.Outlined.Schedule,
-            contentDescription = "Отправляется",
-            tint = mutedTint,
-            modifier = Modifier.size(iconSize)
-        )
+    val animSettings by AnimationsSettingsStore.state.collectAsState()
+    val animateCheck = animSettings.statusCheckAnimEnabled && !animSettings.reduceMotionEnabled
 
-        MessageStatus.SENT -> Icon(
-            painter = painterResource(id = R.drawable.ic_tick_single),
-            contentDescription = "Отправлено",
-            tint = mutedTint,
-            modifier = Modifier.size(iconSize)
-        )
+    AnimatedContent(
+        targetState = status,
+        transitionSpec = {
+            if (!animateCheck) {
+                androidx.compose.animation.EnterTransition.None togetherWith
+                    androidx.compose.animation.ExitTransition.None
+            } else {
+                val dur = (180 * animSettings.speedMultiplier).toInt().coerceAtLeast(60)
+                (scaleIn(
+                    initialScale = 0.55f,
+                    animationSpec = spring(dampingRatio = 0.6f, stiffness = 450f / animSettings.speedMultiplier)
+                ) + fadeIn(tween(dur))) togetherWith fadeOut(tween((dur * 0.7f).toInt().coerceAtLeast(40)))
+            }
+        },
+        label = "DeliveryStatusAnim"
+    ) { currentStatus ->
+        when (currentStatus) {
+            MessageStatus.SENDING -> Icon(
+                imageVector = Icons.Outlined.Schedule,
+                contentDescription = "Отправляется",
+                tint = mutedTint,
+                modifier = Modifier.size(iconSize)
+            )
 
-        MessageStatus.READ -> Icon(
-            painter = painterResource(id = R.drawable.ic_tick_double),
-            contentDescription = "Прочитано",
-            tint = scheme.accent,
-            modifier = Modifier.size(iconSize)
-        )
+            MessageStatus.SENT -> Icon(
+                painter = painterResource(id = R.drawable.ic_tick_single),
+                contentDescription = "Отправлено",
+                tint = mutedTint,
+                modifier = Modifier.size(iconSize)
+            )
 
-        MessageStatus.FAILED -> Icon(
-            imageVector = Icons.Outlined.WarningAmber,
-            contentDescription = "Ошибка доставки. Нажмите для повтора",
-            tint = FlameOrange,
-            modifier = Modifier
-                .size(iconSize)
-                .clickable(onClick = onRetry)
-        )
+            MessageStatus.READ -> Icon(
+                painter = painterResource(id = R.drawable.ic_tick_double),
+                contentDescription = "Прочитано",
+                tint = scheme.accent,
+                modifier = Modifier.size(iconSize)
+            )
+
+            MessageStatus.FAILED -> Icon(
+                imageVector = Icons.Outlined.WarningAmber,
+                contentDescription = "Ошибка доставки. Нажмите для повтора",
+                tint = FlameOrange,
+                modifier = Modifier
+                    .size(iconSize)
+                    .clickable(onClick = onRetry)
+            )
+        }
     }
 }
 
