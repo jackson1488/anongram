@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,12 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,18 +43,18 @@ import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
+import com.anongram.app.features.settings.modules.data.VoiceSttEngine
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import com.anongram.app.features.settings.modules.ui.translation.TranslationModuleSection
-import com.anongram.app.features.settings.modules.ui.voice.VoiceModuleSection
 import com.anongram.app.features.settings.modules.ui.voice.formatMb
 
 /**
- * Экран «Модули» (`features/settings/modules/`):
- * Единый центр управления внешними модулями (ГС: Whisper/Vosk/Системный,
- * локальный перевод сообщений, управление скачанными пакетами).
+ * Экран-хаб «Модули» (`features/settings/modules/`):
+ * Чистый список модулей (Расшифровка ГС -> отдельный экран, Локальный перевод, Память модулей).
  */
 @Composable
 fun ModulesSettingsScreen(
+    onOpenVoiceModule: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -114,12 +118,68 @@ fun ModulesSettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                // 1. Расшифровка ГС
-                VoiceModuleSection(
-                    settings = settings,
-                    assetStates = assetStates,
-                    assetManager = assetManager
-                )
+                // 1. Карточка перехода на отдельный экран модуля расшифровки ГС
+                val activeEngineLabel = when (settings.voiceEngine) {
+                    VoiceSttEngine.WHISPER -> strings.engineWhisperTitle
+                    VoiceSttEngine.VOSK -> strings.engineVoskTitle
+                    VoiceSttEngine.SYSTEM_GOOGLE -> strings.engineSystemTitle
+                }
+                val isRecommended = settings.voiceEngine != VoiceSttEngine.SYSTEM_GOOGLE
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(scheme.card)
+                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
+                        .clickable(onClick = onOpenVoiceModule)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(38.dp)
+                                .clip(CircleShape)
+                                .background(scheme.accent.copy(alpha = 0.14f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.GraphicEq,
+                                contentDescription = null,
+                                tint = scheme.accent,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = strings.voiceSectionTitle,
+                                color = scheme.textPrimary,
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = activeEngineLabel,
+                                color = if (isRecommended) scheme.accent else CrimsonKillSwitch,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = scheme.textMuted,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(14.dp))
 

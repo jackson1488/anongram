@@ -25,6 +25,7 @@ import com.anongram.app.features.settings.animations.ui.AnimationsSettingsScreen
 import com.anongram.app.features.settings.language.ui.LanguageSettingsScreen
 import com.anongram.app.features.settings.main.ui.SettingsMainScreen
 import com.anongram.app.features.settings.modules.ui.ModulesSettingsScreen
+import com.anongram.app.features.settings.modules.ui.voice.VoiceModuleSettingsScreen
 import com.anongram.app.features.settings.notifications.ui.NotificationsSettingsScreen
 import com.anongram.app.features.settings.privacy.ui.PrivacySecuritySettingsScreen
 import com.anongram.app.features.settings.security.ui.SecuritySettingsScreen
@@ -191,6 +192,13 @@ fun SettingsNavHost(
 
             SettingsRoute.Modules -> {
                 ModulesSettingsScreen(
+                    onOpenVoiceModule = { navigateTo(SettingsRoute.ModulesVoice) },
+                    onBack = popBack
+                )
+            }
+
+            SettingsRoute.ModulesVoice -> {
+                VoiceModuleSettingsScreen(
                     onBack = popBack
                 )
             }

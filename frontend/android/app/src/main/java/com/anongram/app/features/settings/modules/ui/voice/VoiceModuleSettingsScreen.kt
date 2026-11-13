@@ -1,0 +1,120 @@
+package com.anongram.app.features.settings.modules.ui.voice
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.anongram.app.core.assets.ExternalAssetManager
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
+import com.anongram.app.features.settings.modules.i18n.ModulesI18n
+
+/**
+ * Отдельный полноэкранный раздел настройки модуля расшифровки ГС (Whisper / Vosk / Системный).
+ */
+@Composable
+fun VoiceModuleSettingsScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
+    val strings = ModulesI18n.current
+
+    val assetManager = remember { ExternalAssetManager.getInstance(context) }
+    val assetStates by assetManager.states.collectAsState()
+    val settings by ModulesSettingsStore.state.collectAsState()
+
+    LaunchedEffect(Unit) {
+        ModulesSettingsStore.ensureInitialized(context)
+        assetManager.refreshAllStates()
+    }
+
+    BackHandler(onBack = onBack)
+
+    AnonGramScreenSurface(modifier = modifier) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Верхняя панель в стиле AnonGram
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(scheme.islandBg)
+                        .border(0.8.dp, scheme.islandBorder, CircleShape)
+                        .clickable(onClick = onBack),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = strings.back,
+                        tint = scheme.textPrimary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+
+                Text(
+                    text = strings.voiceSectionTitle,
+                    color = scheme.textPrimary,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
+
+                Spacer(modifier = Modifier.size(40.dp))
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                VoiceModuleSection(
+                    settings = settings,
+                    assetStates = assetStates,
+                    assetManager = assetManager
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+            }
+        }
+    }
+}
