@@ -42,6 +42,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.ui.draw.shadow
 import com.anongram.app.core.theme.CrimsonKillSwitch
+import com.anongram.app.features.chats.ui.components.DateChip
 import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeNavigationBarPadding
