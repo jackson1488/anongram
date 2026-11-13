@@ -25,9 +25,9 @@ import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.ChatMessagesUiState
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
+import com.anongram.app.features.chats.tools.ChatSearchNavigationButtons
+import com.anongram.app.features.chats.tools.ChatSearchResultsList
 import com.anongram.app.features.chats.ui.ChatScrollDownOverlay
-import com.anongram.app.features.chats.ui.ChatSearchNavigationButtons
-import com.anongram.app.features.chats.ui.ChatSearchResultsList
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
 import kotlinx.coroutines.launch
 

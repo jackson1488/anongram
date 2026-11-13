@@ -1,4 +1,4 @@
-package com.anongram.app.features.chats.ui
+package com.anongram.app.features.chats.tools
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

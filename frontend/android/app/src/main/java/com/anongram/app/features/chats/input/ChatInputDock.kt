@@ -41,9 +41,9 @@ import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.ChatMessagesUiState
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.messages.state.RecordMode
-import com.anongram.app.features.chats.ui.ChatSearchBottomBar
+import com.anongram.app.features.chats.tools.ChatSearchBottomBar
+import com.anongram.app.features.chats.tools.formatResultsCount
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
-import com.anongram.app.features.chats.ui.formatResultsCount
 import com.anongram.app.features.chats.input.banner.ChatActionBannerBus
 import com.anongram.app.features.chats.input.bar.ChatInputBar
 import com.anongram.app.features.chats.input.emoji.EmojiStickerPanel

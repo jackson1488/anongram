@@ -36,6 +36,9 @@ import com.anongram.app.features.chats.media.player.ChatMiniPlayer
 import com.anongram.app.features.chats.messages.state.ChatMessagesUiState
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.messages.state.SelfDestruct
+import com.anongram.app.features.chats.tools.ChatSearchTopBar
+import com.anongram.app.features.chats.tools.PinnedBar
+import com.anongram.app.features.chats.tools.SelectionPanel
 import com.anongram.app.features.chats.ui.components.ScrollDownButton
 import com.anongram.app.features.chats.ui.components.bubble.saveFileToDeviceDownloads
 import com.anongram.app.features.chats.ui.components.bubble.saveMessageMediaToDevice
