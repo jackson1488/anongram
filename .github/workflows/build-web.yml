@@ -54,5 +54,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: anongram-web-wasm-dist
-          path: frontend/web/build/dist/wasmJs/productionExecutable/
+          path: frontend/web/build/dist/
           retention-days: 14
