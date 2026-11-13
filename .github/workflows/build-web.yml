@@ -40,7 +40,15 @@ jobs:
       - name: 🛠️ Build Web Distribution (wasmJsBrowserDistribution)
         working-directory: frontend/web
         run: |
-          gradle wasmJsBrowserDistribution --stacktrace
+          gradle wasmJsBrowserDistribution --stacktrace --info 2>&1 | tee build_web.log
+
+      - name: 📋 Upload Build Failure Log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-log
+          path: frontend/web/build_web.log
+          retention-days: 3
 
       - name: 📦 Upload Web Bundle Artifact
         uses: actions/upload-artifact@v4
