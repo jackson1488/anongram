@@ -27,6 +27,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.GraphicsLayer
@@ -249,9 +250,9 @@ private fun SingleMessageDeleteEffect(
     val width = anim.boundsInWindow.width
     val height = anim.boundsInWindow.height
 
-    val particles = remember(anim.id) {
+    val particles = remember(anim.id, density) {
         if (anim.style == MessageDeleteStyle.PARTICLES) {
-            sampleParticles(anim.bitmap, anim.isIncoming, anim.bulkStepBoost)
+            sampleParticles(anim.bitmap, anim.isIncoming, anim.bulkStepBoost, density)
         } else {
             emptyList()
         }
@@ -299,31 +300,42 @@ private fun SingleMessageDeleteEffect(
     Canvas(modifier = modifier.fillMaxSize()) {
         when (anim.style) {
             MessageDeleteStyle.PARTICLES -> {
+                val waveFront = (p / 0.46f).coerceIn(0f, 1f)
+                if (waveFront < 1f) {
+                    val clipLeft = if (anim.isIncoming) left else left + width * waveFront
+                    val clipRight = if (anim.isIncoming) left + width * (1f - waveFront) else left + width
+                    if (clipRight > clipLeft + 0.5f) {
+                        clipRect(
+                            left = clipLeft,
+                            top = top,
+                            right = clipRight,
+                            bottom = top + height
+                        ) {
+                            drawImage(
+                                image = anim.bitmap,
+                                dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
+                                dstSize = IntSize(width.roundToInt().coerceAtLeast(1), height.roundToInt().coerceAtLeast(1))
+                            )
+                        }
+                    }
+                }
                 val scaleX = width / anim.bitmap.width.coerceAtLeast(1)
                 val scaleY = height / anim.bitmap.height.coerceAtLeast(1)
                 for (pt in particles) {
                     val localT = ((p - pt.startAt) / pt.lifeSpan).coerceIn(0f, 1f)
-                    if (localT >= 1f) continue
+                    if (localT <= 0f || localT >= 1f) continue
                     val px = pt.x * scaleX
                     val py = pt.y * scaleY
-                    if (localT <= 0f) {
-                        drawCircle(
-                            color = pt.color,
-                            radius = pt.size * 0.55f,
-                            center = Offset(left + px, top + py)
-                        )
-                    } else {
-                        val ease = localT * localT
-                        val curX = left + px + pt.vx * ease
-                        val curY = top + py + pt.vy * ease
-                        val alpha = (1f - localT).coerceIn(0f, 1f)
-                        val r = (pt.size * 0.55f * (1f - localT * 0.5f)).coerceAtLeast(0.8f)
-                        drawCircle(
-                            color = pt.color.copy(alpha = pt.color.alpha * alpha),
-                            radius = r,
-                            center = Offset(curX, curY)
-                        )
-                    }
+                    val ease = localT * localT
+                    val curX = left + px + pt.vx * ease
+                    val curY = top + py + pt.vy * ease
+                    val alpha = (1f - localT).coerceIn(0f, 1f)
+                    val r = (pt.size * (1f - localT * 0.45f)).coerceAtLeast(0.65f)
+                    drawCircle(
+                        color = pt.color.copy(alpha = pt.color.alpha * alpha),
+                        radius = r,
+                        center = Offset(curX, curY)
+                    )
                 }
             }
             MessageDeleteStyle.PUZZLE -> {
@@ -382,17 +394,20 @@ private fun SingleMessageDeleteEffect(
 private fun sampleParticles(
     bitmap: ImageBitmap,
     isIncoming: Boolean,
-    bulkStepBoost: Int
+    bulkStepBoost: Int,
+    density: Float
 ): List<DisintegrateParticle> {
     val w = bitmap.width
     val h = bitmap.height
     if (w <= 1 || h <= 1) return emptyList()
 
     val pixelMap = runCatching { bitmap.toPixelMap() }.getOrNull() ?: return emptyList()
-    val baseStep = max(4, min(w, h) / 42).coerceAtMost(14)
-    val step = (baseStep * bulkStepBoost).coerceAtMost(22)
+    val baseStep = max(5, min(w, h) / 68).coerceAtMost(12)
+    val step = (baseStep * bulkStepBoost).coerceAtMost(20)
+    val specksPerCell = if (bulkStepBoost > 1) 1 else 2
+    val safeDensity = density.coerceIn(1f, 4f)
     val rnd = Random(w * 31 + h)
-    val result = ArrayList<DisintegrateParticle>((w / step) * (h / step))
+    val result = ArrayList<DisintegrateParticle>(((w / step) * (h / step)) * specksPerCell)
 
     var y = step / 2
     while (y < h) {
@@ -402,22 +417,27 @@ private fun sampleParticles(
             if (c.alpha > 0.12f) {
                 val normX = x.toFloat() / w
                 val wave = if (isIncoming) (1f - normX) else normX
-                val startAt = (wave * 0.42f + rnd.nextFloat() * 0.14f).coerceIn(0f, 0.56f)
-                val angle = (rnd.nextFloat() * 140f - 110f) * (PI / 180.0)
-                val speed = 60f + rnd.nextFloat() * 160f
-                val dirBias = if (isIncoming) -35f else 35f
-                result.add(
-                    DisintegrateParticle(
-                        x = x.toFloat(),
-                        y = y.toFloat(),
-                        size = step * (0.95f + rnd.nextFloat() * 0.45f),
-                        color = c,
-                        vx = (cos(angle).toFloat() * speed) + dirBias,
-                        vy = sin(angle).toFloat() * speed - 45f,
-                        startAt = startAt,
-                        lifeSpan = (0.42f + rnd.nextFloat() * 0.25f).coerceAtMost(1f - startAt)
+                for (k in 0 until specksPerCell) {
+                    val jx = (rnd.nextFloat() - 0.5f) * step * 0.85f
+                    val jy = (rnd.nextFloat() - 0.5f) * step * 0.85f
+                    val startAt = (wave * 0.44f + (rnd.nextFloat() - 0.5f) * 0.06f).coerceIn(0f, 0.48f)
+                    val angle = (rnd.nextFloat() * 140f - 110f) * (PI / 180.0)
+                    val speed = (48f + rnd.nextFloat() * 125f) * safeDensity * 0.55f
+                    val dirBias = (if (isIncoming) -28f else 28f) * safeDensity * 0.55f
+                    val dustRadius = safeDensity * (0.75f + rnd.nextFloat() * 0.95f)
+                    result.add(
+                        DisintegrateParticle(
+                            x = (x + jx).coerceIn(0f, w.toFloat()),
+                            y = (y + jy).coerceIn(0f, h.toFloat()),
+                            size = dustRadius,
+                            color = c,
+                            vx = (cos(angle).toFloat() * speed) + dirBias,
+                            vy = sin(angle).toFloat() * speed - 30f * safeDensity * 0.55f,
+                            startAt = startAt,
+                            lifeSpan = (0.40f + rnd.nextFloat() * 0.24f).coerceAtMost(1f - startAt)
+                        )
                     )
-                )
+                }
             }
             x += step
         }
