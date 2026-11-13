@@ -29,13 +29,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.VolumeOff
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -67,11 +71,14 @@ import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.attach.tabs.gallery.mediaSizeCache
 import com.anongram.app.features.chats.attach.tabs.gallery.rememberMediaAspects
 import com.anongram.app.features.chats.attach.tabs.gallery.resolveMediaDimensions
+import com.anongram.app.features.chats.media.MediaUploadTracker
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
+
+private val LocalUploadingMessageId = compositionLocalOf { "" }
 
 /**
  * Одиночное сжатое фото или видео в пузыре сообщения.
@@ -83,6 +90,7 @@ internal fun ChatSinglePhotoSection(
     searchQuery: String,
     singlePhotoStretch: Boolean,
     isSelectionMode: Boolean,
+    messageId: String = "",
     onSelect: () -> Unit,
     onLongClick: () -> Unit,
     onOpenPhotoAt: (Int) -> Unit
@@ -145,16 +153,18 @@ internal fun ChatSinglePhotoSection(
                 .clip(RoundedCornerShape(14.dp))
         }
 
-        ChatRealPhotoBox(
-            uriString = attachment.uri,
-            isVideo = attachment.isVideo,
-            hasSpoiler = attachment.hasSpoiler,
-            onPhotoClick = {
-                if (isSelectionMode) onSelect() else onOpenPhotoAt(0)
-            },
-            onPhotoLongClick = onLongClick,
-            modifier = sizeModifier
-        )
+        CompositionLocalProvider(LocalUploadingMessageId provides messageId) {
+            ChatRealPhotoBox(
+                uriString = attachment.uri,
+                isVideo = attachment.isVideo,
+                hasSpoiler = attachment.hasSpoiler,
+                onPhotoClick = {
+                    if (isSelectionMode) onSelect() else onOpenPhotoAt(0)
+                },
+                onPhotoLongClick = onLongClick,
+                modifier = sizeModifier
+            )
+        }
     } else {
         var spoilerRevealed by remember { mutableStateOf(false) }
         val showSpoiler = attachment.hasSpoiler && !spoilerRevealed
@@ -222,6 +232,7 @@ internal fun ChatMediaAlbumGrid(
     accent: Color,
     isSelectionMode: Boolean = false,
     selectedPhotoIndices: Set<Int> = emptySet(),
+    messageId: String = "",
     onPhotoClick: (Int) -> Unit = {},
     onPhotoLongClick: (Int) -> Unit = {}
 ) {
@@ -232,6 +243,7 @@ internal fun ChatMediaAlbumGrid(
     val aspects = rememberMediaAspects(items.map { it.uri to it.isVideo })
     val plan = computeAlbumLayoutPlan(aspects, targetWidthDp = 270f)
 
+    CompositionLocalProvider(LocalUploadingMessageId provides messageId) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -591,6 +603,7 @@ internal fun ChatMediaAlbumGrid(
             )
         }
     }
+    }
 }
 
 /**
@@ -612,6 +625,9 @@ internal fun ChatRealPhotoBox(
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
+    val messageId = LocalUploadingMessageId.current
+    val uploadState = MediaUploadTracker.rememberState(messageId, uriString)
+    val isUploading = uploadState != null
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
     var bitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
     var localSpoilerRevealed by remember(uriString) { mutableStateOf(false) }
@@ -640,7 +656,9 @@ internal fun ChatRealPhotoBox(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = {
-                    if (showSelectionBadge) {
+                    if (isUploading) {
+                        MediaUploadTracker.cancelItem(messageId, uriString)
+                    } else if (showSelectionBadge) {
                         onPhotoClick()
                     } else if (showSpoiler) {
                         localSpoilerRevealed = true
@@ -659,11 +677,17 @@ internal fun ChatRealPhotoBox(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(if (showSpoiler) Modifier.blur(22.dp) else Modifier)
+                    .then(
+                        when {
+                            showSpoiler -> Modifier.blur(22.dp)
+                            isUploading -> Modifier.blur(12.dp)
+                            else -> Modifier
+                        }
+                    )
             )
         }
 
-        if (isVideo && !showSpoiler && parsedUri != null) {
+        if (isVideo && !showSpoiler && !isUploading && parsedUri != null) {
             InlineMutedVideoPreview(
                 uri = parsedUri,
                 onPrepared = { durMs ->
@@ -725,7 +749,7 @@ internal fun ChatRealPhotoBox(
                     )
                 }
             }
-        } else if (isVideo && !showSpoiler) {
+        } else if (isVideo && !showSpoiler && !isUploading) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -742,7 +766,52 @@ internal fun ChatRealPhotoBox(
             }
         }
 
-        if (showSpoiler) {
+        if (uploadState != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.28f))
+            )
+            Box(
+                modifier = Modifier
+                    .size(46.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .clickable { MediaUploadTracker.cancelItem(messageId, uriString) },
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    progress = { uploadState.progress.coerceAtLeast(0.05f) },
+                    color = Color.White,
+                    trackColor = Color.White.copy(alpha = 0.25f),
+                    strokeWidth = 2.5.dp,
+                    modifier = Modifier.size(40.dp)
+                )
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            val mbLabel = formatUploadMbLabel(uploadState)
+            if (mbLabel.isNotEmpty()) {
+                Text(
+                    text = mbLabel,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.56f))
+                        .padding(horizontal = 6.dp, vertical = 3.dp)
+                )
+            }
+        }
+
+        if (showSpoiler && !isUploading) {
             SpoilerOverlay(modifier = Modifier.fillMaxSize())
         }
 
@@ -768,6 +837,20 @@ internal fun ChatRealPhotoBox(
                 }
             }
         }
+    }
+}
+
+private fun formatUploadMbLabel(state: com.anongram.app.features.chats.media.MediaUploadItemState): String {
+    if (state.totalBytes <= 0L) {
+        val pct = (state.progress * 100).toInt().coerceIn(0, 100)
+        return "$pct%"
+    }
+    val doneMb = state.processedBytes / (1024f * 1024f)
+    val totalMb = state.totalBytes / (1024f * 1024f)
+    return if (totalMb < 1f) {
+        String.format("%.1f / %.1f МБ", doneMb, totalMb)
+    } else {
+        String.format("%.1f / %.1f МБ", doneMb, totalMb)
     }
 }
 

@@ -1,10 +1,20 @@
 package com.anongram.app.features.chats.input.attach
 
+import android.content.Context
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
+import com.anongram.app.features.chats.media.MediaCompressor
+import com.anongram.app.features.chats.media.MediaUploadTracker
+import com.anongram.app.features.chats.media.UploadPhase
 import com.anongram.app.features.chats.messages.domain.FileKind
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.input.editor.TextStyleFormat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /**
@@ -46,6 +56,133 @@ internal fun AttachmentDraft.Audio.toMessageAttachment(colorSeed: Int = 1): Mess
         colorSeed = colorSeed,
         uri = uri.toString()
     )
+}
+
+internal fun sendOptimisticAttachDraftsToChat(
+    context: Context,
+    scope: CoroutineScope,
+    drafts: List<AttachmentDraft>,
+    viewModel: ChatMessagesViewModel
+) {
+    val groupedMedia = drafts.filterIsInstance<AttachmentDraft.Media>().filter { !it.ungrouped }
+    if (groupedMedia.isNotEmpty()) {
+        val anyCaption = groupedMedia.firstOrNull { it.caption.isNotBlank() }?.caption ?: ""
+        val mediaChunks = groupedMedia.chunked(10)
+        mediaChunks.forEachIndexed { chunkIdx, chunk ->
+            val chunkCaption = if (chunkIdx == mediaChunks.lastIndex) anyCaption else ""
+            launchOptimisticMediaChunk(context, scope, chunk, chunkCaption, viewModel)
+        }
+    }
+
+    drafts.filterIsInstance<AttachmentDraft.Media>().filter { it.ungrouped }.forEach { draft ->
+        launchOptimisticMediaChunk(context, scope, listOf(draft), draft.caption, viewModel)
+    }
+
+    val nonMediaDrafts = drafts.filterNot { it is AttachmentDraft.Media }
+    if (nonMediaDrafts.isNotEmpty()) {
+        sendAttachDraftsToChat(nonMediaDrafts, viewModel)
+    }
+}
+
+private fun launchOptimisticMediaChunk(
+    context: Context,
+    scope: CoroutineScope,
+    chunk: List<AttachmentDraft.Media>,
+    caption: String,
+    viewModel: ChatMessagesViewModel
+) {
+    val initialAttachment: MessageAttachment = if (chunk.size == 1) {
+        val m = chunk[0]
+        MessageAttachment.Photo(
+            label = "",
+            colorSeed = 1,
+            isVideo = m.isVideo,
+            uri = m.uri.toString(),
+            hasSpoiler = m.hasSpoiler
+        )
+    } else {
+        MessageAttachment.MediaAlbum(
+            items = chunk.map { m ->
+                MessageAttachment.AlbumMediaItem(
+                    uri = m.uri.toString(),
+                    isVideo = m.isVideo,
+                    hasSpoiler = m.hasSpoiler
+                )
+            },
+            hasSpoiler = chunk.any { it.hasSpoiler }
+        )
+    }
+
+    val messageId = viewModel.insertPendingAttachment(initialAttachment, caption)
+
+    scope.launch(Dispatchers.IO) {
+        val results = chunk.map { media ->
+            val origUriStr = media.uri.toString()
+            val totalBytes = MediaCompressor.queryMediaSizeBytes(context, media.uri)
+            val job = async {
+                try {
+                    val outUri = MediaCompressor.compressSingleMedia(
+                        context = context,
+                        sourceUri = media.uri,
+                        isVideo = media.isVideo,
+                        hd = media.hd,
+                        onTempFileCreated = { tempFile ->
+                            MediaUploadTracker.attachTempFile(messageId, origUriStr, tempFile)
+                        },
+                        onProgress = { progress ->
+                            MediaUploadTracker.update(
+                                messageId = messageId,
+                                uri = origUriStr,
+                                progress = progress,
+                                processedBytes = (totalBytes * progress).toLong(),
+                                totalBytes = totalBytes,
+                                phase = UploadPhase.COMPRESSING
+                            )
+                        }
+                    )
+                    MediaUploadTracker.complete(messageId, origUriStr)
+                    media.copy(uri = outUri)
+                } catch (_: CancellationException) {
+                    null
+                }
+            }
+            MediaUploadTracker.register(
+                messageId = messageId,
+                uri = origUriStr,
+                totalBytes = totalBytes,
+                job = job,
+                onCancel = {
+                    viewModel.cancelPendingMediaItem(messageId, origUriStr)
+                }
+            )
+            job
+        }.awaitAll().filterNotNull()
+
+        if (results.isEmpty()) return@launch
+
+        val finalAttachment: MessageAttachment = if (results.size == 1) {
+            val m = results[0]
+            MessageAttachment.Photo(
+                label = "",
+                colorSeed = 1,
+                isVideo = m.isVideo,
+                uri = m.uri.toString(),
+                hasSpoiler = m.hasSpoiler
+            )
+        } else {
+            MessageAttachment.MediaAlbum(
+                items = results.map { m ->
+                    MessageAttachment.AlbumMediaItem(
+                        uri = m.uri.toString(),
+                        isVideo = m.isVideo,
+                        hasSpoiler = m.hasSpoiler
+                    )
+                },
+                hasSpoiler = results.any { it.hasSpoiler }
+            )
+        }
+        viewModel.finishPendingAttachment(messageId, finalAttachment)
+    }
 }
 
 internal fun sendAttachDraftsToChat(

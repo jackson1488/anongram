@@ -172,6 +172,77 @@ class ChatMessagesViewModel(
         }
     }
 
+    fun insertPendingAttachment(attachment: MessageAttachment, caption: String = ""): String {
+        val state = _uiState.value
+        val message = ChatMessage(
+            id = "out_${System.nanoTime()}",
+            direction = MessageDirection.OUTGOING,
+            text = caption,
+            epochMs = System.currentTimeMillis(),
+            status = MessageStatus.SENDING,
+            replyToId = state.replyTo?.id,
+            replyToSubIndex = state.replyToSubIndex ?: state.replyTo?.replyToSubIndex,
+            attachment = attachment
+        )
+        viewModelScope.launch {
+            chatsRepository.saveDraft(sessionId, "")
+            ChatDraftsRepository.instance.clearDraft(sessionId)
+            chatsRepository.updateLastMessage(sessionId, caption, message.epochMs, attachment)
+            repository.addMessage(sessionId, message)
+            _uiState.update { s -> s.copy(messages = s.messages + message, replyTo = null, replyToSubIndex = null) }
+        }
+        return message.id
+    }
+
+    fun finishPendingAttachment(messageId: String, updatedAttachment: MessageAttachment) {
+        viewModelScope.launch {
+            val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return@launch
+            val updated = current.copy(attachment = updatedAttachment)
+            repository.updateMessage(sessionId, updated)
+            chatsRepository.updateLastMessage(sessionId, updated.text, updated.epochMs, updatedAttachment)
+            _uiState.update { s ->
+                s.copy(messages = s.messages.map { if (it.id == messageId) updated else it })
+            }
+            runDeliveryLifecycle(messageId)
+        }
+    }
+
+    fun cancelPendingMediaItem(messageId: String, itemUri: String) {
+        viewModelScope.launch {
+            val current = _uiState.value.messages.firstOrNull { it.id == messageId } ?: return@launch
+            when (val att = current.attachment) {
+                is MessageAttachment.MediaAlbum -> {
+                    val remaining = att.items.filterNot { it.uri == itemUri }
+                    if (remaining.isEmpty()) {
+                        repository.deleteMessage(sessionId, messageId)
+                        _uiState.update { s -> s.copy(messages = s.messages.filterNot { it.id == messageId }) }
+                    } else if (remaining.size == 1) {
+                        val single = remaining[0]
+                        val nextAtt = MessageAttachment.Photo(
+                            label = "",
+                            colorSeed = 1,
+                            isVideo = single.isVideo,
+                            uri = single.uri,
+                            hasSpoiler = single.hasSpoiler
+                        )
+                        val updated = current.copy(attachment = nextAtt)
+                        repository.updateMessage(sessionId, updated)
+                        _uiState.update { s -> s.copy(messages = s.messages.map { if (it.id == messageId) updated else it }) }
+                    } else {
+                        val nextAtt = att.copy(items = remaining)
+                        val updated = current.copy(attachment = nextAtt)
+                        repository.updateMessage(sessionId, updated)
+                        _uiState.update { s -> s.copy(messages = s.messages.map { if (it.id == messageId) updated else it }) }
+                    }
+                }
+                else -> {
+                    repository.deleteMessage(sessionId, messageId)
+                    _uiState.update { s -> s.copy(messages = s.messages.filterNot { it.id == messageId }) }
+                }
+            }
+        }
+    }
+
     fun sendSticker(symbol: String, colorSeed: Int) =
         sendAttachment(MessageAttachment.Sticker(symbol, colorSeed))
 

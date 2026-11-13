@@ -765,6 +765,7 @@ private fun AttachmentContent(
                 searchQuery = searchQuery,
                 singlePhotoStretch = singlePhotoStretch,
                 isSelectionMode = isSelectionMode,
+                messageId = message.id,
                 onSelect = onSelect,
                 onLongClick = onLongClick,
                 onOpenPhotoAt = onOpenPhotoAt
@@ -777,6 +778,7 @@ private fun AttachmentContent(
                 accent = accent,
                 isSelectionMode = isSelectionMode,
                 selectedPhotoIndices = selectedSubIndices,
+                messageId = message.id,
                 onPhotoClick = { idx ->
                     if (isSelectionMode) onToggleSubItem(idx) else onOpenPhotoAt(idx)
                 },

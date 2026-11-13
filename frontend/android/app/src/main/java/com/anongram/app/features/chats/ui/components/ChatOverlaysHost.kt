@@ -231,10 +231,12 @@ private fun ChatInputAndMediaOverlays(
                 imeMetrics.imeState.wasKeyboardOpenWhenAttached = false
                 imeMetrics.imeState.frozenKeyboardHeightPx = 0
                 viewModel.closeAttach()
-                scope.launch {
-                    val processed = MediaCompressor.compressDraftsIfNeeded(context, drafts)
-                    sendAttachDraftsToChat(processed, viewModel)
-                }
+                com.anongram.app.features.chats.input.attach.sendOptimisticAttachDraftsToChat(
+                    context = context,
+                    scope = scope,
+                    drafts = drafts,
+                    viewModel = viewModel
+                )
             }
         )
     }
