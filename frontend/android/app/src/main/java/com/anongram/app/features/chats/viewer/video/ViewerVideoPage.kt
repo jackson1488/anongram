@@ -230,6 +230,20 @@ internal fun ViewerVideoPage(
         }
     }
 
+    fun togglePlayPause() {
+        val player = mediaPlayer ?: return
+        if (!isPrepared) return
+        if (player.isPlaying) {
+            runCatching { player.pause() }
+            isPlaying = false
+            playbackState.isPlaying = false
+        } else {
+            runCatching { player.start() }
+            isPlaying = true
+            playbackState.isPlaying = true
+        }
+    }
+
     // Обновление прогресса воспроизведения
     LaunchedEffect(isActivePage, isPrepared, mediaPlayer) {
         if (isActivePage) {
@@ -266,20 +280,6 @@ internal fun ViewerVideoPage(
             mediaPlayer = null
             isPrepared = false
             context.findViewerActivity()?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-        }
-    }
-
-    fun togglePlayPause() {
-        val player = mediaPlayer ?: return
-        if (!isPrepared) return
-        if (player.isPlaying) {
-            runCatching { player.pause() }
-            isPlaying = false
-            playbackState.isPlaying = false
-        } else {
-            runCatching { player.start() }
-            isPlaying = true
-            playbackState.isPlaying = true
         }
     }
 
