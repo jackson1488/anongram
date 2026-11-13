@@ -101,26 +101,28 @@ internal fun ChatSinglePhotoSection(
 
         val sizeModifier = if (dims != null) {
             val (rawW, rawH) = dims!!
-            val aspect = (rawW.toFloat() / rawH.toFloat()).coerceIn(0.38f, 2.8f)
-            val maxW = if (singlePhotoStretch) 310f else 290f
-            val minW = 160f
-            val maxH = if (aspect < 0.95f) 440f else 340f
-            val minH = 130f
-            var targetW = maxW
-            var targetH = targetW / aspect
-            if (targetH > maxH) {
-                targetH = maxH
-                targetW = (targetH * aspect).coerceIn(minW, maxW)
-            } else if (targetH < minH) {
-                targetH = minH
-                targetW = (targetH * aspect).coerceIn(minW, maxW)
-            }
-            if (singlePhotoStretch && aspect >= 1.1f) {
+            val aspect = (rawW.toFloat() / rawH.toFloat()).coerceIn(0.42f, 2.8f)
+            if (singlePhotoStretch) {
+                val maxH = if (aspect < 0.95f) 460f else 360f
+                val targetH = (310f / aspect).coerceIn(150f, maxH)
                 Modifier
                     .fillMaxWidth()
                     .height(targetH.dp)
                     .clip(RoundedCornerShape(14.dp))
             } else {
+                val maxW = if (aspect >= 1.1f) 310f else 300f
+                val minW = 170f
+                val maxH = if (aspect < 0.95f) 460f else 340f
+                val minH = 145f
+                var targetW = maxW
+                var targetH = targetW / aspect
+                if (targetH > maxH) {
+                    targetH = maxH
+                    targetW = (targetH * aspect).coerceIn(minW, maxW)
+                } else if (targetH < minH) {
+                    targetH = minH
+                    targetW = (targetH * aspect).coerceIn(minW, maxW)
+                }
                 Modifier
                     .width(targetW.dp)
                     .height(targetH.dp)
@@ -129,12 +131,12 @@ internal fun ChatSinglePhotoSection(
         } else if (singlePhotoStretch) {
             Modifier
                 .fillMaxWidth()
-                .height(250.dp)
+                .height(270.dp)
                 .clip(RoundedCornerShape(14.dp))
         } else {
             Modifier
-                .width(260.dp)
-                .height(340.dp)
+                .width(280.dp)
+                .height(360.dp)
                 .clip(RoundedCornerShape(14.dp))
         }
 
@@ -715,21 +717,6 @@ internal fun ChatRealPhotoBox(
                         contentDescription = null,
                         tint = Color.White,
                         modifier = Modifier.size(12.dp)
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .height(2.dp)
-                        .background(Color.White.copy(alpha = 0.25f))
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxHeight()
-                            .fillMaxWidth(videoProgress)
-                            .background(Color.White)
                     )
                 }
             }

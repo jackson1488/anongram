@@ -16,6 +16,7 @@ import android.view.TextureView
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -60,7 +61,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -68,6 +72,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.viewer.i18n.ViewerI18n
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -117,6 +122,7 @@ internal fun ViewerVideoPage(
     var mediaPlayer by remember(uriString) { mutableStateOf<MediaPlayer?>(null) }
     var isPrepared by remember(uriString) { mutableStateOf(false) }
     var isPlaying by remember(uriString) { mutableStateOf(false) }
+    var previewThumb by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
 
     // Жестовые состояния Telegram
     var doubleTapSide by remember { mutableIntStateOf(0) } // -1 = left, +1 = right, 0 = none
@@ -126,9 +132,11 @@ internal fun ViewerVideoPage(
     var holdMode by remember { mutableIntStateOf(0) } // -1 = left rewind, +1 = right 2x, 0 = none
     var rewindHoldSec by remember { mutableIntStateOf(0) }
 
-    // Определение реальных пропорций видео (учитывая rotation)
+    // Определение реальных пропорций видео (учитывая rotation) + мгновенный кадр-превью
     LaunchedEffect(parsedUri) {
         if (parsedUri != null) {
+            val quickThumb = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
+            if (quickThumb != null) previewThumb = quickThumb.asImageBitmap()
             val aspect = withContext(Dispatchers.IO) {
                 val retriever = MediaMetadataRetriever()
                 try {
@@ -399,6 +407,15 @@ internal fun ViewerVideoPage(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+
+                if (!isPrepared && previewThumb != null) {
+                    Image(
+                        bitmap = previewThumb!!,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
         }
 
