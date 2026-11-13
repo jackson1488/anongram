@@ -20,6 +20,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val mapboxToken = (System.getenv("MAPBOX_ACCESS_TOKEN") ?: "").replace("\"", "\\\"")
         buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxToken\"")
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     // Ключ и пароли приходят только из секретов CI (env). В репозитории их нет.
@@ -61,6 +65,12 @@ android {
         compose = true
         buildConfig = true
     }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 }
 
 dependencies {
@@ -83,6 +93,7 @@ dependencies {
     implementation("androidx.media:media:1.7.0")
     implementation("com.google.zxing:core:3.5.3")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("com.alphacephei:vosk-android:0.3.47")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

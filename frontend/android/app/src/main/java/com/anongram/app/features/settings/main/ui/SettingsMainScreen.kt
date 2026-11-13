@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -253,6 +255,15 @@ fun SettingsMainScreen(
                     title = "Язык",
                     subtitle = currentLanguage.displayName,
                     onClick = { onNavigate(SettingsRoute.Language) }
+                )
+
+                val modulesStrings = ModulesI18n.current
+                SettingsItemRow(
+                    icon = Icons.Default.Extension,
+                    iconBackgroundColor = Color(0xFF00ACC1),
+                    title = modulesStrings.modulesTitle,
+                    subtitle = modulesStrings.modulesMenuSubtitle,
+                    onClick = { onNavigate(SettingsRoute.Modules) }
                 )
             }
 

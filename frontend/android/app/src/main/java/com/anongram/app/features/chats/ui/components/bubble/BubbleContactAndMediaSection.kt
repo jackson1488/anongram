@@ -595,20 +595,12 @@ internal fun ChatVoiceSection(
 
         if (isTranscriptExpanded) {
             Spacer(modifier = Modifier.height(6.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(bubbleText.copy(alpha = 0.12f))
-                    .padding(horizontal = 10.dp, vertical = 7.dp)
-            ) {
-                Text(
-                    text = "Расшифровка речи скоро будет доступна",
-                    color = bubbleText.copy(alpha = 0.88f),
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
-                )
-            }
+            com.anongram.app.features.chats.media.voice.stt.VoiceTranscriptBubbleBox(
+                cacheKey = "${message.id}_${attachment.uri ?: ""}",
+                audioUri = attachment.uri,
+                bubbleTextColor = bubbleText,
+                accentColor = accent
+            )
         }
     }
 }

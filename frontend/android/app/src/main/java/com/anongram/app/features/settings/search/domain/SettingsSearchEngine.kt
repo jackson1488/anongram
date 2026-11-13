@@ -8,6 +8,7 @@ import androidx.compose.material.icons.filled.BatteryChargingFull
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.ChatBubble
 import androidx.compose.material.icons.filled.Devices
+import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PieChart
@@ -135,8 +136,21 @@ object SettingsSearchEngine {
                 icon = Icons.Default.Devices,
                 iconBackgroundColor = Color(0xFF26A69A),
                 keywords = listOf(
-                    "устройства", "сеансы", "сессии", "подключения", "компьютер", "десктоп", "web", "завершить сеанс", "qr-вход",
+                    "устройства", "сеансы", "сессии", "подключения", "компьютер", "десктоп", "web", "завершить сес", "qr-вход",
                     "devices", "sessions", "connections", "desktop", "web", "linked devices", "terminate"
+                )
+            ),
+            SettingsSearchItem(
+                id = "modules",
+                title = if (isRu) "Модули" else "Modules",
+                subtitle = if (isRu) "Расшифровка ГС (Whisper, Vosk), локальный перевод, языки" else "Voice transcription (Whisper, Vosk), local translation, languages",
+                targetRoute = SettingsRoute.Modules,
+                category = categoryName,
+                icon = Icons.Default.Extension,
+                iconBackgroundColor = Color(0xFF00ACC1),
+                keywords = listOf(
+                    "модули", "гс", "голосовые", "расшифровка", "whisper", "vosk", "google", "перевод", "языки", "ассеты", "модели",
+                    "modules", "voice", "transcription", "stt", "whisper", "vosk", "google", "translate", "languages", "models", "assets"
                 )
             ),
             SettingsSearchItem(

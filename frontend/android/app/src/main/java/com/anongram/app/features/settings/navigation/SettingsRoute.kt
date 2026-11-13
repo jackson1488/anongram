@@ -18,4 +18,5 @@ sealed interface SettingsRoute {
     data object Devices : SettingsRoute
     data object Battery : SettingsRoute
     data object Language : SettingsRoute
+    data object Modules : SettingsRoute
 }
