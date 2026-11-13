@@ -84,6 +84,8 @@ internal class ViewerVideoPlaybackState {
     var currentPositionMs by mutableLongStateOf(0L)
     var durationMs by mutableLongStateOf(0L)
     var isPlaying by mutableStateOf(false)
+    var isFillExpanded by mutableStateOf(false)
+    var canRotateLandscape by mutableStateOf(false)
     internal var onSeekRequest: ((Long) -> Unit)? = null
     internal var onTogglePlayPauseRequest: (() -> Unit)? = null
 
@@ -122,7 +124,6 @@ internal fun ViewerVideoPage(
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
 
     var videoAspect by remember(uriString) { mutableFloatStateOf(16f / 9f) }
-    var isFillExpanded by remember(uriString) { mutableStateOf(false) }
 
     var mediaPlayer by remember(uriString) { mutableStateOf<MediaPlayer?>(null) }
     var isPrepared by remember(uriString) { mutableStateOf(false) }
@@ -247,6 +248,8 @@ internal fun ViewerVideoPage(
     // Обновление прогресса воспроизведения
     LaunchedEffect(isActivePage, isPrepared, mediaPlayer) {
         if (isActivePage) {
+            playbackState.isFillExpanded = false
+            playbackState.canRotateLandscape = (videoAspect > 1.05f || isLandscape)
             playbackState.onTogglePlayPauseRequest = { togglePlayPause() }
             playbackState.onSeekRequest = { targetMs ->
                 val player = mediaPlayer
@@ -258,6 +261,7 @@ internal fun ViewerVideoPage(
             }
         }
         while (isActive && isActivePage) {
+            playbackState.canRotateLandscape = (videoAspect > 1.05f || isLandscape)
             val player = mediaPlayer
             if (player != null && isPrepared) {
                 val pos = runCatching { player.currentPosition.toLong() }.getOrDefault(playbackState.currentPositionMs)
@@ -333,7 +337,7 @@ internal fun ViewerVideoPage(
             contentAlignment = Alignment.Center
         ) {
             val containerAspect = if (maxHeight > 0.dp) maxWidth / maxHeight else 0.56f
-            val videoBoxModifier = if (isFillExpanded) {
+            val videoBoxModifier = if (playbackState.isFillExpanded) {
                 // Заполнение экрана без искажения пропорций (Crop-to-Fill)
                 if (videoAspect >= containerAspect) {
                     Modifier
@@ -421,63 +425,6 @@ internal fun ViewerVideoPage(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
                     )
-                }
-            }
-        }
-
-        // Кнопки масштаба (Вместить / Заполнить без растяжения) и поворота [ ] над нижней панелью
-        AnimatedVisibility(
-            visible = showControls && holdMode == 0,
-            enter = fadeIn(),
-            exit = fadeOut(),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 12.dp, bottom = 78.dp)
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(
-                    onClick = { isFillExpanded = !isFillExpanded },
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color.Black.copy(alpha = 0.52f))
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.AspectRatio,
-                        contentDescription = strings.toggleFill,
-                        tint = if (isFillExpanded) LocalAnonGramScheme.current.accent else Color.White,
-                        modifier = Modifier.size(21.dp)
-                    )
-                }
-
-                if (videoAspect > 1.05f || isLandscape) {
-                    IconButton(
-                        onClick = {
-                            val act = context.findViewerActivity()
-                            if (act != null) {
-                                act.requestedOrientation = if (isLandscape) {
-                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                } else {
-                                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color.Black.copy(alpha = 0.52f))
-                    ) {
-                        Icon(
-                            imageVector = if (isLandscape) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
-                            contentDescription = strings.toggleFill,
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
                 }
             }
         }
@@ -586,7 +533,7 @@ internal fun ViewerVideoPage(
     }
 }
 
-private tailrec fun Context.findViewerActivity(): Activity? = when (this) {
+internal tailrec fun Context.findViewerActivity(): Activity? = when (this) {
     is Activity -> this
     is ContextWrapper -> baseContext.findViewerActivity()
     else -> null

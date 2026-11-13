@@ -1,5 +1,7 @@
 package com.anongram.app.features.chats.viewer
 
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.net.Uri
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
@@ -35,9 +37,12 @@ import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Fullscreen
+import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Settings
@@ -68,6 +73,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -84,6 +90,7 @@ import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.viewer.i18n.ViewerI18n
 import com.anongram.app.features.chats.viewer.video.ViewerVideoPlaybackState
+import com.anongram.app.features.chats.viewer.video.findViewerActivity
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -604,6 +611,44 @@ internal fun ViewerBottomBar(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium
                 )
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(
+                    onClick = {
+                        videoPlaybackState.isFillExpanded = !videoPlaybackState.isFillExpanded
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AspectRatio,
+                        contentDescription = strings.toggleFill,
+                        tint = if (videoPlaybackState.isFillExpanded) scheme.accent else scheme.textPrimary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+                val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+                if (videoPlaybackState.canRotateLandscape || isLandscape) {
+                    val context = LocalContext.current
+                    IconButton(
+                        onClick = {
+                            val act = context.findViewerActivity()
+                            if (act != null) {
+                                act.requestedOrientation = if (isLandscape) {
+                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                } else {
+                                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                                }
+                            }
+                        },
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isLandscape) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
+                            contentDescription = strings.toggleFill,
+                            tint = scheme.textPrimary,
+                            modifier = Modifier.size(21.dp)
+                        )
+                    }
+                }
             }
         }
     }

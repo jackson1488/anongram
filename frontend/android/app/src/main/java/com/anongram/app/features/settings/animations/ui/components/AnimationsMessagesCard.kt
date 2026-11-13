@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -25,24 +26,34 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.ui.animations.DeleteSnapshotBox
+import com.anongram.app.features.chats.ui.animations.LocalMessageSnapshotRegistry
 import com.anongram.app.features.chats.ui.animations.MessageAppearWrapper
+import com.anongram.app.features.chats.ui.animations.MessageDeleteOverlay
+import com.anongram.app.features.chats.ui.animations.rememberMessageSnapshotRegistry
 import com.anongram.app.features.chats.ui.animations.rememberStreamedMessageText
 import com.anongram.app.features.settings.animations.data.MessageAppearStyle
 import com.anongram.app.features.settings.animations.data.MessageDeleteStyle
 import com.anongram.app.features.settings.animations.data.TokenStreamSpeed
 import com.anongram.app.features.settings.animations.i18n.AnimationsI18n
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /**
  * Карточка настройки анимаций отправки/получения сообщений, AI-стриминга токенов и живого предпросмотра.
@@ -68,6 +79,31 @@ fun AnimationsMessagesCard(
     val scheme = LocalAnonGramScheme.current
     val strings = AnimationsI18n.current
     var previewTrigger by remember { mutableIntStateOf(0) }
+    var isPreviewDeleted by remember { mutableStateOf(false) }
+    val previewRegistry = rememberMessageSnapshotRegistry()
+    val scope = rememberCoroutineScope()
+
+    fun triggerDeletePreview(targetStyle: MessageDeleteStyle) {
+        if (targetStyle == MessageDeleteStyle.NONE || reduceMotionEnabled || isPreviewDeleted) return
+        scope.launch {
+            isPreviewDeleted = true
+            previewRegistry.triggerDeleteAnimations(
+                targetKeys = listOf("preview_in", "preview_out"),
+                style = targetStyle,
+                speedMultiplier = speedMultiplier,
+                reduceMotion = reduceMotionEnabled
+            )
+            val waitMs = ((when (targetStyle) {
+                MessageDeleteStyle.PARTICLES -> 960
+                MessageDeleteStyle.PUZZLE -> 740
+                MessageDeleteStyle.SLIDE_OUT -> 380
+                MessageDeleteStyle.NONE -> 0
+            }) * speedMultiplier.coerceIn(0.4f, 2.0f)).toLong().coerceAtLeast(240L)
+            delay(waitMs)
+            isPreviewDeleted = false
+            previewTrigger++
+        }
+    }
 
     val switchColors = SwitchDefaults.colors(
         checkedThumbColor = scheme.onAccent,
@@ -77,8 +113,10 @@ fun AnimationsMessagesCard(
         uncheckedBorderColor = scheme.cardBorder
     )
 
+    CompositionLocalProvider(LocalMessageSnapshotRegistry provides previewRegistry) {
+    Box(modifier = modifier.fillMaxWidth()) {
     Column(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
@@ -122,7 +160,7 @@ fun AnimationsMessagesCard(
                 HorizontalDivider(color = scheme.divider)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // 2. Живой предпросмотр выбранной анимации
+                // 2. Живой предпросмотр выбранной анимации (появление + удаление в одном окне)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -135,26 +173,58 @@ fun AnimationsMessagesCard(
                         fontWeight = FontWeight.SemiBold
                     )
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(scheme.accent.copy(alpha = 0.14f))
-                            .clickable { previewTrigger++ }
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Outlined.PlayArrow,
-                            contentDescription = null,
-                            tint = scheme.accent,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = strings.previewReplayBtn,
-                            color = scheme.accent,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
+                        if (deleteStyle != MessageDeleteStyle.NONE) {
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(scheme.accent.copy(alpha = 0.14f))
+                                    .clickable { triggerDeletePreview(deleteStyle) }
+                                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.DeleteOutline,
+                                    contentDescription = null,
+                                    tint = scheme.accent,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = strings.previewDeleteBtn,
+                                    color = scheme.accent,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(scheme.accent.copy(alpha = 0.14f))
+                                .clickable {
+                                    isPreviewDeleted = false
+                                    previewTrigger++
+                                }
+                                .padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.PlayArrow,
+                                contentDescription = null,
+                                tint = scheme.accent,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = strings.previewReplayBtn,
+                                color = scheme.accent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
 
@@ -174,67 +244,79 @@ fun AnimationsMessagesCard(
                 ) {
                     // Входящее сообщение (слева)
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterStart) {
-                        MessageAppearWrapper(
-                            animateKey = "in_$animKey",
+                        DeleteSnapshotBox(
+                            snapshotKey = "preview_in",
                             isIncoming = true,
-                            shouldAnimate = shouldAnimatePreview,
-                            style = appearStyle,
-                            speedMultiplier = speedMultiplier
+                            modifier = Modifier.alpha(if (isPreviewDeleted) 0f else 1f)
                         ) {
-                            val inText = rememberStreamedMessageText(
-                                fullText = strings.previewIncomingSample,
-                                animateKey = "in_txt_$animKey",
-                                shouldStream = shouldAnimatePreview && appearStyle == MessageAppearStyle.TOKEN_STREAM,
-                                tokenSpeed = tokenStreamSpeed,
+                            MessageAppearWrapper(
+                                animateKey = "in_$animKey",
+                                isIncoming = true,
+                                shouldAnimate = shouldAnimatePreview,
+                                style = appearStyle,
                                 speedMultiplier = speedMultiplier
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .widthIn(max = 240.dp)
-                                    .clip(RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp))
-                                    .background(scheme.card)
-                                    .border(0.5.dp, scheme.cardBorder, RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp))
-                                    .padding(horizontal = 11.dp, vertical = 8.dp)
                             ) {
-                                Text(
-                                    text = inText,
-                                    color = scheme.incomingText,
-                                    fontSize = 13.sp,
-                                    lineHeight = 17.sp
+                                val inText = rememberStreamedMessageText(
+                                    fullText = strings.previewIncomingSample,
+                                    animateKey = "in_txt_$animKey",
+                                    shouldStream = shouldAnimatePreview && appearStyle == MessageAppearStyle.TOKEN_STREAM,
+                                    tokenSpeed = tokenStreamSpeed,
+                                    speedMultiplier = speedMultiplier
                                 )
+                                Box(
+                                    modifier = Modifier
+                                        .widthIn(max = 240.dp)
+                                        .clip(RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp))
+                                        .background(scheme.card)
+                                        .border(0.5.dp, scheme.cardBorder, RoundedCornerShape(14.dp, 14.dp, 14.dp, 4.dp))
+                                        .padding(horizontal = 11.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = inText,
+                                        color = scheme.incomingText,
+                                        fontSize = 13.sp,
+                                        lineHeight = 17.sp
+                                    )
+                                }
                             }
                         }
                     }
 
                     // Исходящее сообщение (справа)
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                        MessageAppearWrapper(
-                            animateKey = "out_$animKey",
+                        DeleteSnapshotBox(
+                            snapshotKey = "preview_out",
                             isIncoming = false,
-                            shouldAnimate = shouldAnimatePreview,
-                            style = appearStyle,
-                            speedMultiplier = speedMultiplier
+                            modifier = Modifier.alpha(if (isPreviewDeleted) 0f else 1f)
                         ) {
-                            val outText = rememberStreamedMessageText(
-                                fullText = strings.previewOutgoingSample,
-                                animateKey = "out_txt_$animKey",
-                                shouldStream = shouldAnimatePreview && appearStyle == MessageAppearStyle.TOKEN_STREAM,
-                                tokenSpeed = tokenStreamSpeed,
+                            MessageAppearWrapper(
+                                animateKey = "out_$animKey",
+                                isIncoming = false,
+                                shouldAnimate = shouldAnimatePreview,
+                                style = appearStyle,
                                 speedMultiplier = speedMultiplier
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .widthIn(max = 240.dp)
-                                    .clip(RoundedCornerShape(14.dp, 14.dp, 4.dp, 14.dp))
-                                    .background(scheme.accent)
-                                    .padding(horizontal = 11.dp, vertical = 8.dp)
                             ) {
-                                Text(
-                                    text = outText,
-                                    color = scheme.outgoingText,
-                                    fontSize = 13.sp,
-                                    lineHeight = 17.sp
+                                val outText = rememberStreamedMessageText(
+                                    fullText = strings.previewOutgoingSample,
+                                    animateKey = "out_txt_$animKey",
+                                    shouldStream = shouldAnimatePreview && appearStyle == MessageAppearStyle.TOKEN_STREAM,
+                                    tokenSpeed = tokenStreamSpeed,
+                                    speedMultiplier = speedMultiplier
                                 )
+                                Box(
+                                    modifier = Modifier
+                                        .widthIn(max = 240.dp)
+                                        .clip(RoundedCornerShape(14.dp, 14.dp, 4.dp, 14.dp))
+                                        .background(scheme.accent)
+                                        .padding(horizontal = 11.dp, vertical = 8.dp)
+                                ) {
+                                    Text(
+                                        text = outText,
+                                        color = scheme.outgoingText,
+                                        fontSize = 13.sp,
+                                        lineHeight = 17.sp
+                                    )
+                                }
                             }
                         }
                     }
@@ -379,7 +461,10 @@ fun AnimationsMessagesCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .clickable { onDeleteStyleChange(style) }
+                    .clickable {
+                        onDeleteStyleChange(style)
+                        triggerDeletePreview(style)
+                    }
                     .padding(vertical = 8.dp, horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -471,5 +556,11 @@ fun AnimationsMessagesCard(
                 colors = switchColors
             )
         }
+    }
+    MessageDeleteOverlay(
+        registry = previewRegistry,
+        modifier = Modifier.matchParentSize()
+    )
+    }
     }
 }

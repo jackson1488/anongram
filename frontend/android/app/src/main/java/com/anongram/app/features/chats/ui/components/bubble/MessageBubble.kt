@@ -65,6 +65,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.boundsInWindow
+import com.anongram.app.features.chats.ui.animations.DeleteSnapshotBox
 import com.anongram.app.features.chats.ui.animations.LocalMessageSnapshotRegistry
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -346,10 +347,6 @@ internal fun MessageBubble(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(animatedOffsetPx.roundToInt(), 0) }
-                .drawWithContent {
-                    deleteCaptureLayer.record { this@drawWithContent.drawContent() }
-                    drawLayer(deleteCaptureLayer)
-                }
                 .then(
                     if (!isStandaloneCircle) {
                         Modifier.combinedClickable(
@@ -380,12 +377,6 @@ internal fun MessageBubble(
                     val y = coordinates.positionInRoot().y
                     bubbleTopYHolder[0] = y
                     bubbleBottomYHolder[0] = y + coordinates.size.height
-                    snapshotRegistry?.register(
-                        messageId = message.id,
-                        layer = deleteCaptureLayer,
-                        boundsInWindow = coordinates.boundsInWindow(),
-                        isIncoming = isIncoming
-                    )
                 }
                 .padding(vertical = 1.dp)
         ) {
@@ -451,7 +442,20 @@ internal fun MessageBubble(
             ) {
 
                 Column(
-                    horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End
+                    horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End,
+                    modifier = Modifier
+                        .drawWithContent {
+                            deleteCaptureLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(deleteCaptureLayer)
+                        }
+                        .onGloballyPositioned { coordinates ->
+                            snapshotRegistry?.register(
+                                messageId = message.id,
+                                layer = deleteCaptureLayer,
+                                boundsInWindow = coordinates.boundsInWindow(),
+                                isIncoming = isIncoming
+                            )
+                        }
                 ) {
                     if (message.isStickerOnly) {
                         Box(
@@ -971,6 +975,7 @@ private fun AttachmentContent(
                 isSelectionMode = isSelectionMode,
                 selectedPhotoIndices = selectedSubIndices,
                 messageId = message.id,
+                isIncoming = isIncoming,
                 onPhotoClick = { idx ->
                     if (isSelectionMode) onToggleSubItem(idx) else onOpenPhotoAt(idx)
                 },
@@ -1011,32 +1016,38 @@ private fun AttachmentContent(
             Column(modifier = Modifier.fillMaxWidth()) {
                 attachment.items.forEachIndexed { idx, fileItem ->
                     val isItemSelected = idx in selectedSubIndices
-                    ChatFileItemRow(
-                        message = message,
-                        file = fileItem,
-                        fileIndex = idx,
+                    DeleteSnapshotBox(
+                        snapshotKey = "${message.id}#file_$idx",
                         isIncoming = isIncoming,
-                        accent = accent,
-                        searchQuery = searchQuery,
-                        showThreeDots = (idx == 0),
-                        showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
-                        isSelectionMode = isSelectionMode,
-                        isItemSelected = isItemSelected,
-                        isPinned = isPinned,
-                        onItemClick = {
-                            if (isSelectionMode) onToggleSubItem(idx) else null
-                        },
-                        onItemLongClick = {
-                            if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
-                        },
-                        onSwipeReply = { onReplySubItem(idx) },
-                        onForwardItem = { onForwardSubItem("${message.id}#file_$idx") },
-                        onPinItem = onPin,
-                        onEditItem = { onEditSubItem(idx) },
-                        onDeleteItem = { onDeleteSubItem("${message.id}#file_$idx") },
-                        onRetry = onRetry,
-                        onOpenPhotoAt = onOpenPhotoAt
-                    )
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ChatFileItemRow(
+                            message = message,
+                            file = fileItem,
+                            fileIndex = idx,
+                            isIncoming = isIncoming,
+                            accent = accent,
+                            searchQuery = searchQuery,
+                            showThreeDots = (idx == 0),
+                            showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
+                            isSelectionMode = isSelectionMode,
+                            isItemSelected = isItemSelected,
+                            isPinned = isPinned,
+                            onItemClick = {
+                                if (isSelectionMode) onToggleSubItem(idx) else null
+                            },
+                            onItemLongClick = {
+                                if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
+                            },
+                            onSwipeReply = { onReplySubItem(idx) },
+                            onForwardItem = { onForwardSubItem("${message.id}#file_$idx") },
+                            onPinItem = onPin,
+                            onEditItem = { onEditSubItem(idx) },
+                            onDeleteItem = { onDeleteSubItem("${message.id}#file_$idx") },
+                            onRetry = onRetry,
+                            onOpenPhotoAt = onOpenPhotoAt
+                        )
+                    }
                 }
             }
         }
@@ -1079,7 +1090,7 @@ private fun AttachmentContent(
                 onItemClick = { if (isSelectionMode) onSelect() },
                 onItemLongClick = onLongClick,
                 onSwipeReply = { onReplySubItem(0) },
-                onForwardItem = { onForwardSubItem(message.id) },
+                        onForwardItem = { onForwardSubItem(message.id) },
                 onPinItem = onPin,
                 onEditItem = { onEditSubItem(0) },
                 onDeleteItem = { onDeleteSubItem(message.id) },
@@ -1091,31 +1102,37 @@ private fun AttachmentContent(
             Column(modifier = Modifier.fillMaxWidth()) {
                 attachment.items.forEachIndexed { idx, track ->
                     val isItemSelected = idx in selectedSubIndices
-                    ChatMusicItemRow(
-                        message = message,
-                        music = track,
+                    DeleteSnapshotBox(
+                        snapshotKey = "${message.id}#music_$idx",
                         isIncoming = isIncoming,
-                        accent = accent,
-                        searchQuery = searchQuery,
-                        showThreeDots = (idx == 0),
-                        showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
-                        isSelectionMode = isSelectionMode,
-                        isItemSelected = isItemSelected,
-                        isPinned = isPinned,
-                        onPlayTrack = onPlayMusic,
-                        onItemClick = {
-                            if (isSelectionMode) onToggleSubItem(idx)
-                        },
-                        onItemLongClick = {
-                            if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
-                        },
-                        onSwipeReply = { onReplySubItem(idx) },
-                        onForwardItem = { onForwardSubItem("${message.id}#music_$idx") },
-                        onPinItem = onPin,
-                        onEditItem = { onEditSubItem(idx) },
-                        onDeleteItem = { onDeleteSubItem("${message.id}#music_$idx") },
-                        onRetry = onRetry
-                    )
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        ChatMusicItemRow(
+                            message = message,
+                            music = track,
+                            isIncoming = isIncoming,
+                            accent = accent,
+                            searchQuery = searchQuery,
+                            showThreeDots = (idx == 0),
+                            showBottomTimestamp = showInlineTimestamp && (idx == attachment.items.lastIndex),
+                            isSelectionMode = isSelectionMode,
+                            isItemSelected = isItemSelected,
+                            isPinned = isPinned,
+                            onPlayTrack = onPlayMusic,
+                            onItemClick = {
+                                if (isSelectionMode) onToggleSubItem(idx)
+                            },
+                            onItemLongClick = {
+                                if (isSelectionMode) onToggleSubItem(idx) else onEnterSubItemSelection(idx)
+                            },
+                            onSwipeReply = { onReplySubItem(idx) },
+                            onForwardItem = { onForwardSubItem("${message.id}#music_$idx") },
+                            onPinItem = onPin,
+                            onEditItem = { onEditSubItem(idx) },
+                            onDeleteItem = { onDeleteSubItem("${message.id}#music_$idx") },
+                            onRetry = onRetry
+                        )
+                    }
                 }
             }
         }

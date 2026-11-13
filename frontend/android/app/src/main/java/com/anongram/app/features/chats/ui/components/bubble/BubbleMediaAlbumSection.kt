@@ -51,10 +51,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.layer.drawLayer
+import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +80,7 @@ import com.anongram.app.features.chats.attach.tabs.gallery.resolveMediaDimension
 import com.anongram.app.features.chats.media.MediaUploadTracker
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.attachmentColor
+import com.anongram.app.features.chats.ui.animations.LocalMessageSnapshotRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -234,6 +240,7 @@ internal fun ChatMediaAlbumGrid(
     isSelectionMode: Boolean = false,
     selectedPhotoIndices: Set<Int> = emptySet(),
     messageId: String = "",
+    isIncoming: Boolean = false,
     onPhotoClick: (Int) -> Unit = {},
     onPhotoLongClick: (Int) -> Unit = {}
 ) {
@@ -241,6 +248,7 @@ internal fun ChatMediaAlbumGrid(
     if (count == 0) return
     val dividerColor = accent.copy(alpha = 0.55f)
     val isFullAlbumSelected = isSelectionMode && count > 0 && selectedPhotoIndices.size == count
+    fun cellKey(idx: Int): String = if (messageId.isNotBlank()) "${messageId}#photo_$idx" else ""
 
     if (count == 1) {
         val single = items[0]
@@ -252,6 +260,8 @@ internal fun ChatMediaAlbumGrid(
                 showSelectionBadge = isSelectionMode,
                 isPhotoSelected = 0 in selectedPhotoIndices,
                 accent = accent,
+                snapshotKey = cellKey(0),
+                isIncoming = isIncoming,
                 onPhotoClick = { onPhotoClick(0) },
                 onPhotoLongClick = { onPhotoLongClick(0) },
                 modifier = Modifier
@@ -287,6 +297,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 0 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(0),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(0) },
                         onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
@@ -306,6 +318,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 1 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(1),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(1) },
                         onPhotoLongClick = { onPhotoLongClick(1) },
                         modifier = Modifier
@@ -323,6 +337,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 0 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(0),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(0) },
                         onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
@@ -342,6 +358,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 1 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(1),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(1) },
                         onPhotoLongClick = { onPhotoLongClick(1) },
                         modifier = Modifier
@@ -363,6 +381,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 0 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(0),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(0) },
                         onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
@@ -396,6 +416,8 @@ internal fun ChatMediaAlbumGrid(
                                 showSelectionBadge = isSelectionMode,
                                 isPhotoSelected = idx in selectedPhotoIndices,
                                 accent = accent,
+                                snapshotKey = cellKey(idx),
+                                isIncoming = isIncoming,
                                 onPhotoClick = { onPhotoClick(idx) },
                                 onPhotoLongClick = { onPhotoLongClick(idx) },
                                 modifier = Modifier
@@ -415,6 +437,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 0 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(0),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(0) },
                         onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
@@ -449,6 +473,8 @@ internal fun ChatMediaAlbumGrid(
                                 showSelectionBadge = isSelectionMode,
                                 isPhotoSelected = idx in selectedPhotoIndices,
                                 accent = accent,
+                                snapshotKey = cellKey(idx),
+                                isIncoming = isIncoming,
                                 onPhotoClick = { onPhotoClick(idx) },
                                 onPhotoLongClick = { onPhotoLongClick(idx) },
                                 modifier = Modifier
@@ -472,6 +498,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 0 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(0),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(0) },
                         onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
@@ -505,6 +533,8 @@ internal fun ChatMediaAlbumGrid(
                                 showSelectionBadge = isSelectionMode,
                                 isPhotoSelected = idx in selectedPhotoIndices,
                                 accent = accent,
+                                snapshotKey = cellKey(idx),
+                                isIncoming = isIncoming,
                                 onPhotoClick = { onPhotoClick(idx) },
                                 onPhotoLongClick = { onPhotoLongClick(idx) },
                                 modifier = Modifier
@@ -524,6 +554,8 @@ internal fun ChatMediaAlbumGrid(
                         showSelectionBadge = isSelectionMode,
                         isPhotoSelected = 0 in selectedPhotoIndices,
                         accent = accent,
+                        snapshotKey = cellKey(0),
+                        isIncoming = isIncoming,
                         onPhotoClick = { onPhotoClick(0) },
                         onPhotoLongClick = { onPhotoLongClick(0) },
                         modifier = Modifier
@@ -558,6 +590,8 @@ internal fun ChatMediaAlbumGrid(
                                 showSelectionBadge = isSelectionMode,
                                 isPhotoSelected = idx in selectedPhotoIndices,
                                 accent = accent,
+                                snapshotKey = cellKey(idx),
+                                isIncoming = isIncoming,
                                 onPhotoClick = { onPhotoClick(idx) },
                                 onPhotoLongClick = { onPhotoLongClick(idx) },
                                 modifier = Modifier
@@ -602,6 +636,8 @@ internal fun ChatMediaAlbumGrid(
                                         showSelectionBadge = isSelectionMode,
                                         isPhotoSelected = currentIdx in selectedPhotoIndices,
                                         accent = accent,
+                                        snapshotKey = cellKey(currentIdx),
+                                        isIncoming = isIncoming,
                                         onPhotoClick = { onPhotoClick(currentIdx) },
                                         onPhotoLongClick = { onPhotoLongClick(currentIdx) },
                                         modifier = Modifier
@@ -643,6 +679,8 @@ internal fun ChatRealPhotoBox(
     showSelectionBadge: Boolean = false,
     isPhotoSelected: Boolean = false,
     accent: Color = LocalAnonGramScheme.current.accent,
+    snapshotKey: String = "",
+    isIncoming: Boolean = false,
     onPhotoClick: () -> Unit = {},
     onPhotoLongClick: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -656,6 +694,16 @@ internal fun ChatRealPhotoBox(
     var bitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
     var localSpoilerRevealed by remember(uriString) { mutableStateOf(false) }
     val showSpoiler = hasSpoiler && !localSpoilerRevealed
+
+    val snapshotRegistry = LocalMessageSnapshotRegistry.current
+    val deleteLayer = if (snapshotKey.isNotBlank() && snapshotRegistry != null) {
+        rememberGraphicsLayer()
+    } else null
+    if (deleteLayer != null && snapshotRegistry != null) {
+        DisposableEffect(snapshotKey, snapshotRegistry) {
+            onDispose { snapshotRegistry.unregister(snapshotKey) }
+        }
+    }
 
     LaunchedEffect(parsedUri, isVideo) {
         if (parsedUri != null) {
@@ -675,6 +723,23 @@ internal fun ChatRealPhotoBox(
 
     Box(
         modifier = modifier
+            .then(
+                if (deleteLayer != null && snapshotRegistry != null) {
+                    Modifier
+                        .drawWithContent {
+                            deleteLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(deleteLayer)
+                        }
+                        .onGloballyPositioned { coordinates ->
+                            snapshotRegistry.register(
+                                messageId = snapshotKey,
+                                layer = deleteLayer,
+                                boundsInWindow = coordinates.boundsInWindow(),
+                                isIncoming = isIncoming
+                            )
+                        }
+                } else Modifier
+            )
             .clipToBounds()
             .background(scheme.surface)
             .combinedClickable(
