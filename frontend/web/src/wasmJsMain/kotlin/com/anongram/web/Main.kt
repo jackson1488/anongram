@@ -8,6 +8,6 @@ import kotlinx.browser.document
 fun main() {
     val root = document.getElementById("root") ?: document.body!!
     ComposeViewport(root) {
-        App()
+        AnonGramWebApp()
     }
 }
