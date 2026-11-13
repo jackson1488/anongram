@@ -67,6 +67,37 @@ jobs:
           gradle-version: '8.14.3'
           cache-read-only: false
 
+      - name: 🧠 Cache Bergamot TranslateKit AAR
+        id: cache-translate-kit
+        uses: actions/cache@v4
+        with:
+          path: frontend/android/app/libs/translate-kit-release.aar
+          key: translate-kit-aar-v0.1.0-arm64-v1
+
+      - name: 🛠️ Build Bergamot TranslateKit AAR (arm64-v8a)
+        if: steps.cache-translate-kit.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p frontend/android/app/libs
+          if [ ! -d "$ANDROID_HOME/ndk/28.2.13676358" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.2.13676358" >/dev/null
+          fi
+          rm -rf /tmp/translate-kit
+          git clone --depth 1 https://github.com/marcosholgado/translate-kit.git /tmp/translate-kit
+          cd /tmp/translate-kit
+          git submodule update --init --recursive --depth 1 third_party/cld2
+          git submodule update --init --depth 1 third_party/translations
+          git -C third_party/translations submodule update --init --recursive --depth 1 \
+            inference/3rd_party/ssplit-cpp \
+            inference/marian-fork/src/3rd_party/sentencepiece \
+            inference/marian-fork/src/3rd_party/intgemm \
+            inference/marian-fork/src/3rd_party/ruy \
+            inference/marian-fork/src/3rd_party/simd_utils
+          bash scripts/apply-engine-patches.sh
+          cd android
+          chmod +x gradlew
+          ./gradlew :translate-kit:assembleRelease -PtestAbi=arm64-v8a --no-daemon
+          cp translate-kit/build/outputs/aar/translate-kit-release.aar "$GITHUB_WORKSPACE/frontend/android/app/libs/translate-kit-release.aar"
+
       - name: 🛠️ Build Signed APK
         working-directory: frontend/android
         run: |

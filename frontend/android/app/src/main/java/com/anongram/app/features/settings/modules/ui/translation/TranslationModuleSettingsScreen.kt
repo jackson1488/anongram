@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,9 +33,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,9 +51,10 @@ import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.chats.tools.translate.LocalMessageTranslator
 import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
+import com.anongram.app.features.settings.modules.ui.voice.formatMb
 
 /**
- * Экран настройки модуля локального офлайн-перевода сообщений (чистый плоский стиль без баблов и кружков).
+ * Экран настройки модуля локального офлайн-перевода сообщений на движке Bergamot (чистый плоский стиль).
  */
 @Composable
 fun TranslationModuleSettingsScreen(
@@ -60,14 +68,33 @@ fun TranslationModuleSettingsScreen(
     val settings by ModulesSettingsStore.state.collectAsState()
     val downloaded by LocalMessageTranslator.downloadedLanguages.collectAsState()
     val downloading by LocalMessageTranslator.downloadingLanguages.collectAsState()
+    val downloadingProgress by LocalMessageTranslator.downloadingProgress.collectAsState()
+    val packSizesBytes by LocalMessageTranslator.packSizesBytes.collectAsState()
     val packErrors by LocalMessageTranslator.packErrors.collectAsState()
+
+    var searchQuery by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         ModulesSettingsStore.ensureInitialized(context)
-        LocalMessageTranslator.refreshDownloadedModels()
+        LocalMessageTranslator.refreshDownloadedModels(context)
     }
 
     BackHandler(onBack = onBack)
+
+    val filteredPacks = remember(searchQuery, downloaded) {
+        val q = searchQuery.trim().lowercase()
+        val list = if (q.isEmpty()) {
+            LocalMessageTranslator.supportedPacks
+        } else {
+            LocalMessageTranslator.supportedPacks.filter {
+                it.nameRu.lowercase().contains(q) ||
+                    it.nameEn.lowercase().contains(q) ||
+                    it.tag.lowercase().contains(q)
+            }
+        }
+        // Скачанные языки всегда поднимаем наверх списка
+        list.sortedByDescending { downloaded.contains(it.tag) }
+    }
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -252,18 +279,63 @@ fun TranslationModuleSettingsScreen(
 
                 HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
-                // Заголовок офлайн-языков (ML Kit)
+                // Заголовок офлайн-языков (Bergamot)
                 Text(
-                    text = strings.offlineLanguagePacksHeader,
+                    text = "${strings.offlineLanguagePacksHeader} (${LocalMessageTranslator.supportedPacks.size})",
                     color = scheme.accent,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 6.dp)
                 )
 
-                LocalMessageTranslator.supportedPacks.forEachIndexed { idx, pack ->
+                // Плоский поиск языка
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = null,
+                        tint = scheme.textMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = TextStyle(
+                            color = scheme.textPrimary,
+                            fontSize = 14.5.sp
+                        ),
+                        cursorBrush = SolidColor(scheme.accent),
+                        modifier = Modifier.fillMaxWidth(),
+                        decorationBox = { innerTextField ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = if (strings.isRussian) "Поиск языка…" else "Search language…",
+                                    color = scheme.textMuted,
+                                    fontSize = 14.5.sp
+                                )
+                            }
+                            innerTextField()
+                        }
+                    )
+                }
+
+                HorizontalDivider(
+                    color = scheme.divider,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 18.dp)
+                )
+
+                filteredPacks.forEachIndexed { idx, pack ->
                     val isDownloaded = downloaded.contains(pack.tag)
                     val isDownloading = downloading.contains(pack.tag)
+                    val progress = downloadingProgress[pack.tag] ?: 0f
+                    val sizeBytes = packSizesBytes[pack.tag] ?: 0L
                     val errorText = packErrors[pack.tag]
 
                     Row(
@@ -282,8 +354,8 @@ fun TranslationModuleSettingsScreen(
                             )
                             val sub = when {
                                 errorText != null -> errorText
-                                isDownloading -> strings.downloadingProgress(50).substringBefore(" ") + "…"
-                                isDownloaded -> strings.activeLabel
+                                isDownloading -> strings.downloadingProgress((progress * 100).toInt())
+                                isDownloaded -> strings.installedLabel(formatMb(sizeBytes))
                                 else -> pack.tag.uppercase()
                             }
                             Text(
@@ -309,7 +381,7 @@ fun TranslationModuleSettingsScreen(
                             }
                             isDownloaded -> {
                                 IconButton(
-                                    onClick = { LocalMessageTranslator.deleteLanguagePack(pack.tag) },
+                                    onClick = { LocalMessageTranslator.deleteLanguagePack(context, pack.tag) },
                                     modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
@@ -322,7 +394,7 @@ fun TranslationModuleSettingsScreen(
                             }
                             else -> {
                                 IconButton(
-                                    onClick = { LocalMessageTranslator.downloadLanguagePack(pack.tag) },
+                                    onClick = { LocalMessageTranslator.downloadLanguagePack(context, pack.tag) },
                                     modifier = Modifier.size(36.dp)
                                 ) {
                                     Icon(
@@ -336,7 +408,7 @@ fun TranslationModuleSettingsScreen(
                         }
                     }
 
-                    if (idx < LocalMessageTranslator.supportedPacks.lastIndex) {
+                    if (idx < filteredPacks.lastIndex) {
                         HorizontalDivider(
                             color = scheme.divider,
                             thickness = 0.5.dp,

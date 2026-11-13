@@ -10,7 +10,7 @@ android {
 
     defaultConfig {
         applicationId = "com.anongram.app"
-        minSdk = 26
+        minSdk = 28
         targetSdk = 35
         // Растёт с каждой сборкой CI: нужно для установки поверх старой версии.
         val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
@@ -22,7 +22,7 @@ android {
         buildConfigField("String", "MAPBOX_ACCESS_TOKEN", "\"$mapboxToken\"")
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+            abiFilters += listOf("arm64-v8a")
         }
     }
 
@@ -65,6 +65,11 @@ android {
         compose = true
         buildConfig = true
     }
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -94,8 +99,7 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("com.alphacephei:vosk-android:0.3.47")
-    implementation("com.google.mlkit:translate:17.0.3")
-    implementation("com.google.mlkit:language-id:17.0.6")
+    implementation(files("libs/translate-kit-release.aar"))
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

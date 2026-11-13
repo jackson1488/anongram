@@ -39,7 +39,7 @@ fun TranslationModuleSection(
 
     val statusText = if (isEnabled) strings.translationEnabledStatus else strings.translationDisabledStatus
     val subText = if (downloadedCount > 0) {
-        "$statusText • $downloadedCount ML Kit"
+        "$statusText • $downloadedCount Bergamot"
     } else {
         statusText
     }

@@ -69,7 +69,7 @@ fun ModulesSettingsScreen(
     LaunchedEffect(Unit) {
         ModulesSettingsStore.ensureInitialized(context)
         assetManager.refreshAllStates()
-        LocalMessageTranslator.refreshDownloadedModels()
+        LocalMessageTranslator.refreshDownloadedModels(context)
     }
 
     BackHandler(onBack = onBack)

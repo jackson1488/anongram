@@ -713,19 +713,22 @@ internal fun MessageBubble(
                                             }
 
                                             if (translationEntry != null && (translationEntry.isTranslating || translationEntry.translatedText != null || translationEntry.error != null)) {
-                                                Spacer(modifier = Modifier.height(5.dp))
+                                                Spacer(modifier = Modifier.height(3.dp))
                                                 val badgeLabel = when {
                                                     translationEntry.isTranslating -> "🌐 ${moduleStrings.translatingLabel}"
                                                     translationEntry.error != null -> "🌐 ${translationEntry.error}"
-                                                    translationEntry.isShowingTranslation -> "🌐 ${moduleStrings.translatedLocallyBadge} • ${moduleStrings.showOriginalAction}"
+                                                    translationEntry.isShowingTranslation -> "🌐 ${moduleStrings.showOriginalAction}"
                                                     else -> "🌐 ${moduleStrings.showTranslationAction}"
                                                 }
                                                 Text(
                                                     text = badgeLabel,
                                                     color = if (translationEntry.error != null) FlameOrange else scheme.accent,
-                                                    fontSize = 11.5.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Medium,
+                                                    maxLines = if (translationEntry.error != null) 2 else 1,
+                                                    overflow = TextOverflow.Ellipsis,
                                                     modifier = Modifier
+                                                        .widthIn(max = 220.dp)
                                                         .clip(RoundedCornerShape(6.dp))
                                                         .clickable(enabled = !translationEntry.isTranslating) {
                                                             if (translationEntry.error != null) {
@@ -738,7 +741,7 @@ internal fun MessageBubble(
                                                                 LocalMessageTranslator.toggleShowOriginal(message.id)
                                                             }
                                                         }
-                                                        .padding(vertical = 2.dp)
+                                                        .padding(vertical = 1.dp)
                                                 )
                                             }
                                         }
