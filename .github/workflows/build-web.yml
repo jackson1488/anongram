@@ -71,6 +71,10 @@ jobs:
           path: frontend/web/build/dist/bundle/
           retention-days: 14
 
+      - name: ⚙️ Configure GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: actions/configure-pages@v5
+
       - name: 🌐 Upload Artifact for GitHub Pages
         if: github.ref == 'refs/heads/main'
         uses: actions/upload-pages-artifact@v3
