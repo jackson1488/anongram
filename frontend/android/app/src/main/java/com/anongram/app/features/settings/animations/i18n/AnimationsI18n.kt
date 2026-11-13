@@ -1,7 +1,9 @@
 package com.anongram.app.features.settings.animations.i18n
 
 import androidx.compose.runtime.Composable
-import com.anongram.app.core.i18n.LocalAppLanguage
+import androidx.compose.runtime.collectAsState
+import com.anongram.app.core.i18n.AppLanguage
+import com.anongram.app.core.i18n.LanguageSettingsStore
 
 data class AnimationsI18nStrings(
     val isRussian: Boolean,
@@ -96,5 +98,8 @@ private val EnAnimationsStrings = AnimationsI18nStrings(
 object AnimationsI18n {
     val current: AnimationsI18nStrings
         @Composable
-        get() = if (LocalAppLanguage.current.isRussian) RuAnimationsStrings else EnAnimationsStrings
+        get() {
+            val lang = LanguageSettingsStore.language.collectAsState().value
+            return if (lang == AppLanguage.RU) RuAnimationsStrings else EnAnimationsStrings
+        }
 }
