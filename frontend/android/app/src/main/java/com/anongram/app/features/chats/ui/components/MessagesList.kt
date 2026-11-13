@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.R
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.tools.UnreadDivider
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
