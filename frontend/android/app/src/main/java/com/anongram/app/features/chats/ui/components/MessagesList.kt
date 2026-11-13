@@ -171,7 +171,7 @@ internal fun MessagesList(
                     .padding(top = item.spacingAboveDp.dp)
                     .then(
                         if (animSettings.listItemShiftEnabled && !animSettings.reduceMotionEnabled) {
-                            Modifier.animateItem()
+                            Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null)
                         } else {
                             Modifier
                         }
