@@ -57,7 +57,8 @@ import com.anongram.web.features.profile.ui.ProfileScreen
 import com.anongram.web.features.qr.ui.QrHubOverlay
 import com.anongram.web.features.services.ui.ServicesScreen
 import com.anongram.web.features.settings.language.ui.LanguageSettingsScreen
-import com.anongram.web.features.settings.ui.SettingsScreen
+import com.anongram.web.features.settings.navigation.SettingsNavHost
+import com.anongram.web.features.auth.domain.model.UserIdentity
 import com.anongram.web.platform.PlatformBackHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -94,6 +95,7 @@ private fun CoroutineScope.closeOverlay(
 @Composable
 fun MainAppShell(
     themeController: ThemeController,
+    identity: UserIdentity? = null,
     onLogout: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -105,6 +107,7 @@ fun MainAppShell(
     var isContactsOpen by remember { mutableStateOf(false) }
     var isArchiveOpen by remember { mutableStateOf(false) }
     var isLanguageOpen by remember { mutableStateOf(false) }
+    var isSettingsSubScreenOpen by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     val messagesRepository = remember { InMemoryChatMessagesRepository() }
@@ -196,7 +199,7 @@ fun MainAppShell(
                     Row(modifier = Modifier.fillMaxSize()) {
                         Box(modifier = Modifier.weight(0.42f).fillMaxHeight()) {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                if (selectedTab != 0) {
+                                if (selectedTab != 0 && selectedTab != 2) {
                                     AppHeader(modifier = Modifier.safeStatusBarPadding())
                                 }
                                 Box(modifier = Modifier.weight(1f)) {
@@ -209,17 +212,22 @@ fun MainAppShell(
                                             onOpenContacts = { openContacts() }
                                         )
                                         1 -> ServicesScreen()
-                                        2 -> SettingsScreen(
+                                        2 -> SettingsNavHost(
+                                            identity = identity,
                                             currentThemeId = scheme.id,
                                             onThemeSelect = { themeController.selectTheme(it) },
-                                            onOpenLanguage = { openLanguage() },
+                                            onLogout = onLogout,
+                                            onSubScreenVisibilityChange = { isSettingsSubScreenOpen = it }
+                                        )
+                                        3 -> ProfileScreen(
+                                            nickname = identity?.nickname ?: "AnonUser",
+                                            publicId = identity?.publicId ?: "0x4D9F…88E1",
                                             onLogout = onLogout
                                         )
-                                        3 -> ProfileScreen(onLogout = onLogout)
                                     }
                                 }
                             }
-                            if (!isSubScreenOpen) {
+                            if (!isSubScreenOpen && !(selectedTab == 2 && isSettingsSubScreenOpen)) {
                                 MainFloatingIsland(
                                     selectedTab = selectedTab,
                                     onSelectTab = {
@@ -282,7 +290,7 @@ fun MainAppShell(
                     }
                 } else {
                     Column(modifier = Modifier.fillMaxSize()) {
-                        if (selectedTab != 0) {
+                        if (selectedTab != 0 && selectedTab != 2) {
                             AppHeader(modifier = Modifier.safeStatusBarPadding())
                         }
                         Box(modifier = Modifier.weight(1f)) {
@@ -295,18 +303,23 @@ fun MainAppShell(
                                     onOpenContacts = { openContacts() }
                                 )
                                 1 -> ServicesScreen()
-                                2 -> SettingsScreen(
+                                2 -> SettingsNavHost(
+                                    identity = identity,
                                     currentThemeId = scheme.id,
                                     onThemeSelect = { themeController.selectTheme(it) },
-                                    onOpenLanguage = { openLanguage() },
+                                    onLogout = onLogout,
+                                    onSubScreenVisibilityChange = { isSettingsSubScreenOpen = it }
+                                )
+                                3 -> ProfileScreen(
+                                    nickname = identity?.nickname ?: "AnonUser",
+                                    publicId = identity?.publicId ?: "0x4D9F…88E1",
                                     onLogout = onLogout
                                 )
-                                3 -> ProfileScreen(onLogout = onLogout)
                             }
                         }
                     }
 
-                    if (!isSubScreenOpen) {
+                    if (!isSubScreenOpen && !(selectedTab == 2 && isSettingsSubScreenOpen)) {
                         MainFloatingIsland(
                             selectedTab = selectedTab,
                             onSelectTab = {

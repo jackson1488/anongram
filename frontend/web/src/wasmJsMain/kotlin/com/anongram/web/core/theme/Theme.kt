@@ -10,6 +10,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import com.anongram.web.core.i18n.LanguageSettingsStore
+import com.anongram.web.features.chats.input.i18n.InputI18n
+import com.anongram.web.features.chats.input.i18n.LocalInputStrings
 
 val LocalAnonGramScheme = staticCompositionLocalOf { AnonGramThemes.CyberStealth }
 
@@ -23,7 +25,10 @@ fun AnonGramTheme(
 ) {
     LaunchedEffect(Unit) {
         LanguageSettingsStore.ensureInitialized()
+        ChatTextSettingsStore.ensureInitialized()
     }
+    val language by LanguageSettingsStore.language.collectAsState()
+    val inputStrings = InputI18n.forLanguage(language)
 
     val colorScheme = if (scheme.isDark) {
         darkColorScheme(
@@ -71,7 +76,8 @@ fun AnonGramTheme(
 
     CompositionLocalProvider(
         LocalAnonGramScheme provides scheme,
-        LocalThemeController provides controller
+        LocalThemeController provides controller,
+        LocalInputStrings provides inputStrings
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

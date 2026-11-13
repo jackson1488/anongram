@@ -32,6 +32,8 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Collections
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.DoneAll
 import androidx.compose.material.icons.outlined.Edit
@@ -39,12 +41,14 @@ import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Photo
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -58,9 +62,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
@@ -69,17 +77,21 @@ import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.web.core.theme.ChatTextSettingsStore
 import com.anongram.web.core.theme.CrimsonKillSwitch
 import com.anongram.web.core.theme.LocalAnonGramScheme
 import com.anongram.web.core.theme.NeonEmerald
 import com.anongram.web.core.ui.safeNavigationBarPadding
 import com.anongram.web.features.chats.common.IChatSession
+import com.anongram.web.features.chats.input.i18n.LocalInputStrings
 import com.anongram.web.features.chats.messages.domain.ChatMessage
 import com.anongram.web.features.chats.messages.domain.FileKind
 import com.anongram.web.features.chats.messages.domain.MessageAttachment
@@ -91,6 +103,10 @@ import com.anongram.web.features.chats.messages.domain.isSameDay
 import com.anongram.web.features.chats.messages.domain.timeLabel
 import com.anongram.web.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.web.features.chats.messages.state.SelfDestruct
+import com.anongram.web.features.chats.viewer.ChatMediaViewerOverlay
+import com.anongram.web.features.player.MiniAudioPlayerBar
+import com.anongram.web.features.player.PlayerTrack
+import com.anongram.web.features.player.WebAudioPlayer
 
 @Composable
 fun ChatScreen(
@@ -102,7 +118,11 @@ fun ChatScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
+    val textSizeSp by ChatTextSettingsStore.messageTextSizeSp.collectAsState()
+    val clipboard = LocalClipboardManager.current
     val listState = rememberLazyListState()
+    var viewerAttachment by remember { mutableStateOf<MessageAttachment?>(null) }
 
     LaunchedEffect(state.messages.size) {
         if (state.messages.isNotEmpty()) {
@@ -142,6 +162,8 @@ fun ChatScreen(
                 },
                 onClearHistory = { viewModel.requestDelete(state.messages.map { it.id }) }
             )
+
+            MiniAudioPlayerBar()
 
             // Search bar inside chat
             if (state.isSearchOpen) {
@@ -284,6 +306,7 @@ fun ChatScreen(
                     MessageBubbleRow(
                         message = message,
                         replyTarget = replyTarget,
+                        textSizeSp = textSizeSp,
                         isHighlighted = state.highlightedMessageId == message.id,
                         isSelected = message.id in state.selection,
                         isMenuOpen = state.actionMenuFor?.id == message.id,
@@ -295,9 +318,16 @@ fun ChatScreen(
                         onDismissMenu = viewModel::dismissActionMenu,
                         onReply = { viewModel.startReply(message) },
                         onEdit = { viewModel.startEditing(message) },
+                        onCopy = {
+                            if (message.text.isNotBlank()) {
+                                clipboard.setText(AnnotatedString(message.text))
+                            }
+                            viewModel.dismissActionMenu()
+                        },
                         onPin = { viewModel.togglePin(message.id) },
                         onDelete = { viewModel.requestDelete(listOf(message.id)) },
-                        onReact = { emoji -> viewModel.toggleReaction(message.id, emoji) }
+                        onReact = { emoji -> viewModel.toggleReaction(message.id, emoji) },
+                        onOpenMedia = { att -> viewerAttachment = att }
                     )
                 }
             }
@@ -310,24 +340,50 @@ fun ChatScreen(
                     color = scheme.islandBg,
                     border = BorderStroke(1.dp, scheme.islandBorder)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        AttachOption(Icons.Outlined.Photo, "Фото") {
-                            viewModel.sendAttachment(MessageAttachment.Photo("IMG_Demo", 2), "Зашифрованное фото")
+                    Column(modifier = Modifier.fillMaxWidth().padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            AttachOption(Icons.Outlined.Photo, strings.photoLabel) {
+                                viewModel.sendAttachment(MessageAttachment.Photo("IMG_Demo", 2), strings.photoLabel)
+                            }
+                            AttachOption(Icons.Outlined.Collections, strings.albumPhotos(3)) {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.MediaAlbum(
+                                        listOf(
+                                            MessageAttachment.AlbumMediaItem("1"),
+                                            MessageAttachment.AlbumMediaItem("2"),
+                                            MessageAttachment.AlbumMediaItem("3", isVideo = true)
+                                        )
+                                    )
+                                )
+                            }
+                            AttachOption(Icons.Outlined.AttachFile, strings.file) {
+                                viewModel.sendAttachment(MessageAttachment.File("key_backup.enc", "128 KB", FileKind.ARCHIVE))
+                            }
+                            AttachOption(Icons.Outlined.MusicNote, strings.audioTrack) {
+                                viewModel.sendAttachment(MessageAttachment.Music("Onion Beat", "AnonGram", "3:18", 1))
+                            }
                         }
-                        AttachOption(Icons.Outlined.AttachFile, "Файл") {
-                            viewModel.sendAttachment(MessageAttachment.File("key_backup.enc", "128 КБ", FileKind.ARCHIVE))
-                        }
-                        AttachOption(Icons.Outlined.MusicNote, "Музыка") {
-                            viewModel.sendAttachment(MessageAttachment.Music("Onion Beat", "AnonGram", "3:18", 1))
-                        }
-                        AttachOption(Icons.Outlined.LocationOn, "Гео") {
-                            viewModel.sendAttachment(MessageAttachment.Geo("Zero-Knowledge Node #4", 42.87, 74.59))
-                        }
-                        AttachOption(Icons.Outlined.Person, "Контакт") {
-                            viewModel.sendAttachment(MessageAttachment.Contact("Боб", "+996 555 01-02-03", "0x1B77…D3A0", true))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            AttachOption(Icons.Outlined.Mic, strings.voiceMessageDuration("0:12")) {
+                                viewModel.sendAttachment(
+                                    MessageAttachment.Voice("0:12", listOf(4, 10, 14, 7, 16, 12, 8, 15, 11, 6, 13, 9))
+                                )
+                            }
+                            AttachOption(Icons.Outlined.Videocam, strings.videoNoteTime("0:08")) {
+                                viewModel.sendAttachment(MessageAttachment.VideoCircle("0:08", colorSeed = 3))
+                            }
+                            AttachOption(Icons.Outlined.LocationOn, strings.geolocationLabel) {
+                                viewModel.sendAttachment(MessageAttachment.Geo("Zero-Knowledge Node #4", 42.87, 74.59))
+                            }
+                            AttachOption(Icons.Outlined.Person, strings.contactLabel) {
+                                viewModel.sendAttachment(MessageAttachment.Contact("Bob", "+996 555 01-02-03", "0x1B77…D3A0", true))
+                            }
                         }
                     }
                 }
@@ -335,25 +391,46 @@ fun ChatScreen(
 
             if (state.isEmojiOpen) {
                 val emojis = listOf("👍", "🔥", "❤️", "⚡", "🛡️", "🔐", "🐉", "🚀", "😎", "🎉")
+                val stickers = listOf("🦊", "👻", "🕶️", "⚡", "🛡️", "🚀")
                 Surface(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
                     shape = RoundedCornerShape(20.dp),
                     color = scheme.islandBg,
                     border = BorderStroke(1.dp, scheme.islandBorder)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        emojis.forEach { emoji ->
-                            Text(
-                                text = emoji,
-                                fontSize = 22.sp,
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .clickable { viewModel.onInputChange(state.input + emoji) }
-                                    .padding(4.dp)
-                            )
+                    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            emojis.forEach { emoji ->
+                                Text(
+                                    text = emoji,
+                                    fontSize = 22.sp,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.onInputChange(state.input + emoji) }
+                                        .padding(4.dp)
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(strings.stickersSection, color = scheme.accent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            stickers.forEachIndexed { idx, sticker ->
+                                Text(
+                                    text = sticker,
+                                    fontSize = 24.sp,
+                                    modifier = Modifier
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.sendAttachment(MessageAttachment.Sticker(sticker, idx)) }
+                                        .padding(4.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -495,6 +572,13 @@ fun ChatScreen(
             }
         )
     }
+
+    viewerAttachment?.let { att ->
+        ChatMediaViewerOverlay(
+            attachment = att,
+            onDismiss = { viewerAttachment = null }
+        )
+    }
 }
 
 @Composable
@@ -530,6 +614,7 @@ private fun AttachOption(
 private fun MessageBubbleRow(
     message: ChatMessage,
     replyTarget: ChatMessage?,
+    textSizeSp: Int,
     isHighlighted: Boolean,
     isSelected: Boolean,
     isMenuOpen: Boolean,
@@ -538,13 +623,20 @@ private fun MessageBubbleRow(
     onDismissMenu: () -> Unit,
     onReply: () -> Unit,
     onEdit: () -> Unit,
+    onCopy: () -> Unit,
     onPin: () -> Unit,
     onDelete: () -> Unit,
-    onReact: (String) -> Unit
+    onReact: (String) -> Unit,
+    onOpenMedia: (MessageAttachment) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
     val isOut = message.direction == MessageDirection.OUTGOING
-    val bubbleColor = if (isOut) scheme.outgoingBubbleStart else scheme.incomingBubbleBg
+    val bubbleBrush = if (isOut) {
+        Brush.linearGradient(listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd))
+    } else {
+        Brush.linearGradient(listOf(scheme.incomingBubbleBg, scheme.incomingBubbleBg))
+    }
+    val bubbleBorder = if (isOut) scheme.outgoingBubbleBorder else scheme.incomingBubbleBorder
     val textColor = if (isOut) scheme.outgoingText else scheme.incomingText
     val bubbleShape = RoundedCornerShape(
         topStart = 18.dp,
@@ -574,8 +666,8 @@ private fun MessageBubbleRow(
                     modifier = Modifier
                         .widthIn(min = 84.dp, max = 340.dp)
                         .clip(bubbleShape)
-                        .background(bubbleColor)
-                        .border(1.dp, scheme.divider.copy(alpha = 0.4f), bubbleShape)
+                        .background(bubbleBrush)
+                        .border(1.dp, bubbleBorder, bubbleShape)
                         .combinedClickable(onClick = onClick, onLongClick = onLongClick)
                         .padding(horizontal = 12.dp, vertical = 8.dp)
                 ) {
@@ -602,7 +694,12 @@ private fun MessageBubbleRow(
                     }
 
                     message.attachment?.let { att ->
-                        AttachmentBlock(att = att, textColor = textColor)
+                        AttachmentBlock(
+                            att = att,
+                            messageId = message.id,
+                            textColor = textColor,
+                            onOpenMedia = onOpenMedia
+                        )
                         if (message.text.isNotBlank()) Spacer(modifier = Modifier.height(6.dp))
                     }
 
@@ -610,8 +707,8 @@ private fun MessageBubbleRow(
                         Text(
                             text = message.text,
                             color = textColor,
-                            fontSize = 14.sp,
-                            lineHeight = 19.sp
+                            fontSize = textSizeSp.sp,
+                            lineHeight = (textSizeSp * 1.28f).coerceAtLeast(textSizeSp + 3f).sp
                         )
                     }
 
@@ -706,6 +803,13 @@ private fun MessageBubbleRow(
                         onClick = onEdit
                     )
                 }
+                if (message.text.isNotBlank()) {
+                    DropdownMenuItem(
+                        text = { Text("Копировать", color = scheme.textPrimary) },
+                        leadingIcon = { Icon(Icons.Outlined.ContentCopy, contentDescription = null, tint = scheme.textPrimary) },
+                        onClick = onCopy
+                    )
+                }
                 DropdownMenuItem(
                     text = { Text("Закрепить", color = scheme.textPrimary) },
                     leadingIcon = { Icon(Icons.Outlined.PushPin, contentDescription = null, tint = scheme.textPrimary) },
@@ -722,7 +826,12 @@ private fun MessageBubbleRow(
 }
 
 @Composable
-private fun AttachmentBlock(att: MessageAttachment, textColor: Color) {
+private fun AttachmentBlock(
+    att: MessageAttachment,
+    messageId: String,
+    textColor: Color,
+    onOpenMedia: (MessageAttachment) -> Unit
+) {
     val scheme = LocalAnonGramScheme.current
     when (att) {
         is MessageAttachment.Photo -> {
@@ -731,7 +840,8 @@ private fun AttachmentBlock(att: MessageAttachment, textColor: Color) {
                     .fillMaxWidth()
                     .height(140.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(attachmentColor(att.colorSeed)),
+                    .background(attachmentColor(att.colorSeed))
+                    .clickable { onOpenMedia(att) },
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -740,6 +850,57 @@ private fun AttachmentBlock(att: MessageAttachment, textColor: Color) {
                         Text(att.label, color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp)
                     }
                 }
+            }
+        }
+        is MessageAttachment.MediaAlbum -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenMedia(att) },
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                att.items.take(3).forEachIndexed { idx, item ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(92.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(attachmentColor(idx + 1)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (item.isVideo) Icons.Outlined.PlayArrow else Icons.Outlined.Photo,
+                            contentDescription = null,
+                            tint = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+        is MessageAttachment.VideoCircle -> {
+            Box(
+                modifier = Modifier
+                    .size(148.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(attachmentColor(att.colorSeed), scheme.accentDim)))
+                    .border(2.dp, scheme.accent, CircleShape)
+                    .clickable { onOpenMedia(att) },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Outlined.PlayArrow, contentDescription = null, tint = Color.White, modifier = Modifier.size(40.dp))
+                Text(
+                    text = att.durationLabel,
+                    color = Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 10.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color.Black.copy(alpha = 0.45f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
             }
         }
         is MessageAttachment.File -> {
@@ -770,6 +931,16 @@ private fun AttachmentBlock(att: MessageAttachment, textColor: Color) {
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(10.dp))
                     .background(scheme.background.copy(alpha = 0.25f))
+                    .clickable {
+                        WebAudioPlayer.playOrToggle(
+                            PlayerTrack(
+                                id = "${messageId}_music",
+                                title = att.title,
+                                subtitle = att.artist,
+                                durationLabel = att.durationLabel
+                            )
+                        )
+                    }
                     .padding(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -788,7 +959,19 @@ private fun AttachmentBlock(att: MessageAttachment, textColor: Color) {
         }
         is MessageAttachment.Voice -> {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable {
+                        WebAudioPlayer.playOrToggle(
+                            PlayerTrack(
+                                id = "${messageId}_voice",
+                                title = "Voice Message",
+                                subtitle = "E2EE Audio",
+                                durationLabel = att.durationLabel
+                            )
+                        )
+                    }
+                    .padding(vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
