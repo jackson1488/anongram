@@ -544,7 +544,7 @@ private fun MessageBubbleRow(
 ) {
     val scheme = LocalAnonGramScheme.current
     val isOut = message.direction == MessageDirection.OUTGOING
-    val bubbleColor = if (isOut) scheme.outgoingBubble else scheme.incomingBubble
+    val bubbleColor = if (isOut) scheme.outgoingBubbleStart else scheme.incomingBubbleBg
     val textColor = if (isOut) scheme.outgoingText else scheme.incomingText
     val bubbleShape = RoundedCornerShape(
         topStart = 18.dp,

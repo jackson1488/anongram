@@ -1,17 +1,21 @@
 package com.anongram.web.core.navigation
 
-enum class TransitionType {
-    SPRING_SWIPE,
-    CUPERTINO_PARALLAX,
-    REAL_BOOK_3D,
-    CUBE_ROTATION_3D,
-    ROTATION_SPIN,
-    CASCADE,
-    WINDMILL,
-    PARTICLE_DISSOLVE,
-    CARD_STACK_PEEK,
-    PREDICTIVE_BACK,
-    INSTANT
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
+enum class TransitionType(val displayName: String) {
+    SPRING_SWIPE("Spring Swipe"),
+    CUPERTINO_PARALLAX("Cupertino"),
+    REAL_BOOK_3D("Book 3D"),
+    CUBE_ROTATION_3D("Cube 3D"),
+    ROTATION_SPIN("Spin"),
+    CASCADE("Cascade"),
+    WINDMILL("Windmill"),
+    PARTICLE_DISSOLVE("Particles"),
+    CARD_STACK_PEEK("Card Peek"),
+    PREDICTIVE_BACK("Predictive"),
+    INSTANT("Instant")
 }
 
 enum class ParticleStyle {
@@ -35,4 +39,9 @@ data class NavigationTransitionConfig(
     val effectiveDurationMs: Int
         get() = if (transitionType == TransitionType.INSTANT) 0
         else (baseDurationMs / speedMultiplier).toInt().coerceIn(40, 1000)
+
+    companion object {
+        var currentType: TransitionType by mutableStateOf(TransitionType.SPRING_SWIPE)
+        fun current(): NavigationTransitionConfig = NavigationTransitionConfig(transitionType = currentType)
+    }
 }

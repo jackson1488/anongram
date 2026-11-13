@@ -127,7 +127,7 @@ fun MainFloatingIsland(
                 .clip(RoundedCornerShape(22.dp))
                 .background(
                     Brush.linearGradient(
-                        listOf(scheme.accent, scheme.accentSecondary)
+                        listOf(scheme.accent, scheme.accentDim)
                     )
                 )
                 .border(1.5.dp, scheme.background.copy(alpha = 0.8f), RoundedCornerShape(22.dp))

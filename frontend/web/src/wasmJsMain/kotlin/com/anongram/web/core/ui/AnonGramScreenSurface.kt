@@ -3,6 +3,7 @@ package com.anongram.web.core.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -47,13 +48,15 @@ fun AnonGramIslandCard(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 20.dp,
     shape: Shape = RoundedCornerShape(cornerRadius),
+    onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
     Surface(
         modifier = modifier
             .clip(shape)
-            .border(BorderStroke(1.dp, scheme.cardBorder), shape),
+            .border(BorderStroke(1.dp, scheme.cardBorder), shape)
+            .let { if (onClick != null) it.clickable(onClick = onClick) else it },
         shape = shape,
         color = scheme.card,
         contentColor = scheme.textPrimary

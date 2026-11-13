@@ -115,7 +115,7 @@ fun SettingsScreen(
                                 }
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
-                                    text = theme.name,
+                                    text = theme.displayName,
                                     color = scheme.textPrimary,
                                     fontSize = 10.sp,
                                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
