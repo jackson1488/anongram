@@ -45,6 +45,7 @@ fun App() {
                 sessions.associate { it.id to WebChatSampleData.getInitialMessages(it.id) }
             )
         }
+        var nextMsgId by remember { mutableStateOf(1000) }
         val currentMessages = messagesMap[selectedSessionId] ?: emptyList()
 
         Row(
@@ -70,8 +71,9 @@ fun App() {
                 messages = currentMessages,
                 onSendMessage = { text ->
                     if (text.isNotBlank()) {
+                        nextMsgId += 1
                         val newMsg = WebChatMessage(
-                            id = "msg_${System.currentTimeMillis()}",
+                            id = "msg_$nextMsgId",
                             direction = MessageDirection.OUTGOING,
                             text = text.trim(),
                             time = "Сейчас",
