@@ -91,6 +91,10 @@ import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.MessageStatus
 import com.anongram.app.features.chats.tools.translate.LocalMessageTranslator
+import com.anongram.app.features.chats.ui.animations.MessageAppearWrapper
+import com.anongram.app.features.chats.ui.animations.rememberStreamedMessageText
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
+import com.anongram.app.features.settings.animations.data.MessageAppearStyle
 import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import com.anongram.app.features.chats.messages.domain.resolveSubItem
@@ -121,6 +125,8 @@ internal fun MessageBubble(
     selectedPhotoIndices: Set<Int> = emptySet(),
     isHighlighted: Boolean = false,
     isPinned: Boolean = false,
+    shouldAnimateAppear: Boolean = false,
+    onAppearAnimationFinished: () -> Unit = {},
     onQuoteClick: (String) -> Unit = {},
     onClick: (anchorTopYPx: Float, anchorBottomYPx: Float) -> Unit = { _, _ -> },
     onLongClick: () -> Unit = {},
@@ -154,6 +160,10 @@ internal fun MessageBubble(
     val textScale = remember(messageTextSizeSp) {
         (messageTextSizeSp / 16f).coerceIn(0.35f, 1.5f)
     }
+
+    val animSettings by AnimationsSettingsStore.state.collectAsState()
+    val effectiveAppear = shouldAnimateAppear && animSettings.messageAppearEnabled && !animSettings.reduceMotionEnabled
+    val shouldStreamTokens = effectiveAppear && animSettings.messageAppearStyle == MessageAppearStyle.TOKEN_STREAM
 
     val moduleStrings = ModulesI18n.current
     val moduleSettings by ModulesSettingsStore.state.collectAsState()
@@ -299,6 +309,18 @@ internal fun MessageBubble(
 
         val isStandaloneCircle = message.attachment is MessageAttachment.VideoCircle && message.text.isBlank()
 
+        MessageAppearWrapper(
+            animateKey = message.id,
+            isIncoming = isIncoming,
+            shouldAnimate = effectiveAppear,
+            style = animSettings.messageAppearStyle,
+            speedMultiplier = animSettings.speedMultiplier,
+            onAnimationFinished = {
+                if (!shouldStreamTokens || message.text.isBlank()) {
+                    onAppearAnimationFinished()
+                }
+            }
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -660,11 +682,24 @@ internal fun MessageBubble(
 
                                     // Текст сообщения + отдельный блок времени (модульный BubbleTextMessage)
                                     if (message.text.isNotBlank()) {
-                                        val effectiveMessage = if (
+                                        val baseText = if (
                                             translationEntry?.isShowingTranslation == true &&
                                             !translationEntry.translatedText.isNullOrBlank()
                                         ) {
-                                            message.copy(text = translationEntry.translatedText)
+                                            translationEntry.translatedText
+                                        } else {
+                                            message.text
+                                        }
+                                        val displayText = rememberStreamedMessageText(
+                                            fullText = baseText,
+                                            animateKey = message.id,
+                                            shouldStream = shouldStreamTokens,
+                                            tokenSpeed = animSettings.tokenStreamSpeed,
+                                            speedMultiplier = animSettings.speedMultiplier,
+                                            onStreamFinished = onAppearAnimationFinished
+                                        )
+                                        val effectiveMessage = if (displayText != message.text) {
+                                            message.copy(text = displayText)
                                         } else {
                                             message
                                         }
@@ -776,6 +811,7 @@ internal fun MessageBubble(
                     )
                 }
             }
+        }
         }
     }
 }

@@ -32,9 +32,13 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.tools.UnreadDivider
 import androidx.compose.runtime.State
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.theme.ChatTextSettingsStore
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
@@ -110,6 +114,33 @@ internal fun MessagesList(
     val scrollingState = remember(listState) { derivedStateOf { listState.isScrollInProgress } }
     val messageTextSizeSp by ChatTextSettingsStore.messageTextSizeSp.collectAsState()
 
+    val context = LocalContext.current
+    val animSettings by AnimationsSettingsStore.state.collectAsState()
+    LaunchedEffect(Unit) {
+        AnimationsSettingsStore.ensureInitialized(context)
+    }
+
+    val knownIds = remember { mutableStateMapOf<String, Boolean>() }
+    val animatingIds = remember { mutableStateMapOf<String, Boolean>() }
+    val initializedHistory = remember { mutableStateOf(false) }
+
+    LaunchedEffect(messages) {
+        if (!initializedHistory.value) {
+            messages.forEach { knownIds[it.id] = true }
+            initializedHistory.value = true
+        } else {
+            val now = System.currentTimeMillis()
+            messages.forEach { msg ->
+                if (!knownIds.containsKey(msg.id)) {
+                    knownIds[msg.id] = true
+                    if (now - msg.epochMs <= 5_000L || msg.epochMs == 0L) {
+                        animatingIds[msg.id] = true
+                    }
+                }
+            }
+        }
+    }
+
     CompositionLocalProvider(
         LocalIsListScrollingState provides scrollingState,
         LocalMessageTextSizeSp provides messageTextSizeSp
@@ -135,7 +166,17 @@ internal fun MessagesList(
                 item.message.attachment?.let { it::class.java } ?: String::class.java
             }
         ) { _, item ->
-            Column(modifier = Modifier.padding(top = item.spacingAboveDp.dp)) {
+            Column(
+                modifier = Modifier
+                    .padding(top = item.spacingAboveDp.dp)
+                    .then(
+                        if (animSettings.listItemShiftEnabled && !animSettings.reduceMotionEnabled) {
+                            Modifier.animateItem()
+                        } else {
+                            Modifier
+                        }
+                    )
+            ) {
                 if (item.dateChipAbove) {
                     DateChip(epochMs = item.message.epochMs)
                 }
@@ -182,6 +223,8 @@ internal fun MessagesList(
                     selectedPhotoIndices = selectedSubIndices,
                     isHighlighted = item.message.id == highlightedMessageId,
                     isPinned = item.message.id in pinnedIds,
+                    shouldAnimateAppear = animatingIds.containsKey(item.message.id),
+                    onAppearAnimationFinished = { animatingIds.remove(item.message.id) },
                     onQuoteClick = { originalId ->
                         onHighlightMessage(originalId)
                         val index = displayIndexById[originalId]
