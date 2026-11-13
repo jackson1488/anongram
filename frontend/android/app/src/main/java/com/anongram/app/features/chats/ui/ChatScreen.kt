@@ -211,9 +211,9 @@ fun ChatScreen(
     var videoReviewSeekTrigger by remember(videoReviewKey) { mutableStateOf<Pair<Int, Float>?>(null) }
 
     val snapshotRegistry = rememberMessageSnapshotRegistry()
-    snapshotRegistry.isCaptureArmed = state.actionMenuMessage != null ||
+    snapshotRegistry.isCaptureArmed = state.actionMenuFor != null ||
         state.isSelectionMode ||
-        state.pendingDeleteIds.isNotEmpty() ||
+        !state.deleteDialogFor.isNullOrEmpty() ||
         viewingMediaMessage != null
 
     CompositionLocalProvider(LocalMessageSnapshotRegistry provides snapshotRegistry) {
