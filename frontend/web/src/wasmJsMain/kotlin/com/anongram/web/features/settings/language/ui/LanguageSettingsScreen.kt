@@ -76,8 +76,8 @@ fun LanguageSettingsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column {
-                    Text(lang.nativeTitle, color = scheme.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text(lang.englishTitle, color = scheme.textSecondary, fontSize = 12.sp)
+                    Text(lang.nativeName, color = scheme.textPrimary, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    Text(lang.displayName, color = scheme.textSecondary, fontSize = 12.sp)
                 }
                 if (selected) {
                     Icon(Icons.Outlined.Check, contentDescription = null, tint = scheme.accent)

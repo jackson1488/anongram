@@ -167,7 +167,7 @@ fun SettingsScreen(
             SettingsRowCard(
                 icon = Icons.Outlined.Language,
                 title = if (isRu) "Язык интерфейса" else "Language",
-                subtitle = language.nativeTitle,
+                subtitle = language.nativeName,
                 onClick = onOpenLanguage
             )
         }
