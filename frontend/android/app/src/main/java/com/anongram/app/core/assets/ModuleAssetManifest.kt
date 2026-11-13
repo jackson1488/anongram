@@ -1,7 +1,7 @@
 package com.anongram.app.core.assets
 
 /**
- * Тип внешнего модуля, загружаемого с GitHub Releases без раздувания APK.
+ * Тип внешнего модуля, загружаемого без раздувания APK.
  */
 enum class ModuleCategory {
     VOICE_WHISPER,
@@ -24,6 +24,7 @@ data class ModuleAssetSpec(
     val fileName: String,
     val isZipArchive: Boolean,
     val downloadUrl: String,
+    val fallbackUrl: String? = null,
     val sha256: String = ""
 )
 
@@ -39,12 +40,11 @@ sealed interface AssetDownloadState {
 }
 
 /**
- * Каталог внешних ассетов AnonGram, размещаемых на GitHub Releases.
- * При обновлении версий моделей достаточно обновить URL/хеш здесь.
+ * Каталог внешних ассетов AnonGram (`https://jackson1488.github.io/anongram/assets/...`).
+ * Если ассет ещё не выложен на GitHub Pages, используется резервное официальное зеркало.
  */
 object ModuleAssetManifest {
-    private const val ASSETS_RELEASE_BASE =
-        "https://github.com/jackson1488/anongram-assets/releases/download/models-v1"
+    const val ASSETS_BASE_URL = "https://jackson1488.github.io/anongram/assets"
 
     val WHISPER_TINY_Q5 = ModuleAssetSpec(
         id = "whisper_tiny_q5",
@@ -57,7 +57,8 @@ object ModuleAssetManifest {
         approxSizeMb = 32,
         fileName = "ggml-tiny-q5_1.bin",
         isZipArchive = false,
-        downloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin"
+        downloadUrl = "$ASSETS_BASE_URL/ggml-tiny-q5_1.bin",
+        fallbackUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny-q5_1.bin"
     )
 
     val WHISPER_BASE_Q5 = ModuleAssetSpec(
@@ -71,7 +72,8 @@ object ModuleAssetManifest {
         approxSizeMb = 60,
         fileName = "ggml-base-q5_1.bin",
         isZipArchive = false,
-        downloadUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin"
+        downloadUrl = "$ASSETS_BASE_URL/ggml-base-q5_1.bin",
+        fallbackUrl = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base-q5_1.bin"
     )
 
     val VOSK_RU = ModuleAssetSpec(
@@ -85,7 +87,8 @@ object ModuleAssetManifest {
         approxSizeMb = 45,
         fileName = "vosk-model-small-ru-0.22.zip",
         isZipArchive = true,
-        downloadUrl = "https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip"
+        downloadUrl = "$ASSETS_BASE_URL/vosk-model-small-ru-0.22.zip",
+        fallbackUrl = "https://alphacephei.com/vosk/models/vosk-model-small-ru-0.22.zip"
     )
 
     val VOSK_EN = ModuleAssetSpec(
@@ -99,7 +102,8 @@ object ModuleAssetManifest {
         approxSizeMb = 40,
         fileName = "vosk-model-small-en-us-0.15.zip",
         isZipArchive = true,
-        downloadUrl = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
+        downloadUrl = "$ASSETS_BASE_URL/vosk-model-small-en-us-0.15.zip",
+        fallbackUrl = "https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
     )
 
     val TRANSLATE_EN_RU = ModuleAssetSpec(
@@ -113,13 +117,14 @@ object ModuleAssetManifest {
         approxSizeMb = 32,
         fileName = "anongram-translate-en-ru.zip",
         isZipArchive = true,
-        downloadUrl = "$ASSETS_RELEASE_BASE/anongram-translate-en-ru.zip"
+        downloadUrl = "$ASSETS_BASE_URL/anongram-translate-en-ru.zip"
     )
 
     val allVoiceWhisper: List<ModuleAssetSpec> = listOf(WHISPER_TINY_Q5, WHISPER_BASE_Q5)
     val allVoiceVosk: List<ModuleAssetSpec> = listOf(VOSK_RU, VOSK_EN)
+    val allVoice: List<ModuleAssetSpec> = allVoiceWhisper + allVoiceVosk
     val allTranslation: List<ModuleAssetSpec> = listOf(TRANSLATE_EN_RU)
-    val all: List<ModuleAssetSpec> = allVoiceWhisper + allVoiceVosk + allTranslation
+    val all: List<ModuleAssetSpec> = allVoice + allTranslation
 
     fun findById(id: String): ModuleAssetSpec? = all.firstOrNull { it.id == id }
 }

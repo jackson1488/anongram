@@ -80,6 +80,9 @@ class ExternalAssetManager private constructor(private val appContext: Context) 
 
     fun isInstalled(spec: ModuleAssetSpec): Boolean = getInstalledModelPath(spec) != null
 
+    fun installedBytesForSpecs(specs: List<ModuleAssetSpec>): Long =
+        specs.sumOf { spec -> directorySizeBytes(assetDir(spec.id)) }
+
     fun totalInstalledBytes(): Long = directorySizeBytes(modulesRoot)
 
     fun startDownload(spec: ModuleAssetSpec) {
@@ -89,10 +92,18 @@ class ExternalAssetManager private constructor(private val appContext: Context) 
             val stageDir = File(modulesRoot, "${spec.id}.stage.tmp")
             try {
                 updateState(spec.id, AssetDownloadState.Downloading(0f, 0L, spec.approxSizeMb * 1024L * 1024L))
-                downloadWithRedirects(spec.downloadUrl, tempZipOrBin) { downloaded, total ->
+                val onProgress: (Long, Long) -> Unit = { downloaded, total ->
                     val effectiveTotal = if (total > 0L) total else spec.approxSizeMb * 1024L * 1024L
                     val progress = (downloaded.toFloat() / effectiveTotal.toFloat()).coerceIn(0f, 0.99f)
                     updateState(spec.id, AssetDownloadState.Downloading(progress, downloaded, effectiveTotal))
+                }
+                try {
+                    downloadWithRedirects(spec.downloadUrl, tempZipOrBin, onProgress)
+                } catch (primaryErr: Throwable) {
+                    val fb = spec.fallbackUrl
+                    if (fb.isNullOrBlank()) throw primaryErr
+                    tempZipOrBin.delete()
+                    downloadWithRedirects(fb, tempZipOrBin, onProgress)
                 }
 
                 if (spec.sha256.isNotBlank()) {

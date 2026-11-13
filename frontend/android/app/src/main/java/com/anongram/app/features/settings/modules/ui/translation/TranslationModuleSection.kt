@@ -1,7 +1,6 @@
 package com.anongram.app.features.settings.modules.ui.translation
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,7 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Translate
@@ -29,80 +27,64 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 
 /**
- * Подмодуль «Локальный перевод сообщений» в Настройки -> Модули (`translation/`).
- * Использует общую архитектуру внешних пакетов с GitHub Releases.
+ * Строка подмодуля «Локальный перевод сообщений» в общем плоском списке «Модули» (без баблов и кружков).
  */
 @Composable
 fun TranslationModuleSection(
+    memoryLabel: String,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = ModulesI18n.current
 
-    Column(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(scheme.card)
-            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.weight(1f)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(38.dp)
-                        .clip(CircleShape)
-                        .background(scheme.accent.copy(alpha = 0.14f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Translate,
-                        contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(12.dp))
+            Icon(
+                imageVector = Icons.Outlined.Translate,
+                contentDescription = null,
+                tint = scheme.accent,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(16.dp))
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = strings.translationSectionTitle,
                     color = scheme.textPrimary,
                     fontSize = 15.5.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium
                 )
-            }
-
-            Spacer(modifier = Modifier.width(8.dp))
-
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(scheme.accent.copy(alpha = 0.14f))
-                    .padding(horizontal = 9.dp, vertical = 3.dp)
-            ) {
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = strings.comingSoonBadge,
-                    color = scheme.accent,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = "${strings.comingSoonBadge} • $memoryLabel",
+                    color = scheme.textSecondary,
+                    fontSize = 13.sp
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
 
-        Text(
-            text = strings.translationSectionDesc,
-            color = scheme.textSecondary,
-            fontSize = 13.sp,
-            lineHeight = 18.sp
-        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(scheme.accent.copy(alpha = 0.14f))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = strings.comingSoonBadge,
+                color = scheme.accent,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
     }
 }

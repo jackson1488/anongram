@@ -2,7 +2,6 @@ package com.anongram.app.features.settings.modules.ui.voice
 
 import android.os.Build
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,15 +13,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.RadioButtonUnchecked
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -51,8 +48,9 @@ import com.anongram.app.features.settings.modules.data.VoiceSttEngine
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 
 /**
- * Подмодуль настройки расшифровки ГС (`voice/`) внутри Настройки -> Модули.
- * Позволяет выбрать движок (Whisper, Vosk, Системный/Google), скачать или удалить языковые модели.
+ * Плоский чистый экран настроек модуля ГС (без баблов и кружков):
+ * 1) Движок (Whisper / Vosk / Системный-Google с предупреждением)
+ * 2) Собственная память ГС + язык + список моделей с кнопкой удаления справа у каждого скачанного пака.
  */
 @Composable
 fun VoiceModuleSection(
@@ -76,50 +74,21 @@ fun VoiceModuleSection(
         )
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(scheme.card)
-            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
-            .padding(16.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(CircleShape)
-                    .background(scheme.accent.copy(alpha = 0.14f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.GraphicEq,
-                    contentDescription = null,
-                    tint = scheme.accent,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = strings.voiceSectionTitle,
-                    color = scheme.textPrimary,
-                    fontSize = 15.5.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = strings.voiceSectionHint,
-                    color = scheme.textSecondary,
-                    fontSize = 12.sp,
-                    lineHeight = 16.sp
-                )
-            }
-        }
+    val voiceBytes = remember(assetStates) {
+        assetManager.installedBytesForSpecs(ModuleAssetManifest.allVoice)
+    }
 
-        Spacer(modifier = Modifier.height(14.dp))
+    Column(modifier = modifier.fillMaxWidth()) {
+        // Секция 1: Движок распознавания
+        Text(
+            text = strings.engineHeader,
+            color = scheme.accent,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+        )
 
-        // 1. Выбор движка
-        EngineOptionCard(
+        EngineFlatRow(
             title = strings.engineWhisperTitle,
             description = strings.engineWhisperDesc,
             badgeText = strings.recommendedBadge,
@@ -127,10 +96,9 @@ fun VoiceModuleSection(
             selected = settings.voiceEngine == VoiceSttEngine.WHISPER,
             onClick = { ModulesSettingsStore.setVoiceEngine(context, VoiceSttEngine.WHISPER) }
         )
+        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        EngineOptionCard(
+        EngineFlatRow(
             title = strings.engineVoskTitle,
             description = strings.engineVoskDesc,
             badgeText = strings.recommendedBadge,
@@ -138,10 +106,9 @@ fun VoiceModuleSection(
             selected = settings.voiceEngine == VoiceSttEngine.VOSK,
             onClick = { ModulesSettingsStore.setVoiceEngine(context, VoiceSttEngine.VOSK) }
         )
+        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
 
-        Spacer(modifier = Modifier.height(8.dp))
-
-        EngineOptionCard(
+        EngineFlatRow(
             title = strings.engineSystemTitle,
             description = strings.engineSystemDesc,
             badgeText = strings.notRecommendedBadge,
@@ -153,13 +120,34 @@ fun VoiceModuleSection(
                 }
             }
         )
+        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // 2. Детальные настройки выбранного движка
+        // Секция 2: Модели, языки и собственная память раздела ГС
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = strings.modelsAndLanguagesHeader,
+                color = scheme.accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = strings.moduleMemoryLabel(formatMb(voiceBytes)),
+                color = scheme.textSecondary,
+                fontSize = 12.sp
+            )
+        }
+
         when (settings.voiceEngine) {
             VoiceSttEngine.WHISPER -> {
-                LanguageChipsRow(
+                LanguageFlatSelector(
                     title = strings.recognitionLanguageLabel,
                     options = listOf(
                         "auto" to strings.langAuto,
@@ -169,12 +157,17 @@ fun VoiceModuleSection(
                     selectedCode = settings.whisperLanguage,
                     onSelect = { ModulesSettingsStore.setWhisperLanguage(context, it) }
                 )
-
-                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
 
                 ModuleAssetManifest.allVoiceWhisper.forEachIndexed { index, spec ->
-                    if (index > 0) Spacer(modifier = Modifier.height(8.dp))
-                    AssetPackRow(
+                    if (index > 0) {
+                        HorizontalDivider(
+                            color = scheme.divider,
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                    AssetPackFlatRow(
                         spec = spec,
                         downloadState = assetStates[spec.id] ?: AssetDownloadState.NotInstalled,
                         isSelected = settings.whisperModelId == spec.id,
@@ -188,8 +181,14 @@ fun VoiceModuleSection(
 
             VoiceSttEngine.VOSK -> {
                 ModuleAssetManifest.allVoiceVosk.forEachIndexed { index, spec ->
-                    if (index > 0) Spacer(modifier = Modifier.height(8.dp))
-                    AssetPackRow(
+                    if (index > 0) {
+                        HorizontalDivider(
+                            color = scheme.divider,
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                    }
+                    AssetPackFlatRow(
                         spec = spec,
                         downloadState = assetStates[spec.id] ?: AssetDownloadState.NotInstalled,
                         isSelected = settings.voskAssetId == spec.id,
@@ -203,31 +202,16 @@ fun VoiceModuleSection(
 
             VoiceSttEngine.SYSTEM_GOOGLE -> {
                 val isApi33Plus = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            if (isApi33Plus) scheme.surface else CrimsonKillSwitch.copy(alpha = 0.12f)
-                        )
-                        .border(
-                            1.dp,
-                            if (isApi33Plus) scheme.cardBorder else CrimsonKillSwitch.copy(alpha = 0.35f),
-                            RoundedCornerShape(14.dp)
-                        )
-                        .padding(12.dp)
-                ) {
-                    Text(
-                        text = if (isApi33Plus) strings.systemAvailableApi33 else strings.systemUnavailableBelowApi33,
-                        color = if (isApi33Plus) scheme.textSecondary else CrimsonKillSwitch,
-                        fontSize = 12.5.sp,
-                        lineHeight = 17.sp
-                    )
-                }
+                Text(
+                    text = if (isApi33Plus) strings.systemAvailableApi33 else strings.systemUnavailableBelowApi33,
+                    color = if (isApi33Plus) scheme.textSecondary else CrimsonKillSwitch,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+                HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                LanguageChipsRow(
+                LanguageFlatSelector(
                     title = strings.recognitionLanguageLabel,
                     options = listOf(
                         "ru-RU" to strings.langRu,
@@ -238,11 +222,13 @@ fun VoiceModuleSection(
                 )
             }
         }
+
+        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
     }
 }
 
 @Composable
-private fun EngineOptionCard(
+private fun EngineFlatRow(
     title: String,
     description: String,
     badgeText: String,
@@ -251,52 +237,32 @@ private fun EngineOptionCard(
     onClick: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
-    val borderColor = when {
-        selected && !isRecommended -> CrimsonKillSwitch
-        selected -> scheme.accent
-        else -> scheme.cardBorder
-    }
-    val bgColor = when {
-        selected && !isRecommended -> CrimsonKillSwitch.copy(alpha = 0.08f)
-        selected -> scheme.accent.copy(alpha = 0.09f)
-        else -> scheme.surface
-    }
-    val badgeBg = if (isRecommended) scheme.accent.copy(alpha = 0.15f) else CrimsonKillSwitch.copy(alpha = 0.15f)
+    val badgeBg = if (isRecommended) scheme.accent.copy(alpha = 0.14f) else CrimsonKillSwitch.copy(alpha = 0.14f)
     val badgeFg = if (isRecommended) scheme.accent else CrimsonKillSwitch
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(bgColor)
-            .border(if (selected) 1.4.dp else 1.dp, borderColor, RoundedCornerShape(14.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            imageVector = if (selected) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-            contentDescription = null,
-            tint = if (selected) borderColor else scheme.textMuted,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Text(
                     text = title,
                     color = scheme.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontSize = 15.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
                 )
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(999.dp))
+                        .clip(RoundedCornerShape(5.dp))
                         .background(badgeBg)
-                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
                         text = badgeText,
@@ -310,61 +276,65 @@ private fun EngineOptionCard(
             Text(
                 text = description,
                 color = scheme.textSecondary,
-                fontSize = 12.sp,
-                lineHeight = 16.sp
+                fontSize = 12.5.sp,
+                lineHeight = 17.sp
+            )
+        }
+
+        if (selected) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Icon(
+                imageVector = Icons.Outlined.Check,
+                contentDescription = null,
+                tint = if (isRecommended) scheme.accent else CrimsonKillSwitch,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
 }
 
 @Composable
-private fun LanguageChipsRow(
+private fun LanguageFlatSelector(
     title: String,
     options: List<Pair<String, String>>,
     selectedCode: String,
     onSelect: (String) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
         Text(
             text = title,
             color = scheme.textSecondary,
             fontSize = 12.5.sp,
             fontWeight = FontWeight.Medium
         )
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             options.forEach { (code, label) ->
                 val isSelected = selectedCode == code
-                Box(
+                Text(
+                    text = label,
+                    color = if (isSelected) scheme.accent else scheme.textSecondary,
+                    fontSize = 14.sp,
+                    fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isSelected) scheme.accent else scheme.surface)
-                        .border(
-                            1.dp,
-                            if (isSelected) scheme.accent else scheme.cardBorder,
-                            RoundedCornerShape(10.dp)
-                        )
                         .clickable { onSelect(code) }
-                        .padding(horizontal = 12.dp, vertical = 7.dp)
-                ) {
-                    Text(
-                        text = label,
-                        color = if (isSelected) scheme.onAccent else scheme.textPrimary,
-                        fontSize = 12.5.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
-                    )
-                }
+                        .padding(vertical = 4.dp)
+                )
             }
         }
     }
 }
 
 @Composable
-private fun AssetPackRow(
+private fun AssetPackFlatRow(
     spec: ModuleAssetSpec,
     downloadState: AssetDownloadState,
     isSelected: Boolean,
@@ -381,34 +351,34 @@ private fun AssetPackRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
-            .background(if (isSelected) scheme.accent.copy(alpha = 0.08f) else scheme.surface)
-            .border(
-                1.dp,
-                if (isSelected) scheme.accent else scheme.cardBorder,
-                RoundedCornerShape(14.dp)
-            )
             .clickable(onClick = onSelect)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = if (isSelected) Icons.Outlined.CheckCircle else Icons.Outlined.RadioButtonUnchecked,
-                contentDescription = null,
-                tint = if (isSelected) scheme.accent else scheme.textMuted,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = scheme.textPrimary,
-                    fontSize = 13.5.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = title,
+                        color = if (isSelected) scheme.accent else scheme.textPrimary,
+                        fontSize = 14.5.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                    )
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Outlined.Check,
+                            contentDescription = null,
+                            tint = scheme.accent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(2.dp))
                 val statusText = when (downloadState) {
                     is AssetDownloadState.NotInstalled -> subtitle
                     is AssetDownloadState.Downloading ->
@@ -425,34 +395,33 @@ private fun AssetPackRow(
                         is AssetDownloadState.Installed -> scheme.accent
                         else -> scheme.textSecondary
                     },
-                    fontSize = 11.5.sp
+                    fontSize = 12.sp
                 )
             }
 
             when (downloadState) {
                 is AssetDownloadState.NotInstalled, is AssetDownloadState.Error -> {
-                    Box(
+                    Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(8.dp))
                             .background(scheme.accent)
                             .clickable(onClick = onDownload)
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Outlined.Download,
-                                contentDescription = strings.downloadBtn,
-                                tint = scheme.onAccent,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = strings.downloadBtn,
-                                color = scheme.onAccent,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Outlined.Download,
+                            contentDescription = strings.downloadBtn,
+                            tint = scheme.onAccent,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = strings.downloadBtn,
+                            color = scheme.onAccent,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
                 is AssetDownloadState.Downloading, is AssetDownloadState.Extracting -> {
@@ -477,7 +446,7 @@ private fun AssetPackRow(
                             imageVector = Icons.Outlined.DeleteOutline,
                             contentDescription = strings.deleteBtn,
                             tint = CrimsonKillSwitch,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -490,20 +459,18 @@ private fun AssetPackRow(
                 progress = { downloadState.progress },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
+                    .height(3.dp),
                 color = scheme.accent,
-                trackColor = scheme.cardBorder
+                trackColor = scheme.divider
             )
         } else if (downloadState is AssetDownloadState.Extracting) {
             Spacer(modifier = Modifier.height(8.dp))
             LinearProgressIndicator(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp)),
+                    .height(3.dp),
                 color = scheme.accent,
-                trackColor = scheme.cardBorder
+                trackColor = scheme.divider
             )
         }
     }

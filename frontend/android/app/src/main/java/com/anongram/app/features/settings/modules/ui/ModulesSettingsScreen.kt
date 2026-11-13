@@ -2,10 +2,8 @@ package com.anongram.app.features.settings.modules.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,14 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,13 +30,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.assets.ExternalAssetManager
+import com.anongram.app.core.assets.ModuleAssetManifest
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
@@ -50,7 +47,7 @@ import com.anongram.app.features.settings.modules.ui.voice.formatMb
 
 /**
  * Экран-хаб «Модули» (`features/settings/modules/`):
- * Чистый список модулей (Расшифровка ГС -> отдельный экран, Локальный перевод, Память модулей).
+ * Чистый плоский список без баблов и кружков. У каждого модуля отображается его собственная память и настройки.
  */
 @Composable
 fun ModulesSettingsScreen(
@@ -75,65 +72,55 @@ fun ModulesSettingsScreen(
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Верхняя панель
+            // Чистая плоская шапка
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .background(scheme.surface)
                     .height(56.dp)
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(scheme.islandBg)
-                        .border(0.8.dp, scheme.islandBorder, CircleShape)
-                        .clickable(onClick = onBack),
-                    contentAlignment = Alignment.Center
-                ) {
+                IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = strings.back,
                         tint = scheme.textPrimary,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(22.dp)
                     )
                 }
-
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = strings.modulesTitle,
                     color = scheme.textPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.weight(1f)
+                    fontSize = 19.sp,
+                    fontWeight = FontWeight.Bold
                 )
-
-                Spacer(modifier = Modifier.size(40.dp))
             }
+
+            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
-                // 1. Карточка перехода на отдельный экран модуля расшифровки ГС
+                // 1. Расшифровка голосовых (ГС) — активный движок + своя память
                 val activeEngineLabel = when (settings.voiceEngine) {
                     VoiceSttEngine.WHISPER -> strings.engineWhisperTitle
                     VoiceSttEngine.VOSK -> strings.engineVoskTitle
                     VoiceSttEngine.SYSTEM_GOOGLE -> strings.engineSystemTitle
                 }
                 val isRecommended = settings.voiceEngine != VoiceSttEngine.SYSTEM_GOOGLE
+                val voiceBytes = remember(assetStates) {
+                    assetManager.installedBytesForSpecs(ModuleAssetManifest.allVoice)
+                }
 
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(scheme.card)
-                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                         .clickable(onClick = onOpenVoiceModule)
-                        .padding(16.dp),
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -141,34 +128,25 @@ fun ModulesSettingsScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(38.dp)
-                                .clip(CircleShape)
-                                .background(scheme.accent.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.GraphicEq,
-                                contentDescription = null,
-                                tint = scheme.accent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Icon(
+                            imageVector = Icons.Outlined.GraphicEq,
+                            contentDescription = null,
+                            tint = scheme.accent,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = strings.voiceSectionTitle,
                                 color = scheme.textPrimary,
                                 fontSize = 15.5.sp,
-                                fontWeight = FontWeight.SemiBold
+                                fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
-                                text = activeEngineLabel,
-                                color = if (isRecommended) scheme.accent else CrimsonKillSwitch,
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Medium
+                                text = "$activeEngineLabel • ${strings.moduleMemoryLabel(formatMb(voiceBytes))}",
+                                color = if (isRecommended) scheme.textSecondary else CrimsonKillSwitch,
+                                fontSize = 13.sp
                             )
                         }
                     }
@@ -181,58 +159,21 @@ fun ModulesSettingsScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                HorizontalDivider(
+                    color = scheme.divider,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 56.dp)
+                )
 
-                // 2. Локальный перевод
-                TranslationModuleSection()
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // 3. Память модулей
-                val totalBytes = remember(assetStates) { assetManager.totalInstalledBytes() }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(scheme.card)
-                        .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = strings.storageSectionTitle,
-                        color = scheme.textPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = strings.storageUsedLabel(formatMb(totalBytes)),
-                        color = scheme.textSecondary,
-                        fontSize = 13.sp
-                    )
-                    if (totalBytes > 0L) {
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(42.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(CrimsonKillSwitch.copy(alpha = 0.12f))
-                                .border(1.dp, CrimsonKillSwitch.copy(alpha = 0.35f), RoundedCornerShape(12.dp))
-                                .clickable { assetManager.clearAllAssets() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = strings.clearAllModulesBtn,
-                                color = CrimsonKillSwitch,
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
-                    }
+                // 2. Локальный перевод сообщений — своя память и статус
+                val translationBytes = remember(assetStates) {
+                    assetManager.installedBytesForSpecs(ModuleAssetManifest.allTranslation)
                 }
+                TranslationModuleSection(
+                    memoryLabel = strings.moduleMemoryLabel(formatMb(translationBytes))
+                )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
             }
         }
     }
