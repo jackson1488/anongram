@@ -41,6 +41,8 @@ jobs:
         working-directory: frontend/web
         run: |
           gradle wasmJsBrowserDistribution --stacktrace --info 2>&1 | tee build_web.log
+          echo "=== LOCATING GENERATED WEB ASSETS ==="
+          find build -type f | grep -E "(\.html|\.js|\.wasm)$" || true
 
       - name: 📋 Upload Build Failure Log
         if: failure()
@@ -54,5 +56,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: anongram-web-wasm-dist
-          path: frontend/web/build/dist/
+          path: |
+            frontend/web/build/dist/
+            frontend/web/build/kotlin-webpack/
+            frontend/web/build/processedResources/
           retention-days: 14
