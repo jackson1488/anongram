@@ -102,12 +102,12 @@ internal fun MessagesList(
 ) {
     val knownIds = remember { HashSet<String>() }
     val animatingIds = remember { mutableStateMapOf<String, Boolean>() }
-    var initializedHistory by remember { mutableStateOf(false) }
+    val initializedHistory = remember { mutableStateOf(false) }
 
     remember(messages) {
-        if (!initializedHistory) {
+        if (!initializedHistory.value) {
             messages.forEach { knownIds.add(it.id) }
-            initializedHistory = true
+            initializedHistory.value = true
         } else {
             val now = System.currentTimeMillis()
             messages.forEach { msg ->
