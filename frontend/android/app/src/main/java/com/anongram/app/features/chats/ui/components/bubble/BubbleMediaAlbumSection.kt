@@ -696,7 +696,8 @@ internal fun ChatRealPhotoBox(
     val showSpoiler = hasSpoiler && !localSpoilerRevealed
 
     val snapshotRegistry = LocalMessageSnapshotRegistry.current
-    val deleteLayer = if (snapshotKey.isNotBlank() && snapshotRegistry != null) {
+    val isCaptureArmed = snapshotRegistry?.isCaptureArmed == true
+    val deleteLayer = if (snapshotKey.isNotBlank() && isCaptureArmed) {
         rememberGraphicsLayer()
     } else null
     if (deleteLayer != null && snapshotRegistry != null) {

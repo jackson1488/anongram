@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -42,6 +43,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import com.anongram.app.core.ui.AppMotionDurationScale
 import com.anongram.app.features.settings.animations.data.MessageDeleteStyle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.cos
@@ -49,6 +51,7 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlin.math.sqrt
 import kotlin.random.Random
 
 @Immutable
@@ -92,10 +95,13 @@ data class ActiveDeleteAnimation(
 /**
  * Реестр активных баблов и их вложенных ячеек (`#photo_X`, `#file_X`, `#music_X`)
  * для точного захвата `ImageBitmap` и координат перед удалением.
+ * Запись в `GraphicsLayer` активна только когда `isCaptureArmed == true` (меню, выделение, предпросмотр),
+ * чтобы не нагружать GPU при обычном открытии чата и скролле.
  */
 class MessageSnapshotRegistry {
     private val entries = HashMap<String, CapturedBubbleEntry>()
     val activeDeletes = mutableStateListOf<ActiveDeleteAnimation>()
+    var isCaptureArmed by mutableStateOf(false)
 
     fun register(messageId: String, layer: GraphicsLayer, boundsInWindow: Rect, isIncoming: Boolean) {
         if (messageId.isBlank()) return
@@ -183,7 +189,7 @@ fun DeleteSnapshotBox(
     content: @Composable () -> Unit
 ) {
     val registry = LocalMessageSnapshotRegistry.current
-    if (registry == null || snapshotKey.isBlank()) {
+    if (registry == null || snapshotKey.isBlank() || !registry.isCaptureArmed) {
         Box(modifier = modifier) { content() }
         return
     }
@@ -250,11 +256,15 @@ private fun SingleMessageDeleteEffect(
     val width = anim.boundsInWindow.width
     val height = anim.boundsInWindow.height
 
-    val particles = remember(anim.id, density) {
+    val particles by produceState<List<DisintegrateParticle>?>(
+        initialValue = if (anim.style == MessageDeleteStyle.PARTICLES) null else emptyList(),
+        anim.id,
+        density
+    ) {
         if (anim.style == MessageDeleteStyle.PARTICLES) {
-            sampleParticles(anim.bitmap, anim.isIncoming, anim.bulkStepBoost, density)
-        } else {
-            emptyList()
+            value = withContext(Dispatchers.Default) {
+                sampleParticles(anim.bitmap, anim.isIncoming, anim.bulkStepBoost, density)
+            }
         }
     }
 
@@ -271,10 +281,12 @@ private fun SingleMessageDeleteEffect(
         }
     }
 
-    LaunchedEffect(anim.id) {
+    val isReady = particles != null
+    LaunchedEffect(anim.id, isReady) {
+        if (!isReady) return@LaunchedEffect
         val mult = anim.speedMultiplier.coerceIn(0.4f, 2.0f)
         val durationMs = when (anim.style) {
-            MessageDeleteStyle.PARTICLES -> (880 * mult).toInt().coerceAtLeast(280)
+            MessageDeleteStyle.PARTICLES -> (840 * mult).toInt().coerceAtLeast(260)
             MessageDeleteStyle.PUZZLE -> (680 * mult).toInt().coerceAtLeast(240)
             MessageDeleteStyle.SLIDE_OUT -> (320 * mult).toInt().coerceAtLeast(120)
             MessageDeleteStyle.NONE -> 0
@@ -300,6 +312,15 @@ private fun SingleMessageDeleteEffect(
     Canvas(modifier = modifier.fillMaxSize()) {
         when (anim.style) {
             MessageDeleteStyle.PARTICLES -> {
+                val activeParticles = particles
+                if (activeParticles == null) {
+                    drawImage(
+                        image = anim.bitmap,
+                        dstOffset = IntOffset(left.roundToInt(), top.roundToInt()),
+                        dstSize = IntSize(width.roundToInt().coerceAtLeast(1), height.roundToInt().coerceAtLeast(1))
+                    )
+                    return@Canvas
+                }
                 val waveFront = (p / 0.46f).coerceIn(0f, 1f)
                 if (waveFront < 1f) {
                     val clipLeft = if (anim.isIncoming) left else left + width * waveFront
@@ -321,7 +342,7 @@ private fun SingleMessageDeleteEffect(
                 }
                 val scaleX = width / anim.bitmap.width.coerceAtLeast(1)
                 val scaleY = height / anim.bitmap.height.coerceAtLeast(1)
-                for (pt in particles) {
+                for (pt in activeParticles) {
                     val localT = ((p - pt.startAt) / pt.lifeSpan).coerceIn(0f, 1f)
                     if (localT <= 0f || localT >= 1f) continue
                     val px = pt.x * scaleX
@@ -402,12 +423,18 @@ private fun sampleParticles(
     if (w <= 1 || h <= 1) return emptyList()
 
     val pixelMap = runCatching { bitmap.toPixelMap() }.getOrNull() ?: return emptyList()
-    val baseStep = max(5, min(w, h) / 68).coerceAtMost(12)
-    val step = (baseStep * bulkStepBoost).coerceAtMost(20)
+    val maxParticles = when {
+        bulkStepBoost >= 3 -> 380
+        bulkStepBoost == 2 -> 560
+        else -> 950
+    }
     val specksPerCell = if (bulkStepBoost > 1) 1 else 2
+    val targetCells = (maxParticles / specksPerCell).coerceAtLeast(120)
+    val dynamicStep = sqrt((w.toFloat() * h.toFloat()) / targetCells).roundToInt().coerceAtLeast(6)
+    val step = max(6, dynamicStep)
     val safeDensity = density.coerceIn(1f, 4f)
     val rnd = Random(w * 31 + h)
-    val result = ArrayList<DisintegrateParticle>(((w / step) * (h / step)) * specksPerCell)
+    val result = ArrayList<DisintegrateParticle>(maxParticles.coerceAtMost(((w / step) + 1) * ((h / step) + 1) * specksPerCell))
 
     var y = step / 2
     while (y < h) {

@@ -38,7 +38,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.theme.ChatTextSettingsStore
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsState
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
+import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageRenderItem
 import com.anongram.app.features.chats.messages.domain.isSameDay
@@ -52,6 +54,12 @@ internal val LocalIsListScrollingState = compositionLocalOf<State<Boolean>> { mu
 
 /** Размер текста сообщений, прокинутый один раз на весь список */
 internal val LocalMessageTextSizeSp = compositionLocalOf { 16 }
+
+/** Настройки анимаций, прокинутые один раз на весь список */
+internal val LocalAnimationsSettings = compositionLocalOf { AnimationsSettingsState() }
+
+/** Флаг автоперевода входящих сообщений, прокинутый один раз на весь список */
+internal val LocalAutoTranslateIncoming = compositionLocalOf { false }
 
 /** Окно между сообщениями одной группы — 2dp, между группами — 8dp. */
 private const val GROUP_GAP_MS = 5 * 60_000L
@@ -137,13 +145,17 @@ internal fun MessagesList(
 
     val context = LocalContext.current
     val animSettings by AnimationsSettingsStore.state.collectAsState()
+    val moduleSettings by ModulesSettingsStore.state.collectAsState()
     LaunchedEffect(Unit) {
         AnimationsSettingsStore.ensureInitialized(context)
+        ModulesSettingsStore.ensureInitialized(context)
     }
 
     CompositionLocalProvider(
         LocalIsListScrollingState provides scrollingState,
-        LocalMessageTextSizeSp provides messageTextSizeSp
+        LocalMessageTextSizeSp provides messageTextSizeSp,
+        LocalAnimationsSettings provides animSettings,
+        LocalAutoTranslateIncoming provides moduleSettings.autoTranslateIncoming
     ) {
     LazyColumn(
         state = listState,

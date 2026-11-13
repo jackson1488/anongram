@@ -67,6 +67,8 @@ import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.boundsInWindow
 import com.anongram.app.features.chats.ui.animations.DeleteSnapshotBox
 import com.anongram.app.features.chats.ui.animations.LocalMessageSnapshotRegistry
+import com.anongram.app.features.chats.ui.components.LocalAnimationsSettings
+import com.anongram.app.features.chats.ui.components.LocalAutoTranslateIncoming
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -170,21 +172,17 @@ internal fun MessageBubble(
         (messageTextSizeSp / 16f).coerceIn(0.35f, 1.5f)
     }
 
-    val animSettings by AnimationsSettingsStore.state.collectAsState()
+    val animSettings = LocalAnimationsSettings.current
     val effectiveAppear = shouldAnimateAppear && animSettings.messageAppearEnabled && !animSettings.reduceMotionEnabled
     val shouldStreamTokens = effectiveAppear && animSettings.messageAppearStyle == MessageAppearStyle.TOKEN_STREAM
 
     val moduleStrings = ModulesI18n.current
-    val moduleSettings by ModulesSettingsStore.state.collectAsState()
+    val autoTranslateIncoming = LocalAutoTranslateIncoming.current
     val translations by LocalMessageTranslator.translations.collectAsState()
     val translationEntry = translations[message.id]
 
-    LaunchedEffect(Unit) {
-        ModulesSettingsStore.ensureInitialized(context)
-    }
-
-    LaunchedEffect(message.id, message.text, moduleSettings.autoTranslateIncoming, isIncoming) {
-        if (isIncoming && message.text.isNotBlank() && moduleSettings.autoTranslateIncoming) {
+    LaunchedEffect(message.id, message.text, autoTranslateIncoming, isIncoming) {
+        if (isIncoming && message.text.isNotBlank() && autoTranslateIncoming) {
             LocalMessageTranslator.autoTranslateIfNeeded(context, message.id, message.text)
         }
     }
@@ -325,10 +323,13 @@ internal fun MessageBubble(
 
         val isStandaloneCircle = message.attachment is MessageAttachment.VideoCircle && message.text.isBlank()
         val snapshotRegistry = LocalMessageSnapshotRegistry.current
-        val deleteCaptureLayer = rememberGraphicsLayer()
+        val isCaptureArmed = snapshotRegistry?.isCaptureArmed == true
+        val deleteCaptureLayer = if (isCaptureArmed) rememberGraphicsLayer() else null
 
-        DisposableEffect(message.id, snapshotRegistry) {
-            onDispose { snapshotRegistry?.unregister(message.id) }
+        if (deleteCaptureLayer != null && snapshotRegistry != null) {
+            DisposableEffect(message.id, snapshotRegistry) {
+                onDispose { snapshotRegistry.unregister(message.id) }
+            }
         }
 
         MessageAppearWrapper(
@@ -443,19 +444,21 @@ internal fun MessageBubble(
 
                 Column(
                     horizontalAlignment = if (isIncoming) Alignment.Start else Alignment.End,
-                    modifier = Modifier
-                        .drawWithContent {
-                            deleteCaptureLayer.record { this@drawWithContent.drawContent() }
-                            drawLayer(deleteCaptureLayer)
-                        }
-                        .onGloballyPositioned { coordinates ->
-                            snapshotRegistry?.register(
-                                messageId = message.id,
-                                layer = deleteCaptureLayer,
-                                boundsInWindow = coordinates.boundsInWindow(),
-                                isIncoming = isIncoming
-                            )
-                        }
+                    modifier = if (deleteCaptureLayer != null && snapshotRegistry != null) {
+                        Modifier
+                            .drawWithContent {
+                                deleteCaptureLayer.record { this@drawWithContent.drawContent() }
+                                drawLayer(deleteCaptureLayer)
+                            }
+                            .onGloballyPositioned { coordinates ->
+                                snapshotRegistry.register(
+                                    messageId = message.id,
+                                    layer = deleteCaptureLayer,
+                                    boundsInWindow = coordinates.boundsInWindow(),
+                                    isIncoming = isIncoming
+                                )
+                            }
+                    } else Modifier
                 ) {
                     if (message.isStickerOnly) {
                         Box(

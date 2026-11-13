@@ -80,7 +80,9 @@ fun AnimationsMessagesCard(
     val strings = AnimationsI18n.current
     var previewTrigger by remember { mutableIntStateOf(0) }
     var isPreviewDeleted by remember { mutableStateOf(false) }
-    val previewRegistry = rememberMessageSnapshotRegistry()
+    val previewRegistry = rememberMessageSnapshotRegistry().apply {
+        isCaptureArmed = true
+    }
     val scope = rememberCoroutineScope()
 
     fun triggerDeletePreview(targetStyle: MessageDeleteStyle) {
