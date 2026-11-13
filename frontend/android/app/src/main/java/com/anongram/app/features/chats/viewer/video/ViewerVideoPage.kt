@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
 import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.graphics.SurfaceTexture
 import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +38,7 @@ import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.FastRewind
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.outlined.AspectRatio
 import androidx.compose.material.icons.outlined.Fullscreen
 import androidx.compose.material.icons.outlined.FullscreenExit
 import androidx.compose.material3.Icon
@@ -55,13 +58,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.viewer.i18n.ViewerI18n
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -303,22 +309,38 @@ internal fun ViewerVideoPage(
             },
         contentAlignment = Alignment.Center
     ) {
-        // Видео-поверхность (адаптивная под пропорции видео)
+        val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+        // Видео-поверхность (адаптивная под пропорции видео, никогда не растягивается)
         BoxWithConstraints(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds(),
             contentAlignment = Alignment.Center
         ) {
             val containerAspect = if (maxHeight > 0.dp) maxWidth / maxHeight else 0.56f
             val videoBoxModifier = if (isFillExpanded) {
-                Modifier.fillMaxSize()
-            } else if (videoAspect >= containerAspect) {
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(videoAspect)
+                // Заполнение экрана без искажения пропорций (Crop-to-Fill)
+                if (videoAspect >= containerAspect) {
+                    Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(videoAspect)
+                } else {
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(videoAspect)
+                }
             } else {
-                Modifier
-                    .fillMaxHeight()
-                    .aspectRatio(videoAspect)
+                // Вместить целиком (Fit, стандартный режим для фильмов и видео)
+                if (videoAspect >= containerAspect) {
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(videoAspect)
+                } else {
+                    Modifier
+                        .fillMaxHeight()
+                        .aspectRatio(videoAspect)
+                }
             }
 
             Box(modifier = videoBoxModifier) {
@@ -377,43 +399,57 @@ internal fun ViewerVideoPage(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+            }
+        }
 
-                // Кнопка разворота [ ] в правом нижнем углу самого видео (как на скрине 2)
-                AnimatedVisibility(
-                    visible = showControls && holdMode == 0,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
+        // Кнопки масштаба (Вместить / Заполнить без растяжения) и поворота [ ] над нижней панелью
+        AnimatedVisibility(
+            visible = showControls && holdMode == 0,
+            enter = fadeIn(),
+            exit = fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
+                .padding(end = 12.dp, bottom = 78.dp)
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(
+                    onClick = { isFillExpanded = !isFillExpanded },
                     modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp)
+                        .size(38.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(Color.Black.copy(alpha = 0.52f))
                 ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AspectRatio,
+                        contentDescription = strings.toggleFill,
+                        tint = if (isFillExpanded) LocalAnonGramScheme.current.accent else Color.White,
+                        modifier = Modifier.size(21.dp)
+                    )
+                }
+
+                if (videoAspect > 1.05f || isLandscape) {
                     IconButton(
                         onClick = {
-                            if (videoAspect > 1.05f) {
-                                val act = context.findViewerActivity()
-                                if (act != null) {
-                                    val isCurrentlyLandscape = act.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE ||
-                                        act.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                    act.requestedOrientation = if (isCurrentlyLandscape) {
-                                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                    } else {
-                                        ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                                    }
-                                    isFillExpanded = !isCurrentlyLandscape
+                            val act = context.findViewerActivity()
+                            if (act != null) {
+                                act.requestedOrientation = if (isLandscape) {
+                                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
                                 } else {
-                                    isFillExpanded = !isFillExpanded
+                                    ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
                                 }
-                            } else {
-                                isFillExpanded = !isFillExpanded
                             }
                         },
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.Black.copy(alpha = 0.42f))
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(Color.Black.copy(alpha = 0.52f))
                     ) {
                         Icon(
-                            imageVector = if (isFillExpanded) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
+                            imageVector = if (isLandscape) Icons.Outlined.FullscreenExit else Icons.Outlined.Fullscreen,
                             contentDescription = strings.toggleFill,
                             tint = Color.White,
                             modifier = Modifier.size(22.dp)

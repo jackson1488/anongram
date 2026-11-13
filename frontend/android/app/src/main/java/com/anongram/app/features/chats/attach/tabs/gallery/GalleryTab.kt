@@ -81,6 +81,7 @@ import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -1146,11 +1147,11 @@ private fun GalleryFastScrollBar(
                 .width(180.dp)
                 .onSizeChanged { trackHeightPx = it.height.toFloat().coerceAtLeast(1f) }
         ) {
-            if (isDragging && dateLabel.isNotEmpty()) {
+            if (dateLabel.isNotEmpty()) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .offset { IntOffset(x = -with(density) { 42.dp.roundToPx() }, y = thumbOffsetY + with(density) { 6.dp.roundToPx() }) }
+                        .offset { IntOffset(x = -with(density) { 40.dp.roundToPx() }, y = thumbOffsetY + with(density) { 8.dp.roundToPx() }) }
                         .clip(RoundedCornerShape(16.dp))
                         .background(scheme.islandBg.copy(alpha = 0.96f))
                         .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
@@ -1170,7 +1171,7 @@ private fun GalleryFastScrollBar(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset { IntOffset(x = 0, y = thumbOffsetY) }
-                    .width(28.dp)
+                    .width(34.dp)
                     .height(thumbHeightDp)
                     .pointerInput(totalGridItems, usableHeightPx) {
                         detectVerticalDragGestures(
@@ -1192,11 +1193,20 @@ private fun GalleryFastScrollBar(
             ) {
                 Box(
                     modifier = Modifier
-                        .width(if (isDragging) 8.dp else 5.dp)
-                        .height(40.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(if (isDragging) scheme.accent else scheme.textPrimary.copy(alpha = 0.65f))
-                )
+                        .width(26.dp)
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(if (isDragging) scheme.accent else scheme.islandBg.copy(alpha = 0.94f))
+                        .border(1.dp, if (isDragging) scheme.accent else scheme.islandBorder, RoundedCornerShape(13.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.UnfoldMore,
+                        contentDescription = null,
+                        tint = if (isDragging) scheme.onAccent else scheme.textPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }
