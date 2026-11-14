@@ -12,8 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.anongram.app.features.chats.common.IChatSession
@@ -47,7 +49,7 @@ internal fun ChatMessagesBody(
     isVideoCircleExpanded: Boolean,
     isKeyboardVisible: Boolean,
     isSearchListMode: Boolean,
-    chatBottomImeDp: Dp,
+    bottomDockSpacePx: Density.() -> Int,
     topListPadding: Dp,
     bottomListPadding: Dp,
     onCloseSearchListMode: () -> Unit,
@@ -68,7 +70,21 @@ internal fun ChatMessagesBody(
         modifier = modifier
             .fillMaxSize()
             .then(if (isCircleOverlayActive) Modifier.blur(22.dp) else Modifier)
-            .padding(bottom = chatBottomImeDp)
+            .layout { measurable, constraints ->
+                val bottomSpace = bottomDockSpacePx(this)
+                val childConstraints = if (constraints.hasBoundedHeight) {
+                    constraints.copy(
+                        minHeight = (constraints.minHeight - bottomSpace).coerceAtLeast(0),
+                        maxHeight = (constraints.maxHeight - bottomSpace).coerceAtLeast(0)
+                    )
+                } else {
+                    constraints
+                }
+                val placeable = measurable.measure(childConstraints)
+                layout(constraints.maxWidth, constraints.maxHeight) {
+                    placeable.placeRelative(0, 0)
+                }
+            }
     ) {
         if (state.isSearchOpen && isSearchListMode) {
             val searchMatchingMessages = remember(state.messages, state.searchMatches) {

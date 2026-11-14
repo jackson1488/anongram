@@ -61,6 +61,8 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -178,8 +180,11 @@ internal fun MessageBubble(
 
     val moduleStrings = ModulesI18n.current
     val autoTranslateIncoming = LocalAutoTranslateIncoming.current
-    val translations by LocalMessageTranslator.translations.collectAsState()
-    val translationEntry = translations[message.id]
+    val translationEntry by remember(message.id) {
+        LocalMessageTranslator.translations
+            .map { it[message.id] }
+            .distinctUntilChanged()
+    }.collectAsState(initial = null)
 
     LaunchedEffect(message.id, message.text, autoTranslateIncoming, isIncoming) {
         if (isIncoming && message.text.isNotBlank() && autoTranslateIncoming) {

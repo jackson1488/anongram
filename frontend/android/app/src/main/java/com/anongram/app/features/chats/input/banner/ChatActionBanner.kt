@@ -32,7 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -88,7 +90,8 @@ object ChatActionBannerBus {
 
 @Composable
 fun BoxScope.ChatActionBannerHost(
-    bottomOffsetDp: Dp,
+    bottomOffsetDp: Dp = 0.dp,
+    bottomOffsetPx: (Density.() -> Int)? = null,
     modifier: Modifier = Modifier
 ) {
     val banner by ChatActionBannerBus.state.collectAsState()
@@ -119,7 +122,21 @@ fun BoxScope.ChatActionBannerHost(
         modifier = modifier
             .zIndex(20f)
             .align(Alignment.BottomCenter)
-            .padding(bottom = bottomOffsetDp + 8.dp, start = 16.dp, end = 16.dp)
+            .then(
+                if (bottomOffsetPx != null) {
+                    Modifier
+                        .layout { measurable, constraints ->
+                            val bottomSpace = bottomOffsetPx(this) + 8.dp.roundToPx()
+                            val placeable = measurable.measure(constraints)
+                            layout(placeable.width, placeable.height + bottomSpace) {
+                                placeable.placeRelative(0, 0)
+                            }
+                        }
+                        .padding(start = 16.dp, end = 16.dp)
+                } else {
+                    Modifier.padding(bottom = bottomOffsetDp + 8.dp, start = 16.dp, end = 16.dp)
+                }
+            )
     ) {
         banner?.let { item ->
             val tintColor = if (item.isError) CrimsonKillSwitch else scheme.accent
@@ -157,8 +174,9 @@ fun BoxScope.ChatActionBannerHost(
 @Composable
 fun BoxScope.SelectionLimitBannerHost(
     warningText: String?,
-    bottomOffsetDp: Dp,
+    bottomOffsetDp: Dp = 0.dp,
     onDismiss: () -> Unit,
+    bottomOffsetPx: (Density.() -> Int)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -175,7 +193,21 @@ fun BoxScope.SelectionLimitBannerHost(
         modifier = modifier
             .zIndex(19f)
             .align(Alignment.BottomCenter)
-            .padding(bottom = bottomOffsetDp + 8.dp, start = 20.dp, end = 20.dp)
+            .then(
+                if (bottomOffsetPx != null) {
+                    Modifier
+                        .layout { measurable, constraints ->
+                            val bottomSpace = bottomOffsetPx(this) + 8.dp.roundToPx()
+                            val placeable = measurable.measure(constraints)
+                            layout(placeable.width, placeable.height + bottomSpace) {
+                                placeable.placeRelative(0, 0)
+                            }
+                        }
+                        .padding(start = 20.dp, end = 20.dp)
+                } else {
+                    Modifier.padding(bottom = bottomOffsetDp + 8.dp, start = 20.dp, end = 20.dp)
+                }
+            )
     ) {
         warningText?.let { text ->
             Box(

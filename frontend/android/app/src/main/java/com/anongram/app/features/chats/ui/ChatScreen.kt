@@ -142,7 +142,7 @@ fun ChatScreen(
 
     val previousMessagesCount = remember { mutableIntStateOf(state.messages.size) }
     LaunchedEffect(state.messages.size) {
-        if (state.messages.size > previousMessagesCount.intValue) {
+        if (previousMessagesCount.intValue > 0 && state.messages.size > previousMessagesCount.intValue) {
             val lastMessage = state.messages.lastOrNull()
             val isOutgoing = lastMessage?.direction == MessageDirection.OUTGOING
             val isNearBottom = listState.firstVisibleItemIndex <= 1
@@ -240,7 +240,7 @@ fun ChatScreen(
             isVideoCircleExpanded = isVideoCircleExpanded,
             isKeyboardVisible = imeMetrics.isKeyboardVisible,
             isSearchListMode = isSearchListMode,
-            chatBottomImeDp = with(density) { imeMetrics.chatBottomImePx.toDp() },
+            bottomDockSpacePx = imeMetrics.bottomDockSpacePx,
             topListPadding = imeMetrics.topListPadding,
             bottomListPadding = imeMetrics.bottomListPadding,
             onCloseSearchListMode = { isSearchListMode = false },
@@ -271,7 +271,7 @@ fun ChatScreen(
             VideoCircleRecordOverlay(
                 recordingState = state.recording,
                 isKeyboardVisible = imeMetrics.effectiveKeyboardVisible,
-                bottomInputTopDp = imeMetrics.bottomInputTopDp,
+                bottomInputTopDp = with(density) { imeMetrics.bottomInputTopPx(density).toDp() },
                 reviewVideo = state.videoReviewDraft,
                 isReviewPlaying = isVideoReviewPlaying,
                 reviewProgress = videoReviewProgress,
@@ -432,10 +432,10 @@ fun ChatScreen(
 
         SelectionLimitBannerHost(
             warningText = state.limitWarning,
-            bottomOffsetDp = imeMetrics.bottomInputTopDp,
-            onDismiss = viewModel::dismissLimitWarning
+            onDismiss = viewModel::dismissLimitWarning,
+            bottomOffsetPx = imeMetrics.bottomInputTopPx
         )
-        ChatActionBannerHost(bottomOffsetDp = imeMetrics.bottomInputTopDp)
+        ChatActionBannerHost(bottomOffsetPx = imeMetrics.bottomInputTopPx)
     }
     }
 }

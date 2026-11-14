@@ -114,8 +114,10 @@ internal fun MessagesList(
 
     remember(messages) {
         if (!initializedHistory.value) {
-            messages.forEach { knownIds.add(it.id) }
-            initializedHistory.value = true
+            if (messages.isNotEmpty()) {
+                messages.forEach { knownIds.add(it.id) }
+                initializedHistory.value = true
+            }
         } else {
             val now = System.currentTimeMillis()
             messages.forEach { msg ->

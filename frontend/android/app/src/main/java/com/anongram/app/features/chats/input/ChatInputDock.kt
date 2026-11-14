@@ -17,25 +17,28 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.permissions.PermissionUtils
-import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.features.chats.attach.AttachTab
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.state.ChatMessagesUiState
@@ -62,19 +65,20 @@ internal class ChatImeLayoutState {
     var inputBarHeightPx by mutableIntStateOf(0)
 }
 
+@Stable
 internal data class ChatImeMetrics(
     val imeState: ChatImeLayoutState,
     val isKeyboardVisible: Boolean,
     val effectiveKeyboardVisible: Boolean,
-    val chatBottomImePx: Int,
     val topListPadding: Dp,
     val bottomListPadding: Dp,
-    val bottomInputTopDp: Dp
+    val bottomDockSpacePx: Density.() -> Int,
+    val bottomInputTopPx: Density.() -> Int
 )
 
 /**
  * Управляет высотой системной клавиатуры (IME), «заморозкой» при открытии вложений/записи
- * и согласованными отступами для списка сообщений, кружков и баннеров.
+ * и согласованными отступами для списка сообщений, кружков и баннеров в layout-фазе без рекомпозиций на каждый кадр.
  */
 @Composable
 internal fun rememberChatImeMetrics(
@@ -83,12 +87,25 @@ internal fun rememberChatImeMetrics(
 ): ChatImeMetrics {
     val density = LocalDensity.current
     val imeState = remember { ChatImeLayoutState() }
-    val currentImeBottom = WindowInsets.ime.getBottom(density)
-    if (currentImeBottom > 0) {
-        imeState.lastKeyboardHeightPx = currentImeBottom
+    val imeInsets = WindowInsets.ime
+    val navInsets = WindowInsets.navigationBars
+
+    val isKeyboardVisible by remember(imeInsets, density) {
+        derivedStateOf { imeInsets.getBottom(density) > 0 }
     }
-    val isKeyboardVisible = currentImeBottom > 0
     val isAnyAttachOpen = state.isAttachOpen || isReplaceAttachOpen
+
+    LaunchedEffect(imeInsets, density) {
+        snapshotFlow { imeInsets.getBottom(density) }
+            .collect { bottom ->
+                if (bottom > 0) {
+                    imeState.lastKeyboardHeightPx = bottom
+                    if (imeState.wasKeyboardOpenWhenAttached) {
+                        imeState.frozenKeyboardHeightPx = bottom
+                    }
+                }
+            }
+    }
 
     LaunchedEffect(isAnyAttachOpen) {
         if (!isAnyAttachOpen) {
@@ -97,16 +114,13 @@ internal fun rememberChatImeMetrics(
         }
     }
 
-    if (isAnyAttachOpen && imeState.wasKeyboardOpenWhenAttached && currentImeBottom > 0) {
-        imeState.frozenKeyboardHeightPx = currentImeBottom
-    }
-
     val isRecordingActive = state.recording.mode != RecordMode.NONE
     LaunchedEffect(isRecordingActive) {
         if (isRecordingActive) {
-            if (currentImeBottom > 0) {
+            val currentBottom = imeInsets.getBottom(density)
+            if (currentBottom > 0) {
                 imeState.wasKeyboardOpenWhenRecording = true
-                imeState.frozenRecordingImePx = currentImeBottom
+                imeState.frozenRecordingImePx = currentBottom
             }
         } else {
             imeState.wasKeyboardOpenWhenRecording = false
@@ -116,34 +130,46 @@ internal fun rememberChatImeMetrics(
 
     val isRecordingImeFrozen = isRecordingActive && imeState.wasKeyboardOpenWhenRecording
     val isChatImeFrozen = (isAnyAttachOpen && imeState.wasKeyboardOpenWhenAttached) || isRecordingImeFrozen
-    val chatBottomImePx = when {
-        isRecordingImeFrozen -> imeState.frozenRecordingImePx
-        isAnyAttachOpen && imeState.wasKeyboardOpenWhenAttached -> imeState.frozenKeyboardHeightPx
-        else -> currentImeBottom
-    }
     val effectiveKeyboardVisible = if (isChatImeFrozen) true else isKeyboardVisible
 
     val topListPadding = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) 130.dp else 86.dp
     val inputBarHeightDp = with(density) { imeState.inputBarHeightPx.toDp() }
-    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val bottomListPadding = if (effectiveKeyboardVisible) {
-        inputBarHeightDp + 4.dp + 16.dp
-    } else {
-        inputBarHeightDp + 24.dp + navBottom + 20.dp
+    val bottomListPadding = inputBarHeightDp + 16.dp
+
+    val bottomDockSpacePx: Density.() -> Int = remember(
+        imeInsets,
+        navInsets,
+        imeState,
+        isRecordingImeFrozen,
+        isAnyAttachOpen
+    ) {
+        {
+            val imeBottom = when {
+                isRecordingImeFrozen -> imeState.frozenRecordingImePx
+                isAnyAttachOpen && imeState.wasKeyboardOpenWhenAttached -> imeState.frozenKeyboardHeightPx
+                else -> imeInsets.getBottom(this)
+            }
+            val navBottom = navInsets.getBottom(this).coerceAtMost(28.dp.roundToPx())
+            val closedBottom = navBottom + 24.dp.roundToPx()
+            val openBottom = imeBottom + 4.dp.roundToPx()
+            maxOf(closedBottom, openBottom)
+        }
     }
-    val bottomInputTopDp = with(density) { chatBottomImePx.toDp() } +
-        navBottom.coerceAtMost(28.dp) +
-        (if (effectiveKeyboardVisible) 4.dp else 24.dp) +
-        inputBarHeightDp.coerceAtLeast(56.dp)
+
+    val bottomInputTopPx: Density.() -> Int = remember(bottomDockSpacePx, imeState) {
+        {
+            bottomDockSpacePx(this) + imeState.inputBarHeightPx.coerceAtLeast(56.dp.roundToPx())
+        }
+    }
 
     return ChatImeMetrics(
         imeState = imeState,
         isKeyboardVisible = isKeyboardVisible,
         effectiveKeyboardVisible = effectiveKeyboardVisible,
-        chatBottomImePx = chatBottomImePx,
         topListPadding = topListPadding,
         bottomListPadding = bottomListPadding,
-        bottomInputTopDp = bottomInputTopDp
+        bottomDockSpacePx = bottomDockSpacePx,
+        bottomInputTopPx = bottomInputTopPx
     )
 }
 
@@ -188,9 +214,25 @@ internal fun BoxScope.ChatInputDock(
             .zIndex(3f)
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
-            .padding(bottom = with(density) { imeMetrics.chatBottomImePx.toDp() })
-            .safeNavigationBarPadding()
-            .padding(bottom = if (imeMetrics.effectiveKeyboardVisible) 4.dp else 24.dp)
+            .layout { measurable, constraints ->
+                val bottomSpace = imeMetrics.bottomDockSpacePx(this)
+                val childConstraints = if (constraints.hasBoundedHeight) {
+                    constraints.copy(
+                        maxHeight = (constraints.maxHeight - bottomSpace).coerceAtLeast(0)
+                    )
+                } else {
+                    constraints
+                }
+                val placeable = measurable.measure(childConstraints)
+                val totalHeight = if (constraints.hasBoundedHeight) {
+                    (placeable.height + bottomSpace).coerceAtMost(constraints.maxHeight)
+                } else {
+                    placeable.height + bottomSpace
+                }
+                layout(placeable.width, totalHeight) {
+                    placeable.placeRelative(0, 0)
+                }
+            }
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             if (state.recording.isLocked && state.recording.mode == RecordMode.VOICE) {
