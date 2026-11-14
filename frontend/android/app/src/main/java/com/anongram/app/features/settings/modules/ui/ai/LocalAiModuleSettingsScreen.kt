@@ -33,6 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -162,12 +163,12 @@ fun LocalAiModuleSettingsScreen(
                 if (state.downloadError != null) {
                     Text(
                         text = state.downloadError ?: "",
-                        color = scheme.danger,
+                        color = MaterialTheme.colorScheme.error,
                         fontSize = 12.5.sp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(scheme.danger.copy(alpha = 0.1f))
+                            .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
                             .padding(horizontal = 12.dp, vertical = 10.dp)
                     )
                 }
@@ -423,7 +424,7 @@ fun LocalAiModuleSettingsScreen(
                     if (hfError != null) {
                         Text(
                             text = hfError ?: "",
-                            color = scheme.danger,
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp,
                             modifier = Modifier.padding(horizontal = 4.dp)
                         )
