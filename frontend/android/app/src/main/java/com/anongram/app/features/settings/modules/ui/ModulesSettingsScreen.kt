@@ -40,9 +40,11 @@ import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.chats.tools.translate.LocalMessageTranslator
+import com.anongram.app.features.services.ai.data.LocalAiStore
 import com.anongram.app.features.settings.modules.data.ModulesSettingsStore
 import com.anongram.app.features.settings.modules.data.VoiceSttEngine
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
+import com.anongram.app.features.settings.modules.ui.ai.LocalAiModuleSection
 import com.anongram.app.features.settings.modules.ui.translation.TranslationModuleSection
 import com.anongram.app.features.settings.modules.ui.voice.formatMb
 
@@ -54,6 +56,7 @@ import com.anongram.app.features.settings.modules.ui.voice.formatMb
 fun ModulesSettingsScreen(
     onOpenVoiceModule: () -> Unit,
     onOpenTranslationModule: () -> Unit,
+    onOpenLocalAiModule: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -65,9 +68,12 @@ fun ModulesSettingsScreen(
     val assetStates by assetManager.states.collectAsState()
     val settings by ModulesSettingsStore.state.collectAsState()
     val downloadedTranslatePacks by LocalMessageTranslator.downloadedLanguages.collectAsState()
+    val aiState by LocalAiStore.state.collectAsState()
 
     LaunchedEffect(Unit) {
         ModulesSettingsStore.ensureInitialized(context)
+        LocalAiStore.ensureInitialized(context)
+        LocalAiStore.refreshInstalledModels(context)
         assetManager.refreshAllStates()
         LocalMessageTranslator.refreshDownloadedModels(context)
     }
@@ -173,6 +179,20 @@ fun ModulesSettingsScreen(
                     isEnabled = settings.showTranslateButton || settings.autoTranslateIncoming,
                     downloadedCount = downloadedTranslatePacks.size,
                     onClick = onOpenTranslationModule
+                )
+
+                HorizontalDivider(
+                    color = scheme.divider,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 56.dp)
+                )
+
+                // 3. Локальный ИИ (llama.cpp + Hugging Face GGUF)
+                LocalAiModuleSection(
+                    activeModelName = aiState.activeModelDisplayName,
+                    installedCount = aiState.installedModels.size,
+                    installedBytes = aiState.totalInstalledBytes,
+                    onClick = onOpenLocalAiModule
                 )
 
                 HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)

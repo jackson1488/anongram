@@ -61,7 +61,9 @@ import com.anongram.app.features.contacts.ui.ContactsScreen
 import com.anongram.app.features.navigation.components.AppHeader
 import com.anongram.app.features.profile.ui.ProfileScreen
 import com.anongram.app.features.qr.ui.QrHubOverlay
+import com.anongram.app.features.services.ai.ui.LocalAiChatScreen
 import com.anongram.app.features.services.ui.ServicesScreen
+import com.anongram.app.features.settings.modules.ui.ai.LocalAiModuleSettingsScreen
 import com.anongram.app.features.settings.ui.SettingsScreen
 import com.anongram.app.features.settings.language.ui.LanguageSettingsScreen
 import androidx.compose.ui.platform.LocalContext
@@ -89,6 +91,8 @@ fun MainAppShell(
     var isContactsOpen by remember { mutableStateOf(false) }
     var isArchiveOpen by remember { mutableStateOf(false) }
     var isLanguageOpen by remember { mutableStateOf(false) }
+    var isLocalAiOpen by remember { mutableStateOf(false) }
+    var isLocalAiModulesOpen by remember { mutableStateOf(false) }
     var isSettingsSubScreenOpen by remember { mutableStateOf(false) }
     var selectedSession by remember { mutableStateOf<IChatSession?>(null) }
     val scope = rememberCoroutineScope()
@@ -136,12 +140,16 @@ fun MainAppShell(
     val contactsProgress = remember { Animatable(0f) }
     val archiveProgress = remember { Animatable(0f) }
     val languageProgress = remember { Animatable(0f) }
+    val localAiProgress = remember { Animatable(0f) }
+    val localAiModulesProgress = remember { Animatable(0f) }
 
     var isDetailExiting by remember { mutableStateOf(false) }
     var isSearchExiting by remember { mutableStateOf(false) }
     var isContactsExiting by remember { mutableStateOf(false) }
     var isArchiveExiting by remember { mutableStateOf(false) }
     var isLanguageExiting by remember { mutableStateOf(false) }
+    var isLocalAiExiting by remember { mutableStateOf(false) }
+    var isLocalAiModulesExiting by remember { mutableStateOf(false) }
 
     fun openSession(session: IChatSession) {
         chatsViewModel.clearSelection()
@@ -223,6 +231,32 @@ fun MainAppShell(
         }
     }
 
+    fun openLocalAi() {
+        isLocalAiExiting = false
+        scope.openOverlay(localAiProgress, navConfig) { isLocalAiOpen = true }
+    }
+
+    fun closeLocalAi() {
+        isLocalAiExiting = true
+        scope.closeOverlay(localAiProgress, navConfig) {
+            isLocalAiOpen = false
+            isLocalAiExiting = false
+        }
+    }
+
+    fun openLocalAiModules() {
+        isLocalAiModulesExiting = false
+        scope.openOverlay(localAiModulesProgress, navConfig) { isLocalAiModulesOpen = true }
+    }
+
+    fun closeLocalAiModules() {
+        isLocalAiModulesExiting = true
+        scope.closeOverlay(localAiModulesProgress, navConfig) {
+            isLocalAiModulesOpen = false
+            isLocalAiModulesExiting = false
+        }
+    }
+
     val showDetailPane = false
     val showDetailOverlay = selectedSession != null
 
@@ -231,7 +265,7 @@ fun MainAppShell(
     }
 
     val hasTransitionOverlay = !isQrOpen && (
-        isLanguageOpen || isSearchOpen || isContactsOpen || isArchiveOpen || selectedSession != null
+        isLocalAiModulesOpen || isLocalAiOpen || isLanguageOpen || isSearchOpen || isContactsOpen || isArchiveOpen || selectedSession != null
     )
     androidx.compose.runtime.LaunchedEffect(hasTransitionOverlay) {
         if (!hasTransitionOverlay) {
@@ -245,6 +279,8 @@ fun MainAppShell(
     val usePredictiveBack = navConfig.transitionType != TransitionType.INSTANT && !isPureSwipeOrParallax
     BackHandler(enabled = hasTransitionOverlay && !usePredictiveBack) {
         when {
+            isLocalAiModulesOpen -> closeLocalAiModules()
+            isLocalAiOpen -> closeLocalAi()
             isLanguageOpen -> closeLanguage()
             isSearchOpen -> closeSearch()
             isContactsOpen -> closeContacts()
@@ -254,6 +290,8 @@ fun MainAppShell(
     }
     PredictiveBackHandler(enabled = hasTransitionOverlay && usePredictiveBack) { backEvents ->
         val (activeProgress, setExiting, onFinish) = when {
+            isLocalAiModulesOpen -> Triple(localAiModulesProgress, { v: Boolean -> isLocalAiModulesExiting = v }, ::closeLocalAiModules)
+            isLocalAiOpen -> Triple(localAiProgress, { v: Boolean -> isLocalAiExiting = v }, ::closeLocalAi)
             isLanguageOpen -> Triple(languageProgress, { v: Boolean -> isLanguageExiting = v }, ::closeLanguage)
             isSearchOpen -> Triple(searchProgress, { v: Boolean -> isSearchExiting = v }, ::closeSearch)
             isContactsOpen -> Triple(contactsProgress, { v: Boolean -> isContactsExiting = v }, ::closeContacts)
@@ -309,7 +347,7 @@ fun MainAppShell(
 
                     1 -> {
                         AppHeader()
-                        ServicesScreen()
+                        ServicesScreen(onOpenLocalAi = { openLocalAi() })
                     }
 
                     2 -> {
@@ -511,6 +549,49 @@ fun MainAppShell(
             }
         }
 
+        if (isLocalAiOpen) {
+            AnonGramTransitionScreen(
+                progress = localAiProgress.value,
+                isExit = isLocalAiExiting,
+                config = navConfig,
+                modifier = Modifier.swipeBackGesture(
+                    enabled = navConfig.allowFullWidthSwipe,
+                    onDragStart = { isLocalAiExiting = true },
+                    onDragProgress = { p -> scope.launch { localAiProgress.snapTo(p) } },
+                    onDragEnd = { shouldClose ->
+                        if (shouldClose) closeLocalAi()
+                        else scope.snapBackOverlay(localAiProgress, navConfig) { isLocalAiExiting = false }
+                    }
+                )
+            ) {
+                LocalAiChatScreen(
+                    onClose = { closeLocalAi() },
+                    onOpenModules = { openLocalAiModules() }
+                )
+            }
+        }
+
+        if (isLocalAiModulesOpen) {
+            AnonGramTransitionScreen(
+                progress = localAiModulesProgress.value,
+                isExit = isLocalAiModulesExiting,
+                config = navConfig,
+                modifier = Modifier.swipeBackGesture(
+                    enabled = navConfig.allowFullWidthSwipe,
+                    onDragStart = { isLocalAiModulesExiting = true },
+                    onDragProgress = { p -> scope.launch { localAiModulesProgress.snapTo(p) } },
+                    onDragEnd = { shouldClose ->
+                        if (shouldClose) closeLocalAiModules()
+                        else scope.snapBackOverlay(localAiModulesProgress, navConfig) { isLocalAiModulesExiting = false }
+                    }
+                )
+            ) {
+                LocalAiModuleSettingsScreen(
+                    onBack = { closeLocalAiModules() }
+                )
+            }
+        }
+
         if (isQrOpen) {
             QrHubOverlay(
                 onClose = { isQrOpen = false },
@@ -522,9 +603,10 @@ fun MainAppShell(
         }
 
         // Остров виден только на корневых экранах: любой дочерний экран
-        // (чат, поиск, контакты, архив, QR, язык) его скрывает.
+        // (чат, поиск, контакты, архив, QR, язык, AI) его скрывает.
         val isRootScreen = selectedSession == null && !isSearchOpen && !isContactsOpen &&
             !isArchiveOpen && !isQrOpen && !isLanguageOpen &&
+            !isLocalAiOpen && !isLocalAiModulesOpen &&
             !(currentTab == 2 && isSettingsSubScreenOpen)
 
         AnimatedVisibility(

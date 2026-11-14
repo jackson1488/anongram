@@ -34,6 +34,7 @@ import com.anongram.app.features.settings.animations.ui.transitions.ScreenTransi
 import com.anongram.app.features.settings.language.ui.LanguageSettingsScreen
 import com.anongram.app.features.settings.main.ui.SettingsMainScreen
 import com.anongram.app.features.settings.modules.ui.ModulesSettingsScreen
+import com.anongram.app.features.settings.modules.ui.ai.LocalAiModuleSettingsScreen
 import com.anongram.app.features.settings.modules.ui.translation.TranslationModuleSettingsScreen
 import com.anongram.app.features.settings.modules.ui.voice.VoiceModuleSettingsScreen
 import com.anongram.app.features.settings.notifications.ui.NotificationsSettingsScreen
@@ -338,6 +339,7 @@ fun SettingsNavHost(
                 ModulesSettingsScreen(
                     onOpenVoiceModule = { navigateTo(SettingsRoute.ModulesVoice) },
                     onOpenTranslationModule = { navigateTo(SettingsRoute.ModulesTranslation) },
+                    onOpenLocalAiModule = { navigateTo(SettingsRoute.ModulesLocalAi) },
                     onBack = popBack
                 )
             }
@@ -350,6 +352,12 @@ fun SettingsNavHost(
 
             SettingsRoute.ModulesTranslation -> {
                 TranslationModuleSettingsScreen(
+                    onBack = popBack
+                )
+            }
+
+            SettingsRoute.ModulesLocalAi -> {
+                LocalAiModuleSettingsScreen(
                     onBack = popBack
                 )
             }
