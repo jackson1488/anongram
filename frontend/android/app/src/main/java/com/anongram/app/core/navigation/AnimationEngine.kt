@@ -93,11 +93,13 @@ fun Modifier.swipeBackGesture(
                 totalDy += delta.y
 
                 if (!tracking && !rejected) {
-                    if (abs(totalDy) > touchSlop && abs(totalDy) > abs(totalDx)) {
+                    if (change.isConsumed) {
+                        rejected = true
+                    } else if (abs(totalDy) > touchSlop && abs(totalDy) > abs(totalDx)) {
                         rejected = true
                     } else if (totalDx < -touchSlop) {
                         rejected = true
-                    } else if (totalDx > touchSlop && totalDx > abs(totalDy) * 1.35f) {
+                    } else if (totalDx > touchSlop * 0.8f && totalDx > abs(totalDy) * 1.15f) {
                         tracking = true
                         onDragStart()
                     }
@@ -141,18 +143,18 @@ fun AnonGramTransitionScreen(
     }
 
     val captureLayer = rememberGraphicsLayer()
+    var hasRecordedFrame by remember { mutableStateOf(false) }
     var capturedBitmap by remember { mutableStateOf<ImageBitmap?>(null) }
 
-    LaunchedEffect(isTransitionActive, config.particleStyle) {
-        if (isTransitionActive) {
-            if (capturedBitmap == null) {
-                withFrameNanos { }
-                if (captureLayer.size.width > 0 && captureLayer.size.height > 0) {
-                    capturedBitmap = runCatching { captureLayer.toImageBitmap() }.getOrNull()
-                }
-            }
-        } else {
+    LaunchedEffect(isTransitionActive, hasRecordedFrame, config.particleStyle) {
+        if (!isTransitionActive) {
             capturedBitmap = null
+            hasRecordedFrame = false
+        } else if (hasRecordedFrame && capturedBitmap == null) {
+            withFrameNanos { }
+            if (captureLayer.size.width > 0 && captureLayer.size.height > 0) {
+                capturedBitmap = runCatching { captureLayer.toImageBitmap() }.getOrNull()
+            }
         }
     }
 
@@ -168,6 +170,9 @@ fun AnonGramTransitionScreen(
                             this@drawWithContent.drawContent()
                         }
                         drawLayer(captureLayer)
+                        if (!hasRecordedFrame && size.width > 1f && size.height > 1f) {
+                            hasRecordedFrame = true
+                        }
                     } else if (!showCapturedParticles) {
                         drawContent()
                     }

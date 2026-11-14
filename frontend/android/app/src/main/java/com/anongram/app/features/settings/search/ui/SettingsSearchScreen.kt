@@ -67,7 +67,6 @@ fun SettingsSearchScreen(
         }
     }
 
-    BackHandler(onBack = onBack)
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {

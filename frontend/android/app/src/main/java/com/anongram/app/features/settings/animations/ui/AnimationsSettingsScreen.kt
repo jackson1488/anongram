@@ -56,7 +56,6 @@ fun AnimationsSettingsScreen(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
-    BackHandler(onBack = onBack)
 
     val activeStyleLabel = if (!state.messageAppearEnabled) {
         strings.messagesRowDisabled

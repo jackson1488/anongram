@@ -16,9 +16,16 @@ class CubeRotation3DStyle : ITransitionStyle {
         config: NavigationTransitionConfig,
         density: Float
     ) {
-        rotationY = -progress * 90f
-        transformOrigin = TransformOrigin(1f, 0.5f)
-        cameraDistance = 12 * density
-        alpha = 1f - progress * 0.3f
+        cameraDistance = 10 * density
+        if (isExit) {
+            transformOrigin = TransformOrigin(1f, 0.5f)
+            rotationY = -progress * 85f
+            translationX = progress * size.width * 0.25f
+        } else {
+            transformOrigin = TransformOrigin(0f, 0.5f)
+            rotationY = progress * 85f
+            translationX = progress * size.width * 0.25f
+        }
+        alpha = (1f - progress * 0.25f).coerceIn(0f, 1f)
     }
 }

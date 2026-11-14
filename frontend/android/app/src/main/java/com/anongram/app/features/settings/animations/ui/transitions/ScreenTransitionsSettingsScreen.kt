@@ -91,7 +91,6 @@ fun ScreenTransitionsSettingsScreen(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
-    BackHandler(onBack = onBack)
 
     val previewConfig = remember(state) {
         NavigationTransitionConfig(

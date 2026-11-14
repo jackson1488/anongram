@@ -36,7 +36,6 @@ fun MessageAnimationsSettingsScreen(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
-    BackHandler(onBack = onBack)
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {

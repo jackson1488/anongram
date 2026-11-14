@@ -57,7 +57,6 @@ fun VoiceModuleSettingsScreen(
         assetManager.refreshAllStates()
     }
 
-    BackHandler(onBack = onBack)
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {

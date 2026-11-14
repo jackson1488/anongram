@@ -63,7 +63,6 @@ fun LanguageSettingsScreen(
     var showDoNotTranslateDialog by remember { mutableStateOf(false) }
 
     // Обработка системного «Назад»
-    BackHandler(onBack = onBack)
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {

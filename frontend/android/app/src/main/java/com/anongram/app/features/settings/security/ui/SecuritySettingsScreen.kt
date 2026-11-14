@@ -52,7 +52,6 @@ fun SecuritySettingsScreen(
     }
 
     // Обработка системного жеста «Назад»
-    BackHandler(onBack = onBack)
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {

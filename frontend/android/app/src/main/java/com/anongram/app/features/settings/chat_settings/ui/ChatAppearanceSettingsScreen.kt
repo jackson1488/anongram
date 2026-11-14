@@ -58,7 +58,6 @@ fun ChatAppearanceSettingsScreen(
     val textSizeSp by ChatTextSettingsStore.messageTextSizeSp.collectAsState()
     val registeredUserName by ChatTextSettingsStore.registeredUserName.collectAsState()
 
-    BackHandler(onBack = onBack)
 
     val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
     val strings = com.anongram.app.features.chats.input.i18n.LocalInputStrings.current

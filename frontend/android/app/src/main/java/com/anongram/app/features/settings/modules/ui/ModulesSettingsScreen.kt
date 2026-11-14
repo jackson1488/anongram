@@ -72,7 +72,6 @@ fun ModulesSettingsScreen(
         LocalMessageTranslator.refreshDownloadedModels(context)
     }
 
-    BackHandler(onBack = onBack)
 
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {

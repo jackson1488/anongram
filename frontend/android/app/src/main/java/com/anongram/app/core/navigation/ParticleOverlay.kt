@@ -53,7 +53,7 @@ private fun buildScreenJigsawPath(
     if (topEdge == 0) {
         path.lineTo(x0 + w, y0)
     } else {
-        val dir = -topEdge.toFloat()
+        val dir = topEdge.toFloat()
         path.lineTo(x0 + w * 0.34f, y0)
         path.cubicTo(
             x0 + w * 0.40f, y0,
@@ -107,7 +107,7 @@ private fun buildScreenJigsawPath(
     if (leftEdge == 0) {
         path.lineTo(x0, y0)
     } else {
-        val dir = -leftEdge.toFloat()
+        val dir = leftEdge.toFloat()
         path.lineTo(x0, y0 + h * 0.66f)
         path.cubicTo(
             x0, y0 + h * 0.60f,

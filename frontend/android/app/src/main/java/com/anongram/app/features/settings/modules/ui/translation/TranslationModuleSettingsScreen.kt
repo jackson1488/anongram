@@ -79,7 +79,6 @@ fun TranslationModuleSettingsScreen(
         LocalMessageTranslator.refreshDownloadedModels(context)
     }
 
-    BackHandler(onBack = onBack)
 
     val filteredPacks = remember(searchQuery, downloaded) {
         val q = searchQuery.trim().lowercase()
