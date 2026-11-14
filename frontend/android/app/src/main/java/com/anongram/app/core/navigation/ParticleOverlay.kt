@@ -142,7 +142,7 @@ fun ParticleOverlay(
     modifier: Modifier = Modifier
 ) {
     val factor = progress.coerceIn(0f, 1f)
-    if (factor <= 0.005f || factor >= 0.995f) return
+    if (factor <= 0.005f || (isExit && factor >= 0.995f)) return
 
     val cols = if (denseParticles) 7 else 5
     val rows = if (denseParticles) 12 else 8
@@ -163,7 +163,8 @@ fun ParticleOverlay(
                 for (c in 0 until cols) {
                     val normX = (c + 0.5f) / cols - 0.5f
                     val normY = (r + 0.5f) / rows - 0.5f
-                    val dirSign = if (normX >= 0f) 1f else -1f
+                    val dirSignX = if (normX >= 0f) 1f else -1f
+                    val dirSignY = if (normY >= 0f) 1f else -1f
                     add(
                         ScreenJigsawPiece(
                             col = c,
@@ -172,10 +173,10 @@ fun ParticleOverlay(
                             hEdgesBottom = hEdges[r + 1][c],
                             vEdgesLeft = vEdges[r][c],
                             vEdgesRight = vEdges[r][c + 1],
-                            vx = normX * 2.2f + dirSign * (0.25f + rnd.nextFloat() * 0.45f),
-                            vy = normY * 1.6f + (rnd.nextFloat() - 0.5f) * 0.7f,
-                            rotDeg = dirSign * (14f + rnd.nextFloat() * 34f),
-                            delay = ((cols - 1 - c) * 0.025f) + rnd.nextFloat() * 0.12f,
+                            vx = normX * 2.4f + dirSignX * (0.75f + rnd.nextFloat() * 0.45f),
+                            vy = normY * 2.2f + dirSignY * (0.55f + rnd.nextFloat() * 0.45f),
+                            rotDeg = dirSignX * (18f + rnd.nextFloat() * 36f),
+                            delay = ((cols - 1 - c) * 0.02f) + rnd.nextFloat() * 0.10f,
                             popScale = 1.06f + rnd.nextFloat() * 0.10f
                         )
                     )
@@ -196,7 +197,7 @@ fun ParticleOverlay(
             for (piece in jigsawPieces) {
                 val localT = ((factor - piece.delay) / (1f - piece.delay).coerceAtLeast(0.25f))
                     .coerceIn(0f, 1f)
-                if (localT >= 0.99f) continue
+                if (isExit && localT >= 0.99f) continue
 
                 val eased = localT * localT * (3f - 2f * localT)
                 val x0 = piece.col * cellW
@@ -204,14 +205,22 @@ fun ParticleOverlay(
                 val cx = x0 + cellW * 0.5f
                 val cy = y0 + cellH * 0.5f
 
-                val dx = piece.vx * size.width * 0.45f * eased + slideOffset
-                val dy = piece.vy * size.height * 0.38f * eased
-                val scale = if (eased < 0.35f) {
-                    1f + (piece.popScale - 1f) * (eased / 0.35f)
+                val dx = piece.vx * size.width * 0.68f * eased + slideOffset
+                val dy = piece.vy * size.height * 0.62f * eased
+                val scale = if (isExit) {
+                    if (eased < 0.35f) {
+                        1f + (piece.popScale - 1f) * (eased / 0.35f)
+                    } else {
+                        piece.popScale - (piece.popScale - 0.55f) * ((eased - 0.35f) / 0.65f)
+                    }
                 } else {
-                    piece.popScale - (piece.popScale - 0.55f) * ((eased - 0.35f) / 0.65f)
+                    1f - eased * 0.18f
                 }
-                val alpha = (1f - eased * eased).coerceIn(0f, 1f)
+                val alpha = if (isExit) {
+                    (1f - eased * eased).coerceIn(0f, 1f)
+                } else {
+                    (1f - eased * 0.25f).coerceIn(0f, 1f)
+                }
                 val tilePath = buildScreenJigsawPath(
                     x0 = x0,
                     y0 = y0,
@@ -254,30 +263,42 @@ fun ParticleOverlay(
                     drawImage(
                         image = screenBitmap,
                         dstSize = dstSize,
-                        alpha = (1f - factor * 0.35f).coerceIn(0f, 1f)
+                        alpha = (1f - factor * 0.28f).coerceIn(0f, 1f)
                     )
                 }
             }
         }
 
         val rand = Random(42)
-        val count = if (style == ParticleStyle.PUZZLE_PIECES) 48 else 96
-        val waveX = size.width * (1f - factor)
+        val count = if (denseParticles) 144 else 96
 
         for (i in 0 until count) {
-            val originX = if (screenBitmap != null) {
-                (waveX + (rand.nextFloat() - 0.5f) * size.width * 0.25f).coerceIn(0f, size.width)
-            } else {
-                (i % 8) * (size.width / 8f) + (size.width / 16f)
+            val targetX = ((i % 12) + 0.5f) / 12f * size.width + (rand.nextFloat() - 0.5f) * (size.width / 14f)
+            val targetY = ((i / 12) + 0.5f) / (count / 12f).coerceAtLeast(1f) * size.height + (rand.nextFloat() - 0.5f) * 40f
+
+            val normX = (targetX / size.width - 0.5f) * 2f
+            val normY = (targetY / size.height - 0.5f) * 2f
+            val side = i % 4
+            val edgeOffsetX = when (side) {
+                0 -> -size.width * (0.55f + rand.nextFloat() * 0.35f)
+                1 -> size.width * (0.55f + rand.nextFloat() * 0.35f)
+                else -> normX * size.width * 0.65f + (rand.nextFloat() - 0.5f) * size.width * 0.25f
             }
-            val originY = (i / 12f) * (size.height / (count / 12f).coerceAtLeast(1f)) + rand.nextFloat() * 48f
+            val edgeOffsetY = when (side) {
+                2 -> -size.height * (0.55f + rand.nextFloat() * 0.35f)
+                3 -> size.height * (0.55f + rand.nextFloat() * 0.35f)
+                else -> normY * size.height * 0.55f + (rand.nextFloat() - 0.5f) * size.height * 0.25f
+            }
 
-            val angle = rand.nextFloat() * 2f * PI.toFloat()
-            val speed = (rand.nextFloat() * 190f + 50f) * factor
-            val dx = originX + cos(angle) * speed + (if (isExit) factor * 90f else -factor * 90f)
-            val dy = originY + sin(angle) * speed - (factor * 110f)
+            val eased = factor * factor * (3f - 2f * factor)
+            val dx = targetX + edgeOffsetX * eased + slideOffset
+            val dy = targetY + edgeOffsetY * eased
 
-            val alpha = ((1.0f - factor) * 0.92f).coerceIn(0f, 1f)
+            val alpha = if (isExit) {
+                ((1.0f - factor * 0.85f) * 0.92f).coerceIn(0f, 1f)
+            } else {
+                ((1.0f - factor * 0.25f) * 0.95f).coerceIn(0f, 1f)
+            }
             if (alpha <= 0.01f) continue
 
             when (style) {

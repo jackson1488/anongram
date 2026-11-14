@@ -1,8 +1,11 @@
 package com.anongram.app.features.settings.animations.ui.transitions
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,8 +30,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -36,10 +37,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -480,6 +490,73 @@ private fun CompactSwitchRow(
 }
 
 @Composable
+private fun AnonGramSlimSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier
+) {
+    val scheme = LocalAnonGramScheme.current
+    val latestOnValueChange by rememberUpdatedState(onValueChange)
+    var widthPx by remember { mutableIntStateOf(1) }
+    val span = (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.001f)
+    val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
+
+    fun updateFromX(x: Float) {
+        val padPx = widthPx * 0.03f
+        val usable = (widthPx - padPx * 2f).coerceAtLeast(1f)
+        val f = ((x - padPx) / usable).coerceIn(0f, 1f)
+        latestOnValueChange(valueRange.start + f * span)
+    }
+
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(28.dp)
+            .onSizeChanged { widthPx = it.width.coerceAtLeast(1) }
+            .pointerInput(valueRange) {
+                detectTapGestures { offset -> updateFromX(offset.x) }
+            }
+            .pointerInput(valueRange) {
+                detectHorizontalDragGestures { change, _ ->
+                    change.consume()
+                    updateFromX(change.position.x)
+                }
+            }
+    ) {
+        val trackHeight = 4.dp.toPx()
+        val thumbRadius = 7.dp.toPx()
+        val pad = thumbRadius
+        val trackWidth = (size.width - pad * 2f).coerceAtLeast(1f)
+        val centerY = size.height * 0.5f
+        val thumbX = pad + trackWidth * fraction
+
+        drawRoundRect(
+            color = scheme.divider,
+            topLeft = Offset(pad, centerY - trackHeight * 0.5f),
+            size = Size(trackWidth, trackHeight),
+            cornerRadius = CornerRadius(trackHeight * 0.5f, trackHeight * 0.5f)
+        )
+        drawRoundRect(
+            color = scheme.accent,
+            topLeft = Offset(pad, centerY - trackHeight * 0.5f),
+            size = Size(trackWidth * fraction, trackHeight),
+            cornerRadius = CornerRadius(trackHeight * 0.5f, trackHeight * 0.5f)
+        )
+        drawCircle(
+            color = scheme.card,
+            radius = thumbRadius + 1.5.dp.toPx(),
+            center = Offset(thumbX, centerY)
+        )
+        drawCircle(
+            color = scheme.accent,
+            radius = thumbRadius,
+            center = Offset(thumbX, centerY)
+        )
+    }
+}
+
+@Composable
 private fun SpeedSliderBlock(
     title: String,
     speedScale: Float,
@@ -505,16 +582,10 @@ private fun SpeedSliderBlock(
                 fontWeight = FontWeight.SemiBold
             )
         }
-        Slider(
+        AnonGramSlimSlider(
             value = speedScale.coerceIn(0.4f, 1.6f),
             onValueChange = onSpeedChange,
-            valueRange = 0.4f..1.6f,
-            colors = SliderDefaults.colors(
-                thumbColor = scheme.accent,
-                activeTrackColor = scheme.accent,
-                inactiveTrackColor = scheme.divider
-            ),
-            modifier = Modifier.fillMaxWidth()
+            valueRange = 0.4f..1.6f
         )
     }
 }
@@ -545,16 +616,10 @@ private fun DampingSliderBlock(
                 fontWeight = FontWeight.SemiBold
             )
         }
-        Slider(
-            value = damping,
+        AnonGramSlimSlider(
+            value = damping.coerceIn(0.50f, 1.0f),
             onValueChange = onDampingChange,
-            valueRange = 0.50f..1.0f,
-            colors = SliderDefaults.colors(
-                thumbColor = scheme.accent,
-                activeTrackColor = scheme.accent,
-                inactiveTrackColor = scheme.divider
-            ),
-            modifier = Modifier.fillMaxWidth()
+            valueRange = 0.50f..1.0f
         )
     }
 }
