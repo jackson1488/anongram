@@ -29,6 +29,7 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -132,11 +133,13 @@ fun LocalAiMessageBubble(
                     }
                 }
             } else {
+                val bubbleShape = RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp)
                 Box(
                     modifier = Modifier
                         .widthIn(max = 300.dp)
-                        .clip(RoundedCornerShape(20.dp, 20.dp, 6.dp, 20.dp))
-                        .background(scheme.outgoingBubble)
+                        .clip(bubbleShape)
+                        .background(Brush.linearGradient(listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd)))
+                        .border(1.dp, scheme.outgoingBubbleBorder, bubbleShape)
                         .padding(horizontal = 14.dp, vertical = 10.dp)
                 ) {
                     Text(
