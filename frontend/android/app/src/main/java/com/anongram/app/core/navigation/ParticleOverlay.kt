@@ -191,7 +191,7 @@ fun ParticleOverlay(
             (if (isExit) 1f else -1f) * factor * size.width * 0.28f
         } else 0f
 
-        if (style == ParticleStyle.PUZZLE_PIECES && screenBitmap != null) {
+        if (style == ParticleStyle.PUZZLE_PIECES) {
             val cellW = size.width / cols
             val cellH = size.height / rows
             for (piece in jigsawPieces) {
@@ -237,17 +237,28 @@ fun ParticleOverlay(
                     rotate(piece.rotDeg * eased, pivot = Offset(cx, cy))
                     scale(scale, scale, pivot = Offset(cx, cy))
                 }) {
-                    clipPath(tilePath) {
-                        drawImage(
-                            image = screenBitmap,
-                            dstSize = dstSize,
-                            alpha = alpha
+                    if (screenBitmap != null) {
+                        clipPath(tilePath) {
+                            drawImage(
+                                image = screenBitmap,
+                                dstSize = dstSize,
+                                alpha = alpha
+                            )
+                        }
+                    } else {
+                        drawPath(
+                            path = tilePath,
+                            color = Color(0xFF101826).copy(alpha = 0.88f * alpha)
                         )
                     }
                     if (eased > 0.02f) {
                         drawPath(
                             path = tilePath,
-                            color = Color.White.copy(alpha = 0.22f * alpha),
+                            color = if (screenBitmap != null) {
+                                Color.White.copy(alpha = 0.22f * alpha)
+                            } else {
+                                Color(0xFF00F2FE).copy(alpha = 0.65f * alpha)
+                            },
                             style = Stroke(width = 1.4f)
                         )
                     }

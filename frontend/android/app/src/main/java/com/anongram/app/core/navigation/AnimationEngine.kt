@@ -174,19 +174,19 @@ fun AnonGramTransitionScreen(
             capturedBitmap = null
             hasRecordedFrame = false
         } else if (hasRecordedFrame && capturedBitmap == null) {
-            if (captureLayer.size.width > 0 && captureLayer.size.height > 0) {
-                capturedBitmap = runCatching { captureLayer.toImageBitmap() }.getOrNull()
-            }
-            if (capturedBitmap == null) {
-                withFrameNanos { }
+            repeat(5) {
+                if (capturedBitmap != null) return@repeat
                 if (captureLayer.size.width > 0 && captureLayer.size.height > 0) {
                     capturedBitmap = runCatching { captureLayer.toImageBitmap() }.getOrNull()
+                }
+                if (capturedBitmap == null) {
+                    withFrameNanos { }
                 }
             }
         }
     }
 
-    val showCapturedParticles = isTransitionActive && capturedBitmap != null
+    val showCapturedParticles = isTransitionActive && (capturedBitmap != null || !isExit)
 
     Box(modifier = modifier.fillMaxSize()) {
         Box(
