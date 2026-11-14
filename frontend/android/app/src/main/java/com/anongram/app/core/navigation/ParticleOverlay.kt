@@ -205,8 +205,8 @@ fun ParticleOverlay(
                 val cx = x0 + cellW * 0.5f
                 val cy = y0 + cellH * 0.5f
 
-                val dx = piece.vx * size.width * 0.68f * eased + slideOffset
-                val dy = piece.vy * size.height * 0.62f * eased
+                val dx = piece.vx * size.width * 0.48f * eased + slideOffset
+                val dy = piece.vy * size.height * 0.44f * eased
                 val scale = if (isExit) {
                     if (eased < 0.35f) {
                         1f + (piece.popScale - 1f) * (eased / 0.35f)

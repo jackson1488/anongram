@@ -14,6 +14,7 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -193,6 +194,10 @@ fun AnonGramTransitionScreen(
                         }
                         if (isExit) {
                             drawLayer(captureLayer)
+                        } else {
+                            clipRect(0f, 0f, 1f, 1f) {
+                                drawLayer(captureLayer)
+                            }
                         }
                         if (!hasRecordedFrame && size.width > 1f && size.height > 1f) {
                             hasRecordedFrame = true
