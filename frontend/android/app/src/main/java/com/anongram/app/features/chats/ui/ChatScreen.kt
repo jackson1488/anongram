@@ -166,7 +166,29 @@ fun ChatScreen(
             }
     }
 
-    BackHandler {
+    val hasInnerBackTarget = fullTextMessageModal != null ||
+        isFullEditorOpen ||
+        state.videoReviewDraft != null ||
+        state.voiceReviewDraft != null ||
+        state.expandedVideoCircle != null ||
+        isMusicSheetOpen ||
+        isReplaceAttachSheetOpen ||
+        state.deleteDialogFor != null ||
+        forwardingMessageIds != null ||
+        viewingMediaMessage != null ||
+        isWallpaperOpen ||
+        isReplyPreviewOpen ||
+        isSearchListMode ||
+        state.isSearchOpen ||
+        state.isSelectionMode ||
+        state.isEmojiOpen ||
+        state.isAttachOpen ||
+        state.actionMenuFor != null ||
+        state.isNotificationsOpen ||
+        state.isKeyCheckOpen ||
+        state.editing != null
+
+    BackHandler(enabled = hasInnerBackTarget) {
         when {
             fullTextMessageModal != null -> fullTextMessageModal = null
             isFullEditorOpen -> isFullEditorOpen = false

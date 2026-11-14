@@ -1,6 +1,6 @@
 package com.anongram.app.features.settings.navigation
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
@@ -19,6 +19,8 @@ import androidx.compose.ui.platform.LocalContext
 import com.anongram.app.core.navigation.AnonGramTransitionScreen
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.navigation.TransitionType
+import com.anongram.app.core.navigation.swipeBackGesture
+import kotlin.coroutines.cancellation.CancellationException
 import com.anongram.app.features.auth.data.crypto.KeystoreVault
 import com.anongram.app.features.settings.account.ui.AccountSettingsScreen
 import com.anongram.app.features.settings.battery.ui.BatterySettingsScreen
@@ -77,12 +79,14 @@ fun SettingsNavHost(
     val backStack = remember { mutableStateListOf<SettingsRoute>(SettingsRoute.Main) }
     val currentRoute = backStack.lastOrNull() ?: SettingsRoute.Main
     var underlayRoute by remember { mutableStateOf<SettingsRoute?>(null) }
+    var isExiting by remember { mutableStateOf(false) }
     val transitionProgress = remember { Animatable(0f) }
 
     val navigateTo: (SettingsRoute) -> Unit = { route ->
         if (currentRoute != route) {
             val prev = currentRoute
             underlayRoute = prev
+            isExiting = false
             backStack.add(route)
             onSubScreenVisibilityChange(route != SettingsRoute.Main)
             scope.launch {
@@ -111,6 +115,7 @@ fun SettingsNavHost(
         if (backStack.size > 1) {
             val target = backStack[backStack.lastIndex - 1]
             underlayRoute = target
+            isExiting = true
             scope.launch {
                 if (navConfig.transitionType != TransitionType.INSTANT) {
                     transitionProgress.animateTo(
@@ -129,14 +134,46 @@ fun SettingsNavHost(
                     backStack.removeAt(backStack.lastIndex)
                 }
                 transitionProgress.snapTo(0f)
+                isExiting = false
                 underlayRoute = null
                 onSubScreenVisibilityChange((backStack.lastOrNull() ?: SettingsRoute.Main) != SettingsRoute.Main)
             }
         }
     }
 
-    BackHandler(enabled = backStack.size > 1) {
-        popBack()
+    val cancelBackGesture: () -> Unit = {
+        scope.launch {
+            if (navConfig.transitionType != TransitionType.INSTANT) {
+                transitionProgress.animateTo(
+                    targetValue = 0f,
+                    animationSpec = if (navConfig.transitionType == TransitionType.SPRING_SWIPE) {
+                        PhysicsSprings.screenSpringSpec(
+                            damping = navConfig.springDamping,
+                            stiffness = navConfig.springStiffness * navConfig.speedMultiplier
+                        )
+                    } else {
+                        tween(durationMillis = navConfig.effectiveDurationMs)
+                    }
+                )
+            } else {
+                transitionProgress.snapTo(0f)
+            }
+            isExiting = false
+            underlayRoute = null
+        }
+    }
+
+    PredictiveBackHandler(enabled = backStack.size > 1) { backEvents ->
+        underlayRoute = backStack[backStack.lastIndex - 1]
+        isExiting = true
+        try {
+            backEvents.collect { event ->
+                transitionProgress.snapTo(event.progress.coerceIn(0f, 1f))
+            }
+            popBack()
+        } catch (_: CancellationException) {
+            cancelBackGesture()
+        }
     }
 
     @Composable
@@ -286,8 +323,21 @@ fun SettingsNavHost(
 
         AnonGramTransitionScreen(
             progress = transitionProgress.value,
-            isExit = false,
-            config = navConfig
+            isExit = isExiting,
+            config = navConfig,
+            modifier = Modifier.swipeBackGesture(
+                enabled = backStack.size > 1 && navConfig.enableGesturePullCombo,
+                onDragStart = {
+                    if (backStack.size > 1) {
+                        underlayRoute = backStack[backStack.lastIndex - 1]
+                        isExiting = true
+                    }
+                },
+                onDragProgress = { p -> scope.launch { transitionProgress.snapTo(p) } },
+                onDragEnd = { shouldClose ->
+                    if (shouldClose) popBack() else cancelBackGesture()
+                }
+            )
         ) {
             RenderRoute(currentRoute)
         }

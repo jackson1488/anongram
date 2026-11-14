@@ -1,6 +1,7 @@
 package com.anongram.app.features.navigation
 
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
@@ -36,8 +37,10 @@ import com.anongram.app.core.navigation.AnonGramTransitionScreen
 import com.anongram.app.core.navigation.NavigationTransitionConfig
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.navigation.TransitionType
+import com.anongram.app.core.navigation.swipeBackGesture
 import com.anongram.app.core.theme.ThemeController
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
+import kotlin.coroutines.cancellation.CancellationException
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.archive.ArchiveScreen
@@ -123,15 +126,26 @@ fun MainAppShell(
     val archiveProgress = remember { Animatable(0f) }
     val languageProgress = remember { Animatable(0f) }
 
+    var isDetailExiting by remember { mutableStateOf(false) }
+    var isSearchExiting by remember { mutableStateOf(false) }
+    var isContactsExiting by remember { mutableStateOf(false) }
+    var isArchiveExiting by remember { mutableStateOf(false) }
+    var isLanguageExiting by remember { mutableStateOf(false) }
+
     fun openSession(session: IChatSession) {
         chatsViewModel.clearSelection()
         chatsViewModel.markRead(session.id)
+        isDetailExiting = false
         scope.openOverlay(detailProgress, navConfig) { selectedSession = session }
     }
 
     fun closeSession() {
         chatsViewModel.refresh()
-        scope.closeOverlay(detailProgress, navConfig) { selectedSession = null }
+        isDetailExiting = true
+        scope.closeOverlay(detailProgress, navConfig) {
+            selectedSession = null
+            isDetailExiting = false
+        }
     }
 
     fun openContact(contact: Contact) {
@@ -145,53 +159,87 @@ fun MainAppShell(
 
     fun openSearch() {
         chatsViewModel.clearSelection()
+        isSearchExiting = false
         scope.openOverlay(searchProgress, navConfig) { isSearchOpen = true }
     }
 
     fun closeSearch() {
-        scope.closeOverlay(searchProgress, navConfig) { isSearchOpen = false }
+        isSearchExiting = true
+        scope.closeOverlay(searchProgress, navConfig) {
+            isSearchOpen = false
+            isSearchExiting = false
+        }
     }
 
     fun openContacts() {
         chatsViewModel.clearSelection()
+        isContactsExiting = false
         scope.openOverlay(contactsProgress, navConfig) { isContactsOpen = true }
     }
 
     fun closeContacts() {
-        scope.closeOverlay(contactsProgress, navConfig) { isContactsOpen = false }
+        isContactsExiting = true
+        scope.closeOverlay(contactsProgress, navConfig) {
+            isContactsOpen = false
+            isContactsExiting = false
+        }
     }
 
     fun openArchive() {
         chatsViewModel.clearSelection()
+        isArchiveExiting = false
         scope.openOverlay(archiveProgress, navConfig) { isArchiveOpen = true }
     }
 
     fun closeArchive() {
-        scope.closeOverlay(archiveProgress, navConfig) { isArchiveOpen = false }
+        isArchiveExiting = true
+        scope.closeOverlay(archiveProgress, navConfig) {
+            isArchiveOpen = false
+            isArchiveExiting = false
+        }
     }
 
     fun openLanguage() {
+        isLanguageExiting = false
         scope.openOverlay(languageProgress, navConfig) { isLanguageOpen = true }
     }
 
     fun closeLanguage() {
-        scope.closeOverlay(languageProgress, navConfig) { isLanguageOpen = false }
+        isLanguageExiting = true
+        scope.closeOverlay(languageProgress, navConfig) {
+            isLanguageOpen = false
+            isLanguageExiting = false
+        }
     }
 
     val showDetailPane = false
     val showDetailOverlay = selectedSession != null
 
-    BackHandler(
-        enabled = selectedSession != null || isSearchOpen || isContactsOpen ||
-            isArchiveOpen || isQrOpen || isLanguageOpen
-    ) {
-        when {
-            isQrOpen -> isQrOpen = false
-            isLanguageOpen -> closeLanguage()
-            isSearchOpen -> closeSearch()
-            isContactsOpen -> closeContacts()
-            isArchiveOpen -> closeArchive()
-            selectedSession != null -> closeSession()
+    BackHandler(enabled = isQrOpen) {
+        isQrOpen = false
+    }
+
+    val hasTransitionOverlay = !isQrOpen && (
+        isLanguageOpen || isSearchOpen || isContactsOpen || isArchiveOpen || selectedSession != null
+    )
+    PredictiveBackHandler(enabled = hasTransitionOverlay) { backEvents ->
+        val (activeProgress, setExiting, onFinish) = when {
+            isLanguageOpen -> Triple(languageProgress, { v: Boolean -> isLanguageExiting = v }, ::closeLanguage)
+            isSearchOpen -> Triple(searchProgress, { v: Boolean -> isSearchExiting = v }, ::closeSearch)
+            isContactsOpen -> Triple(contactsProgress, { v: Boolean -> isContactsExiting = v }, ::closeContacts)
+            isArchiveOpen -> Triple(archiveProgress, { v: Boolean -> isArchiveExiting = v }, ::closeArchive)
+            else -> Triple(detailProgress, { v: Boolean -> isDetailExiting = v }, ::closeSession)
+        }
+        setExiting(true)
+        try {
+            backEvents.collect { event ->
+                activeProgress.snapTo(event.progress.coerceIn(0f, 1f))
+            }
+            onFinish()
+        } catch (_: CancellationException) {
+            scope.snapBackOverlay(activeProgress, navConfig) {
+                setExiting(false)
+            }
         }
     }
 
@@ -287,8 +335,17 @@ fun MainAppShell(
                 )
                 AnonGramTransitionScreen(
                     progress = detailProgress.value,
-                    isExit = false,
-                    config = navConfig
+                    isExit = isDetailExiting,
+                    config = navConfig,
+                    modifier = Modifier.swipeBackGesture(
+                        enabled = navConfig.enableGesturePullCombo,
+                        onDragStart = { isDetailExiting = true },
+                        onDragProgress = { p -> scope.launch { detailProgress.snapTo(p) } },
+                        onDragEnd = { shouldClose ->
+                            if (shouldClose) closeSession()
+                            else scope.snapBackOverlay(detailProgress, navConfig) { isDetailExiting = false }
+                        }
+                    )
                 ) {
                     ChatScreen(
                         session = session,
@@ -310,8 +367,17 @@ fun MainAppShell(
         if (isSearchOpen) {
             AnonGramTransitionScreen(
                 progress = searchProgress.value,
-                isExit = false,
-                config = navConfig
+                isExit = isSearchExiting,
+                config = navConfig,
+                modifier = Modifier.swipeBackGesture(
+                    enabled = navConfig.enableGesturePullCombo,
+                    onDragStart = { isSearchExiting = true },
+                    onDragProgress = { p -> scope.launch { searchProgress.snapTo(p) } },
+                    onDragEnd = { shouldClose ->
+                        if (shouldClose) closeSearch()
+                        else scope.snapBackOverlay(searchProgress, navConfig) { isSearchExiting = false }
+                    }
+                )
             ) {
                 ChatSearchScreen(
                     viewModel = searchViewModel,
@@ -328,8 +394,17 @@ fun MainAppShell(
         if (isContactsOpen) {
             AnonGramTransitionScreen(
                 progress = contactsProgress.value,
-                isExit = false,
-                config = navConfig
+                isExit = isContactsExiting,
+                config = navConfig,
+                modifier = Modifier.swipeBackGesture(
+                    enabled = navConfig.enableGesturePullCombo,
+                    onDragStart = { isContactsExiting = true },
+                    onDragProgress = { p -> scope.launch { contactsProgress.snapTo(p) } },
+                    onDragEnd = { shouldClose ->
+                        if (shouldClose) closeContacts()
+                        else scope.snapBackOverlay(contactsProgress, navConfig) { isContactsExiting = false }
+                    }
+                )
             ) {
                 ContactsScreen(
                     viewModel = contactsViewModel,
@@ -350,8 +425,17 @@ fun MainAppShell(
         if (isArchiveOpen) {
             AnonGramTransitionScreen(
                 progress = archiveProgress.value,
-                isExit = false,
-                config = navConfig
+                isExit = isArchiveExiting,
+                config = navConfig,
+                modifier = Modifier.swipeBackGesture(
+                    enabled = navConfig.enableGesturePullCombo,
+                    onDragStart = { isArchiveExiting = true },
+                    onDragProgress = { p -> scope.launch { archiveProgress.snapTo(p) } },
+                    onDragEnd = { shouldClose ->
+                        if (shouldClose) closeArchive()
+                        else scope.snapBackOverlay(archiveProgress, navConfig) { isArchiveExiting = false }
+                    }
+                )
             ) {
                 ArchiveScreen(
                     viewModel = chatsViewModel,
@@ -367,8 +451,17 @@ fun MainAppShell(
         if (isLanguageOpen) {
             AnonGramTransitionScreen(
                 progress = languageProgress.value,
-                isExit = false,
-                config = navConfig
+                isExit = isLanguageExiting,
+                config = navConfig,
+                modifier = Modifier.swipeBackGesture(
+                    enabled = navConfig.enableGesturePullCombo,
+                    onDragStart = { isLanguageExiting = true },
+                    onDragProgress = { p -> scope.launch { languageProgress.snapTo(p) } },
+                    onDragEnd = { shouldClose ->
+                        if (shouldClose) closeLanguage()
+                        else scope.snapBackOverlay(languageProgress, navConfig) { isLanguageExiting = false }
+                    }
+                )
             ) {
                 LanguageSettingsScreen(
                     onBack = { closeLanguage() }
@@ -473,5 +566,31 @@ private fun CoroutineScope.closeOverlay(
         }
         hide()
         progress.snapTo(0f)
+    }
+}
+
+/** Возврат оверлея на место при отмене свайпа или системного Predictive Back. */
+private fun CoroutineScope.snapBackOverlay(
+    progress: Animatable<Float, *>,
+    config: NavigationTransitionConfig,
+    onDone: () -> Unit = {}
+) {
+    launch {
+        if (config.transitionType == TransitionType.INSTANT) {
+            progress.snapTo(0f)
+        } else {
+            progress.animateTo(
+                targetValue = 0f,
+                animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {
+                    PhysicsSprings.screenSpringSpec(
+                        damping = config.springDamping,
+                        stiffness = config.springStiffness * config.speedMultiplier
+                    )
+                } else {
+                    tween(durationMillis = config.effectiveDurationMs)
+                }
+            )
+        }
+        onDone()
     }
 }
