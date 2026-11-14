@@ -69,6 +69,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -88,6 +90,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.services.ai.data.AiAttachment
 import com.anongram.app.features.services.ai.data.AiCatalog
+import com.anongram.app.features.services.ai.data.AiModelCategory
 import com.anongram.app.features.services.ai.data.AiReasoningLevel
 import com.anongram.app.features.services.ai.data.LocalAiStore
 import com.anongram.app.features.services.ai.i18n.LocalAiI18n
@@ -115,6 +118,7 @@ fun LocalAiChatScreen(
     var inputText by remember { mutableStateOf("") }
     var isDrawerOpen by remember { mutableStateOf(false) }
     var isModelMenuOpen by remember { mutableStateOf(false) }
+    var isAiSettingsOpen by remember { mutableStateOf(false) }
     var isPlusMenuOpen by remember { mutableStateOf(false) }
     val pendingAttachments = remember { mutableStateListOf<AiAttachment>() }
 
@@ -183,97 +187,13 @@ fun LocalAiChatScreen(
                     .navigationBarsPadding()
                     .imePadding()
             ) {
-                // Верхняя панель: кнопка меню (=), селектор модели, веб-поиск, новый чат, закрыть
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                        .padding(horizontal = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { isDrawerOpen = true }, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.Menu,
-                            contentDescription = null,
-                            tint = scheme.textPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-
-                    // Селектор модели + уровень рассуждений (открывает меню в этом же окне)
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(18.dp))
-                            .clickable { isModelMenuOpen = true }
-                            .padding(horizontal = 8.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = state.activeModelDisplayName,
-                            color = scheme.textPrimary,
-                            fontSize = 15.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f, fill = false)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = strings.reasoningLabel(state.reasoningLevel),
-                            color = scheme.textSecondary,
-                            fontSize = 13.sp,
-                            maxLines = 1
-                        )
-                        Icon(
-                            imageVector = Icons.Outlined.KeyboardArrowDown,
-                            contentDescription = null,
-                            tint = scheme.textSecondary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { LocalAiStore.setWebSearchEnabled(context, !state.webSearchEnabled) },
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Public,
-                            contentDescription = strings.webSearchTooltip,
-                            tint = if (state.webSearchEnabled) scheme.accent else scheme.textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { LocalAiStore.newChat(context) },
-                        modifier = Modifier.size(38.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.EditNote,
-                            contentDescription = strings.newChat,
-                            tint = scheme.textPrimary,
-                            modifier = Modifier.size(21.dp)
-                        )
-                    }
-
-                    IconButton(onClick = onClose, modifier = Modifier.size(38.dp)) {
-                        Icon(
-                            imageVector = Icons.Outlined.Close,
-                            contentDescription = null,
-                            tint = scheme.textSecondary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                // Центр: пустой стартовый экран либо лента сообщений
+                // Центр: лента сообщений / стартовый экран + наложенная полупрозрачная шапка сверху
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     if (activeMessages.isEmpty()) {
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(horizontal = 24.dp),
+                                .padding(horizontal = 24.dp, vertical = 56.dp),
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -343,7 +263,7 @@ fun LocalAiChatScreen(
                         LazyColumn(
                             state = listState,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+                            contentPadding = PaddingValues(top = 56.dp, bottom = 12.dp, start = 14.dp, end = 14.dp),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(activeMessages, key = { it.id }) { msg ->
@@ -372,6 +292,96 @@ fun LocalAiChatScreen(
                                     }
                                 )
                             }
+                        }
+                    }
+
+                    // Наложенная полупрозрачная шапка сверху (как в чате)
+                    Row(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        scheme.background.copy(alpha = 0.94f),
+                                        scheme.background.copy(alpha = 0.78f),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
+                            .height(48.dp)
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { isDrawerOpen = true }, modifier = Modifier.size(38.dp)) {
+                            Icon(
+                                imageVector = Icons.Outlined.Menu,
+                                contentDescription = null,
+                                tint = scheme.textPrimary,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(18.dp))
+                                .clickable { isModelMenuOpen = true }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = state.activeModelDisplayName,
+                                color = scheme.textPrimary,
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = strings.reasoningLabel(state.reasoningLevel),
+                                color = scheme.textSecondary,
+                                fontSize = 13.sp,
+                                maxLines = 1
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.KeyboardArrowDown,
+                                contentDescription = null,
+                                tint = scheme.textSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { LocalAiStore.newChat(context) },
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.EditNote,
+                                contentDescription = strings.newChat,
+                                tint = scheme.textPrimary,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.width(4.dp))
+
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(scheme.card)
+                                .clickable(onClick = onClose),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Close,
+                                contentDescription = null,
+                                tint = scheme.textPrimary,
+                                modifier = Modifier.size(17.dp)
+                            )
                         }
                     }
                 }
@@ -585,23 +595,16 @@ fun LocalAiChatScreen(
                 }
             }
 
-            // Выпадающее меню моделей/рассуждений/температуры/системного промпта/потоков/контекста
-            LocalAiModelMenu(
+            // Компактное меню моделей и уровня рассуждений (в стиле Gemini)
+            LocalAiQuickModelMenu(
                 visible = isModelMenuOpen,
                 state = state,
                 strings = strings,
                 onDismiss = { isModelMenuOpen = false },
                 onSelectModel = { modelId ->
                     LocalAiStore.selectModel(context, modelId)
-                    isModelMenuOpen = false
                 },
-                onSelectReasoning = { LocalAiStore.setReasoningLevel(context, it) },
-                onChangeTemperature = { LocalAiStore.setTemperature(context, it) },
-                onSelectPromptPreset = { LocalAiStore.setSystemPromptPreset(context, it) },
-                onChangeCustomPrompt = { LocalAiStore.setCustomSystemPrompt(context, it) },
-                onSelectThreads = { LocalAiStore.setCpuThreads(context, it) },
-                onSelectContext = { LocalAiStore.setContextLength(context, it) },
-                onOpenModules = onOpenModules
+                onSelectReasoning = { LocalAiStore.setReasoningLevel(context, it) }
             )
 
             // Левая шторка истории чатов (открывается ТОЛЬКО кнопкой '=')
@@ -615,7 +618,21 @@ fun LocalAiChatScreen(
                 onSelectChat = { LocalAiStore.selectChat(it) },
                 onTogglePin = { LocalAiStore.togglePinChat(context, it) },
                 onDeleteChat = { LocalAiStore.deleteChat(context, it) },
-                onOpenAiSettings = { isModelMenuOpen = true },
+                onOpenAiSettings = { isAiSettingsOpen = true },
+                onOpenModules = onOpenModules
+            )
+
+            // Отдельный экран настроек ИИ (системный промпт, температура, потоки, контекст)
+            LocalAiSettingsScreen(
+                visible = isAiSettingsOpen,
+                state = state,
+                strings = strings,
+                onDismiss = { isAiSettingsOpen = false },
+                onChangeTemperature = { LocalAiStore.setTemperature(context, it) },
+                onSelectPromptPreset = { LocalAiStore.setSystemPromptPreset(context, it) },
+                onChangeCustomPrompt = { LocalAiStore.setCustomSystemPrompt(context, it) },
+                onSelectThreads = { LocalAiStore.setCpuThreads(context, it) },
+                onSelectContext = { LocalAiStore.setContextLength(context, it) },
                 onOpenModules = onOpenModules
             )
         }
@@ -839,13 +856,46 @@ private fun LocalAiFirstRunGate(
                 )
             }
 
+            var selectedCategory by remember { mutableStateOf(AiModelCategory.ALL) }
+            val filteredPresets = remember(selectedCategory) {
+                if (selectedCategory == AiModelCategory.ALL) AiCatalog.presets
+                else AiCatalog.presets.filter { it.category == selectedCategory }
+            }
+
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(AiModelCategory.entries) { cat ->
+                    val active = selectedCategory == cat
+                    val label = when (cat) {
+                        AiModelCategory.ALL -> if (strings.isRussian) "Все" else "All"
+                        AiModelCategory.GEMMA -> "Gemma"
+                        AiModelCategory.DEEPSEEK -> "DeepSeek"
+                        AiModelCategory.GPT_OSS -> "GPT-OSS"
+                        AiModelCategory.UNCENSORED -> if (strings.isRussian) "Без цензуры" else "Uncensored"
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (active) scheme.accent else scheme.card)
+                            .clickable { selectedCategory = cat }
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (active) scheme.onAccent else scheme.textPrimary,
+                            fontSize = 12.5.sp,
+                            fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
+                        )
+                    }
+                }
+            }
+
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(scheme.card)
             ) {
-                AiCatalog.presets.forEachIndexed { idx, preset ->
+                filteredPresets.forEachIndexed { idx, preset ->
                     if (idx > 0) {
                         HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
                     }

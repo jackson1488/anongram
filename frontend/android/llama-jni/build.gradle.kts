@@ -17,6 +17,7 @@ android {
         externalNativeBuild {
             cmake {
                 arguments += listOf(
+                    "-DCMAKE_BUILD_TYPE=Release",
                     "-DGGML_OPENMP=OFF",
                     "-DLLAMA_BUILD_COMMON=OFF",
                     "-DLLAMA_BUILD_TESTS=OFF",

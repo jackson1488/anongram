@@ -3,13 +3,51 @@ package com.anongram.app.features.services.ai.data
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 object HuggingFaceClient {
+
+    suspend fun searchGgufRepos(query: String): Result<List<HfRepoSummary>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val encoded = URLEncoder.encode(query.trim(), "UTF-8")
+            val apiUrl = "https://huggingface.co/api/models?search=$encoded&filter=gguf&sort=downloads&direction=-1&limit=20"
+            val conn = (URL(apiUrl).openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 12_000
+                readTimeout = 15_000
+                setRequestProperty("Accept", "application/json")
+                setRequestProperty("User-Agent", "AnonGram-Android/1.0")
+            }
+            val code = conn.responseCode
+            if (code !in 200..299) {
+                conn.disconnect()
+                throw IllegalStateException("HTTP $code")
+            }
+            val jsonText = conn.inputStream.bufferedReader().use { it.readText() }
+            conn.disconnect()
+            val arr = JSONArray(jsonText)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    val id = obj.optString("id", "").ifBlank { obj.optString("modelId", "") }
+                    if (id.isBlank()) continue
+                    add(
+                        HfRepoSummary(
+                            repoId = id,
+                            downloads = obj.optLong("downloads", 0L),
+                            likes = obj.optInt("likes", 0)
+                        )
+                    )
+                }
+            }
+        }
+    }
 
     suspend fun fetchRepoGgufFiles(repoId: String): Result<List<HfModelFile>> = withContext(Dispatchers.IO) {
         runCatching {

@@ -656,71 +656,73 @@ object LocalAiStore {
             }
 
             val startNs = System.nanoTime()
-            val resultCode = withContext(Dispatchers.IO) {
-                val loaded = LlamaNativeBridge.nativeLoadModel(
-                    modelPath = modelFile.absolutePath,
-                    nCtx = st.contextLength,
-                    nThreads = st.cpuThreads
-                )
-                if (!loaded) return@withContext -100
+            try {
+                val resultCode = withContext(Dispatchers.IO) {
+                    val loaded = LlamaNativeBridge.nativeLoadModel(
+                        modelPath = modelFile.absolutePath,
+                        nCtx = st.contextLength,
+                        nThreads = st.cpuThreads
+                    )
+                    if (!loaded) return@withContext -100
 
-                val rawSb = StringBuilder()
-                var lastUiUpdateMs = 0L
-                val maxTokens = when (reasoning) {
-                    AiReasoningLevel.OFF -> 512
-                    AiReasoningLevel.LOW -> 640
-                    AiReasoningLevel.MEDIUM -> 1024
-                    AiReasoningLevel.HIGH -> 1536
-                }
+                    val rawSb = StringBuilder()
+                    var lastUiUpdateMs = 0L
+                    val maxTokens = when (reasoning) {
+                        AiReasoningLevel.OFF -> 512
+                        AiReasoningLevel.LOW -> 640
+                        AiReasoningLevel.MEDIUM -> 1024
+                        AiReasoningLevel.HIGH -> 1536
+                    }
 
-                val code = LlamaNativeBridge.nativeGenerate(
-                    roles = rolesList.toTypedArray(),
-                    contents = contentsList.toTypedArray(),
-                    temperature = st.temperature,
-                    maxTokens = maxTokens,
-                    listener = LlamaTokenListener { token ->
-                        rawSb.append(token)
-                        val nowMs = System.currentTimeMillis()
-                        if (nowMs - lastUiUpdateMs >= 45L) {
-                            lastUiUpdateMs = nowMs
-                            val (parsedThink, parsedAnswer) = parseThinkingAndAnswer(rawSb.toString())
-                            val elapsedSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
-                            updateAssistantMessage(sessionId, assistantMsgId) { m ->
-                                m.copy(
-                                    thinking = customThinking ?: parsedThink,
-                                    thinkingDurationSec = if (parsedThink.isNotEmpty() || customThinking != null) elapsedSec else 0f,
-                                    content = parsedAnswer
-                                )
+                    val code = LlamaNativeBridge.nativeGenerate(
+                        roles = rolesList.toTypedArray(),
+                        contents = contentsList.toTypedArray(),
+                        temperature = st.temperature,
+                        maxTokens = maxTokens,
+                        listener = LlamaTokenListener { token ->
+                            rawSb.append(token)
+                            val nowMs = System.currentTimeMillis()
+                            if (lastUiUpdateMs == 0L || nowMs - lastUiUpdateMs >= 40L) {
+                                lastUiUpdateMs = nowMs
+                                val (parsedThink, parsedAnswer) = parseThinkingAndAnswer(rawSb.toString())
+                                val elapsedSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
+                                updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                    m.copy(
+                                        thinking = customThinking ?: parsedThink,
+                                        thinkingDurationSec = if (parsedThink.isNotEmpty() || customThinking != null) elapsedSec else 0f,
+                                        content = parsedAnswer
+                                    )
+                                }
                             }
                         }
-                    }
-                )
-
-                val (finalThink, finalAnswer) = parseThinkingAndAnswer(rawSb.toString())
-                val totalSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
-                updateAssistantMessage(sessionId, assistantMsgId) { m ->
-                    m.copy(
-                        thinking = customThinking ?: finalThink,
-                        thinkingDurationSec = if (finalThink.isNotEmpty() || customThinking != null) totalSec else 0f,
-                        content = finalAnswer.ifBlank { m.content }
                     )
-                }
-                code
-            }
 
-            if (resultCode < 0) {
-                val errMsg = if (isRussian) {
-                    "Не удалось запустить модель (${installed.displayName}, код $resultCode). Попробуйте перезагрузить модель или уменьшить длину контекста."
-                } else {
-                    "Failed to run model (${installed.displayName}, code $resultCode). Try reloading or lowering context length."
+                    val (finalThink, finalAnswer) = parseThinkingAndAnswer(rawSb.toString())
+                    val totalSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
+                    updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                        m.copy(
+                            thinking = customThinking ?: finalThink,
+                            thinkingDurationSec = if (finalThink.isNotEmpty() || customThinking != null) totalSec else 0f,
+                            content = finalAnswer.ifBlank { m.content }
+                        )
+                    }
+                    code
                 }
-                updateAssistantMessage(sessionId, assistantMsgId) { m ->
-                    if (m.content.isBlank()) m.copy(content = errMsg) else m
-                }
-            }
 
-            _state.update { it.copy(isGenerating = false) }
-            persistSessions(context)
+                if (resultCode < 0) {
+                    val errMsg = if (isRussian) {
+                        "Не удалось запустить модель (${installed.displayName}, код $resultCode). Попробуйте перезагрузить модель или уменьшить длину контекста."
+                    } else {
+                        "Failed to run model (${installed.displayName}, code $resultCode). Try reloading or lowering context length."
+                    }
+                    updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                        if (m.content.isBlank()) m.copy(content = errMsg) else m
+                    }
+                }
+            } finally {
+                _state.update { it.copy(isGenerating = false) }
+                persistSessions(context)
+            }
         }
     }
 

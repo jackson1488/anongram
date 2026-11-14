@@ -99,6 +99,7 @@ fun LocalAiDrawer(
                 modifier = Modifier
                     .fillMaxHeight()
                     .fillMaxWidth(0.82f)
+                    .clip(RoundedCornerShape(topEnd = 24.dp, bottomEnd = 24.dp))
                     .background(scheme.surface)
                     .statusBarsPadding()
                     .navigationBarsPadding()

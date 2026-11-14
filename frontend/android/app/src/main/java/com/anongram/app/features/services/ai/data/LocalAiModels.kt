@@ -18,6 +18,14 @@ enum class AiSystemPromptPreset {
     CUSTOM
 }
 
+enum class AiModelCategory {
+    ALL,
+    GEMMA,
+    DEEPSEEK,
+    GPT_OSS,
+    UNCENSORED
+}
+
 data class AiModelPreset(
     val id: String,
     val displayName: String,
@@ -25,6 +33,7 @@ data class AiModelPreset(
     val filename: String,
     val sizeMb: Int,
     val ramHint: String,
+    val category: AiModelCategory = AiModelCategory.ALL,
     val supportsThinking: Boolean = false,
     val supportsVision: Boolean = false
 ) {
@@ -36,6 +45,12 @@ data class HfModelFile(
     val filename: String,
     val sizeBytes: Long,
     val downloadUrl: String
+)
+
+data class HfRepoSummary(
+    val repoId: String,
+    val downloads: Long,
+    val likes: Int
 )
 
 data class InstalledAiModel(
@@ -96,6 +111,25 @@ object AiCatalog {
             ramHint = "3+ GB RAM"
         ),
         AiModelPreset(
+            id = "gemma3_1b",
+            displayName = "Gemma 3 1B",
+            repoId = "ggml-org/gemma-3-1b-it-GGUF",
+            filename = "gemma-3-1b-it-Q4_K_M.gguf",
+            sizeMb = 768,
+            ramHint = "3+ GB RAM",
+            category = AiModelCategory.GEMMA
+        ),
+        AiModelPreset(
+            id = "deepseek_r1_15b",
+            displayName = "DeepSeek R1 1.5B",
+            repoId = "bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
+            filename = "DeepSeek-R1-Distill-Qwen-1.5B-Q4_0.gguf",
+            sizeMb = 1019,
+            ramHint = "4+ GB RAM",
+            category = AiModelCategory.DEEPSEEK,
+            supportsThinking = true
+        ),
+        AiModelPreset(
             id = "qwen3_06b",
             displayName = "Qwen 3 0.6B (Think)",
             repoId = "Qwen/Qwen3-0.6B-GGUF",
@@ -121,14 +155,6 @@ object AiCatalog {
             ramHint = "6+ GB RAM"
         ),
         AiModelPreset(
-            id = "qwen25_coder_15b",
-            displayName = "Qwen 2.5 Coder 1.5B",
-            repoId = "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
-            filename = "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
-            sizeMb = 1120,
-            ramHint = "6+ GB RAM"
-        ),
-        AiModelPreset(
             id = "qwen3_17b",
             displayName = "Qwen 3 1.7B (Think)",
             repoId = "Qwen/Qwen3-1.7B-GGUF",
@@ -138,13 +164,60 @@ object AiCatalog {
             supportsThinking = true
         ),
         AiModelPreset(
-            id = "smolvlm_500m",
-            displayName = "SmolVLM 500M (Vision)",
-            repoId = "ggml-org/SmolVLM-500M-Instruct-GGUF",
-            filename = "SmolVLM-500M-Instruct-Q8_0.gguf",
-            sizeMb = 520,
+            id = "gpt_oss_20b",
+            displayName = "GPT-OSS 20B",
+            repoId = "unsloth/gpt-oss-20b-GGUF",
+            filename = "gpt-oss-20b-Q4_0.gguf",
+            sizeMb = 10968,
+            ramHint = "16+ GB RAM",
+            category = AiModelCategory.GPT_OSS
+        ),
+        // 5 проверенных лёгких моделей без цензуры для телефона
+        AiModelPreset(
+            id = "dolphin3_1b_uncensored",
+            displayName = "Dolphin 3.0 Llama 3.2 1B",
+            repoId = "bartowski/Dolphin3.0-Llama3.2-1B-GGUF",
+            filename = "Dolphin3.0-Llama3.2-1B-Q4_0.gguf",
+            sizeMb = 737,
+            ramHint = "3+ GB RAM",
+            category = AiModelCategory.UNCENSORED
+        ),
+        AiModelPreset(
+            id = "qwen25_15b_abliterated",
+            displayName = "Qwen 2.5 1.5B Abliterated",
+            repoId = "mradermacher/Qwen2.5-1.5B-Instruct-abliterated-GGUF",
+            filename = "Qwen2.5-1.5B-Instruct-abliterated.Q4_0_4_4.gguf",
+            sizeMb = 891,
+            ramHint = "3+ GB RAM",
+            category = AiModelCategory.UNCENSORED
+        ),
+        AiModelPreset(
+            id = "qwen25_coder_15b_abliterated",
+            displayName = "Qwen 2.5 Coder 1.5B Abliterated",
+            repoId = "bartowski/Qwen2.5-Coder-1.5B-Instruct-abliterated-GGUF",
+            filename = "Qwen2.5-Coder-1.5B-Instruct-abliterated-Q4_0.gguf",
+            sizeMb = 1019,
             ramHint = "4+ GB RAM",
-            supportsVision = true
+            category = AiModelCategory.UNCENSORED
+        ),
+        AiModelPreset(
+            id = "deepseek_r1_15b_abliterated",
+            displayName = "DeepSeek R1 1.5B Abliterated",
+            repoId = "mradermacher/DeepSeek-R1-Distill-Qwen-1.5B-abliterated-GGUF",
+            filename = "DeepSeek-R1-Distill-Qwen-1.5B-abliterated.Q4_K_M.gguf",
+            sizeMb = 1065,
+            ramHint = "4+ GB RAM",
+            category = AiModelCategory.UNCENSORED,
+            supportsThinking = true
+        ),
+        AiModelPreset(
+            id = "dolphin3_3b_uncensored",
+            displayName = "Dolphin 3.0 Llama 3.2 3B",
+            repoId = "bartowski/Dolphin3.0-Llama3.2-3B-GGUF",
+            filename = "Dolphin3.0-Llama3.2-3B-Q4_0.gguf",
+            sizeMb = 1832,
+            ramHint = "6+ GB RAM",
+            category = AiModelCategory.UNCENSORED
         )
     )
 }

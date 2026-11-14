@@ -587,7 +587,10 @@ fun MainAppShell(
                 )
             ) {
                 LocalAiModuleSettingsScreen(
-                    onBack = { closeLocalAiModules() }
+                    onBack = { closeLocalAiModules() },
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
                 )
             }
         }

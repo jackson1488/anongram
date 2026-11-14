@@ -12,11 +12,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -56,7 +56,9 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.services.ai.data.AiCatalog
+import com.anongram.app.features.services.ai.data.AiModelCategory
 import com.anongram.app.features.services.ai.data.HfModelFile
+import com.anongram.app.features.services.ai.data.HfRepoSummary
 import com.anongram.app.features.services.ai.data.HuggingFaceClient
 import com.anongram.app.features.services.ai.data.LocalAiStore
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
@@ -79,9 +81,12 @@ fun LocalAiModuleSettingsScreen(
         LocalAiStore.refreshInstalledModels(context)
     }
 
-    var hfRepoQuery by remember { mutableStateOf("Qwen/Qwen2.5-1.5B-Instruct-GGUF") }
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf(AiModelCategory.ALL) }
     var hfLoading by remember { mutableStateOf(false) }
     var hfError by remember { mutableStateOf<String?>(null) }
+    var hfRepos by remember { mutableStateOf<List<HfRepoSummary>>(emptyList()) }
+    var selectedRepoId by remember { mutableStateOf<String?>(null) }
     var hfFiles by remember { mutableStateOf<List<HfModelFile>>(emptyList()) }
 
     val importPicker = rememberLauncherForActivityResult(
@@ -94,17 +99,42 @@ fun LocalAiModuleSettingsScreen(
 
     val isRu = modStrings.isRussian
 
+    fun runHfSearch(query: String) {
+        val q = query.trim()
+        if (q.isEmpty()) {
+            hfRepos = emptyList()
+            selectedRepoId = null
+            hfFiles = emptyList()
+            hfError = null
+            return
+        }
+        scope.launch {
+            hfLoading = true
+            hfError = null
+            selectedRepoId = null
+            hfFiles = emptyList()
+            if (q.contains("/") && !q.contains(" ")) {
+                selectedRepoId = q
+                HuggingFaceClient.fetchRepoGgufFiles(q)
+                    .onSuccess { hfFiles = it }
+                    .onFailure { hfError = it.message ?: "Error" }
+            } else {
+                HuggingFaceClient.searchGgufRepos(q)
+                    .onSuccess { hfRepos = it }
+                    .onFailure { hfError = it.message ?: "Error" }
+            }
+            hfLoading = false
+        }
+    }
+
     AnonGramScreenSurface(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-        ) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            // Шапка ровно как у всех экранов настроек (56.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp)
+                    .background(scheme.surface)
+                    .height(56.dp)
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -121,8 +151,17 @@ fun LocalAiModuleSettingsScreen(
                     text = if (isRu) "Модели ИИ" else "AI Models",
                     color = scheme.textPrimary,
                     fontSize = 19.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
                 )
+                IconButton(onClick = { importPicker.launch(arrayOf("*/*")) }) {
+                    Icon(
+                        imageVector = Icons.Outlined.FolderOpen,
+                        contentDescription = null,
+                        tint = scheme.accent,
+                        modifier = Modifier.size(21.dp)
+                    )
+                }
             }
 
             HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
@@ -131,46 +170,263 @@ fun LocalAiModuleSettingsScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Импорт .gguf с телефона
+                // Поиск сверху по всему Hugging Face
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .background(scheme.card)
-                        .clickable { importPicker.launch(arrayOf("*/*")) }
-                        .padding(horizontal = 14.dp, vertical = 13.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.FolderOpen,
+                        imageVector = Icons.Outlined.Search,
                         contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(20.dp)
+                        tint = scheme.textMuted,
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        singleLine = true,
+                        textStyle = TextStyle(color = scheme.textPrimary, fontSize = 14.sp),
+                        cursorBrush = SolidColor(scheme.accent),
+                        modifier = Modifier.weight(1f),
+                        decorationBox = { inner ->
+                            if (searchQuery.isEmpty()) {
+                                Text(
+                                    text = if (isRu) "Поиск моделей на Hugging Face..." else "Search models on Hugging Face...",
+                                    color = scheme.textMuted,
+                                    fontSize = 14.sp
+                                )
+                            }
+                            inner()
+                        }
+                    )
+                    if (searchQuery.isNotEmpty()) {
+                        Icon(
+                            imageVector = Icons.Outlined.Close,
+                            contentDescription = null,
+                            tint = scheme.textMuted,
+                            modifier = Modifier
+                                .size(18.dp)
+                                .clickable {
+                                    searchQuery = ""
+                                    hfRepos = emptyList()
+                                    selectedRepoId = null
+                                    hfFiles = emptyList()
+                                    hfError = null
+                                }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
                     Text(
-                        text = if (isRu) "Импортировать .gguf с устройства" else "Import .gguf from device",
-                        color = scheme.textPrimary,
-                        fontSize = 14.5.sp,
-                        fontWeight = FontWeight.Medium
+                        text = if (isRu) "Найти" else "Search",
+                        color = if (searchQuery.isNotBlank()) scheme.accent else scheme.textMuted,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable(enabled = !hfLoading && searchQuery.isNotBlank()) {
+                            runHfSearch(searchQuery)
+                        }
                     )
                 }
 
-                // Ошибка загрузки
-                if (state.downloadError != null) {
+                // Категории под поиском
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(AiModelCategory.entries) { cat ->
+                        val active = selectedCategory == cat
+                        val label = when (cat) {
+                            AiModelCategory.ALL -> if (isRu) "Все" else "All"
+                            AiModelCategory.GEMMA -> "Gemma"
+                            AiModelCategory.DEEPSEEK -> "DeepSeek"
+                            AiModelCategory.GPT_OSS -> "GPT-OSS"
+                            AiModelCategory.UNCENSORED -> if (isRu) "Без цензуры" else "Uncensored"
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (active) scheme.accent else scheme.card)
+                                .clickable { selectedCategory = cat }
+                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                color = if (active) scheme.onAccent else scheme.textPrimary,
+                                fontSize = 12.5.sp,
+                                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+
+                if (hfLoading) {
+                    LinearProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.5.dp),
+                        color = scheme.accent,
+                        trackColor = scheme.divider
+                    )
+                }
+
+                if (hfError != null || state.downloadError != null) {
                     Text(
-                        text = state.downloadError ?: "",
+                        text = hfError ?: state.downloadError ?: "",
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 12.5.sp,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
                             .background(MaterialTheme.colorScheme.error.copy(alpha = 0.1f))
-                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .padding(horizontal = 12.dp, vertical = 9.dp)
                     )
+                }
+
+                // Результаты глобального поиска Hugging Face
+                if (selectedRepoId != null && hfFiles.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = selectedRepoId ?: "",
+                                color = scheme.textSecondary,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (hfRepos.isNotEmpty()) {
+                                Text(
+                                    text = if (isRu) "Назад к списку" else "Back to results",
+                                    color = scheme.accent,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.clickable {
+                                        selectedRepoId = null
+                                        hfFiles = emptyList()
+                                    }
+                                )
+                            }
+                        }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(scheme.card)
+                        ) {
+                            hfFiles.take(15).forEachIndexed { idx, hfFile ->
+                                if (idx > 0) HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                                val isDownloading = state.downloadingModelId == "hf_${hfFile.filename}"
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = hfFile.filename,
+                                            color = scheme.textPrimary,
+                                            fontSize = 13.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        if (hfFile.sizeBytes > 0L) {
+                                            Text(
+                                                text = formatMb(hfFile.sizeBytes),
+                                                color = scheme.textSecondary,
+                                                fontSize = 11.5.sp
+                                            )
+                                        }
+                                    }
+                                    if (isDownloading) {
+                                        Text(
+                                            text = "${(state.downloadProgress * 100).toInt()}%",
+                                            color = scheme.accent,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    } else {
+                                        IconButton(
+                                            onClick = {
+                                                LocalAiStore.downloadHfFile(
+                                                    context,
+                                                    selectedRepoId.orEmpty(),
+                                                    hfFile
+                                                )
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Download,
+                                                contentDescription = null,
+                                                tint = scheme.accent,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if (hfRepos.isNotEmpty()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = if (isRu) "Результаты Hugging Face" else "Hugging Face results",
+                            color = scheme.textSecondary,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(scheme.card)
+                        ) {
+                            hfRepos.forEachIndexed { idx, repo ->
+                                if (idx > 0) HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            scope.launch {
+                                                hfLoading = true
+                                                hfError = null
+                                                selectedRepoId = repo.repoId
+                                                HuggingFaceClient.fetchRepoGgufFiles(repo.repoId)
+                                                    .onSuccess { hfFiles = it }
+                                                    .onFailure { hfError = it.message ?: "Error" }
+                                                hfLoading = false
+                                            }
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = repo.repoId,
+                                            color = scheme.textPrimary,
+                                            fontSize = 13.5.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = "${repo.downloads} ↓ · ${repo.likes} ♥",
+                                            color = scheme.textSecondary,
+                                            fontSize = 11.5.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // Установленные модели
@@ -198,7 +454,7 @@ fun LocalAiModuleSettingsScreen(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { LocalAiStore.selectModel(context, model.id) }
-                                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                                        .padding(horizontal = 14.dp, vertical = 11.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
@@ -242,7 +498,12 @@ fun LocalAiModuleSettingsScreen(
                     }
                 }
 
-                // Рекомендуемые модели
+                // Каталог моделей (по выбранной категории)
+                val catalogItems = remember(selectedCategory) {
+                    if (selectedCategory == AiModelCategory.ALL) AiCatalog.presets
+                    else AiCatalog.presets.filter { it.category == selectedCategory }
+                }
+
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         text = if (isRu) "Каталог моделей" else "Model catalog",
@@ -257,7 +518,7 @@ fun LocalAiModuleSettingsScreen(
                             .clip(RoundedCornerShape(12.dp))
                             .background(scheme.card)
                     ) {
-                        AiCatalog.presets.forEachIndexed { idx, preset ->
+                        catalogItems.forEachIndexed { idx, preset ->
                             if (idx > 0) {
                                 HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
                             }
@@ -268,7 +529,7 @@ fun LocalAiModuleSettingsScreen(
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp)
+                                    .padding(horizontal = 14.dp, vertical = 11.dp)
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -344,145 +605,6 @@ fun LocalAiModuleSettingsScreen(
                                         color = scheme.accent,
                                         trackColor = scheme.divider
                                     )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Поиск любого GGUF на Hugging Face
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(
-                        text = if (isRu) "Скачать с Hugging Face" else "Download from Hugging Face",
-                        color = scheme.textSecondary,
-                        fontSize = 12.5.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(scheme.card)
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        BasicTextField(
-                            value = hfRepoQuery,
-                            onValueChange = { hfRepoQuery = it },
-                            singleLine = true,
-                            textStyle = TextStyle(color = scheme.textPrimary, fontSize = 13.5.sp),
-                            cursorBrush = SolidColor(scheme.accent),
-                            modifier = Modifier.weight(1f),
-                            decorationBox = { inner ->
-                                if (hfRepoQuery.isEmpty()) {
-                                    Text(
-                                        text = "Qwen/Qwen2.5-1.5B-Instruct-GGUF",
-                                        color = scheme.textMuted,
-                                        fontSize = 13.5.sp
-                                    )
-                                }
-                                inner()
-                            }
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(scheme.accent)
-                                .clickable(enabled = !hfLoading && hfRepoQuery.isNotBlank()) {
-                                    scope.launch {
-                                        hfLoading = true
-                                        hfError = null
-                                        val res = HuggingFaceClient.fetchRepoGgufFiles(hfRepoQuery)
-                                        res.onSuccess { hfFiles = it }
-                                            .onFailure { hfError = it.message ?: "Error" }
-                                        hfLoading = false
-                                    }
-                                }
-                                .padding(horizontal = 10.dp, vertical = 6.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Search,
-                                contentDescription = null,
-                                tint = scheme.onAccent,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-
-                    if (hfLoading) {
-                        LinearProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(3.dp),
-                            color = scheme.accent,
-                            trackColor = scheme.divider
-                        )
-                    }
-
-                    if (hfError != null) {
-                        Text(
-                            text = hfError ?: "",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp,
-                            modifier = Modifier.padding(horizontal = 4.dp)
-                        )
-                    }
-
-                    if (hfFiles.isNotEmpty()) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(scheme.card)
-                        ) {
-                            hfFiles.take(12).forEachIndexed { idx, hfFile ->
-                                if (idx > 0) {
-                                    HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-                                }
-                                val isDownloading = state.downloadingModelId == "hf_${hfFile.filename}"
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = hfFile.filename,
-                                            color = scheme.textPrimary,
-                                            fontSize = 13.sp,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        if (hfFile.sizeBytes > 0L) {
-                                            Text(
-                                                text = formatMb(hfFile.sizeBytes),
-                                                color = scheme.textSecondary,
-                                                fontSize = 11.5.sp
-                                            )
-                                        }
-                                    }
-                                    if (isDownloading) {
-                                        Text(
-                                            text = "${(state.downloadProgress * 100).toInt()}%",
-                                            color = scheme.accent,
-                                            fontSize = 12.sp
-                                        )
-                                    } else {
-                                        IconButton(
-                                            onClick = { LocalAiStore.downloadHfFile(context, hfRepoQuery.trim(), hfFile) },
-                                            modifier = Modifier.size(32.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Download,
-                                                contentDescription = null,
-                                                tint = scheme.accent,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
-                                    }
                                 }
                             }
                         }
