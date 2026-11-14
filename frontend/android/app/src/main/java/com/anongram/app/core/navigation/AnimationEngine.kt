@@ -35,8 +35,9 @@ fun Modifier.applyAnonGramTransition(
     density: Float
 ): Modifier {
     if (config.transitionType == TransitionType.INSTANT) return this
-    if (!isExit && !config.transitionType.isBidirectional) {
-        if (!config.enableBaseTelegramEnter) return this
+    if (isExit && !config.enableExitAnimation) return this
+    if (!isExit && (!config.transitionType.isBidirectional || !config.enableEnterAnimation)) {
+        if (!config.enableBaseSmoothEnter) return this
         return graphicsLayer {
             translationX = progress * size.width
         }
@@ -45,18 +46,19 @@ fun Modifier.applyAnonGramTransition(
         with(TransitionStyleRegistry.resolve(config.transitionType)) {
             transform(progress, isExit, config, density)
         }
+        val hasCardCombo = config.enableMiniCardCombo || config.enablePredictiveBackCombo
         if (
-            config.enablePredictiveBackCombo &&
+            hasCardCombo &&
             isExit &&
             config.transitionType != TransitionType.SPRING_SWIPE &&
             config.transitionType != TransitionType.CARD_STACK_PEEK &&
             config.transitionType != TransitionType.PREDICTIVE_BACK &&
             config.transitionType != TransitionType.PARTICLE_DISSOLVE
         ) {
-            val cardScale = (1f - progress * 0.10f).coerceIn(0.85f, 1f)
+            val cardScale = (1f - progress * 0.14f).coerceIn(0.82f, 1f)
             scaleX *= cardScale
             scaleY *= cardScale
-            shape = androidx.compose.foundation.shape.RoundedCornerShape((progress * 30f).dp)
+            shape = androidx.compose.foundation.shape.RoundedCornerShape((progress * 28f).dp)
             clip = progress > 0.01f
             shadowElevation = progress * 16.dp.toPx()
         }
@@ -134,10 +136,11 @@ fun AnonGramTransitionScreen(
     content: @Composable () -> Unit
 ) {
     val density = LocalDensity.current.density
-    val isParticleMode = config.transitionType == TransitionType.PARTICLE_DISSOLVE
+    val isParticleActiveForDir = config.transitionType == TransitionType.PARTICLE_DISSOLVE &&
+        ((isExit && config.enableExitAnimation) || (!isExit && config.enableEnterAnimation))
     val isTransitionActive = progress > 0.005f
 
-    if (!isParticleMode) {
+    if (!isParticleActiveForDir) {
         Box(
             modifier = modifier
                 .fillMaxSize()
@@ -175,7 +178,9 @@ fun AnonGramTransitionScreen(
                         captureLayer.record {
                             this@drawWithContent.drawContent()
                         }
-                        drawLayer(captureLayer)
+                        if (isExit) {
+                            drawLayer(captureLayer)
+                        }
                         if (!hasRecordedFrame && size.width > 1f && size.height > 1f) {
                             hasRecordedFrame = true
                         }
@@ -192,7 +197,9 @@ fun AnonGramTransitionScreen(
                 progress = progress,
                 isExit = isExit,
                 style = config.particleStyle,
-                screenBitmap = capturedBitmap
+                screenBitmap = capturedBitmap,
+                denseParticles = config.denseParticles,
+                slideCombo = config.particleSlideCombo
             )
         }
     }

@@ -137,14 +137,16 @@ fun ParticleOverlay(
     isExit: Boolean,
     style: ParticleStyle,
     screenBitmap: ImageBitmap? = null,
+    denseParticles: Boolean = false,
+    slideCombo: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val factor = progress.coerceIn(0f, 1f)
     if (factor <= 0.005f || factor >= 0.995f) return
 
-    val cols = 5
-    val rows = 8
-    val jigsawPieces = remember {
+    val cols = if (denseParticles) 7 else 5
+    val rows = if (denseParticles) 12 else 8
+    val jigsawPieces = remember(cols, rows) {
         val rnd = Random(77)
         val hEdges = Array(rows + 1) { r ->
             IntArray(cols) {
@@ -173,7 +175,7 @@ fun ParticleOverlay(
                             vx = normX * 2.2f + dirSign * (0.25f + rnd.nextFloat() * 0.45f),
                             vy = normY * 1.6f + (rnd.nextFloat() - 0.5f) * 0.7f,
                             rotDeg = dirSign * (14f + rnd.nextFloat() * 34f),
-                            delay = ((cols - 1 - c) * 0.03f) + rnd.nextFloat() * 0.14f,
+                            delay = ((cols - 1 - c) * 0.025f) + rnd.nextFloat() * 0.12f,
                             popScale = 1.06f + rnd.nextFloat() * 0.10f
                         )
                     )
@@ -184,6 +186,9 @@ fun ParticleOverlay(
 
     Canvas(modifier = modifier.fillMaxSize()) {
         val dstSize = IntSize(size.width.toInt().coerceAtLeast(1), size.height.toInt().coerceAtLeast(1))
+        val slideOffset = if (slideCombo) {
+            (if (isExit) 1f else -1f) * factor * size.width * 0.28f
+        } else 0f
 
         if (style == ParticleStyle.PUZZLE_PIECES && screenBitmap != null) {
             val cellW = size.width / cols
@@ -199,8 +204,8 @@ fun ParticleOverlay(
                 val cx = x0 + cellW * 0.5f
                 val cy = y0 + cellH * 0.5f
 
-                val dx = piece.vx * size.width * 0.42f * eased
-                val dy = piece.vy * size.height * 0.36f * eased
+                val dx = piece.vx * size.width * 0.45f * eased + slideOffset
+                val dy = piece.vy * size.height * 0.38f * eased
                 val scale = if (eased < 0.35f) {
                     1f + (piece.popScale - 1f) * (eased / 0.35f)
                 } else {

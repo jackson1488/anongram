@@ -1,13 +1,8 @@
 package com.anongram.app.features.settings.animations.ui.transitions
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,20 +17,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
@@ -47,34 +36,45 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.anongram.app.core.navigation.AnonGramTransitionScreen
-import com.anongram.app.core.navigation.NavigationTransitionConfig
 import com.anongram.app.core.navigation.ParticleStyle
-import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.navigation.TransitionType
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsState
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.animations.i18n.AnimationsI18n
 import com.anongram.app.features.settings.animations.i18n.AnimationsI18nStrings
 import com.anongram.app.features.settings.animations.ui.components.AnimationsTopBar
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+private val BaseTransitionTypes = listOf(
+    TransitionType.SPRING_SWIPE,
+    TransitionType.CUPERTINO_PARALLAX,
+    TransitionType.CARD_STACK_PEEK,
+    TransitionType.PREDICTIVE_BACK
+)
+
+private val EffectTransitionTypes = listOf(
+    TransitionType.REAL_BOOK_3D,
+    TransitionType.CUBE_ROTATION_3D,
+    TransitionType.ROTATION_SPIN,
+    TransitionType.CASCADE,
+    TransitionType.WINDMILL,
+    TransitionType.PARTICLE_DISSOLVE,
+    TransitionType.INSTANT
+)
+
 /**
- * Экран настройки переходов между экранами с живым интерактивным превью.
+ * Экран настройки переходов между экранами:
+ * - «Базовые анимации» на тумблерах со скрещиванием только между ними;
+ * - «Эффекты переходов» с индивидуальным контроллером под выбранным стилем.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -91,19 +91,6 @@ fun ScreenTransitionsSettingsScreen(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
-
-    val previewConfig = remember(state) {
-        NavigationTransitionConfig(
-            transitionType = state.screenTransitionType,
-            speedMultiplier = state.transitionSpeedMultiplier,
-            springDamping = state.screenTransitionSpringDamping,
-            particleStyle = state.screenParticleStyle,
-            enableGesturePullCombo = state.enableGesturePullCombo,
-            enablePredictiveBackCombo = state.enablePredictiveBackCombo,
-            enableBaseTelegramEnter = state.enableBaseTelegramEnter
-        )
-    }
-
     AnonGramScreenSurface(modifier = modifier) {
         Column(modifier = Modifier.fillMaxSize()) {
             AnimationsTopBar(
@@ -116,158 +103,38 @@ fun ScreenTransitionsSettingsScreen(
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                TransitionLivePreviewCard(
-                    config = previewConfig,
-                    strings = strings
-                )
+                SectionHeader(title = strings.transitionsBaseSectionHeader)
 
-                HorizontalDivider(color = scheme.divider)
-
-                Text(
-                    text = strings.transitionsStyleHeader,
-                    color = scheme.accent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 6.dp)
-                )
-
-                TransitionType.entries.forEach { type ->
-                    val (title, desc) = resolveTransitionLabels(type, strings)
-                    val selected = state.screenTransitionType == type
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                AnimationsSettingsStore.setScreenTransitionType(context, type)
-                            }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = selected,
-                            onClick = {
-                                AnimationsSettingsStore.setScreenTransitionType(context, type)
-                            },
-                            colors = RadioButtonDefaults.colors(
-                                selectedColor = scheme.accent,
-                                unselectedColor = scheme.textMuted
-                            )
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Text(
-                                    text = title,
-                                    color = scheme.textPrimary,
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
-                                if (type != TransitionType.INSTANT) {
-                                    val badgeText = if (type.isBidirectional) {
-                                        strings.transitionBadgeBothWays
-                                    } else {
-                                        strings.transitionBadgeExitOnly
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(6.dp))
-                                            .background(
-                                                if (type.isBidirectional) {
-                                                    scheme.accent.copy(alpha = 0.16f)
-                                                } else {
-                                                    scheme.card
-                                                }
-                                            )
-                                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                                    ) {
-                                        Text(
-                                            text = badgeText,
-                                            color = if (type.isBidirectional) scheme.accent else scheme.textMuted,
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    }
-                                }
-                            }
-                            Text(
-                                text = desc,
-                                color = scheme.textSecondary,
-                                fontSize = 12.5.sp
-                            )
+                BaseTransitionTypes.forEach { type ->
+                    TransitionStyleItem(
+                        type = type,
+                        selected = state.screenTransitionType == type,
+                        strings = strings,
+                        onSelect = {
+                            AnimationsSettingsStore.setScreenTransitionType(context, type)
                         }
-                    }
-                }
-
-                AnimatedVisibility(visible = state.screenTransitionType == TransitionType.PARTICLE_DISSOLVE) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = strings.transitionsParticleHeader,
-                            color = scheme.accent,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            ParticleStyle.entries.forEach { pStyle ->
-                                val label = resolveParticleLabel(pStyle, strings)
-                                val selected = state.screenParticleStyle == pStyle
-                                FilterChip(
-                                    selected = selected,
-                                    onClick = {
-                                        AnimationsSettingsStore.setScreenParticleStyle(context, pStyle)
-                                    },
-                                    label = { Text(label, fontSize = 12.5.sp) },
-                                    leadingIcon = if (selected) {
-                                        {
-                                            Icon(
-                                                imageVector = Icons.Default.Check,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    } else null,
-                                    colors = FilterChipDefaults.filterChipColors(
-                                        containerColor = scheme.card,
-                                        labelColor = scheme.textSecondary,
-                                        selectedContainerColor = scheme.accent.copy(alpha = 0.2f),
-                                        selectedLabelColor = scheme.accent,
-                                        selectedLeadingIconColor = scheme.accent
-                                    )
-                                )
-                            }
-                        }
-                    }
+                    )
+                    StyleInlineController(
+                        type = type,
+                        isSelected = state.screenTransitionType == type,
+                        state = state,
+                        strings = strings
+                    )
                 }
 
                 HorizontalDivider(
                     color = scheme.divider,
-                    modifier = Modifier.padding(top = 8.dp)
+                    modifier = Modifier.padding(top = 6.dp)
                 )
 
-                Text(
-                    text = strings.transitionsComboHeader,
-                    color = scheme.accent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 4.dp)
-                )
+                SectionHeader(title = strings.transitionsComboHeader)
 
                 ComboToggleRow(
-                    title = strings.transitionsComboGestureTitle,
-                    description = strings.transitionsComboGestureDesc,
-                    checked = state.enableGesturePullCombo,
+                    title = "+ ${strings.transCardStackTitle}",
+                    description = strings.transCardStackDesc,
+                    checked = state.enableMiniCardCombo,
                     onCheckedChange = {
-                        AnimationsSettingsStore.setEnableGesturePullCombo(context, it)
+                        AnimationsSettingsStore.setEnableMiniCardCombo(context, it)
                     }
                 )
 
@@ -281,6 +148,15 @@ fun ScreenTransitionsSettingsScreen(
                 )
 
                 ComboToggleRow(
+                    title = strings.transitionsComboGestureTitle,
+                    description = strings.transitionsComboGestureDesc,
+                    checked = state.enableGesturePullCombo,
+                    onCheckedChange = {
+                        AnimationsSettingsStore.setEnableGesturePullCombo(context, it)
+                    }
+                )
+
+                ComboToggleRow(
                     title = strings.transitionsBaseEnterTitle,
                     description = strings.transitionsBaseEnterDesc,
                     checked = state.enableBaseTelegramEnter,
@@ -289,80 +165,27 @@ fun ScreenTransitionsSettingsScreen(
                     }
                 )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = strings.transitionsSpeedTitle,
-                            color = scheme.textPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        val speedLabel = "${(state.transitionSpeedScale * 10f).roundToInt() / 10f}x"
-                        Text(
-                            text = speedLabel,
-                            color = scheme.accent,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Slider(
-                        value = state.transitionSpeedScale,
-                        onValueChange = {
-                            AnimationsSettingsStore.setTransitionSpeedScale(context, it)
-                        },
-                        valueRange = 0.5f..2.0f,
-                        steps = 14,
-                        colors = SliderDefaults.colors(
-                            thumbColor = scheme.accent,
-                            activeTrackColor = scheme.accent,
-                            inactiveTrackColor = scheme.divider
-                        )
-                    )
-                }
+                HorizontalDivider(
+                    color = scheme.divider,
+                    modifier = Modifier.padding(top = 6.dp)
+                )
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = strings.transitionsSpringDampingTitle,
-                            color = scheme.textPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                        Text(
-                            text = "${(state.screenTransitionSpringDamping * 100).roundToInt() / 100f}",
-                            color = scheme.accent,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    Slider(
-                        value = state.screenTransitionSpringDamping,
-                        onValueChange = {
-                            AnimationsSettingsStore.setScreenTransitionSpringDamping(context, it)
-                        },
-                        valueRange = 0.50f..1.0f,
-                        steps = 9,
-                        colors = SliderDefaults.colors(
-                            thumbColor = scheme.accent,
-                            activeTrackColor = scheme.accent,
-                            inactiveTrackColor = scheme.divider
-                        )
+                SectionHeader(title = strings.transitionsEffectsSectionHeader)
+
+                EffectTransitionTypes.forEach { type ->
+                    TransitionStyleItem(
+                        type = type,
+                        selected = state.screenTransitionType == type,
+                        strings = strings,
+                        onSelect = {
+                            AnimationsSettingsStore.setScreenTransitionType(context, type)
+                        }
+                    )
+                    StyleInlineController(
+                        type = type,
+                        isSelected = state.screenTransitionType == type,
+                        state = state,
+                        strings = strings
                     )
                 }
 
@@ -373,282 +196,334 @@ fun ScreenTransitionsSettingsScreen(
 }
 
 @Composable
-private fun TransitionLivePreviewCard(
-    config: NavigationTransitionConfig,
-    strings: AnimationsI18nStrings
+private fun SectionHeader(title: String) {
+    val scheme = LocalAnonGramScheme.current
+    Text(
+        text = title,
+        color = scheme.accent,
+        fontSize = 13.sp,
+        fontWeight = FontWeight.SemiBold,
+        modifier = Modifier.padding(start = 16.dp, top = 14.dp, end = 16.dp, bottom = 6.dp)
+    )
+}
+
+@Composable
+private fun TransitionStyleItem(
+    type: TransitionType,
+    selected: Boolean,
+    strings: AnimationsI18nStrings,
+    onSelect: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
-    val scope = rememberCoroutineScope()
-    val progress = remember { Animatable(0f) }
-    var isDetailVisible by remember { mutableStateOf(true) }
-    var isPreviewExit by remember { mutableStateOf(false) }
-
-    fun animateOpen() {
-        scope.launch {
-            isPreviewExit = false
-            isDetailVisible = true
-            val skipEnter = config.transitionType == TransitionType.INSTANT ||
-                (!config.transitionType.isBidirectional && !config.enableBaseTelegramEnter)
-            if (skipEnter) {
-                progress.snapTo(0f)
-            } else {
-                progress.snapTo(1f)
-                progress.animateTo(
-                    targetValue = 0f,
-                    animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {
-                        PhysicsSprings.screenSpringSpec(
-                            damping = config.springDamping,
-                            stiffness = config.springStiffness * config.speedMultiplier
-                        )
-                    } else {
-                        tween(durationMillis = config.effectiveDurationMs)
-                    }
-                )
-            }
-        }
-    }
-
-    fun animateBack() {
-        scope.launch {
-            isPreviewExit = true
-            if (!isDetailVisible) isDetailVisible = true
-            if (config.transitionType == TransitionType.INSTANT) {
-                progress.snapTo(1f)
-                isDetailVisible = false
-            } else {
-                progress.animateTo(
-                    targetValue = 1f,
-                    animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {
-                        PhysicsSprings.screenSpringSpec(
-                            damping = config.springDamping,
-                            stiffness = config.springStiffness * config.speedMultiplier
-                        )
-                    } else {
-                        tween(durationMillis = config.effectiveDurationMs)
-                    }
-                )
-                isDetailVisible = false
-            }
-        }
-    }
-
-    Column(
+    val (title, desc) = resolveTransitionLabels(type, strings)
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .clickable(onClick = onSelect)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = strings.previewHeader,
-            color = scheme.accent,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold
+        RadioButton(
+            selected = selected,
+            onClick = onSelect,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = scheme.accent,
+                unselectedColor = scheme.textMuted
+            )
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = strings.transitionsPreviewHint,
-            color = scheme.textMuted,
-            fontSize = 12.sp
-        )
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = title,
+                    color = scheme.textPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                if (type != TransitionType.INSTANT) {
+                    val badgeText = if (type.isBidirectional) {
+                        strings.transitionBadgeBothWays
+                    } else {
+                        strings.transitionBadgeExitOnly
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(
+                                if (type.isBidirectional) {
+                                    scheme.accent.copy(alpha = 0.16f)
+                                } else {
+                                    scheme.card
+                                }
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = badgeText,
+                            color = if (type.isBidirectional) scheme.accent else scheme.textMuted,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+            }
+            Text(
+                text = desc,
+                color = scheme.textSecondary,
+                fontSize = 12.5.sp
+            )
+        }
+    }
+}
 
-        Box(
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun StyleInlineController(
+    type: TransitionType,
+    isSelected: Boolean,
+    state: AnimationsSettingsState,
+    strings: AnimationsI18nStrings
+) {
+    val context = LocalContext.current
+    val scheme = LocalAnonGramScheme.current
+
+    AnimatedVisibility(visible = isSelected && type != TransitionType.INSTANT) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(190.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(scheme.background)
-                .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
-                .pointerInput(config) {
-                    detectHorizontalDragGestures(
-                        onDragStart = {
-                            if (!isDetailVisible) {
-                                isDetailVisible = true
-                            }
-                        },
-                        onHorizontalDrag = { _, dragAmount ->
-                            scope.launch {
-                                val delta = dragAmount / size.width.toFloat().coerceAtLeast(1f)
-                                progress.snapTo((progress.value + delta).coerceIn(0f, 1f))
-                            }
-                        },
-                        onDragEnd = {
-                            if (progress.value > 0.35f) {
-                                animateBack()
-                            } else {
-                                animateOpen()
-                            }
-                        },
-                        onDragCancel = {
-                            animateOpen()
+                .padding(start = 52.dp, end = 16.dp, top = 2.dp, bottom = 10.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(scheme.card)
+                .padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            when (type) {
+                TransitionType.PARTICLE_DISSOLVE -> {
+                    Text(
+                        text = strings.transitionsParticleHeader,
+                        color = scheme.accent,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        ParticleStyle.entries.forEach { pStyle ->
+                            val label = resolveParticleLabel(pStyle, strings)
+                            val chipSelected = state.screenParticleStyle == pStyle
+                            FilterChip(
+                                selected = chipSelected,
+                                onClick = {
+                                    AnimationsSettingsStore.setScreenParticleStyle(context, pStyle)
+                                },
+                                label = { Text(label, fontSize = 12.sp) },
+                                leadingIcon = if (chipSelected) {
+                                    {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+                                } else null,
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = scheme.surface,
+                                    labelColor = scheme.textSecondary,
+                                    selectedContainerColor = scheme.accent.copy(alpha = 0.2f),
+                                    selectedLabelColor = scheme.accent,
+                                    selectedLeadingIconColor = scheme.accent
+                                )
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    CompactSwitchRow(
+                        title = strings.transitionsEnableEnterTitle,
+                        checked = state.enableEnterAnimation,
+                        onCheckedChange = { AnimationsSettingsStore.setEnableEnterAnimation(context, it) }
+                    )
+                    CompactSwitchRow(
+                        title = strings.transitionsEnableExitTitle,
+                        checked = state.enableExitAnimation,
+                        onCheckedChange = { AnimationsSettingsStore.setEnableExitAnimation(context, it) }
+                    )
+                    CompactSwitchRow(
+                        title = strings.transitionsParticleSlideTitle,
+                        checked = state.particleSlideCombo,
+                        onCheckedChange = { AnimationsSettingsStore.setParticleSlideCombo(context, it) }
+                    )
+                    CompactSwitchRow(
+                        title = strings.transitionsParticleDensityTitle,
+                        checked = state.denseParticles,
+                        onCheckedChange = { AnimationsSettingsStore.setDenseParticles(context, it) }
+                    )
+                    SpeedSliderBlock(
+                        title = strings.transitionsSpeedTitle,
+                        speedScale = state.transitionSpeedScale,
+                        onSpeedChange = { AnimationsSettingsStore.setTransitionSpeedScale(context, it) }
+                    )
+                }
+
+                TransitionType.SPRING_SWIPE -> {
+                    DampingSliderBlock(
+                        title = strings.transitionsSpringDampingTitle,
+                        damping = state.screenTransitionSpringDamping,
+                        onDampingChange = {
+                            AnimationsSettingsStore.setScreenTransitionSpringDamping(context, it)
                         }
                     )
                 }
-        ) {
-            // Задний экран (список чатов)
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(scheme.surface)
-                    .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = strings.transitionsPreviewChatsTitle,
-                    color = scheme.textPrimary,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                repeat(2) { idx ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(scheme.card)
-                            .padding(horizontal = 10.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(scheme.accent.copy(alpha = if (idx == 0) 0.25f else 0.14f))
+
+                TransitionType.REAL_BOOK_3D,
+                TransitionType.CUBE_ROTATION_3D,
+                TransitionType.CASCADE,
+                TransitionType.WINDMILL,
+                TransitionType.ROTATION_SPIN -> {
+                    if (type.isBidirectional) {
+                        CompactSwitchRow(
+                            title = strings.transitionsEnableEnterTitle,
+                            checked = state.enableEnterAnimation,
+                            onCheckedChange = { AnimationsSettingsStore.setEnableEnterAnimation(context, it) }
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                text = if (idx == 0) strings.transitionsPreviewChatPeer else "AnonGram",
-                                color = scheme.textPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Text(
-                                text = strings.transitionsPreviewChatSub,
-                                color = scheme.textMuted,
-                                fontSize = 11.sp
-                            )
-                        }
+                        CompactSwitchRow(
+                            title = strings.transitionsEnableExitTitle,
+                            checked = state.enableExitAnimation,
+                            onCheckedChange = { AnimationsSettingsStore.setEnableExitAnimation(context, it) }
+                        )
                     }
+                    SpeedSliderBlock(
+                        title = strings.transitionsSpeedTitle,
+                        speedScale = state.transitionSpeedScale,
+                        onSpeedChange = { AnimationsSettingsStore.setTransitionSpeedScale(context, it) }
+                    )
                 }
-            }
 
-            // Передний экран (чат)
-            if (isDetailVisible) {
-                AnonGramTransitionScreen(
-                    progress = progress.value,
-                    isExit = isPreviewExit,
-                    config = config
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(scheme.background)
-                            .padding(12.dp),
-                        verticalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(scheme.islandBg)
-                                .padding(horizontal = 10.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = null,
-                                tint = scheme.textPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = strings.transitionsPreviewChatPeer,
-                                color = scheme.textPrimary,
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = strings.transitionsPreviewChatSub,
-                                color = scheme.accent,
-                                fontSize = 11.5.sp
-                            )
-                        }
-
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(scheme.card)
-                                    .padding(horizontal = 12.dp, vertical = 7.dp)
-                            ) {
-                                Text(
-                                    text = strings.previewIncomingSample,
-                                    color = scheme.incomingText,
-                                    fontSize = 12.sp,
-                                    maxLines = 1
-                                )
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.End)
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .background(scheme.accent)
-                                    .padding(horizontal = 12.dp, vertical = 7.dp)
-                            ) {
-                                Text(
-                                    text = strings.previewOutgoingSample,
-                                    color = scheme.onAccent,
-                                    fontSize = 12.sp,
-                                    maxLines = 1
-                                )
-                            }
-                        }
-                    }
+                else -> {
+                    SpeedSliderBlock(
+                        title = strings.transitionsSpeedTitle,
+                        speedScale = state.transitionSpeedScale,
+                        onSpeedChange = { AnimationsSettingsStore.setTransitionSpeedScale(context, it) }
+                    )
                 }
             }
         }
+    }
+}
 
-        Spacer(modifier = Modifier.height(10.dp))
+@Composable
+private fun CompactSwitchRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            color = scheme.textPrimary,
+            fontSize = 13.5.sp,
+            modifier = Modifier.weight(1f)
+        )
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = scheme.onAccent,
+                checkedTrackColor = scheme.accent,
+                uncheckedThumbColor = scheme.textMuted,
+                uncheckedTrackColor = scheme.surface
+            )
+        )
+    }
+}
 
+@Composable
+private fun SpeedSliderBlock(
+    title: String,
+    speedScale: Float,
+    onSpeedChange: (Float) -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Button(
-                onClick = { animateOpen() },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = scheme.accent,
-                    contentColor = scheme.onAccent
-                ),
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(strings.transitionsPreviewOpenBtn, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            }
-            OutlinedButton(
-                onClick = { animateBack() },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = null,
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    strings.transitionsPreviewBackBtn,
-                    color = scheme.textPrimary,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            Text(
+                text = title,
+                color = scheme.textPrimary,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "${(speedScale * 10f).roundToInt() / 10f}x",
+                color = scheme.accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
+        Slider(
+            value = speedScale,
+            onValueChange = onSpeedChange,
+            valueRange = 0.5f..2.0f,
+            steps = 14,
+            colors = SliderDefaults.colors(
+                thumbColor = scheme.accent,
+                activeTrackColor = scheme.accent,
+                inactiveTrackColor = scheme.divider
+            )
+        )
+    }
+}
+
+@Composable
+private fun DampingSliderBlock(
+    title: String,
+    damping: Float,
+    onDampingChange: (Float) -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = title,
+                color = scheme.textPrimary,
+                fontSize = 13.5.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = "${(damping * 100).roundToInt() / 100f}",
+                color = scheme.accent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Slider(
+            value = damping,
+            onValueChange = onDampingChange,
+            valueRange = 0.50f..1.0f,
+            steps = 9,
+            colors = SliderDefaults.colors(
+                thumbColor = scheme.accent,
+                activeTrackColor = scheme.accent,
+                inactiveTrackColor = scheme.divider
+            )
+        )
     }
 }
 

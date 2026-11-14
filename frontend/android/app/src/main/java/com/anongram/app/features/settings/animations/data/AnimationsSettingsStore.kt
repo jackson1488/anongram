@@ -63,9 +63,14 @@ data class AnimationsSettingsState(
     val screenParticleStyle: ParticleStyle = ParticleStyle.VAPOR_DUST,
     val screenTransitionSpringDamping: Float = 0.76f,
     val enableGesturePullCombo: Boolean = true,
-    val enablePredictiveBackCombo: Boolean = true,
+    val enablePredictiveBackCombo: Boolean = false,
+    val enableMiniCardCombo: Boolean = false,
     val enableBaseTelegramEnter: Boolean = true,
-    val transitionSpeedScale: Float = 1.0f
+    val transitionSpeedScale: Float = 1.0f,
+    val enableEnterAnimation: Boolean = true,
+    val enableExitAnimation: Boolean = true,
+    val particleSlideCombo: Boolean = false,
+    val denseParticles: Boolean = false
 ) {
     val speedMultiplier: Float
         get() = when (animationSpeedOption) {
@@ -92,7 +97,12 @@ data class AnimationsSettingsState(
             particleStyle = screenParticleStyle,
             enableGesturePullCombo = enableGesturePullCombo,
             enablePredictiveBackCombo = enablePredictiveBackCombo,
-            enableBaseTelegramEnter = enableBaseTelegramEnter
+            enableMiniCardCombo = enableMiniCardCombo,
+            enableBaseSmoothEnter = enableBaseTelegramEnter,
+            enableEnterAnimation = enableEnterAnimation,
+            enableExitAnimation = enableExitAnimation,
+            particleSlideCombo = particleSlideCombo,
+            denseParticles = denseParticles
         )
     }
 }
@@ -117,8 +127,13 @@ object AnimationsSettingsStore {
     private const val KEY_SCREEN_SPRING_DAMPING = "key_screen_spring_damping"
     private const val KEY_COMBO_GESTURE_PULL = "key_combo_gesture_pull"
     private const val KEY_COMBO_PREDICTIVE_BACK = "key_combo_predictive_back"
+    private const val KEY_COMBO_MINI_CARD = "key_combo_mini_card"
     private const val KEY_BASE_TELEGRAM_ENTER = "key_base_telegram_enter"
     private const val KEY_TRANSITION_SPEED_SCALE = "key_transition_speed_scale"
+    private const val KEY_ENABLE_ENTER_ANIM = "key_enable_enter_anim"
+    private const val KEY_ENABLE_EXIT_ANIM = "key_enable_exit_anim"
+    private const val KEY_PARTICLE_SLIDE_COMBO = "key_particle_slide_combo"
+    private const val KEY_DENSE_PARTICLES = "key_dense_particles"
 
     @Volatile
     private var initialized = false
@@ -160,10 +175,15 @@ object AnimationsSettingsStore {
                 screenTransitionSpringDamping = prefs.getFloat(KEY_SCREEN_SPRING_DAMPING, 0.76f)
                     .coerceIn(0.5f, 1.0f),
                 enableGesturePullCombo = prefs.getBoolean(KEY_COMBO_GESTURE_PULL, true),
-                enablePredictiveBackCombo = prefs.getBoolean(KEY_COMBO_PREDICTIVE_BACK, true),
+                enablePredictiveBackCombo = prefs.getBoolean(KEY_COMBO_PREDICTIVE_BACK, false),
+                enableMiniCardCombo = prefs.getBoolean(KEY_COMBO_MINI_CARD, false),
                 enableBaseTelegramEnter = prefs.getBoolean(KEY_BASE_TELEGRAM_ENTER, true),
                 transitionSpeedScale = prefs.getFloat(KEY_TRANSITION_SPEED_SCALE, 1.0f)
-                    .coerceIn(0.5f, 2.0f)
+                    .coerceIn(0.5f, 2.0f),
+                enableEnterAnimation = prefs.getBoolean(KEY_ENABLE_ENTER_ANIM, true),
+                enableExitAnimation = prefs.getBoolean(KEY_ENABLE_EXIT_ANIM, true),
+                particleSlideCombo = prefs.getBoolean(KEY_PARTICLE_SLIDE_COMBO, false),
+                denseParticles = prefs.getBoolean(KEY_DENSE_PARTICLES, false)
             )
             initialized = true
         }
@@ -292,5 +312,35 @@ object AnimationsSettingsStore {
         ensureInitialized(context)
         prefs(context).edit().putFloat(KEY_TRANSITION_SPEED_SCALE, clamped).apply()
         _state.update { it.copy(transitionSpeedScale = clamped) }
+    }
+
+    fun setEnableMiniCardCombo(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_COMBO_MINI_CARD, enabled).apply()
+        _state.update { it.copy(enableMiniCardCombo = enabled) }
+    }
+
+    fun setEnableEnterAnimation(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_ENABLE_ENTER_ANIM, enabled).apply()
+        _state.update { it.copy(enableEnterAnimation = enabled) }
+    }
+
+    fun setEnableExitAnimation(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_ENABLE_EXIT_ANIM, enabled).apply()
+        _state.update { it.copy(enableExitAnimation = enabled) }
+    }
+
+    fun setParticleSlideCombo(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_PARTICLE_SLIDE_COMBO, enabled).apply()
+        _state.update { it.copy(particleSlideCombo = enabled) }
+    }
+
+    fun setDenseParticles(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_DENSE_PARTICLES, enabled).apply()
+        _state.update { it.copy(denseParticles = enabled) }
     }
 }

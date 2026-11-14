@@ -48,18 +48,32 @@ enum class ParticleStyle {
 data class NavigationTransitionConfig(
     val transitionType: TransitionType = TransitionType.SPRING_SWIPE,
     val speedMultiplier: Float = 1.0f,
-    val baseDurationMs: Int = 280,
+    val baseDurationMs: Int = 340,
     val springStiffness: Float = 320.0f,
     val springDamping: Float = 0.76f,
     val particleStyle: ParticleStyle = ParticleStyle.VAPOR_DUST,
     val enableGesturePullCombo: Boolean = true,
-    val enablePredictiveBackCombo: Boolean = true,
-    val enableBaseTelegramEnter: Boolean = true,
+    val enablePredictiveBackCombo: Boolean = false,
+    val enableMiniCardCombo: Boolean = false,
+    val enableBaseSmoothEnter: Boolean = true,
+    val enableEnterAnimation: Boolean = true,
+    val enableExitAnimation: Boolean = true,
+    val particleSlideCombo: Boolean = false,
+    val denseParticles: Boolean = false,
     val allowFullWidthSwipe: Boolean = true,
     val swipeEdge: Int = 0,
-    val touchYFraction: Float = 0.5f
+    val touchYFraction: Float = 0.5f,
+    val isPredictiveHolding: Boolean = false
 ) {
     val effectiveDurationMs: Int
-        get() = if (transitionType == TransitionType.INSTANT) 0
-                else (baseDurationMs / speedMultiplier.coerceIn(0.4f, 2.5f)).toInt().coerceIn(40, 1200)
+        get() {
+            if (transitionType == TransitionType.INSTANT) return 0
+            val typeBase = when (transitionType) {
+                TransitionType.PARTICLE_DISSOLVE -> 440
+                TransitionType.REAL_BOOK_3D,
+                TransitionType.CUBE_ROTATION_3D -> 380
+                else -> baseDurationMs
+            }
+            return (typeBase / speedMultiplier.coerceIn(0.4f, 2.5f)).toInt().coerceIn(60, 1400)
+        }
 }

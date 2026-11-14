@@ -89,7 +89,13 @@ data class AnimationsI18nStrings(
     val transitionBadgeBothWays: String,
     val transitionsBaseEnterTitle: String,
     val transitionsBaseEnterDesc: String,
-    val transitionsSpeedTitle: String
+    val transitionsSpeedTitle: String,
+    val transitionsBaseSectionHeader: String,
+    val transitionsEffectsSectionHeader: String,
+    val transitionsEnableEnterTitle: String,
+    val transitionsEnableExitTitle: String,
+    val transitionsParticleSlideTitle: String,
+    val transitionsParticleDensityTitle: String
 )
 
 private val RuAnimationsStrings = AnimationsI18nStrings(
@@ -143,13 +149,13 @@ private val RuAnimationsStrings = AnimationsI18nStrings(
     transitionsPreviewChatSub = "в сети",
     transitionsComboGestureTitle = "Стягивание жестом 1:1",
     transitionsComboGestureDesc = "Экран следует за пальцем в реальном времени",
-    transitionsComboPredictiveTitle = "Мини-карточка 30dp",
-    transitionsComboPredictiveDesc = "Сжатие экрана в закруглённую карточку при возврате",
+    transitionsComboPredictiveTitle = "+ Предиктивный возврат",
+    transitionsComboPredictiveDesc = "Сжатие и удержание карточки при системном жесте",
     transitionsSpringDampingTitle = "Отскок пружины",
     transSpringSwipeTitle = "Живой свайп 1:1",
-    transSpringSwipeDesc = "Плавный сдвиг за пальцем с пружинным долётом",
-    transCupertinoTitle = "iOS Cupertino",
-    transCupertinoDesc = "Параллакс 33% нижнего экрана и мягкая тень",
+    transSpringSwipeDesc = "Плавный сдвиг рукой по экрану с пружинным долётом",
+    transCupertinoTitle = "Параллакс",
+    transCupertinoDesc = "Параллакс 33% нижнего экрана при свайпе рукой",
     transRealBookTitle = "3D Книга",
     transRealBookDesc = "Перелистывание страницы с затемнением корешка",
     transCube3DTitle = "3D Куб",
@@ -164,8 +170,8 @@ private val RuAnimationsStrings = AnimationsI18nStrings(
     transParticleDesc = "Растворение и сборка экрана из частиц",
     transCardStackTitle = "Мини-карточка",
     transCardStackDesc = "Плавное сжатие в парящую карточку 30dp",
-    transPredictiveBackTitle = "Предиктивный назад",
-    transPredictiveBackDesc = "Системный жест Android 14+ со сжатием окна",
+    transPredictiveBackTitle = "Предиктивный возврат",
+    transPredictiveBackDesc = "Системный жест: зажал — стоит, отпустил — ушёл",
     transInstantTitle = "0 ms (Турбо)",
     transInstantDesc = "Мгновенное переключение без задержки",
     particleVaporDust = "Кибер-пыль",
@@ -174,9 +180,15 @@ private val RuAnimationsStrings = AnimationsI18nStrings(
     particleAshEmbers = "Пепел",
     transitionBadgeExitOnly = "Только выход",
     transitionBadgeBothWays = "Вход и выход",
-    transitionsBaseEnterTitle = "Базовый вход как в Telegram",
-    transitionsBaseEnterDesc = "Плавный заезд справа для выходных стилей",
-    transitionsSpeedTitle = "Скорость анимации"
+    transitionsBaseEnterTitle = "Плавный вход экрана",
+    transitionsBaseEnterDesc = "Плавный заезд справа налево при открытии",
+    transitionsSpeedTitle = "Скорость анимации",
+    transitionsBaseSectionHeader = "Базовые анимации",
+    transitionsEffectsSectionHeader = "Эффекты переходов",
+    transitionsEnableEnterTitle = "Анимация при входе",
+    transitionsEnableExitTitle = "Анимация при выходе",
+    transitionsParticleSlideTitle = "Частицы + сдвиг экрана",
+    transitionsParticleDensityTitle = "Мелкие фрагменты (много)"
 )
 
 private val EnAnimationsStrings = AnimationsI18nStrings(
@@ -230,13 +242,13 @@ private val EnAnimationsStrings = AnimationsI18nStrings(
     transitionsPreviewChatSub = "online",
     transitionsComboGestureTitle = "1:1 gesture pull",
     transitionsComboGestureDesc = "Screen tracks your finger in real time",
-    transitionsComboPredictiveTitle = "Mini-card 30dp",
-    transitionsComboPredictiveDesc = "Shrinks screen into a rounded card on back",
+    transitionsComboPredictiveTitle = "+ Predictive back",
+    transitionsComboPredictiveDesc = "Hold shrunken card on system back gesture",
     transitionsSpringDampingTitle = "Spring damping",
     transSpringSwipeTitle = "Live Swipe 1:1",
     transSpringSwipeDesc = "1:1 finger tracking with spring overshoot",
-    transCupertinoTitle = "iOS Cupertino",
-    transCupertinoDesc = "33% depth parallax and soft edge shadow",
+    transCupertinoTitle = "Parallax",
+    transCupertinoDesc = "33% depth parallax when swiping on screen",
     transRealBookTitle = "3D Book",
     transRealBookDesc = "3D page curl with spine darkening shadow",
     transCube3DTitle = "3D Cube",
@@ -249,10 +261,10 @@ private val EnAnimationsStrings = AnimationsI18nStrings(
     transWindmillDesc = "Sweeping rotation around top-left corner",
     transParticleTitle = "Particles / Puzzles",
     transParticleDesc = "Screen dissolves and reassembles from particles",
-    transCardStackTitle = "Card Stack",
+    transCardStackTitle = "Mini-card 30dp",
     transCardStackDesc = "Shrinks into a floating 30dp rounded card",
     transPredictiveBackTitle = "Predictive Back",
-    transPredictiveBackDesc = "Android 14+ predictive gesture exit",
+    transPredictiveBackDesc = "System gesture: hold to dock, release to exit",
     transInstantTitle = "0 ms (Turbo)",
     transInstantDesc = "Instant transition with zero delay",
     particleVaporDust = "Cyber dust",
@@ -261,9 +273,15 @@ private val EnAnimationsStrings = AnimationsI18nStrings(
     particleAshEmbers = "Embers",
     transitionBadgeExitOnly = "Exit only",
     transitionBadgeBothWays = "Enter & Exit",
-    transitionsBaseEnterTitle = "Telegram-style screen enter",
-    transitionsBaseEnterDesc = "Smooth slide-in for exit-only styles",
-    transitionsSpeedTitle = "Animation speed"
+    transitionsBaseEnterTitle = "Smooth screen enter",
+    transitionsBaseEnterDesc = "Smooth slide-in when opening screens",
+    transitionsSpeedTitle = "Animation speed",
+    transitionsBaseSectionHeader = "Base animations",
+    transitionsEffectsSectionHeader = "Transition effects",
+    transitionsEnableEnterTitle = "Enter animation",
+    transitionsEnableExitTitle = "Exit animation",
+    transitionsParticleSlideTitle = "Particles + screen slide",
+    transitionsParticleDensityTitle = "Fine fragments (dense)"
 )
 
 object AnimationsI18n {

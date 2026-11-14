@@ -104,10 +104,12 @@ fun MainAppShell(
 
     var predictiveSwipeEdge by remember { mutableStateOf(0) }
     var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
-    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction) {
+    var isPredictiveHolding by remember { mutableStateOf(false) }
+    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding) {
         animState.toNavigationTransitionConfig().copy(
             swipeEdge = predictiveSwipeEdge,
-            touchYFraction = predictiveTouchYFraction
+            touchYFraction = predictiveTouchYFraction,
+            isPredictiveHolding = isPredictiveHolding
         )
     }
     val messagesRepository = remember { InMemoryChatMessagesRepository() }
@@ -229,7 +231,18 @@ fun MainAppShell(
     val hasTransitionOverlay = !isQrOpen && (
         isLanguageOpen || isSearchOpen || isContactsOpen || isArchiveOpen || selectedSession != null
     )
-    PredictiveBackHandler(enabled = hasTransitionOverlay) { backEvents ->
+    val usePredictiveBack = navConfig.transitionType == TransitionType.PREDICTIVE_BACK ||
+        navConfig.enablePredictiveBackCombo
+    BackHandler(enabled = hasTransitionOverlay && !usePredictiveBack) {
+        when {
+            isLanguageOpen -> closeLanguage()
+            isSearchOpen -> closeSearch()
+            isContactsOpen -> closeContacts()
+            isArchiveOpen -> closeArchive()
+            else -> closeSession()
+        }
+    }
+    PredictiveBackHandler(enabled = hasTransitionOverlay && usePredictiveBack) { backEvents ->
         val (activeProgress, setExiting, onFinish) = when {
             isLanguageOpen -> Triple(languageProgress, { v: Boolean -> isLanguageExiting = v }, ::closeLanguage)
             isSearchOpen -> Triple(searchProgress, { v: Boolean -> isSearchExiting = v }, ::closeSearch)
@@ -239,16 +252,19 @@ fun MainAppShell(
         }
         val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         setExiting(true)
+        isPredictiveHolding = true
         try {
             backEvents.collect { event ->
                 predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
                 predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
                 activeProgress.snapTo(event.progress.coerceIn(0f, 1f))
             }
+            isPredictiveHolding = false
             onFinish()
             predictiveSwipeEdge = 0
             predictiveTouchYFraction = 0.5f
         } catch (_: CancellationException) {
+            isPredictiveHolding = false
             scope.snapBackOverlay(activeProgress, navConfig) {
                 setExiting(false)
                 predictiveSwipeEdge = 0
@@ -538,13 +554,15 @@ private fun CoroutineScope.openOverlay(
 ) {
     launch {
         val skipEnter = config.transitionType == TransitionType.INSTANT ||
-            (!config.transitionType.isBidirectional && !config.enableBaseTelegramEnter)
+            (config.transitionType.isBidirectional && !config.enableEnterAnimation && !config.enableBaseSmoothEnter) ||
+            (!config.transitionType.isBidirectional && !config.enableBaseSmoothEnter)
         if (skipEnter) {
             progress.snapTo(0f)
             show()
         } else {
             progress.snapTo(1f)
             show()
+            androidx.compose.runtime.withFrameNanos { }
             progress.animateTo(
                 targetValue = 0f,
                 animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {

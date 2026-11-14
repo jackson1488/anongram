@@ -20,7 +20,23 @@ class SpringSwipeStyle : ITransitionStyle {
         config: NavigationTransitionConfig,
         density: Float
     ) {
-        if (config.enablePredictiveBackCombo && isExit) {
+        if (isExit && config.enablePredictiveBackCombo) {
+            val edgeDir = if (config.swipeEdge == 1) -1f else 1f
+            val cardScale = (1f - progress * 0.16f).coerceIn(0.80f, 1f)
+            val cornerRadius = progress * 28f
+            scaleX = cardScale
+            scaleY = cardScale
+            shape = RoundedCornerShape(cornerRadius.dp)
+            clip = cornerRadius > 0.5f
+            shadowElevation = progress * 16.dp.toPx()
+            if (config.isPredictiveHolding) {
+                translationX = edgeDir * progress * size.width * 0.08f
+                alpha = 1f
+            } else {
+                translationX = edgeDir * progress * size.width
+                alpha = if (progress > 0.85f) 1f - ((progress - 0.85f) / 0.15f) else 1f
+            }
+        } else if (isExit && config.enableMiniCardCombo) {
             val cardScale = 1f - progress * 0.18f
             val cornerRadius = progress * 30f
             translationX = if (progress <= 0.65f) {
@@ -41,6 +57,7 @@ class SpringSwipeStyle : ITransitionStyle {
             scaleY = 1f
             clip = false
             shadowElevation = if (isExit) progress * 16.dp.toPx() else 0f
+            alpha = 1f
         }
     }
 }
