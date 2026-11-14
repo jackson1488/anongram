@@ -14,7 +14,22 @@ enum class TransitionType {
     PARTICLE_DISSOLVE,   // Screen dissolves/reassembles from particles
     CARD_STACK_PEEK,     // Shrinks into floating card with 30dp radius
     PREDICTIVE_BACK,     // Android 14+ Predictive Back gesture exit
-    INSTANT              // 0 ms turbo mode for maximum speed and stealth
+    INSTANT;             // 0 ms turbo mode for maximum speed and stealth
+
+    val isBidirectional: Boolean
+        get() = when (this) {
+            REAL_BOOK_3D,
+            CUBE_ROTATION_3D,
+            CASCADE,
+            WINDMILL,
+            PARTICLE_DISSOLVE -> true
+            SPRING_SWIPE,
+            CUPERTINO_PARALLAX,
+            ROTATION_SPIN,
+            CARD_STACK_PEEK,
+            PREDICTIVE_BACK,
+            INSTANT -> false
+        }
 }
 
 /**
@@ -39,9 +54,12 @@ data class NavigationTransitionConfig(
     val particleStyle: ParticleStyle = ParticleStyle.VAPOR_DUST,
     val enableGesturePullCombo: Boolean = true,
     val enablePredictiveBackCombo: Boolean = true,
-    val allowFullWidthSwipe: Boolean = true
+    val enableBaseTelegramEnter: Boolean = true,
+    val allowFullWidthSwipe: Boolean = true,
+    val swipeEdge: Int = 0,
+    val touchYFraction: Float = 0.5f
 ) {
     val effectiveDurationMs: Int
         get() = if (transitionType == TransitionType.INSTANT) 0
-                else (baseDurationMs / speedMultiplier).toInt().coerceIn(40, 1000)
+                else (baseDurationMs / speedMultiplier.coerceIn(0.4f, 2.5f)).toInt().coerceIn(40, 1200)
 }

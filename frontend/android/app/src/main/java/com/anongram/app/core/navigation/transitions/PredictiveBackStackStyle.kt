@@ -17,11 +17,17 @@ class PredictiveBackStackStyle : ITransitionStyle {
         config: NavigationTransitionConfig,
         density: Float
     ) {
-        translationX = progress * size.width * 0.8f
-        scaleX = 1f - progress * 0.10f
-        scaleY = 1f - progress * 0.10f
-        shape = RoundedCornerShape((progress * 30f).dp)
-        clip = true
+        val scale = (1f - progress * 0.16f).coerceIn(0.80f, 1f)
+        val edgeDir = if (config.swipeEdge == 1) -1f else 1f
+        val yOffsetFactor = (config.touchYFraction - 0.5f).coerceIn(-0.5f, 0.5f)
+        translationX = edgeDir * progress * size.width * 0.10f +
+            (if (progress > 0.65f) edgeDir * ((progress - 0.65f) / 0.35f) * size.width * 0.85f else 0f)
+        translationY = yOffsetFactor * progress * size.height * 0.08f
+        scaleX = scale
+        scaleY = scale
+        shape = RoundedCornerShape((progress * 28f).dp)
+        clip = progress > 0.01f
         shadowElevation = progress * 18.dp.toPx()
+        alpha = if (progress > 0.86f) 1f - ((progress - 0.86f) / 0.14f) else 1f
     }
 }

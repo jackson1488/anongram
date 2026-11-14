@@ -35,6 +35,12 @@ fun Modifier.applyAnonGramTransition(
     density: Float
 ): Modifier {
     if (config.transitionType == TransitionType.INSTANT) return this
+    if (!isExit && !config.transitionType.isBidirectional) {
+        if (!config.enableBaseTelegramEnter) return this
+        return graphicsLayer {
+            translationX = progress * size.width
+        }
+    }
     return graphicsLayer {
         with(TransitionStyleRegistry.resolve(config.transitionType)) {
             transform(progress, isExit, config, density)

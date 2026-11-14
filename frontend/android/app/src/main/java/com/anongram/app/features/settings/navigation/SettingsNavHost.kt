@@ -75,7 +75,14 @@ fun SettingsNavHost(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
-    val navConfig = remember(animState) { animState.toNavigationTransitionConfig() }
+    var predictiveSwipeEdge by remember { mutableStateOf(0) }
+    var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
+    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction) {
+        animState.toNavigationTransitionConfig().copy(
+            swipeEdge = predictiveSwipeEdge,
+            touchYFraction = predictiveTouchYFraction
+        )
+    }
     val backStack = remember { mutableStateListOf<SettingsRoute>(SettingsRoute.Main) }
     val currentRoute = backStack.lastOrNull() ?: SettingsRoute.Main
     var underlayRoute by remember { mutableStateOf<SettingsRoute?>(null) }
@@ -90,7 +97,9 @@ fun SettingsNavHost(
             backStack.add(route)
             onSubScreenVisibilityChange(route != SettingsRoute.Main)
             scope.launch {
-                if (navConfig.transitionType == TransitionType.INSTANT) {
+                val skipEnter = navConfig.transitionType == TransitionType.INSTANT ||
+                    (!navConfig.transitionType.isBidirectional && !navConfig.enableBaseTelegramEnter)
+                if (skipEnter) {
                     transitionProgress.snapTo(0f)
                 } else {
                     transitionProgress.snapTo(1f)
@@ -166,13 +175,20 @@ fun SettingsNavHost(
     PredictiveBackHandler(enabled = backStack.size > 1) { backEvents ->
         underlayRoute = backStack[backStack.lastIndex - 1]
         isExiting = true
+        val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         try {
             backEvents.collect { event ->
+                predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
+                predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
                 transitionProgress.snapTo(event.progress.coerceIn(0f, 1f))
             }
             popBack()
+            predictiveSwipeEdge = 0
+            predictiveTouchYFraction = 0.5f
         } catch (_: CancellationException) {
             cancelBackGesture()
+            predictiveSwipeEdge = 0
+            predictiveTouchYFraction = 0.5f
         }
     }
 

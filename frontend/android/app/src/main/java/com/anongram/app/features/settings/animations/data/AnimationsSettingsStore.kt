@@ -63,7 +63,9 @@ data class AnimationsSettingsState(
     val screenParticleStyle: ParticleStyle = ParticleStyle.VAPOR_DUST,
     val screenTransitionSpringDamping: Float = 0.76f,
     val enableGesturePullCombo: Boolean = true,
-    val enablePredictiveBackCombo: Boolean = true
+    val enablePredictiveBackCombo: Boolean = true,
+    val enableBaseTelegramEnter: Boolean = true,
+    val transitionSpeedScale: Float = 1.0f
 ) {
     val speedMultiplier: Float
         get() = when (animationSpeedOption) {
@@ -73,14 +75,9 @@ data class AnimationsSettingsState(
             else -> 1.0f
         }
 
-    /** Скорость для NavigationTransitionConfig: выше 1.0x = быстрее переход. */
+    /** Скорость для NavigationTransitionConfig: выше 1.0x = быстрее переход и пазлы. */
     val transitionSpeedMultiplier: Float
-        get() = when (animationSpeedOption) {
-            "0.5x" -> 0.55f
-            "1.5x" -> 1.5f
-            "2.0x" -> 2.0f
-            else -> 1.0f
-        }
+        get() = transitionSpeedScale.coerceIn(0.4f, 2.5f)
 
     fun toNavigationTransitionConfig(): NavigationTransitionConfig {
         val effectiveType = if (!screenTransitionsEnabled || reduceMotionEnabled) {
@@ -94,7 +91,8 @@ data class AnimationsSettingsState(
             springDamping = screenTransitionSpringDamping.coerceIn(0.5f, 1.0f),
             particleStyle = screenParticleStyle,
             enableGesturePullCombo = enableGesturePullCombo,
-            enablePredictiveBackCombo = enablePredictiveBackCombo
+            enablePredictiveBackCombo = enablePredictiveBackCombo,
+            enableBaseTelegramEnter = enableBaseTelegramEnter
         )
     }
 }
@@ -119,6 +117,8 @@ object AnimationsSettingsStore {
     private const val KEY_SCREEN_SPRING_DAMPING = "key_screen_spring_damping"
     private const val KEY_COMBO_GESTURE_PULL = "key_combo_gesture_pull"
     private const val KEY_COMBO_PREDICTIVE_BACK = "key_combo_predictive_back"
+    private const val KEY_BASE_TELEGRAM_ENTER = "key_base_telegram_enter"
+    private const val KEY_TRANSITION_SPEED_SCALE = "key_transition_speed_scale"
 
     @Volatile
     private var initialized = false
@@ -160,7 +160,10 @@ object AnimationsSettingsStore {
                 screenTransitionSpringDamping = prefs.getFloat(KEY_SCREEN_SPRING_DAMPING, 0.76f)
                     .coerceIn(0.5f, 1.0f),
                 enableGesturePullCombo = prefs.getBoolean(KEY_COMBO_GESTURE_PULL, true),
-                enablePredictiveBackCombo = prefs.getBoolean(KEY_COMBO_PREDICTIVE_BACK, true)
+                enablePredictiveBackCombo = prefs.getBoolean(KEY_COMBO_PREDICTIVE_BACK, true),
+                enableBaseTelegramEnter = prefs.getBoolean(KEY_BASE_TELEGRAM_ENTER, true),
+                transitionSpeedScale = prefs.getFloat(KEY_TRANSITION_SPEED_SCALE, 1.0f)
+                    .coerceIn(0.5f, 2.0f)
             )
             initialized = true
         }
@@ -276,5 +279,18 @@ object AnimationsSettingsStore {
         ensureInitialized(context)
         prefs(context).edit().putBoolean(KEY_COMBO_PREDICTIVE_BACK, enabled).apply()
         _state.update { it.copy(enablePredictiveBackCombo = enabled) }
+    }
+
+    fun setEnableBaseTelegramEnter(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_BASE_TELEGRAM_ENTER, enabled).apply()
+        _state.update { it.copy(enableBaseTelegramEnter = enabled) }
+    }
+
+    fun setTransitionSpeedScale(context: Context, scale: Float) {
+        val clamped = scale.coerceIn(0.5f, 2.0f)
+        ensureInitialized(context)
+        prefs(context).edit().putFloat(KEY_TRANSITION_SPEED_SCALE, clamped).apply()
+        _state.update { it.copy(transitionSpeedScale = clamped) }
     }
 }

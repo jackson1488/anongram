@@ -99,7 +99,8 @@ fun ScreenTransitionsSettingsScreen(
             springDamping = state.screenTransitionSpringDamping,
             particleStyle = state.screenParticleStyle,
             enableGesturePullCombo = state.enableGesturePullCombo,
-            enablePredictiveBackCombo = state.enablePredictiveBackCombo
+            enablePredictiveBackCombo = state.enablePredictiveBackCombo,
+            enableBaseTelegramEnter = state.enableBaseTelegramEnter
         )
     }
 
@@ -154,12 +155,43 @@ fun ScreenTransitionsSettingsScreen(
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = title,
-                                color = scheme.textPrimary,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    text = title,
+                                    color = scheme.textPrimary,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                if (type != TransitionType.INSTANT) {
+                                    val badgeText = if (type.isBidirectional) {
+                                        strings.transitionBadgeBothWays
+                                    } else {
+                                        strings.transitionBadgeExitOnly
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(
+                                                if (type.isBidirectional) {
+                                                    scheme.accent.copy(alpha = 0.16f)
+                                                } else {
+                                                    scheme.card
+                                                }
+                                            )
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = badgeText,
+                                            color = if (type.isBidirectional) scheme.accent else scheme.textMuted,
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+                                }
+                            }
                             Text(
                                 text = desc,
                                 color = scheme.textSecondary,
@@ -248,6 +280,54 @@ fun ScreenTransitionsSettingsScreen(
                     }
                 )
 
+                ComboToggleRow(
+                    title = strings.transitionsBaseEnterTitle,
+                    description = strings.transitionsBaseEnterDesc,
+                    checked = state.enableBaseTelegramEnter,
+                    onCheckedChange = {
+                        AnimationsSettingsStore.setEnableBaseTelegramEnter(context, it)
+                    }
+                )
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = strings.transitionsSpeedTitle,
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        val speedLabel = "${(state.transitionSpeedScale * 10f).roundToInt() / 10f}x"
+                        Text(
+                            text = speedLabel,
+                            color = scheme.accent,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Slider(
+                        value = state.transitionSpeedScale,
+                        onValueChange = {
+                            AnimationsSettingsStore.setTransitionSpeedScale(context, it)
+                        },
+                        valueRange = 0.5f..2.0f,
+                        steps = 14,
+                        colors = SliderDefaults.colors(
+                            thumbColor = scheme.accent,
+                            activeTrackColor = scheme.accent,
+                            inactiveTrackColor = scheme.divider
+                        )
+                    )
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -301,14 +381,18 @@ private fun TransitionLivePreviewCard(
     val scope = rememberCoroutineScope()
     val progress = remember { Animatable(0f) }
     var isDetailVisible by remember { mutableStateOf(true) }
+    var isPreviewExit by remember { mutableStateOf(false) }
 
     fun animateOpen() {
         scope.launch {
+            isPreviewExit = false
             isDetailVisible = true
-            progress.snapTo(1f)
-            if (config.transitionType == TransitionType.INSTANT) {
+            val skipEnter = config.transitionType == TransitionType.INSTANT ||
+                (!config.transitionType.isBidirectional && !config.enableBaseTelegramEnter)
+            if (skipEnter) {
                 progress.snapTo(0f)
             } else {
+                progress.snapTo(1f)
                 progress.animateTo(
                     targetValue = 0f,
                     animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {
@@ -326,6 +410,7 @@ private fun TransitionLivePreviewCard(
 
     fun animateBack() {
         scope.launch {
+            isPreviewExit = true
             if (!isDetailVisible) isDetailVisible = true
             if (config.transitionType == TransitionType.INSTANT) {
                 progress.snapTo(1f)
@@ -450,7 +535,7 @@ private fun TransitionLivePreviewCard(
             if (isDetailVisible) {
                 AnonGramTransitionScreen(
                     progress = progress.value,
-                    isExit = false,
+                    isExit = isPreviewExit,
                     config = config
                 ) {
                     Column(

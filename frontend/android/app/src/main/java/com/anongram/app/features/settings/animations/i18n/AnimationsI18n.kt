@@ -84,7 +84,12 @@ data class AnimationsI18nStrings(
     val particleVaporDust: String,
     val particlePuzzlePieces: String,
     val particleDigitalVoxels: String,
-    val particleAshEmbers: String
+    val particleAshEmbers: String,
+    val transitionBadgeExitOnly: String,
+    val transitionBadgeBothWays: String,
+    val transitionsBaseEnterTitle: String,
+    val transitionsBaseEnterDesc: String,
+    val transitionsSpeedTitle: String
 )
 
 private val RuAnimationsStrings = AnimationsI18nStrings(
@@ -166,7 +171,12 @@ private val RuAnimationsStrings = AnimationsI18nStrings(
     particleVaporDust = "Кибер-пыль",
     particlePuzzlePieces = "Пазлы",
     particleDigitalVoxels = "Воксели",
-    particleAshEmbers = "Пепел"
+    particleAshEmbers = "Пепел",
+    transitionBadgeExitOnly = "Только выход",
+    transitionBadgeBothWays = "Вход и выход",
+    transitionsBaseEnterTitle = "Базовый вход как в Telegram",
+    transitionsBaseEnterDesc = "Плавный заезд справа для выходных стилей",
+    transitionsSpeedTitle = "Скорость анимации"
 )
 
 private val EnAnimationsStrings = AnimationsI18nStrings(
@@ -248,7 +258,12 @@ private val EnAnimationsStrings = AnimationsI18nStrings(
     particleVaporDust = "Cyber dust",
     particlePuzzlePieces = "Puzzles",
     particleDigitalVoxels = "Voxels",
-    particleAshEmbers = "Embers"
+    particleAshEmbers = "Embers",
+    transitionBadgeExitOnly = "Exit only",
+    transitionBadgeBothWays = "Enter & Exit",
+    transitionsBaseEnterTitle = "Telegram-style screen enter",
+    transitionsBaseEnterDesc = "Smooth slide-in for exit-only styles",
+    transitionsSpeedTitle = "Animation speed"
 )
 
 object AnimationsI18n {

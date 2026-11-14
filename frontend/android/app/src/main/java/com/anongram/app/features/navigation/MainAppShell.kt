@@ -102,7 +102,14 @@ fun MainAppShell(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
-    val navConfig = remember(animState) { animState.toNavigationTransitionConfig() }
+    var predictiveSwipeEdge by remember { mutableStateOf(0) }
+    var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
+    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction) {
+        animState.toNavigationTransitionConfig().copy(
+            swipeEdge = predictiveSwipeEdge,
+            touchYFraction = predictiveTouchYFraction
+        )
+    }
     val messagesRepository = remember { InMemoryChatMessagesRepository() }
     val chatsRepository = remember { InMemoryChatListRepository(messagesRepository) }
     val contactsRepository = remember { InMemoryContactRepository() }
@@ -230,15 +237,22 @@ fun MainAppShell(
             isArchiveOpen -> Triple(archiveProgress, { v: Boolean -> isArchiveExiting = v }, ::closeArchive)
             else -> Triple(detailProgress, { v: Boolean -> isDetailExiting = v }, ::closeSession)
         }
+        val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         setExiting(true)
         try {
             backEvents.collect { event ->
+                predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
+                predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
                 activeProgress.snapTo(event.progress.coerceIn(0f, 1f))
             }
             onFinish()
+            predictiveSwipeEdge = 0
+            predictiveTouchYFraction = 0.5f
         } catch (_: CancellationException) {
             scope.snapBackOverlay(activeProgress, navConfig) {
                 setExiting(false)
+                predictiveSwipeEdge = 0
+                predictiveTouchYFraction = 0.5f
             }
         }
     }
@@ -523,7 +537,9 @@ private fun CoroutineScope.openOverlay(
     show: () -> Unit
 ) {
     launch {
-        if (config.transitionType == TransitionType.INSTANT) {
+        val skipEnter = config.transitionType == TransitionType.INSTANT ||
+            (!config.transitionType.isBidirectional && !config.enableBaseTelegramEnter)
+        if (skipEnter) {
             progress.snapTo(0f)
             show()
         } else {
