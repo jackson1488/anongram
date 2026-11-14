@@ -65,7 +65,16 @@ data class LocalAiI18nStrings(
     val unpinChat: String,
     val deleteChat: String,
     val generatingLabel: String,
-    val demoEngineNotice: (String) -> String
+    val demoEngineNotice: (String) -> String,
+    val aiSettingsTitle: String,
+    val modulesTitle: String,
+    val cpuThreadsTitle: String,
+    val contextLengthTitle: String,
+    val gateTitle: String,
+    val gateSubtitle: String,
+    val gateDownloadBtn: String,
+    val gateImportBtn: String,
+    val gateOpenModulesBtn: String
 ) {
     fun reasoningLabel(level: AiReasoningLevel): String = when (level) {
         AiReasoningLevel.OFF -> reasoningOff
@@ -144,7 +153,16 @@ object LocalAiI18n {
         generatingLabel = "Генерирую ответ...",
         demoEngineNotice = { modelName ->
             "Модель «$modelName» готова в интерфейсе. Нативный инференс llama.cpp подключается в следующем шаге — сейчас показан предпросмотр мыслей, параметров, системного промпта и чтения прикреплённых файлов."
-        }
+        },
+        aiSettingsTitle = "Настройки ИИ",
+        modulesTitle = "Модели (Модули)",
+        cpuThreadsTitle = "Потоки CPU",
+        contextLengthTitle = "Длина контекста",
+        gateTitle = "Скачайте модель для работы ИИ",
+        gateSubtitle = "Без загруженной GGUF-модели локальный ИИ не может отвечать. Выберите модель ниже или импортируйте свою.",
+        gateDownloadBtn = "Скачать",
+        gateImportBtn = "Импортировать .gguf",
+        gateOpenModulesBtn = "Открыть Модули"
     )
 
     private val en = LocalAiI18nStrings(
@@ -206,7 +224,16 @@ object LocalAiI18n {
         generatingLabel = "Generating...",
         demoEngineNotice = { modelName ->
             "Model \"$modelName\" is active in UI. Native llama.cpp inference hooks in next — currently previewing reasoning blocks, parameters, system prompt, and attached file context."
-        }
+        },
+        aiSettingsTitle = "AI Settings",
+        modulesTitle = "Models (Modules)",
+        cpuThreadsTitle = "CPU threads",
+        contextLengthTitle = "Context length",
+        gateTitle = "Download a model to start",
+        gateSubtitle = "Local AI requires at least one GGUF model on device. Download one below or import your own.",
+        gateDownloadBtn = "Download",
+        gateImportBtn = "Import .gguf",
+        gateOpenModulesBtn = "Open Modules"
     )
 
     val current: LocalAiI18nStrings

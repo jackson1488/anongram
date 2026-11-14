@@ -103,6 +103,7 @@ dependencies {
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("com.alphacephei:vosk-android:0.3.47")
     implementation(files("libs/translate-kit-release.aar"))
+    implementation(project(":llama-jni"))
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

@@ -3,16 +3,18 @@ package com.anongram.app.features.services.ai.data
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.anongram.llama.LlamaNativeBridge
+import com.anongram.llama.LlamaTokenListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -520,10 +522,27 @@ object LocalAiStore {
     }
 
     fun stopGeneration(context: Context) {
+        LlamaNativeBridge.nativeRequestStop()
         generationJob?.cancel()
         generationJob = null
         _state.update { it.copy(isGenerating = false) }
         persistSessions(context)
+    }
+
+    private fun parseThinkingAndAnswer(raw: String): Pair<String, String> {
+        val startIdx = raw.indexOf("<think>")
+        if (startIdx == -1) {
+            return "" to raw.trimStart()
+        }
+        val afterStart = raw.substring(startIdx + "<think>".length)
+        val endIdx = afterStart.indexOf("</think>")
+        return if (endIdx == -1) {
+            afterStart.trim() to ""
+        } else {
+            val thought = afterStart.substring(0, endIdx).trim()
+            val answer = afterStart.substring(endIdx + "</think>".length).trimStart()
+            thought to answer
+        }
     }
 
     private fun launchAssistantResponse(
@@ -539,75 +558,165 @@ object LocalAiStore {
         generationJob?.cancel()
         generationJob = scope.launch {
             val st = _state.value
-            val modelName = st.activeModelDisplayName
-            val tempStr = "%.1f".format(st.temperature)
-            val sysPrompt = st.effectiveSystemPrompt(isRussian)
+            val installed = st.installedModels.firstOrNull { it.id == st.activeModelId }
+                ?: st.installedModels.firstOrNull()
 
-            val thoughtText = customThinking ?: if (reasoning != AiReasoningLevel.OFF) {
-                if (isRussian) {
-                    "1. Запрос: «${userPrompt.take(80)}»\n" +
-                        "2. Уровень рассуждений: ${reasoning.name}, температура: $tempStr.\n" +
-                        "3. Активный системный промпт: «${sysPrompt.take(70)}».\n" +
-                        (if (attachments.isNotEmpty()) "4. Вложения (${attachments.size}): ${attachments.joinToString { it.name }}.\n" else "") +
-                        (if (st.webSearchEnabled) "5. Веб-поиск включён." else "5. Полностью локальный контекст.")
+            if (installed == null) {
+                val msg = if (isRussian) {
+                    "Нет скачанной GGUF-модели. Откройте «Модули» и загрузите модель."
                 } else {
-                    "1. Prompt: \"${userPrompt.take(80)}\"\n" +
-                        "2. Reasoning: ${reasoning.name}, temperature: $tempStr.\n" +
-                        "3. System prompt: \"${sysPrompt.take(70)}\".\n" +
-                        (if (attachments.isNotEmpty()) "4. Attachments (${attachments.size}): ${attachments.joinToString { it.name }}.\n" else "") +
-                        (if (st.webSearchEnabled) "5. Web search enabled." else "5. Fully local context.")
+                    "No GGUF model installed. Open Modules to download a model."
                 }
-            } else ""
+                updateAssistantMessage(sessionId, assistantMsgId) { it.copy(content = msg) }
+                _state.update { it.copy(isGenerating = false) }
+                persistSessions(context)
+                return@launch
+            }
 
-            if (thoughtText.isNotEmpty() && customThinking == null) {
-                val words = thoughtText.split(" ")
-                val sb = StringBuilder()
-                for (w in words) {
-                    sb.append(w).append(' ')
-                    updateAssistantMessage(sessionId, assistantMsgId) { m ->
-                        m.copy(thinking = sb.toString().trimEnd(), thinkingDurationSec = 0.8f)
+            val modelFile = File(modelsDir(context), installed.filename)
+            if (!modelFile.exists()) {
+                refreshInstalledModels(context)
+                val msg = if (isRussian) "Файл модели не найден: ${installed.filename}" else "Model file not found: ${installed.filename}"
+                updateAssistantMessage(sessionId, assistantMsgId) { it.copy(content = msg) }
+                _state.update { it.copy(isGenerating = false) }
+                persistSessions(context)
+                return@launch
+            }
+
+            if (!LlamaNativeBridge.isAvailable) {
+                val msg = if (isRussian) "Нативный движок llama.cpp недоступен на этом устройстве." else "Native llama.cpp engine is unavailable on this device."
+                updateAssistantMessage(sessionId, assistantMsgId) { it.copy(content = msg) }
+                _state.update { it.copy(isGenerating = false) }
+                persistSessions(context)
+                return@launch
+            }
+
+            val baseSys = st.effectiveSystemPrompt(isRussian)
+            val sysBuilder = StringBuilder(baseSys)
+            if (installed.supportsThinking) {
+                when {
+                    customThinking != null -> {
+                        if (sysBuilder.isNotEmpty()) sysBuilder.append("\n\n")
+                        sysBuilder.append("Use the following reasoning steps to form your final answer:\n$customThinking")
                     }
-                    delay(24)
+                    reasoning == AiReasoningLevel.OFF -> {
+                        if (sysBuilder.isNotEmpty()) sysBuilder.append("\n")
+                        sysBuilder.append("/no_think")
+                    }
+                    reasoning == AiReasoningLevel.HIGH -> {
+                        if (sysBuilder.isNotEmpty()) sysBuilder.append("\n")
+                        sysBuilder.append("Think deeply and step by step inside <think>...</think> before answering.")
+                    }
+                    else -> Unit
                 }
+            } else if (customThinking != null) {
+                if (sysBuilder.isNotEmpty()) sysBuilder.append("\n\n")
+                sysBuilder.append("Follow these reasoning steps:\n$customThinking")
             }
 
-            val fileSummary = attachments.firstOrNull { !it.textContent.isNullOrBlank() }?.let { att ->
-                val snippet = att.textContent!!.take(220)
-                if (isRussian) "\n\nПрочитан файл **${att.name}**:\n```\n$snippet\n```"
-                else "\n\nRead file **${att.name}**:\n```\n$snippet\n```"
-            } ?: ""
+            val sessionMsgs = st.sessions.firstOrNull { it.id == sessionId }?.messages.orEmpty()
+            val historyUntilPrompt = sessionMsgs
+                .takeWhile { it.id != assistantMsgId }
+                .filter { it.content.isNotBlank() }
 
-            val imageSummary = attachments.count { it.isImage }.let { imgCount ->
-                if (imgCount > 0) {
-                    if (isRussian) "\n\nПрикреплено изображений: $imgCount."
-                    else "\n\nAttached images: $imgCount."
-                } else ""
+            val rolesList = mutableListOf<String>()
+            val contentsList = mutableListOf<String>()
+            if (sysBuilder.isNotEmpty()) {
+                rolesList.add("system")
+                contentsList.add(sysBuilder.toString())
             }
-
-            val answer = buildString {
-                if (isRussian) {
-                    append("Модель **$modelName** (T=$tempStr, ${reasoning.name}) приняла запрос.")
-                    if (st.webSearchEnabled) append(" Режим веб-поиска активен.")
-                    append(fileSummary)
-                    append(imageSummary)
-                    append("\n\nНативный движок `llama.cpp` подключается следующим этапом в `Модули → Локальный ИИ`, после чего ответы будут генерироваться напрямую из загруженного `.gguf` файла.")
-                } else {
-                    append("Model **$modelName** (T=$tempStr, ${reasoning.name}) received your prompt.")
-                    if (st.webSearchEnabled) append(" Web search mode is active.")
-                    append(fileSummary)
-                    append(imageSummary)
-                    append("\n\nNative `llama.cpp` inference connects in the next step via `Modules → Local AI`, running directly from your downloaded `.gguf` file.")
+            historyUntilPrompt.takeLast(10).forEachIndexed { index, msg ->
+                val isLastUser = !msg.isUser.not() && index == historyUntilPrompt.takeLast(10).lastIndex
+                val text = buildString {
+                    append(msg.content)
+                    if (msg.isUser && msg.attachments.isNotEmpty()) {
+                        msg.attachments.forEach { att ->
+                            if (!att.textContent.isNullOrBlank()) {
+                                append("\n\n[File: ${att.name}]\n")
+                                append(att.textContent.take(2000))
+                            } else if (att.isImage) {
+                                append("\n[Attached image: ${att.name}]")
+                            }
+                        }
+                    } else if (isLastUser && attachments.isNotEmpty()) {
+                        attachments.forEach { att ->
+                            if (!att.textContent.isNullOrBlank()) {
+                                append("\n\n[File: ${att.name}]\n")
+                                append(att.textContent.take(2000))
+                            }
+                        }
+                    }
                 }
+                rolesList.add(if (msg.isUser) "user" else "assistant")
+                contentsList.add(text)
+            }
+            if (rolesList.none { it == "user" }) {
+                rolesList.add("user")
+                contentsList.add(userPrompt)
             }
 
-            val tokens = answer.split(" ")
-            val ansSb = StringBuilder()
-            for (tok in tokens) {
-                ansSb.append(tok).append(' ')
+            val startNs = System.nanoTime()
+            val resultCode = withContext(Dispatchers.IO) {
+                val loaded = LlamaNativeBridge.nativeLoadModel(
+                    modelPath = modelFile.absolutePath,
+                    nCtx = st.contextLength,
+                    nThreads = st.cpuThreads
+                )
+                if (!loaded) return@withContext -100
+
+                val rawSb = StringBuilder()
+                var lastUiUpdateMs = 0L
+                val maxTokens = when (reasoning) {
+                    AiReasoningLevel.OFF -> 512
+                    AiReasoningLevel.LOW -> 640
+                    AiReasoningLevel.MEDIUM -> 1024
+                    AiReasoningLevel.HIGH -> 1536
+                }
+
+                val code = LlamaNativeBridge.nativeGenerate(
+                    roles = rolesList.toTypedArray(),
+                    contents = contentsList.toTypedArray(),
+                    temperature = st.temperature,
+                    maxTokens = maxTokens,
+                    listener = LlamaTokenListener { token ->
+                        rawSb.append(token)
+                        val nowMs = System.currentTimeMillis()
+                        if (nowMs - lastUiUpdateMs >= 45L) {
+                            lastUiUpdateMs = nowMs
+                            val (parsedThink, parsedAnswer) = parseThinkingAndAnswer(rawSb.toString())
+                            val elapsedSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
+                            updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                m.copy(
+                                    thinking = customThinking ?: parsedThink,
+                                    thinkingDurationSec = if (parsedThink.isNotEmpty() || customThinking != null) elapsedSec else 0f,
+                                    content = parsedAnswer
+                                )
+                            }
+                        }
+                    }
+                )
+
+                val (finalThink, finalAnswer) = parseThinkingAndAnswer(rawSb.toString())
+                val totalSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
                 updateAssistantMessage(sessionId, assistantMsgId) { m ->
-                    m.copy(content = ansSb.toString().trimEnd())
+                    m.copy(
+                        thinking = customThinking ?: finalThink,
+                        thinkingDurationSec = if (finalThink.isNotEmpty() || customThinking != null) totalSec else 0f,
+                        content = finalAnswer.ifBlank { m.content }
+                    )
                 }
-                delay(28)
+                code
+            }
+
+            if (resultCode < 0) {
+                val errMsg = if (isRussian) {
+                    "Не удалось запустить модель (${installed.displayName}, код $resultCode). Попробуйте перезагрузить модель или уменьшить длину контекста."
+                } else {
+                    "Failed to run model (${installed.displayName}, code $resultCode). Try reloading or lowering context length."
+                }
+                updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                    if (m.content.isBlank()) m.copy(content = errMsg) else m
+                }
             }
 
             _state.update { it.copy(isGenerating = false) }

@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AnonGram"
 include(":app")
+include(":llama-jni")

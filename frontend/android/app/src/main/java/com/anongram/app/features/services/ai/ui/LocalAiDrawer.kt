@@ -66,6 +66,7 @@ fun LocalAiDrawer(
     onSelectChat: (String) -> Unit,
     onTogglePin: (String) -> Unit,
     onDeleteChat: (String) -> Unit,
+    onOpenAiSettings: () -> Unit,
     onOpenModules: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -276,15 +277,15 @@ fun LocalAiDrawer(
 
                 HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
-                // Ссылка на Модули (модели + настройки llama.cpp)
+                // Настройки ИИ (температура, рассуждения, системный промпт, потоки, контекст)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
                             onDismiss()
-                            onOpenModules()
+                            onOpenAiSettings()
                         }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -295,7 +296,35 @@ fun LocalAiDrawer(
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
-                        text = strings.aiSettingsLink,
+                        text = strings.aiSettingsTitle,
+                        color = scheme.textPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+
+                // Ссылка на Модули (скачивание и управление моделями)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            onDismiss()
+                            onOpenModules()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.EditNote,
+                        contentDescription = null,
+                        tint = scheme.textSecondary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = strings.modulesTitle,
                         color = scheme.textPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium

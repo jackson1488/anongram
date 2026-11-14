@@ -49,6 +49,35 @@ object HuggingFaceClient {
         }
     }
 
+    private fun openWithRedirects(initialUrl: String, existingBytes: Long): HttpURLConnection {
+        var currentUrl = initialUrl
+        var redirects = 0
+        while (redirects < 6) {
+            val conn = (URL(currentUrl).openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
+                connectTimeout = 20_000
+                readTimeout = 45_000
+                setRequestProperty("User-Agent", "AnonGram-Android/1.0")
+                if (existingBytes > 0L) {
+                    setRequestProperty("Range", "bytes=$existingBytes-")
+                }
+            }
+            val code = conn.responseCode
+            if (code in listOf(301, 302, 303, 307, 308)) {
+                val location = conn.getHeaderField("Location")
+                conn.disconnect()
+                if (location.isNullOrBlank()) {
+                    throw IllegalStateException("Redirect HTTP $code without Location")
+                }
+                currentUrl = URL(URL(currentUrl), location).toString()
+                redirects++
+                continue
+            }
+            return conn
+        }
+        throw IllegalStateException("Too many redirects")
+    }
+
     suspend fun downloadFile(
         url: String,
         destFile: File,
@@ -57,21 +86,21 @@ object HuggingFaceClient {
         runCatching {
             destFile.parentFile?.mkdirs()
             val tmpFile = File(destFile.parentFile, "${destFile.name}.part")
-            val existingBytes = if (tmpFile.exists()) tmpFile.length() else 0L
+            var existingBytes = if (tmpFile.exists()) tmpFile.length() else 0L
 
-            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                instanceFollowRedirects = true
-                connectTimeout = 15_000
-                readTimeout = 30_000
-                setRequestProperty("User-Agent", "AnonGram-Android/1.0")
-                if (existingBytes > 0L) {
-                    setRequestProperty("Range", "bytes=$existingBytes-")
-                }
+            var conn = openWithRedirects(url, existingBytes)
+            var code = conn.responseCode
+            if (code == 416 && existingBytes > 0L) {
+                conn.disconnect()
+                tmpFile.delete()
+                existingBytes = 0L
+                conn = openWithRedirects(url, 0L)
+                code = conn.responseCode
             }
 
-            val code = conn.responseCode
             val append = code == 206
             if (code !in 200..299) {
+                conn.disconnect()
                 throw IllegalStateException("HTTP $code")
             }
 
@@ -79,21 +108,35 @@ object HuggingFaceClient {
             val totalBytes = if (append && contentLen > 0L) existingBytes + contentLen else contentLen
             var downloaded = if (append) existingBytes else 0L
 
-            conn.inputStream.use { input ->
-                FileOutputStream(tmpFile, append).use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (isActive) {
-                        val read = input.read(buffer)
-                        if (read == -1) break
-                        output.write(buffer, 0, read)
-                        downloaded += read
-                        onProgress(downloaded, totalBytes)
+            try {
+                conn.inputStream.use { input ->
+                    FileOutputStream(tmpFile, append).use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (isActive) {
+                            val read = input.read(buffer)
+                            if (read == -1) break
+                            output.write(buffer, 0, read)
+                            downloaded += read
+                            onProgress(downloaded, totalBytes)
+                        }
                     }
                 }
+            } finally {
+                conn.disconnect()
             }
 
             if (!isActive) {
                 throw java.util.concurrent.CancellationException("Download cancelled")
+            }
+
+            // Verify GGUF magic header ("GGUF")
+            val magic = ByteArray(4)
+            val readMagic = tmpFile.inputStream().use { it.read(magic) }
+            if (readMagic < 4 || magic[0] != 'G'.code.toByte() || magic[1] != 'G'.code.toByte() ||
+                magic[2] != 'U'.code.toByte() || magic[3] != 'F'.code.toByte()
+            ) {
+                tmpFile.delete()
+                throw IllegalStateException("Invalid GGUF file")
             }
 
             if (destFile.exists()) destFile.delete()

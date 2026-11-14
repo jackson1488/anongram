@@ -29,9 +29,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.Add
@@ -39,7 +41,9 @@ import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.Mic
@@ -47,8 +51,10 @@ import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -80,9 +86,11 @@ import androidx.compose.ui.window.PopupProperties
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.services.ai.data.AiAttachment
+import com.anongram.app.features.services.ai.data.AiCatalog
 import com.anongram.app.features.services.ai.data.AiReasoningLevel
 import com.anongram.app.features.services.ai.data.LocalAiStore
 import com.anongram.app.features.services.ai.i18n.LocalAiI18n
+import com.anongram.app.features.services.ai.i18n.LocalAiI18nStrings
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -136,6 +144,14 @@ fun LocalAiChatScreen(
         }
     }
 
+    val ggufImportPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            LocalAiStore.importLocalGguf(context, uri)
+        }
+    }
+
     val activeMessages = state.activeSession?.messages ?: emptyList()
     val listState = rememberLazyListState()
     LaunchedEffect(activeMessages.size, activeMessages.lastOrNull()?.content?.length) {
@@ -145,6 +161,19 @@ fun LocalAiChatScreen(
     }
 
     AnonGramScreenSurface(modifier = modifier) {
+        if (state.installedModels.isEmpty()) {
+            LocalAiFirstRunGate(
+                strings = strings,
+                downloadingModelId = state.downloadingModelId,
+                downloadProgress = state.downloadProgress,
+                downloadError = state.downloadError,
+                onDownloadPreset = { LocalAiStore.downloadPreset(context, it) },
+                onCancelDownload = { LocalAiStore.cancelDownload() },
+                onImportGguf = { ggufImportPicker.launch(arrayOf("*/*")) },
+                onOpenModules = onOpenModules,
+                onClose = onClose
+            )
+        } else {
         Box(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -157,8 +186,8 @@ fun LocalAiChatScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(54.dp)
-                        .padding(horizontal = 8.dp),
+                        .height(48.dp)
+                        .padding(horizontal = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = { isDrawerOpen = true }, modifier = Modifier.size(40.dp)) {
@@ -555,9 +584,9 @@ fun LocalAiChatScreen(
                 }
             }
 
-            // Выпадающее меню моделей/рассуждений/температуры/системного промпта
-            LocalAiModelMenuPopup(
-                expanded = isModelMenuOpen,
+            // Выпадающее меню моделей/рассуждений/температуры/системного промпта/потоков/контекста
+            LocalAiModelMenu(
+                visible = isModelMenuOpen,
                 state = state,
                 strings = strings,
                 onDismiss = { isModelMenuOpen = false },
@@ -565,11 +594,13 @@ fun LocalAiChatScreen(
                     LocalAiStore.selectModel(context, modelId)
                     isModelMenuOpen = false
                 },
-                onOpenModules = onOpenModules,
-                onReasoningChange = { LocalAiStore.setReasoningLevel(context, it) },
-                onTemperatureChange = { LocalAiStore.setTemperature(context, it) },
-                onPromptPresetChange = { LocalAiStore.setSystemPromptPreset(context, it) },
-                onCustomPromptChange = { LocalAiStore.setCustomSystemPrompt(context, it) }
+                onSelectReasoning = { LocalAiStore.setReasoningLevel(context, it) },
+                onChangeTemperature = { LocalAiStore.setTemperature(context, it) },
+                onSelectPromptPreset = { LocalAiStore.setSystemPromptPreset(context, it) },
+                onChangeCustomPrompt = { LocalAiStore.setCustomSystemPrompt(context, it) },
+                onSelectThreads = { LocalAiStore.setCpuThreads(context, it) },
+                onSelectContext = { LocalAiStore.setContextLength(context, it) },
+                onOpenModules = onOpenModules
             )
 
             // Левая шторка истории чатов (открывается ТОЛЬКО кнопкой '=')
@@ -583,8 +614,10 @@ fun LocalAiChatScreen(
                 onSelectChat = { LocalAiStore.selectChat(it) },
                 onTogglePin = { LocalAiStore.togglePinChat(context, it) },
                 onDeleteChat = { LocalAiStore.deleteChat(context, it) },
+                onOpenAiSettings = { isModelMenuOpen = true },
                 onOpenModules = onOpenModules
             )
+        }
         }
     }
 }
@@ -721,6 +754,233 @@ private fun AttachmentPreviewChip(
                     .size(15.dp)
                     .clickable(onClick = onRemove)
             )
+        }
+    }
+}
+
+@Composable
+private fun LocalAiFirstRunGate(
+    strings: LocalAiI18nStrings,
+    downloadingModelId: String?,
+    downloadProgress: Float,
+    downloadError: String?,
+    onDownloadPreset: (com.anongram.app.features.services.ai.data.AiModelPreset) -> Unit,
+    onCancelDownload: () -> Unit,
+    onImportGguf: () -> Unit,
+    onOpenModules: () -> Unit,
+    onClose: () -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = strings.title,
+                color = scheme.textPrimary,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp)
+            )
+            IconButton(onClick = onClose, modifier = Modifier.size(38.dp)) {
+                Icon(
+                    imageVector = Icons.Outlined.Close,
+                    contentDescription = null,
+                    tint = scheme.textSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = strings.gateTitle,
+                color = scheme.textPrimary,
+                fontSize = 21.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = strings.gateSubtitle,
+                color = scheme.textSecondary,
+                fontSize = 14.sp,
+                lineHeight = 20.sp
+            )
+
+            if (downloadError != null) {
+                Text(
+                    text = downloadError,
+                    color = scheme.danger,
+                    fontSize = 12.5.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(scheme.danger.copy(alpha = 0.1f))
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.card)
+            ) {
+                AiCatalog.presets.forEachIndexed { idx, preset ->
+                    if (idx > 0) {
+                        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                    }
+                    val isDownloading = downloadingModelId == preset.id
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = preset.displayName,
+                                    color = scheme.textPrimary,
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "${preset.sizeMb} MB · ${preset.ramHint}",
+                                    color = scheme.textSecondary,
+                                    fontSize = 12.sp
+                                )
+                            }
+                            if (isDownloading) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "${(downloadProgress * 100).toInt()}%",
+                                        color = scheme.accent,
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    IconButton(onClick = onCancelDownload, modifier = Modifier.size(28.dp)) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Close,
+                                            contentDescription = null,
+                                            tint = scheme.textSecondary,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                            } else {
+                                Row(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(scheme.accent)
+                                        .clickable(enabled = downloadingModelId == null) { onDownloadPreset(preset) }
+                                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Download,
+                                        contentDescription = null,
+                                        tint = scheme.onAccent,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = strings.gateDownloadBtn,
+                                        color = scheme.onAccent,
+                                        fontSize = 12.5.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
+                            }
+                        }
+                        if (isDownloading) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            LinearProgressIndicator(
+                                progress = { downloadProgress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(3.dp)
+                                    .clip(RoundedCornerShape(2.dp)),
+                                color = scheme.accent,
+                                trackColor = scheme.divider
+                            )
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(scheme.card)
+                        .clickable(onClick = onImportGguf)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.FolderOpen,
+                        contentDescription = null,
+                        tint = scheme.accent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = strings.gateImportBtn,
+                        color = scheme.textPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(scheme.card)
+                        .clickable(onClick = onOpenModules)
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = strings.gateOpenModulesBtn,
+                        color = scheme.accent,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }
