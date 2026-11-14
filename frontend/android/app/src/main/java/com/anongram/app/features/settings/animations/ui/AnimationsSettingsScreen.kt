@@ -34,14 +34,16 @@ import com.anongram.app.features.settings.animations.i18n.AnimationsI18n
 import com.anongram.app.features.settings.animations.ui.components.AnimationsEffectsCard
 import com.anongram.app.features.settings.animations.ui.components.AnimationsPerformanceCard
 import com.anongram.app.features.settings.animations.ui.components.AnimationsTopBar
+import com.anongram.app.features.settings.animations.ui.transitions.resolveTransitionLabels
 
 /**
  * Экран «Анимации» (`features/settings/animations/`).
- * Плоский список разделов в стиле Telegram: переход в «Сообщения в чате», визуальные эффекты и производительность.
+ * Плоский список разделов в стиле Telegram: переход в «Сообщения в чате», «Переходы экранов», визуальные эффекты и производительность.
  */
 @Composable
 fun AnimationsSettingsScreen(
     onOpenMessagesAnimations: () -> Unit,
+    onOpenTransitionsAnimations: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -65,6 +67,12 @@ fun AnimationsSettingsScreen(
             MessageAppearStyle.CORNER_POP -> strings.stylePopTitle
             MessageAppearStyle.TOKEN_STREAM -> strings.styleStreamTitle
         }
+    }
+
+    val activeTransitionLabel = if (!state.screenTransitionsEnabled || state.reduceMotionEnabled) {
+        strings.messagesRowDisabled
+    } else {
+        resolveTransitionLabels(state.screenTransitionType, strings).first
     }
 
     AnonGramScreenSurface(modifier = modifier) {
@@ -96,6 +104,37 @@ fun AnimationsSettingsScreen(
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = activeStyleLabel,
+                            color = scheme.accent,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = scheme.textMuted
+                    )
+                }
+
+                HorizontalDivider(color = scheme.divider)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenTransitionsAnimations)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = strings.transitionsSectionTitle,
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = activeTransitionLabel,
                             color = scheme.accent,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium

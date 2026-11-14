@@ -44,7 +44,8 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.AnonGram"
-        android:hardwareAccelerated="true">
+        android:hardwareAccelerated="true"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name="com.anongram.app.MainActivity"

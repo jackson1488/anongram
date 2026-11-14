@@ -16,6 +16,7 @@ sealed interface SettingsRoute {
     data object DataStorage : SettingsRoute
     data object Animations : SettingsRoute
     data object AnimationsMessages : SettingsRoute
+    data object AnimationsTransitions : SettingsRoute
     data object Devices : SettingsRoute
     data object Battery : SettingsRoute
     data object Language : SettingsRoute

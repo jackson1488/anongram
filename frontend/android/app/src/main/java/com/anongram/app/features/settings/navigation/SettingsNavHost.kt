@@ -1,14 +1,10 @@
 package com.anongram.app.features.settings.navigation
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -16,9 +12,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.anongram.app.core.navigation.AnonGramTransitionScreen
+import com.anongram.app.core.navigation.PhysicsSprings
+import com.anongram.app.core.navigation.TransitionType
 import com.anongram.app.features.auth.data.crypto.KeystoreVault
 import com.anongram.app.features.settings.account.ui.AccountSettingsScreen
 import com.anongram.app.features.settings.battery.ui.BatterySettingsScreen
@@ -28,7 +28,7 @@ import com.anongram.app.features.settings.devices.ui.DevicesSettingsScreen
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.animations.ui.AnimationsSettingsScreen
 import com.anongram.app.features.settings.animations.ui.messages.MessageAnimationsSettingsScreen
-import kotlin.math.roundToInt
+import com.anongram.app.features.settings.animations.ui.transitions.ScreenTransitionsSettingsScreen
 import com.anongram.app.features.settings.language.ui.LanguageSettingsScreen
 import com.anongram.app.features.settings.main.ui.SettingsMainScreen
 import com.anongram.app.features.settings.modules.ui.ModulesSettingsScreen
@@ -40,10 +40,12 @@ import com.anongram.app.features.settings.security.ui.SecuritySettingsScreen
 import com.anongram.app.features.settings.search.ui.SettingsSearchScreen
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import com.anongram.app.features.settings.qr.ui.QrCameraScannerScreen
+import kotlinx.coroutines.launch
 
 /**
  * Навигационный хост раздела «Настройки» (`features/settings/`).
- * Обеспечивает плавные переходы между Главным меню, QR-хабом и всеми 9 изолированными подразделами.
+ * Обеспечивает плавные переходы между Главным меню, QR-хабом и всеми подразделами
+ * через единый движок [AnonGramTransitionScreen].
  */
 @Composable
 fun SettingsNavHost(
@@ -54,6 +56,7 @@ fun SettingsNavHost(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val vault = remember { KeystoreVault(context) }
     val identity = remember { vault.loadIdentity() }
 
@@ -70,48 +73,74 @@ fun SettingsNavHost(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
+    val navConfig = remember(animState) { animState.toNavigationTransitionConfig() }
     val backStack = remember { mutableStateListOf<SettingsRoute>(SettingsRoute.Main) }
     val currentRoute = backStack.lastOrNull() ?: SettingsRoute.Main
+    var underlayRoute by remember { mutableStateOf<SettingsRoute?>(null) }
+    val transitionProgress = remember { Animatable(0f) }
 
     val navigateTo: (SettingsRoute) -> Unit = { route ->
-        backStack.add(route)
-        onSubScreenVisibilityChange(route != SettingsRoute.Main)
+        if (currentRoute != route) {
+            val prev = currentRoute
+            underlayRoute = prev
+            backStack.add(route)
+            onSubScreenVisibilityChange(route != SettingsRoute.Main)
+            scope.launch {
+                if (navConfig.transitionType == TransitionType.INSTANT) {
+                    transitionProgress.snapTo(0f)
+                } else {
+                    transitionProgress.snapTo(1f)
+                    transitionProgress.animateTo(
+                        targetValue = 0f,
+                        animationSpec = if (navConfig.transitionType == TransitionType.SPRING_SWIPE) {
+                            PhysicsSprings.screenSpringSpec(
+                                damping = navConfig.springDamping,
+                                stiffness = navConfig.springStiffness * navConfig.speedMultiplier
+                            )
+                        } else {
+                            tween(durationMillis = navConfig.effectiveDurationMs)
+                        }
+                    )
+                }
+                underlayRoute = null
+            }
+        }
     }
 
     val popBack: () -> Unit = {
         if (backStack.size > 1) {
-            backStack.removeAt(backStack.lastIndex)
+            val target = backStack[backStack.lastIndex - 1]
+            underlayRoute = target
+            scope.launch {
+                if (navConfig.transitionType != TransitionType.INSTANT) {
+                    transitionProgress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = if (navConfig.transitionType == TransitionType.SPRING_SWIPE) {
+                            PhysicsSprings.screenSpringSpec(
+                                damping = navConfig.springDamping,
+                                stiffness = navConfig.springStiffness * navConfig.speedMultiplier
+                            )
+                        } else {
+                            tween(durationMillis = navConfig.effectiveDurationMs)
+                        }
+                    )
+                }
+                if (backStack.size > 1) {
+                    backStack.removeAt(backStack.lastIndex)
+                }
+                transitionProgress.snapTo(0f)
+                underlayRoute = null
+                onSubScreenVisibilityChange((backStack.lastOrNull() ?: SettingsRoute.Main) != SettingsRoute.Main)
+            }
         }
-        onSubScreenVisibilityChange((backStack.lastOrNull() ?: SettingsRoute.Main) != SettingsRoute.Main)
     }
 
     BackHandler(enabled = backStack.size > 1) {
         popBack()
     }
 
-    AnimatedContent(
-        targetState = currentRoute,
-        transitionSpec = {
-            if (!animState.screenTransitionsEnabled || animState.reduceMotionEnabled) {
-                fadeIn(snap()) togetherWith fadeOut(snap())
-            } else {
-                val durationMs = (280f * animState.speedMultiplier)
-                    .roundToInt()
-                    .coerceIn(70, 800)
-                val isBack = targetState == SettingsRoute.Main ||
-                    (initialState == SettingsRoute.AnimationsMessages && targetState == SettingsRoute.Animations)
-                if (isBack) {
-                    (slideInHorizontally(tween(durationMs)) { -it / 3 } + fadeIn(tween(durationMs))) togetherWith
-                        (slideOutHorizontally(tween(durationMs)) { it } + fadeOut(tween(durationMs)))
-                } else {
-                    (slideInHorizontally(tween(durationMs)) { it } + fadeIn(tween(durationMs))) togetherWith
-                        (slideOutHorizontally(tween(durationMs)) { -it / 3 } + fadeOut(tween(durationMs)))
-                }
-            }
-        },
-        label = "SettingsNavHostTransition",
-        modifier = modifier
-    ) { route ->
+    @Composable
+    fun RenderRoute(route: SettingsRoute) {
         when (route) {
             SettingsRoute.Main -> {
                 SettingsMainScreen(
@@ -190,12 +219,19 @@ fun SettingsNavHost(
             SettingsRoute.Animations -> {
                 AnimationsSettingsScreen(
                     onOpenMessagesAnimations = { navigateTo(SettingsRoute.AnimationsMessages) },
+                    onOpenTransitionsAnimations = { navigateTo(SettingsRoute.AnimationsTransitions) },
                     onBack = popBack
                 )
             }
 
             SettingsRoute.AnimationsMessages -> {
                 MessageAnimationsSettingsScreen(
+                    onBack = popBack
+                )
+            }
+
+            SettingsRoute.AnimationsTransitions -> {
+                ScreenTransitionsSettingsScreen(
                     onBack = popBack
                 )
             }
@@ -238,6 +274,22 @@ fun SettingsNavHost(
                     onBack = popBack
                 )
             }
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        underlayRoute?.let { bgRoute ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                RenderRoute(bgRoute)
+            }
+        }
+
+        AnonGramTransitionScreen(
+            progress = transitionProgress.value,
+            isExit = false,
+            config = navConfig
+        ) {
+            RenderRoute(currentRoute)
         }
     }
 }

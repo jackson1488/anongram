@@ -27,6 +27,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
@@ -34,7 +35,9 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.anongram.app.core.navigation.AnonGramTransitionScreen
 import com.anongram.app.core.navigation.NavigationTransitionConfig
 import com.anongram.app.core.navigation.PhysicsSprings
+import com.anongram.app.core.navigation.TransitionType
 import com.anongram.app.core.theme.ThemeController
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.archive.ArchiveScreen
@@ -91,8 +94,12 @@ fun MainAppShell(
     val audioPlayerState by audioController.state.collectAsState()
 
     val scheme by themeController.scheme.collectAsState()
+    val animState by AnimationsSettingsStore.state.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        AnimationsSettingsStore.ensureInitialized(context)
+    }
 
-    val navConfig = remember { NavigationTransitionConfig() }
+    val navConfig = remember(animState) { animState.toNavigationTransitionConfig() }
     val messagesRepository = remember { InMemoryChatMessagesRepository() }
     val chatsRepository = remember { InMemoryChatListRepository(messagesRepository) }
     val contactsRepository = remember { InMemoryContactRepository() }
@@ -119,12 +126,12 @@ fun MainAppShell(
     fun openSession(session: IChatSession) {
         chatsViewModel.clearSelection()
         chatsViewModel.markRead(session.id)
-        scope.openOverlay(detailProgress) { selectedSession = session }
+        scope.openOverlay(detailProgress, navConfig) { selectedSession = session }
     }
 
     fun closeSession() {
         chatsViewModel.refresh()
-        scope.closeOverlay(detailProgress) { selectedSession = null }
+        scope.closeOverlay(detailProgress, navConfig) { selectedSession = null }
     }
 
     fun openContact(contact: Contact) {
@@ -138,37 +145,37 @@ fun MainAppShell(
 
     fun openSearch() {
         chatsViewModel.clearSelection()
-        scope.openOverlay(searchProgress) { isSearchOpen = true }
+        scope.openOverlay(searchProgress, navConfig) { isSearchOpen = true }
     }
 
     fun closeSearch() {
-        scope.closeOverlay(searchProgress) { isSearchOpen = false }
+        scope.closeOverlay(searchProgress, navConfig) { isSearchOpen = false }
     }
 
     fun openContacts() {
         chatsViewModel.clearSelection()
-        scope.openOverlay(contactsProgress) { isContactsOpen = true }
+        scope.openOverlay(contactsProgress, navConfig) { isContactsOpen = true }
     }
 
     fun closeContacts() {
-        scope.closeOverlay(contactsProgress) { isContactsOpen = false }
+        scope.closeOverlay(contactsProgress, navConfig) { isContactsOpen = false }
     }
 
     fun openArchive() {
         chatsViewModel.clearSelection()
-        scope.openOverlay(archiveProgress) { isArchiveOpen = true }
+        scope.openOverlay(archiveProgress, navConfig) { isArchiveOpen = true }
     }
 
     fun closeArchive() {
-        scope.closeOverlay(archiveProgress) { isArchiveOpen = false }
+        scope.closeOverlay(archiveProgress, navConfig) { isArchiveOpen = false }
     }
 
     fun openLanguage() {
-        scope.openOverlay(languageProgress) { isLanguageOpen = true }
+        scope.openOverlay(languageProgress, navConfig) { isLanguageOpen = true }
     }
 
     fun closeLanguage() {
-        scope.closeOverlay(languageProgress) { isLanguageOpen = false }
+        scope.closeOverlay(languageProgress, navConfig) { isLanguageOpen = false }
     }
 
     val showDetailPane = false
@@ -419,28 +426,51 @@ fun MainAppShell(
 /** Открытие оверлея: подложить экран под анимацию входа. */
 private fun CoroutineScope.openOverlay(
     progress: Animatable<Float, *>,
+    config: NavigationTransitionConfig,
     show: () -> Unit
 ) {
     launch {
-        progress.snapTo(1f)
-        show()
-        progress.animateTo(
-            targetValue = 0f,
-            animationSpec = PhysicsSprings.screenSpringSpec()
-        )
+        if (config.transitionType == TransitionType.INSTANT) {
+            progress.snapTo(0f)
+            show()
+        } else {
+            progress.snapTo(1f)
+            show()
+            progress.animateTo(
+                targetValue = 0f,
+                animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {
+                    PhysicsSprings.screenSpringSpec(
+                        damping = config.springDamping,
+                        stiffness = config.springStiffness * config.speedMultiplier
+                    )
+                } else {
+                    tween(durationMillis = config.effectiveDurationMs)
+                }
+            )
+        }
     }
 }
 
 /** Закрытие оверлея: анимация выхода, затем скрытие. */
 private fun CoroutineScope.closeOverlay(
     progress: Animatable<Float, *>,
+    config: NavigationTransitionConfig,
     hide: () -> Unit
 ) {
     launch {
-        progress.animateTo(
-            targetValue = 1f,
-            animationSpec = PhysicsSprings.screenSpringSpec()
-        )
+        if (config.transitionType != TransitionType.INSTANT) {
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {
+                    PhysicsSprings.screenSpringSpec(
+                        damping = config.springDamping,
+                        stiffness = config.springStiffness * config.speedMultiplier
+                    )
+                } else {
+                    tween(durationMillis = config.effectiveDurationMs)
+                }
+            )
+        }
         hide()
         progress.snapTo(0f)
     }

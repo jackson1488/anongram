@@ -1,6 +1,9 @@
 package com.anongram.app.features.settings.animations.data
 
 import android.content.Context
+import com.anongram.app.core.navigation.NavigationTransitionConfig
+import com.anongram.app.core.navigation.ParticleStyle
+import com.anongram.app.core.navigation.TransitionType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -55,7 +58,12 @@ data class AnimationsSettingsState(
     val tokenStreamSpeed: TokenStreamSpeed = TokenStreamSpeed.FAST,
     val messageDeleteStyle: MessageDeleteStyle = MessageDeleteStyle.PARTICLES,
     val listItemShiftEnabled: Boolean = true,
-    val statusCheckAnimEnabled: Boolean = true
+    val statusCheckAnimEnabled: Boolean = true,
+    val screenTransitionType: TransitionType = TransitionType.SPRING_SWIPE,
+    val screenParticleStyle: ParticleStyle = ParticleStyle.VAPOR_DUST,
+    val screenTransitionSpringDamping: Float = 0.76f,
+    val enableGesturePullCombo: Boolean = true,
+    val enablePredictiveBackCombo: Boolean = true
 ) {
     val speedMultiplier: Float
         get() = when (animationSpeedOption) {
@@ -64,6 +72,31 @@ data class AnimationsSettingsState(
             "2.0x" -> 0.5f
             else -> 1.0f
         }
+
+    /** Скорость для NavigationTransitionConfig: выше 1.0x = быстрее переход. */
+    val transitionSpeedMultiplier: Float
+        get() = when (animationSpeedOption) {
+            "0.5x" -> 0.55f
+            "1.5x" -> 1.5f
+            "2.0x" -> 2.0f
+            else -> 1.0f
+        }
+
+    fun toNavigationTransitionConfig(): NavigationTransitionConfig {
+        val effectiveType = if (!screenTransitionsEnabled || reduceMotionEnabled) {
+            TransitionType.INSTANT
+        } else {
+            screenTransitionType
+        }
+        return NavigationTransitionConfig(
+            transitionType = effectiveType,
+            speedMultiplier = transitionSpeedMultiplier,
+            springDamping = screenTransitionSpringDamping.coerceIn(0.5f, 1.0f),
+            particleStyle = screenParticleStyle,
+            enableGesturePullCombo = enableGesturePullCombo,
+            enablePredictiveBackCombo = enablePredictiveBackCombo
+        )
+    }
 }
 
 object AnimationsSettingsStore {
@@ -81,6 +114,11 @@ object AnimationsSettingsStore {
     private const val KEY_MESSAGE_DELETE_STYLE = "key_message_delete_style"
     private const val KEY_LIST_SHIFT_ENABLED = "key_list_shift_enabled"
     private const val KEY_STATUS_CHECK_ANIM = "key_status_check_anim"
+    private const val KEY_SCREEN_TRANSITION_TYPE = "key_screen_transition_type"
+    private const val KEY_SCREEN_PARTICLE_STYLE = "key_screen_particle_style"
+    private const val KEY_SCREEN_SPRING_DAMPING = "key_screen_spring_damping"
+    private const val KEY_COMBO_GESTURE_PULL = "key_combo_gesture_pull"
+    private const val KEY_COMBO_PREDICTIVE_BACK = "key_combo_predictive_back"
 
     @Volatile
     private var initialized = false
@@ -93,6 +131,8 @@ object AnimationsSettingsStore {
         synchronized(this) {
             if (initialized) return
             val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val transitionName = prefs.getString(KEY_SCREEN_TRANSITION_TYPE, TransitionType.SPRING_SWIPE.name)
+            val particleName = prefs.getString(KEY_SCREEN_PARTICLE_STYLE, ParticleStyle.VAPOR_DUST.name)
             _state.value = AnimationsSettingsState(
                 screenTransitionsEnabled = prefs.getBoolean(KEY_SCREEN_TRANSITIONS, true),
                 glassBlurEnabled = prefs.getBoolean(KEY_GLASS_BLUR, true),
@@ -112,7 +152,15 @@ object AnimationsSettingsStore {
                     prefs.getString(KEY_MESSAGE_DELETE_STYLE, MessageDeleteStyle.PARTICLES.id)
                 ),
                 listItemShiftEnabled = prefs.getBoolean(KEY_LIST_SHIFT_ENABLED, true),
-                statusCheckAnimEnabled = prefs.getBoolean(KEY_STATUS_CHECK_ANIM, true)
+                statusCheckAnimEnabled = prefs.getBoolean(KEY_STATUS_CHECK_ANIM, true),
+                screenTransitionType = TransitionType.entries.firstOrNull { it.name == transitionName }
+                    ?: TransitionType.SPRING_SWIPE,
+                screenParticleStyle = ParticleStyle.entries.firstOrNull { it.name == particleName }
+                    ?: ParticleStyle.VAPOR_DUST,
+                screenTransitionSpringDamping = prefs.getFloat(KEY_SCREEN_SPRING_DAMPING, 0.76f)
+                    .coerceIn(0.5f, 1.0f),
+                enableGesturePullCombo = prefs.getBoolean(KEY_COMBO_GESTURE_PULL, true),
+                enablePredictiveBackCombo = prefs.getBoolean(KEY_COMBO_PREDICTIVE_BACK, true)
             )
             initialized = true
         }
@@ -197,5 +245,36 @@ object AnimationsSettingsStore {
         ensureInitialized(context)
         prefs(context).edit().putBoolean(KEY_STATUS_CHECK_ANIM, enabled).apply()
         _state.update { it.copy(statusCheckAnimEnabled = enabled) }
+    }
+
+    fun setScreenTransitionType(context: Context, type: TransitionType) {
+        ensureInitialized(context)
+        prefs(context).edit().putString(KEY_SCREEN_TRANSITION_TYPE, type.name).apply()
+        _state.update { it.copy(screenTransitionType = type) }
+    }
+
+    fun setScreenParticleStyle(context: Context, style: ParticleStyle) {
+        ensureInitialized(context)
+        prefs(context).edit().putString(KEY_SCREEN_PARTICLE_STYLE, style.name).apply()
+        _state.update { it.copy(screenParticleStyle = style) }
+    }
+
+    fun setScreenTransitionSpringDamping(context: Context, damping: Float) {
+        val clamped = damping.coerceIn(0.5f, 1.0f)
+        ensureInitialized(context)
+        prefs(context).edit().putFloat(KEY_SCREEN_SPRING_DAMPING, clamped).apply()
+        _state.update { it.copy(screenTransitionSpringDamping = clamped) }
+    }
+
+    fun setEnableGesturePullCombo(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_COMBO_GESTURE_PULL, enabled).apply()
+        _state.update { it.copy(enableGesturePullCombo = enabled) }
+    }
+
+    fun setEnablePredictiveBackCombo(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_COMBO_PREDICTIVE_BACK, enabled).apply()
+        _state.update { it.copy(enablePredictiveBackCombo = enabled) }
     }
 }
