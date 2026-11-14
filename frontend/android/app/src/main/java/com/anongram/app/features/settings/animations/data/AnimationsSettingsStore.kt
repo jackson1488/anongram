@@ -84,12 +84,30 @@ data class AnimationsSettingsState(
     val transitionSpeedMultiplier: Float
         get() = transitionSpeedScale.coerceIn(0.4f, 2.5f)
 
+    val isBaseSwipeActive: Boolean
+        get() = screenTransitionType == TransitionType.SPRING_SWIPE
+
+    val isBaseParallaxActive: Boolean
+        get() = screenTransitionType == TransitionType.CUPERTINO_PARALLAX
+
+    val isBaseMiniCardActive: Boolean
+        get() = screenTransitionType == TransitionType.CARD_STACK_PEEK ||
+            ((isBaseSwipeActive || isBaseParallaxActive) && enableMiniCardCombo)
+
+    val isBasePredictiveActive: Boolean
+        get() = screenTransitionType == TransitionType.PREDICTIVE_BACK ||
+            ((isBaseSwipeActive || isBaseParallaxActive) && enablePredictiveBackCombo)
+
     fun toNavigationTransitionConfig(): NavigationTransitionConfig {
         val effectiveType = if (!screenTransitionsEnabled || reduceMotionEnabled) {
             TransitionType.INSTANT
         } else {
             screenTransitionType
         }
+        val fingerSwipeAllowed = enableGesturePullCombo &&
+            effectiveType != TransitionType.INSTANT &&
+            effectiveType != TransitionType.CARD_STACK_PEEK &&
+            effectiveType != TransitionType.PREDICTIVE_BACK
         return NavigationTransitionConfig(
             transitionType = effectiveType,
             speedMultiplier = transitionSpeedMultiplier,
@@ -102,7 +120,8 @@ data class AnimationsSettingsState(
             enableEnterAnimation = enableEnterAnimation,
             enableExitAnimation = enableExitAnimation,
             particleSlideCombo = particleSlideCombo,
-            denseParticles = denseParticles
+            denseParticles = denseParticles,
+            allowFullWidthSwipe = fingerSwipeAllowed
         )
     }
 }
@@ -272,8 +291,98 @@ object AnimationsSettingsStore {
 
     fun setScreenTransitionType(context: Context, type: TransitionType) {
         ensureInitialized(context)
-        prefs(context).edit().putString(KEY_SCREEN_TRANSITION_TYPE, type.name).apply()
-        _state.update { it.copy(screenTransitionType = type) }
+        val isBaseType = type == TransitionType.SPRING_SWIPE ||
+            type == TransitionType.CUPERTINO_PARALLAX ||
+            type == TransitionType.CARD_STACK_PEEK ||
+            type == TransitionType.PREDICTIVE_BACK
+        val editor = prefs(context).edit().putString(KEY_SCREEN_TRANSITION_TYPE, type.name)
+        if (!isBaseType) {
+            editor.putBoolean(KEY_COMBO_MINI_CARD, false)
+            editor.putBoolean(KEY_COMBO_PREDICTIVE_BACK, false)
+        }
+        editor.apply()
+        _state.update {
+            if (isBaseType) it.copy(screenTransitionType = type)
+            else it.copy(
+                screenTransitionType = type,
+                enableMiniCardCombo = false,
+                enablePredictiveBackCombo = false
+            )
+        }
+    }
+
+    fun toggleBaseSwipe(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        val cur = _state.value
+        val nextType = when {
+            enabled -> TransitionType.SPRING_SWIPE
+            cur.enableMiniCardCombo || cur.screenTransitionType == TransitionType.CARD_STACK_PEEK -> TransitionType.CARD_STACK_PEEK
+            cur.enablePredictiveBackCombo || cur.screenTransitionType == TransitionType.PREDICTIVE_BACK -> TransitionType.PREDICTIVE_BACK
+            else -> TransitionType.INSTANT
+        }
+        prefs(context).edit().putString(KEY_SCREEN_TRANSITION_TYPE, nextType.name).apply()
+        _state.update { it.copy(screenTransitionType = nextType) }
+    }
+
+    fun toggleBaseParallax(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        val cur = _state.value
+        val nextType = when {
+            enabled -> TransitionType.CUPERTINO_PARALLAX
+            cur.enableMiniCardCombo || cur.screenTransitionType == TransitionType.CARD_STACK_PEEK -> TransitionType.CARD_STACK_PEEK
+            cur.enablePredictiveBackCombo || cur.screenTransitionType == TransitionType.PREDICTIVE_BACK -> TransitionType.PREDICTIVE_BACK
+            else -> TransitionType.INSTANT
+        }
+        prefs(context).edit().putString(KEY_SCREEN_TRANSITION_TYPE, nextType.name).apply()
+        _state.update { it.copy(screenTransitionType = nextType) }
+    }
+
+    fun toggleBaseMiniCard(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        val cur = _state.value
+        val hasSwipeOrParallax = cur.isBaseSwipeActive || cur.isBaseParallaxActive
+        val nextType = when {
+            enabled && hasSwipeOrParallax -> cur.screenTransitionType
+            enabled -> TransitionType.CARD_STACK_PEEK
+            hasSwipeOrParallax -> cur.screenTransitionType
+            else -> TransitionType.INSTANT
+        }
+        prefs(context).edit()
+            .putString(KEY_SCREEN_TRANSITION_TYPE, nextType.name)
+            .putBoolean(KEY_COMBO_MINI_CARD, enabled)
+            .putBoolean(KEY_COMBO_PREDICTIVE_BACK, if (enabled) false else cur.enablePredictiveBackCombo)
+            .apply()
+        _state.update {
+            it.copy(
+                screenTransitionType = nextType,
+                enableMiniCardCombo = enabled,
+                enablePredictiveBackCombo = if (enabled) false else it.enablePredictiveBackCombo
+            )
+        }
+    }
+
+    fun toggleBasePredictive(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        val cur = _state.value
+        val hasSwipeOrParallax = cur.isBaseSwipeActive || cur.isBaseParallaxActive
+        val nextType = when {
+            enabled && hasSwipeOrParallax -> cur.screenTransitionType
+            enabled -> TransitionType.PREDICTIVE_BACK
+            hasSwipeOrParallax -> cur.screenTransitionType
+            else -> TransitionType.INSTANT
+        }
+        prefs(context).edit()
+            .putString(KEY_SCREEN_TRANSITION_TYPE, nextType.name)
+            .putBoolean(KEY_COMBO_PREDICTIVE_BACK, enabled)
+            .putBoolean(KEY_COMBO_MINI_CARD, if (enabled) false else cur.enableMiniCardCombo)
+            .apply()
+        _state.update {
+            it.copy(
+                screenTransitionType = nextType,
+                enablePredictiveBackCombo = enabled,
+                enableMiniCardCombo = if (enabled) false else it.enableMiniCardCombo
+            )
+        }
     }
 
     fun setScreenParticleStyle(context: Context, style: ParticleStyle) {

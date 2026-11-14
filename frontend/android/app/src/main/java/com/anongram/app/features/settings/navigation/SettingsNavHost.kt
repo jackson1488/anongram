@@ -107,6 +107,9 @@ fun SettingsNavHost(
                 } else {
                     transitionProgress.snapTo(1f)
                     androidx.compose.runtime.withFrameNanos { }
+                    if (navConfig.transitionType == TransitionType.PARTICLE_DISSOLVE) {
+                        androidx.compose.runtime.withFrameNanos { }
+                    }
                     transitionProgress.animateTo(
                         targetValue = 0f,
                         animationSpec = if (navConfig.transitionType == TransitionType.SPRING_SWIPE) {
@@ -177,7 +180,9 @@ fun SettingsNavHost(
     }
 
     val usePredictiveBack = navConfig.transitionType == TransitionType.PREDICTIVE_BACK ||
-        navConfig.enablePredictiveBackCombo
+        navConfig.transitionType == TransitionType.CARD_STACK_PEEK ||
+        navConfig.enablePredictiveBackCombo ||
+        navConfig.enableMiniCardCombo
     androidx.activity.compose.BackHandler(enabled = backStack.size > 1 && !usePredictiveBack) {
         popBack()
     }
@@ -354,7 +359,7 @@ fun SettingsNavHost(
             isExit = isExiting,
             config = navConfig,
             modifier = Modifier.swipeBackGesture(
-                enabled = backStack.size > 1 && navConfig.enableGesturePullCombo,
+                enabled = backStack.size > 1 && navConfig.allowFullWidthSwipe,
                 onDragStart = {
                     if (backStack.size > 1) {
                         underlayRoute = backStack[backStack.lastIndex - 1]

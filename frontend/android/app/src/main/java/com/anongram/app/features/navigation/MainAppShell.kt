@@ -232,7 +232,9 @@ fun MainAppShell(
         isLanguageOpen || isSearchOpen || isContactsOpen || isArchiveOpen || selectedSession != null
     )
     val usePredictiveBack = navConfig.transitionType == TransitionType.PREDICTIVE_BACK ||
-        navConfig.enablePredictiveBackCombo
+        navConfig.transitionType == TransitionType.CARD_STACK_PEEK ||
+        navConfig.enablePredictiveBackCombo ||
+        navConfig.enableMiniCardCombo
     BackHandler(enabled = hasTransitionOverlay && !usePredictiveBack) {
         when {
             isLanguageOpen -> closeLanguage()
@@ -368,7 +370,7 @@ fun MainAppShell(
                     isExit = isDetailExiting,
                     config = navConfig,
                     modifier = Modifier.swipeBackGesture(
-                        enabled = navConfig.enableGesturePullCombo,
+                        enabled = navConfig.allowFullWidthSwipe,
                         onDragStart = { isDetailExiting = true },
                         onDragProgress = { p -> scope.launch { detailProgress.snapTo(p) } },
                         onDragEnd = { shouldClose ->
@@ -400,7 +402,7 @@ fun MainAppShell(
                 isExit = isSearchExiting,
                 config = navConfig,
                 modifier = Modifier.swipeBackGesture(
-                    enabled = navConfig.enableGesturePullCombo,
+                    enabled = navConfig.allowFullWidthSwipe,
                     onDragStart = { isSearchExiting = true },
                     onDragProgress = { p -> scope.launch { searchProgress.snapTo(p) } },
                     onDragEnd = { shouldClose ->
@@ -427,7 +429,7 @@ fun MainAppShell(
                 isExit = isContactsExiting,
                 config = navConfig,
                 modifier = Modifier.swipeBackGesture(
-                    enabled = navConfig.enableGesturePullCombo,
+                    enabled = navConfig.allowFullWidthSwipe,
                     onDragStart = { isContactsExiting = true },
                     onDragProgress = { p -> scope.launch { contactsProgress.snapTo(p) } },
                     onDragEnd = { shouldClose ->
@@ -458,7 +460,7 @@ fun MainAppShell(
                 isExit = isArchiveExiting,
                 config = navConfig,
                 modifier = Modifier.swipeBackGesture(
-                    enabled = navConfig.enableGesturePullCombo,
+                    enabled = navConfig.allowFullWidthSwipe,
                     onDragStart = { isArchiveExiting = true },
                     onDragProgress = { p -> scope.launch { archiveProgress.snapTo(p) } },
                     onDragEnd = { shouldClose ->
@@ -484,7 +486,7 @@ fun MainAppShell(
                 isExit = isLanguageExiting,
                 config = navConfig,
                 modifier = Modifier.swipeBackGesture(
-                    enabled = navConfig.enableGesturePullCombo,
+                    enabled = navConfig.allowFullWidthSwipe,
                     onDragStart = { isLanguageExiting = true },
                     onDragProgress = { p -> scope.launch { languageProgress.snapTo(p) } },
                     onDragEnd = { shouldClose ->
@@ -563,6 +565,9 @@ private fun CoroutineScope.openOverlay(
             progress.snapTo(1f)
             show()
             androidx.compose.runtime.withFrameNanos { }
+            if (config.transitionType == TransitionType.PARTICLE_DISSOLVE) {
+                androidx.compose.runtime.withFrameNanos { }
+            }
             progress.animateTo(
                 targetValue = 0f,
                 animationSpec = if (config.transitionType == TransitionType.SPRING_SWIPE) {

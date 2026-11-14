@@ -105,22 +105,65 @@ fun ScreenTransitionsSettingsScreen(
             ) {
                 SectionHeader(title = strings.transitionsBaseSectionHeader)
 
-                BaseTransitionTypes.forEach { type ->
-                    TransitionStyleItem(
-                        type = type,
-                        selected = state.screenTransitionType == type,
-                        strings = strings,
-                        onSelect = {
-                            AnimationsSettingsStore.setScreenTransitionType(context, type)
-                        }
-                    )
-                    StyleInlineController(
-                        type = type,
-                        isSelected = state.screenTransitionType == type,
-                        state = state,
-                        strings = strings
-                    )
-                }
+                ComboToggleRow(
+                    title = strings.transSpringSwipeTitle,
+                    description = strings.transSpringSwipeDesc,
+                    checked = state.isBaseSwipeActive,
+                    onCheckedChange = {
+                        AnimationsSettingsStore.toggleBaseSwipe(context, it)
+                    }
+                )
+                StyleInlineController(
+                    type = TransitionType.SPRING_SWIPE,
+                    isSelected = state.isBaseSwipeActive,
+                    state = state,
+                    strings = strings
+                )
+
+                ComboToggleRow(
+                    title = strings.transCupertinoTitle,
+                    description = strings.transCupertinoDesc,
+                    checked = state.isBaseParallaxActive,
+                    onCheckedChange = {
+                        AnimationsSettingsStore.toggleBaseParallax(context, it)
+                    }
+                )
+                StyleInlineController(
+                    type = TransitionType.CUPERTINO_PARALLAX,
+                    isSelected = state.isBaseParallaxActive,
+                    state = state,
+                    strings = strings
+                )
+
+                ComboToggleRow(
+                    title = strings.transCardStackTitle,
+                    description = strings.transCardStackDesc,
+                    checked = state.isBaseMiniCardActive,
+                    onCheckedChange = {
+                        AnimationsSettingsStore.toggleBaseMiniCard(context, it)
+                    }
+                )
+                StyleInlineController(
+                    type = TransitionType.CARD_STACK_PEEK,
+                    isSelected = state.isBaseMiniCardActive && !state.isBaseSwipeActive && !state.isBaseParallaxActive,
+                    state = state,
+                    strings = strings
+                )
+
+                ComboToggleRow(
+                    title = strings.transPredictiveBackTitle,
+                    description = strings.transPredictiveBackDesc,
+                    checked = state.isBasePredictiveActive,
+                    onCheckedChange = {
+                        AnimationsSettingsStore.toggleBasePredictive(context, it)
+                    }
+                )
+                StyleInlineController(
+                    type = TransitionType.PREDICTIVE_BACK,
+                    isSelected = state.isBasePredictiveActive && !state.isBaseSwipeActive && !state.isBaseParallaxActive,
+                    state = state,
+                    strings = strings
+                )
 
                 HorizontalDivider(
                     color = scheme.divider,
@@ -128,24 +171,6 @@ fun ScreenTransitionsSettingsScreen(
                 )
 
                 SectionHeader(title = strings.transitionsComboHeader)
-
-                ComboToggleRow(
-                    title = "+ ${strings.transCardStackTitle}",
-                    description = strings.transCardStackDesc,
-                    checked = state.enableMiniCardCombo,
-                    onCheckedChange = {
-                        AnimationsSettingsStore.setEnableMiniCardCombo(context, it)
-                    }
-                )
-
-                ComboToggleRow(
-                    title = strings.transitionsComboPredictiveTitle,
-                    description = strings.transitionsComboPredictiveDesc,
-                    checked = state.enablePredictiveBackCombo,
-                    onCheckedChange = {
-                        AnimationsSettingsStore.setEnablePredictiveBackCombo(context, it)
-                    }
-                )
 
                 ComboToggleRow(
                     title = strings.transitionsComboGestureTitle,
@@ -375,6 +400,11 @@ private fun StyleInlineController(
                         onDampingChange = {
                             AnimationsSettingsStore.setScreenTransitionSpringDamping(context, it)
                         }
+                    )
+                    SpeedSliderBlock(
+                        title = strings.transitionsSpeedTitle,
+                        speedScale = state.transitionSpeedScale,
+                        onSpeedChange = { AnimationsSettingsStore.setTransitionSpeedScale(context, it) }
                     )
                 }
 

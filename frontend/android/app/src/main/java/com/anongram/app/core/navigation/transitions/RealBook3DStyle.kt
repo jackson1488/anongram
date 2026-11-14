@@ -17,8 +17,11 @@ class RealBook3DStyle : ITransitionStyle {
         density: Float
     ) {
         transformOrigin = TransformOrigin(0f, 0.5f)
-        cameraDistance = 12 * density
-        rotationY = if (isExit) -progress * 85f else -progress * 85f
-        alpha = (1f - progress * 0.18f).coerceIn(0f, 1f)
+        cameraDistance = 14 * density
+        rotationY = -progress * 72f
+        if (!isExit) {
+            translationX = progress * size.width * 0.20f
+        }
+        alpha = (1f - progress * 0.15f).coerceIn(0f, 1f)
     }
 }
