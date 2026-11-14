@@ -42,18 +42,31 @@ fun Modifier.applyAnonGramTransition(
             translationX = progress * size.width
         }
     }
+    val effectiveType = if (
+        isExit &&
+        config.isSystemGestureActive &&
+        (config.transitionType == TransitionType.SPRING_SWIPE || config.transitionType == TransitionType.CUPERTINO_PARALLAX)
+    ) {
+        when {
+            config.enablePredictiveBackCombo -> TransitionType.PREDICTIVE_BACK
+            config.enableMiniCardCombo -> TransitionType.CARD_STACK_PEEK
+            else -> config.transitionType
+        }
+    } else {
+        config.transitionType
+    }
     return graphicsLayer {
-        with(TransitionStyleRegistry.resolve(config.transitionType)) {
+        with(TransitionStyleRegistry.resolve(effectiveType)) {
             transform(progress, isExit, config, density)
         }
         val hasCardCombo = config.enableMiniCardCombo || config.enablePredictiveBackCombo
         if (
             hasCardCombo &&
             isExit &&
-            config.transitionType != TransitionType.SPRING_SWIPE &&
-            config.transitionType != TransitionType.CARD_STACK_PEEK &&
-            config.transitionType != TransitionType.PREDICTIVE_BACK &&
-            config.transitionType != TransitionType.PARTICLE_DISSOLVE
+            effectiveType != TransitionType.SPRING_SWIPE &&
+            effectiveType != TransitionType.CARD_STACK_PEEK &&
+            effectiveType != TransitionType.PREDICTIVE_BACK &&
+            effectiveType != TransitionType.PARTICLE_DISSOLVE
         ) {
             val cardScale = (1f - progress * 0.14f).coerceIn(0.82f, 1f)
             scaleX *= cardScale

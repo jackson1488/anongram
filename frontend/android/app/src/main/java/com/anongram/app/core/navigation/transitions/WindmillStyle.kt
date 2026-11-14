@@ -18,6 +18,6 @@ class WindmillStyle : ITransitionStyle {
     ) {
         transformOrigin = TransformOrigin(0f, 0f)
         rotationZ = progress * 90f
-        alpha = 1f - progress
+        alpha = if (isExit) 1f - progress else 1f - progress * 0.25f
     }
 }

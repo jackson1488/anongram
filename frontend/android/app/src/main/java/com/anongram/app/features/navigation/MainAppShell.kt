@@ -105,11 +105,13 @@ fun MainAppShell(
     var predictiveSwipeEdge by remember { mutableStateOf(0) }
     var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
     var isPredictiveHolding by remember { mutableStateOf(false) }
-    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding) {
+    var isSystemGestureActive by remember { mutableStateOf(false) }
+    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, isSystemGestureActive) {
         animState.toNavigationTransitionConfig().copy(
             swipeEdge = predictiveSwipeEdge,
             touchYFraction = predictiveTouchYFraction,
-            isPredictiveHolding = isPredictiveHolding
+            isPredictiveHolding = isPredictiveHolding,
+            isSystemGestureActive = isSystemGestureActive
         )
     }
     val messagesRepository = remember { InMemoryChatMessagesRepository() }
@@ -231,10 +233,16 @@ fun MainAppShell(
     val hasTransitionOverlay = !isQrOpen && (
         isLanguageOpen || isSearchOpen || isContactsOpen || isArchiveOpen || selectedSession != null
     )
-    val usePredictiveBack = navConfig.transitionType == TransitionType.PREDICTIVE_BACK ||
-        navConfig.transitionType == TransitionType.CARD_STACK_PEEK ||
-        navConfig.enablePredictiveBackCombo ||
-        navConfig.enableMiniCardCombo
+    androidx.compose.runtime.LaunchedEffect(hasTransitionOverlay) {
+        if (!hasTransitionOverlay) {
+            isSystemGestureActive = false
+        }
+    }
+    val isPureSwipeOrParallax = (navConfig.transitionType == TransitionType.SPRING_SWIPE ||
+        navConfig.transitionType == TransitionType.CUPERTINO_PARALLAX) &&
+        !navConfig.enableMiniCardCombo &&
+        !navConfig.enablePredictiveBackCombo
+    val usePredictiveBack = navConfig.transitionType != TransitionType.INSTANT && !isPureSwipeOrParallax
     BackHandler(enabled = hasTransitionOverlay && !usePredictiveBack) {
         when {
             isLanguageOpen -> closeLanguage()
@@ -255,6 +263,7 @@ fun MainAppShell(
         val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         setExiting(true)
         isPredictiveHolding = true
+        isSystemGestureActive = true
         try {
             backEvents.collect { event ->
                 predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
@@ -269,6 +278,7 @@ fun MainAppShell(
             isPredictiveHolding = false
             scope.snapBackOverlay(activeProgress, navConfig) {
                 setExiting(false)
+                isSystemGestureActive = false
                 predictiveSwipeEdge = 0
                 predictiveTouchYFraction = 0.5f
             }

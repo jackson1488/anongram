@@ -78,11 +78,13 @@ fun SettingsNavHost(
     var predictiveSwipeEdge by remember { mutableStateOf(0) }
     var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
     var isPredictiveHolding by remember { mutableStateOf(false) }
-    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding) {
+    var isSystemGestureActive by remember { mutableStateOf(false) }
+    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, isSystemGestureActive) {
         animState.toNavigationTransitionConfig().copy(
             swipeEdge = predictiveSwipeEdge,
             touchYFraction = predictiveTouchYFraction,
-            isPredictiveHolding = isPredictiveHolding
+            isPredictiveHolding = isPredictiveHolding,
+            isSystemGestureActive = isSystemGestureActive
         )
     }
     val backStack = remember { mutableStateListOf<SettingsRoute>(SettingsRoute.Main) }
@@ -96,16 +98,19 @@ fun SettingsNavHost(
             val prev = currentRoute
             underlayRoute = prev
             isExiting = false
-            backStack.add(route)
-            onSubScreenVisibilityChange(route != SettingsRoute.Main)
+            isSystemGestureActive = false
             scope.launch {
                 val skipEnter = navConfig.transitionType == TransitionType.INSTANT ||
                     (navConfig.transitionType.isBidirectional && !navConfig.enableEnterAnimation && !navConfig.enableBaseSmoothEnter) ||
                     (!navConfig.transitionType.isBidirectional && !navConfig.enableBaseSmoothEnter)
                 if (skipEnter) {
                     transitionProgress.snapTo(0f)
+                    backStack.add(route)
+                    onSubScreenVisibilityChange(route != SettingsRoute.Main)
                 } else {
                     transitionProgress.snapTo(1f)
+                    backStack.add(route)
+                    onSubScreenVisibilityChange(route != SettingsRoute.Main)
                     androidx.compose.runtime.withFrameNanos { }
                     if (navConfig.transitionType == TransitionType.PARTICLE_DISSOLVE) {
                         androidx.compose.runtime.withFrameNanos { }
@@ -151,6 +156,7 @@ fun SettingsNavHost(
                 }
                 transitionProgress.snapTo(0f)
                 isExiting = false
+                isSystemGestureActive = false
                 underlayRoute = null
                 onSubScreenVisibilityChange((backStack.lastOrNull() ?: SettingsRoute.Main) != SettingsRoute.Main)
             }
@@ -175,14 +181,16 @@ fun SettingsNavHost(
                 transitionProgress.snapTo(0f)
             }
             isExiting = false
+            isSystemGestureActive = false
             underlayRoute = null
         }
     }
 
-    val usePredictiveBack = navConfig.transitionType == TransitionType.PREDICTIVE_BACK ||
-        navConfig.transitionType == TransitionType.CARD_STACK_PEEK ||
-        navConfig.enablePredictiveBackCombo ||
-        navConfig.enableMiniCardCombo
+    val isPureSwipeOrParallax = (navConfig.transitionType == TransitionType.SPRING_SWIPE ||
+        navConfig.transitionType == TransitionType.CUPERTINO_PARALLAX) &&
+        !navConfig.enableMiniCardCombo &&
+        !navConfig.enablePredictiveBackCombo
+    val usePredictiveBack = navConfig.transitionType != TransitionType.INSTANT && !isPureSwipeOrParallax
     androidx.activity.compose.BackHandler(enabled = backStack.size > 1 && !usePredictiveBack) {
         popBack()
     }
@@ -190,6 +198,7 @@ fun SettingsNavHost(
         underlayRoute = backStack[backStack.lastIndex - 1]
         isExiting = true
         isPredictiveHolding = true
+        isSystemGestureActive = true
         val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         try {
             backEvents.collect { event ->

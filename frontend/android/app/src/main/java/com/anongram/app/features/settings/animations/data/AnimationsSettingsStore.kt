@@ -198,7 +198,7 @@ object AnimationsSettingsStore {
                 enableMiniCardCombo = prefs.getBoolean(KEY_COMBO_MINI_CARD, false),
                 enableBaseTelegramEnter = prefs.getBoolean(KEY_BASE_TELEGRAM_ENTER, true),
                 transitionSpeedScale = prefs.getFloat(KEY_TRANSITION_SPEED_SCALE, 1.0f)
-                    .coerceIn(0.5f, 2.0f),
+                    .coerceIn(0.4f, 1.6f),
                 enableEnterAnimation = prefs.getBoolean(KEY_ENABLE_ENTER_ANIM, true),
                 enableExitAnimation = prefs.getBoolean(KEY_ENABLE_EXIT_ANIM, true),
                 particleSlideCombo = prefs.getBoolean(KEY_PARTICLE_SLIDE_COMBO, false),
@@ -417,7 +417,7 @@ object AnimationsSettingsStore {
     }
 
     fun setTransitionSpeedScale(context: Context, scale: Float) {
-        val clamped = scale.coerceIn(0.5f, 2.0f)
+        val clamped = scale.coerceIn(0.4f, 1.6f)
         ensureInitialized(context)
         prefs(context).edit().putFloat(KEY_TRANSITION_SPEED_SCALE, clamped).apply()
         _state.update { it.copy(transitionSpeedScale = clamped) }

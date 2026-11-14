@@ -20,12 +20,12 @@ enum class TransitionType {
         get() = when (this) {
             REAL_BOOK_3D,
             CUBE_ROTATION_3D,
-            ROTATION_SPIN,
             CASCADE,
             WINDMILL,
             PARTICLE_DISSOLVE -> true
             SPRING_SWIPE,
             CUPERTINO_PARALLAX,
+            ROTATION_SPIN,
             CARD_STACK_PEEK,
             PREDICTIVE_BACK,
             INSTANT -> false
@@ -63,7 +63,8 @@ data class NavigationTransitionConfig(
     val allowFullWidthSwipe: Boolean = true,
     val swipeEdge: Int = 0,
     val touchYFraction: Float = 0.5f,
-    val isPredictiveHolding: Boolean = false
+    val isPredictiveHolding: Boolean = false,
+    val isSystemGestureActive: Boolean = false
 ) {
     val effectiveDurationMs: Int
         get() {

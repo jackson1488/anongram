@@ -20,6 +20,6 @@ class CascadeStyle : ITransitionStyle {
         transformOrigin = TransformOrigin(0.5f, 1f)
         scaleY = (1f - progress).coerceAtLeast(0.01f)
         translationY = progress * 100.dp.toPx()
-        alpha = 1f - progress
+        alpha = if (isExit) 1f - progress else 1f - progress * 0.25f
     }
 }

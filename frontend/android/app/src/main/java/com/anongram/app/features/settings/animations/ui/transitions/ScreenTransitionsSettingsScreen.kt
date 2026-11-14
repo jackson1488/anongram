@@ -39,6 +39,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -455,18 +456,19 @@ private fun CompactSwitchRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onCheckedChange(!checked) }
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = title,
             color = scheme.textPrimary,
-            fontSize = 13.5.sp,
+            fontSize = 13.sp,
             modifier = Modifier.weight(1f)
         )
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
+            modifier = Modifier.scale(0.84f),
             colors = SwitchDefaults.colors(
                 checkedThumbColor = scheme.onAccent,
                 checkedTrackColor = scheme.accent,
@@ -484,7 +486,7 @@ private fun SpeedSliderBlock(
     onSpeedChange: (Float) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
-    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 2.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -493,26 +495,26 @@ private fun SpeedSliderBlock(
             Text(
                 text = title,
                 color = scheme.textPrimary,
-                fontSize = 13.5.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = "${(speedScale * 10f).roundToInt() / 10f}x",
                 color = scheme.accent,
-                fontSize = 13.sp,
+                fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold
             )
         }
         Slider(
-            value = speedScale,
+            value = speedScale.coerceIn(0.4f, 1.6f),
             onValueChange = onSpeedChange,
-            valueRange = 0.5f..2.0f,
-            steps = 14,
+            valueRange = 0.4f..1.6f,
             colors = SliderDefaults.colors(
                 thumbColor = scheme.accent,
                 activeTrackColor = scheme.accent,
                 inactiveTrackColor = scheme.divider
-            )
+            ),
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
@@ -533,13 +535,13 @@ private fun DampingSliderBlock(
             Text(
                 text = title,
                 color = scheme.textPrimary,
-                fontSize = 13.5.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
                 text = "${(damping * 100).roundToInt() / 100f}",
                 color = scheme.accent,
-                fontSize = 13.sp,
+                fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold
             )
         }
@@ -547,12 +549,12 @@ private fun DampingSliderBlock(
             value = damping,
             onValueChange = onDampingChange,
             valueRange = 0.50f..1.0f,
-            steps = 9,
             colors = SliderDefaults.colors(
                 thumbColor = scheme.accent,
                 activeTrackColor = scheme.accent,
                 inactiveTrackColor = scheme.divider
-            )
+            ),
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
