@@ -180,11 +180,11 @@ internal fun MessageBubble(
 
     val moduleStrings = ModulesI18n.current
     val autoTranslateIncoming = LocalAutoTranslateIncoming.current
-    val translationEntry by remember(message.id) {
+    val translationEntry = remember(message.id) {
         LocalMessageTranslator.translations
             .map { it[message.id] }
             .distinctUntilChanged()
-    }.collectAsState(initial = null)
+    }.collectAsState(initial = null).value
 
     LaunchedEffect(message.id, message.text, autoTranslateIncoming, isIncoming) {
         if (isIncoming && message.text.isNotBlank() && autoTranslateIncoming) {
