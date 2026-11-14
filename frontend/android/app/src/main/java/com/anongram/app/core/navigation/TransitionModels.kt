@@ -70,7 +70,9 @@ data class NavigationTransitionConfig(
         get() {
             if (transitionType == TransitionType.INSTANT) return 0
             val typeBase = when (transitionType) {
-                TransitionType.PARTICLE_DISSOLVE -> 440
+                TransitionType.PARTICLE_DISSOLVE -> 540
+                TransitionType.CASCADE,
+                TransitionType.WINDMILL -> 420
                 TransitionType.REAL_BOOK_3D,
                 TransitionType.CUBE_ROTATION_3D -> 380
                 else -> baseDurationMs

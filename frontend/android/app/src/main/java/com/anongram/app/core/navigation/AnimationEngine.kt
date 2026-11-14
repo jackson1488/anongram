@@ -174,9 +174,14 @@ fun AnonGramTransitionScreen(
             capturedBitmap = null
             hasRecordedFrame = false
         } else if (hasRecordedFrame && capturedBitmap == null) {
-            withFrameNanos { }
             if (captureLayer.size.width > 0 && captureLayer.size.height > 0) {
                 capturedBitmap = runCatching { captureLayer.toImageBitmap() }.getOrNull()
+            }
+            if (capturedBitmap == null) {
+                withFrameNanos { }
+                if (captureLayer.size.width > 0 && captureLayer.size.height > 0) {
+                    capturedBitmap = runCatching { captureLayer.toImageBitmap() }.getOrNull()
+                }
             }
         }
     }

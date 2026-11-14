@@ -24,8 +24,8 @@ class CascadeStyle : ITransitionStyle {
             alpha = 1f - progress
         } else {
             transformOrigin = TransformOrigin(0.5f, 0f)
-            scaleY = (1f - progress * 0.88f).coerceAtLeast(0.05f)
-            translationY = -progress * 16.dp.toPx()
+            scaleY = (1f - progress * 0.78f).coerceAtLeast(0.15f)
+            translationY = -progress * 28.dp.toPx()
             alpha = 1f - progress * 0.15f
         }
     }

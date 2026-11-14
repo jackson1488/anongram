@@ -17,7 +17,7 @@ class WindmillStyle : ITransitionStyle {
         density: Float
     ) {
         transformOrigin = TransformOrigin(0f, 0f)
-        rotationZ = progress * 90f
-        alpha = if (isExit) 1f - progress else 1f - progress * 0.25f
+        rotationZ = if (isExit) progress * 78f else -progress * 72f
+        alpha = if (isExit) 1f - progress else 1f - progress * 0.20f
     }
 }
