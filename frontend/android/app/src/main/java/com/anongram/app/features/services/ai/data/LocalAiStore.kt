@@ -703,9 +703,10 @@ object LocalAiStore {
                         append("\n\n[Live Web Search Results]\n")
                         results.forEachIndexed { idx, r ->
                             append("${idx + 1}. ${r.title} (${r.url})\n")
-                            if (r.snippet.isNotBlank()) append("   ${r.snippet}\n")
+                            if (r.snippet.isNotBlank()) append("   Summary: ${r.snippet}\n")
+                            if (r.pageExcerpt.isNotBlank()) append("   Page text: ${r.pageExcerpt.take(1000)}\n")
                         }
-                        append("[Use the live web search results above to answer accurately and mention source names/URLs when helpful.]")
+                        append("[Answer using the live web search results and page text above. Cite source names/URLs when helpful.]")
                     }
                     val lastUserIdx = rolesList.indexOfLast { it == "user" }
                     if (lastUserIdx >= 0) {
