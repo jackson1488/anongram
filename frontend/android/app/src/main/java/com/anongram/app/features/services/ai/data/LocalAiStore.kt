@@ -33,7 +33,7 @@ data class LocalAiState(
     val cpuThreads: Int = 4,
     val contextLength: Int = 2048,
     val maxTokens: Int = 1024,
-    val webSearchEnabled: Boolean = false,
+    val webSearchEnabled: Boolean = true,
     val systemPromptPreset: AiSystemPromptPreset = AiSystemPromptPreset.DEFAULT,
     val customSystemPrompt: String = "",
     val sessions: List<AiChatSession> = emptyList(),
@@ -134,7 +134,7 @@ object LocalAiStore {
                     cpuThreads = prefs.getInt(KEY_THREADS, 4).coerceIn(1, 8),
                     contextLength = prefs.getInt(KEY_CTX, 2048).coerceIn(512, 8192),
                     maxTokens = prefs.getInt(KEY_MAX_TOKENS, 1024).coerceIn(256, 4096),
-                    webSearchEnabled = prefs.getBoolean(KEY_WEB_SEARCH, false),
+                    webSearchEnabled = prefs.getBoolean(KEY_WEB_SEARCH, true),
                     systemPromptPreset = preset,
                     customSystemPrompt = prefs.getString(KEY_CUSTOM_PROMPT, "") ?: "",
                     sessions = sessions,
@@ -563,6 +563,38 @@ object LocalAiStore {
         persistSessions(context)
     }
 
+    private fun buildCoreSystemPrompt(webSearchEnabled: Boolean, isRussian: Boolean): String {
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+        return buildString {
+            append("[Core System Rules]\n")
+            append("Current date: $today.\n")
+            append("You are the AnonGram on-device AI engine. Answer clearly, accurately, and in the user's language.")
+            if (webSearchEnabled) {
+                append("\n\n[Internet Tools]\n")
+                append("You have live internet tools. Use them ONLY when fresh facts, current events, prices, weather, or verification are needed (do NOT search for greetings or basic coding/math).\n")
+                append("1. [TOOL:web_search(\"concise search keywords\")] — search the web. Formulate short, targeted keywords yourself (never copy the user's full conversational question).\n")
+                append("2. [TOOL:open_url(\"https://...\")] — read the full text of a specific URL from search results if snippets are not enough.\n")
+                append("When calling a tool, output ONLY the [TOOL:...] tag on its own line and wait for [TOOL_RESULT]. Once you have enough facts, give your final answer without any [TOOL:...] tags.")
+            }
+            if (isRussian) {
+                append("\nAlways reply in Russian unless the user writes in another language.")
+            }
+        }
+    }
+
+    private fun extractToolCall(text: String): Pair<String, String>? {
+        val regex = Regex("""\[TOOL:(web_search|open_url)\(\s*["']?(.+?)["']?\s*\)\]""", RegexOption.IGNORE_CASE)
+        val match = regex.find(text) ?: return null
+        val tool = match.groupValues[1].lowercase()
+        val arg = match.groupValues[2].trim().trim('"', '\'')
+        return if (arg.isNotBlank()) tool to arg else null
+    }
+
+    private fun stripToolTags(text: String): String =
+        text.replace(Regex("""\[TOOL:(web_search|open_url)\([^\]]*\)\]""", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("""\[TOOL:[^\n]*$"""), "")
+            .trim()
+
     private fun parseThinkingAndAnswer(raw: String): Pair<String, String> {
         val startIdx = raw.indexOf("<think>")
         if (startIdx == -1) {
@@ -626,8 +658,12 @@ object LocalAiStore {
                 return@launch
             }
 
-            val baseSys = st.effectiveSystemPrompt(isRussian)
-            val sysBuilder = StringBuilder(baseSys)
+            val coreSys = buildCoreSystemPrompt(webSearchEnabled = st.webSearchEnabled, isRussian = isRussian)
+            val userSys = st.effectiveSystemPrompt(isRussian).trim()
+            val sysBuilder = StringBuilder(coreSys)
+            if (userSys.isNotBlank()) {
+                sysBuilder.append("\n\n[User Instructions]\n").append(userSys)
+            }
             if (installed.supportsThinking) {
                 when {
                     customThinking != null -> {
@@ -702,42 +738,6 @@ object LocalAiStore {
                 contentsList.add(userPrompt)
             }
 
-            if (st.webSearchEnabled && userPrompt.isNotBlank()) {
-                val searchingLabel = if (isRussian) {
-                    "Ищу в интернете: ${userPrompt.take(36)}${if (userPrompt.length > 36) "…" else ""}"
-                } else {
-                    "Searching web: ${userPrompt.take(36)}${if (userPrompt.length > 36) "…" else ""}"
-                }
-                updateAssistantMessage(sessionId, assistantMsgId) { it.copy(searchStatus = searchingLabel) }
-
-                val results = WebSearchClient.search(userPrompt, maxResults = 5)
-                if (results.isNotEmpty()) {
-                    val readingLabel = if (isRussian) {
-                        "Найдено источников: ${results.size} · осмысление..."
-                    } else {
-                        "Found ${results.size} sources · thinking..."
-                    }
-                    updateAssistantMessage(sessionId, assistantMsgId) {
-                        it.copy(searchStatus = readingLabel, webSources = results)
-                    }
-                    val webContext = buildString {
-                        append("\n\n[Live Web Search Results]\n")
-                        results.forEachIndexed { idx, r ->
-                            append("${idx + 1}. ${r.title} (${r.url})\n")
-                            if (r.snippet.isNotBlank()) append("   Summary: ${r.snippet}\n")
-                            if (r.pageExcerpt.isNotBlank()) append("   Page text: ${r.pageExcerpt.take(1000)}\n")
-                        }
-                        append("[Answer using the live web search results and page text above. Cite source names/URLs when helpful.]")
-                    }
-                    val lastUserIdx = rolesList.indexOfLast { it == "user" }
-                    if (lastUserIdx >= 0) {
-                        contentsList[lastUserIdx] = contentsList[lastUserIdx] + webContext
-                    }
-                } else {
-                    updateAssistantMessage(sessionId, assistantMsgId) { it.copy(searchStatus = null) }
-                }
-            }
-
             val startNs = System.nanoTime()
             try {
                 val resultCode = withContext(Dispatchers.IO) {
@@ -748,49 +748,150 @@ object LocalAiStore {
                     )
                     if (!loaded) return@withContext -100
 
-                    val rawSb = StringBuilder()
-                    var lastUiUpdateMs = 0L
                     val maxTokens = if (reasoning == AiReasoningLevel.HIGH) {
                         maxOf(st.maxTokens, 1536)
                     } else {
                         st.maxTokens
                     }
 
-                    val code = LlamaNativeBridge.nativeGenerate(
-                        roles = rolesList.toTypedArray(),
-                        contents = contentsList.toTypedArray(),
-                        temperature = st.temperature,
-                        maxTokens = maxTokens,
-                        listener = LlamaTokenListener { token ->
-                            rawSb.append(token)
-                            val nowMs = System.currentTimeMillis()
-                            if (lastUiUpdateMs == 0L || nowMs - lastUiUpdateMs >= 40L) {
-                                lastUiUpdateMs = nowMs
-                                val (parsedThink, parsedAnswer) = parseThinkingAndAnswer(rawSb.toString())
-                                val elapsedSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
-                                updateAssistantMessage(sessionId, assistantMsgId) { m ->
-                                    m.copy(
-                                        searchStatus = null,
-                                        thinking = customThinking ?: parsedThink,
-                                        thinkingDurationSec = if (parsedThink.isNotEmpty() || customThinking != null) elapsedSec else 0f,
-                                        content = parsedAnswer
-                                    )
+                    val accumulatedThinking = StringBuilder()
+                    val collectedSteps = mutableListOf<String>()
+                    val collectedSources = mutableListOf<WebSearchResult>()
+                    var lastCode = 0
+                    val maxToolRounds = if (st.webSearchEnabled) 3 else 0
+
+                    for (round in 0..maxToolRounds) {
+                        val rawSb = StringBuilder()
+                        var lastUiUpdateMs = 0L
+
+                        lastCode = LlamaNativeBridge.nativeGenerate(
+                            roles = rolesList.toTypedArray(),
+                            contents = contentsList.toTypedArray(),
+                            temperature = st.temperature,
+                            maxTokens = maxTokens,
+                            listener = LlamaTokenListener { token ->
+                                rawSb.append(token)
+                                val nowMs = System.currentTimeMillis()
+                                if (lastUiUpdateMs == 0L || nowMs - lastUiUpdateMs >= 40L) {
+                                    lastUiUpdateMs = nowMs
+                                    val (parsedThink, parsedAnswer) = parseThinkingAndAnswer(rawSb.toString())
+                                    val cleanAnswer = stripToolTags(parsedAnswer)
+                                    val combinedThink = listOf(accumulatedThinking.toString(), parsedThink)
+                                        .filter { it.isNotBlank() }
+                                        .joinToString("\n\n")
+                                    val elapsedSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
+                                    updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                        m.copy(
+                                            thinking = customThinking ?: combinedThink,
+                                            thinkingDurationSec = if (combinedThink.isNotEmpty() || customThinking != null) elapsedSec else 0f,
+                                            content = cleanAnswer
+                                        )
+                                    }
                                 }
                             }
-                        }
-                    )
-
-                    val (finalThink, finalAnswer) = parseThinkingAndAnswer(rawSb.toString())
-                    val totalSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
-                    updateAssistantMessage(sessionId, assistantMsgId) { m ->
-                        m.copy(
-                            searchStatus = null,
-                            thinking = customThinking ?: finalThink,
-                            thinkingDurationSec = if (finalThink.isNotEmpty() || customThinking != null) totalSec else 0f,
-                            content = finalAnswer.ifBlank { m.content }
                         )
+
+                        if (lastCode < 0) break
+
+                        val rawRound = rawSb.toString()
+                        val (roundThink, roundAnswer) = parseThinkingAndAnswer(rawRound)
+                        if (roundThink.isNotBlank()) {
+                            if (accumulatedThinking.isNotEmpty()) accumulatedThinking.append("\n\n")
+                            accumulatedThinking.append(roundThink)
+                        }
+
+                        val toolCall = if (st.webSearchEnabled && round < maxToolRounds) {
+                            extractToolCall(roundAnswer) ?: extractToolCall(rawRound)
+                        } else {
+                            null
+                        }
+
+                        if (toolCall == null) {
+                            val cleanFinal = stripToolTags(roundAnswer)
+                            val totalSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
+                            updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                m.copy(
+                                    searchStatus = null,
+                                    searchSteps = collectedSteps.toList(),
+                                    webSources = collectedSources.distinctBy { it.url },
+                                    thinking = customThinking ?: accumulatedThinking.toString(),
+                                    thinkingDurationSec = if (accumulatedThinking.isNotEmpty() || customThinking != null) totalSec else 0f,
+                                    content = cleanFinal.ifBlank { m.content }
+                                )
+                            }
+                            break
+                        }
+
+                        val (toolName, toolArg) = toolCall
+                        val stepLabel = when (toolName) {
+                            "web_search" -> if (isRussian) "🔍 Поиск: $toolArg" else "🔍 Search: $toolArg"
+                            else -> if (isRussian) "🌐 Читаю: $toolArg" else "🌐 Reading: $toolArg"
+                        }
+                        collectedSteps.add(stepLabel)
+                        updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                            m.copy(
+                                searchStatus = stepLabel,
+                                searchSteps = collectedSteps.toList()
+                            )
+                        }
+
+                        val toolResultText = if (toolName == "web_search") {
+                            val found = WebSearchClient.search(toolArg, maxResults = 5, fetchTopPages = 1)
+                            if (found.isNotEmpty()) {
+                                collectedSources.addAll(found)
+                                val foundStep = if (isRussian) {
+                                    "📄 Найдено источников: ${found.size}"
+                                } else {
+                                    "📄 Found ${found.size} sources"
+                                }
+                                collectedSteps.add(foundStep)
+                                updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                    m.copy(
+                                        searchStatus = foundStep,
+                                        searchSteps = collectedSteps.toList(),
+                                        webSources = collectedSources.distinctBy { it.url }
+                                    )
+                                }
+                                buildString {
+                                    append("[TOOL_RESULT web_search(\"$toolArg\")]\n")
+                                    found.forEachIndexed { idx, r ->
+                                        append("${idx + 1}. ${r.title} (${r.url})\n")
+                                        if (r.snippet.isNotBlank()) append("   Snippet: ${r.snippet}\n")
+                                        if (r.pageExcerpt.isNotBlank()) append("   Excerpt: ${r.pageExcerpt.take(900)}\n")
+                                    }
+                                    append("[If you need full text of a specific link, call [TOOL:open_url(\"url\")]. Otherwise answer the user clearly now without any [TOOL:...] tags.]")
+                                }
+                            } else {
+                                "[TOOL_RESULT web_search(\"$toolArg\")] No results found. Try a different query or answer based on what you know."
+                            }
+                        } else {
+                            val pageText = WebSearchClient.fetchPageText(toolArg, maxChars = 3500)
+                            if (pageText.isNotBlank()) {
+                                val readStep = if (isRussian) {
+                                    "📖 Прочитано (${pageText.length} симв.): ${pageText.take(160)}…"
+                                } else {
+                                    "📖 Read (${pageText.length} chars): ${pageText.take(160)}…"
+                                }
+                                collectedSteps.add(readStep)
+                                updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                    m.copy(
+                                        searchStatus = readStep,
+                                        searchSteps = collectedSteps.toList()
+                                    )
+                                }
+                                "[TOOL_RESULT open_url(\"$toolArg\")]\n$pageText\n[Now answer the user accurately based on the read page text without [TOOL:...] tags.]"
+                            } else {
+                                "[TOOL_RESULT open_url(\"$toolArg\")] Could not extract readable text from this URL."
+                            }
+                        }
+
+                        rolesList.add("assistant")
+                        contentsList.add(rawRound)
+                        rolesList.add("user")
+                        contentsList.add(toolResultText)
                     }
-                    code
+
+                    lastCode
                 }
 
                 if (resultCode < 0) {

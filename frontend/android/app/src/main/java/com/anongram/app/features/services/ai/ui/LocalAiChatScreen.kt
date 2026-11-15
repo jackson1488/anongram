@@ -387,7 +387,7 @@ fun LocalAiChatScreen(
                 }
 
                 // Превью прикреплённых фото и файлов прямо над полем ввода
-                if (pendingAttachments.isNotEmpty() || state.webSearchEnabled) {
+                if (pendingAttachments.isNotEmpty()) {
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -395,33 +395,6 @@ fun LocalAiChatScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (state.webSearchEnabled) {
-                            item(key = "web_badge") {
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(14.dp))
-                                        .background(scheme.accent.copy(alpha = 0.16f))
-                                        .clickable { LocalAiStore.setWebSearchEnabled(context, false) }
-                                        .padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Public,
-                                        contentDescription = null,
-                                        tint = scheme.accent,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(5.dp))
-                                    Text(
-                                        text = strings.webSearchEnabledBadge,
-                                        color = scheme.accent,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-                            }
-                        }
-
                         items(pendingAttachments, key = { it.id }) { att ->
                             AttachmentPreviewChip(
                                 attachment = att,
@@ -569,15 +542,6 @@ fun LocalAiChatScreen(
                                     onClick = {
                                         isPlusMenuOpen = false
                                         filePicker.launch(arrayOf("*/*"))
-                                    }
-                                )
-                                PlusMenuItem(
-                                    icon = Icons.Outlined.Public,
-                                    label = strings.attachWebSearch,
-                                    accentActive = state.webSearchEnabled,
-                                    onClick = {
-                                        isPlusMenuOpen = false
-                                        LocalAiStore.setWebSearchEnabled(context, !state.webSearchEnabled)
                                     }
                                 )
                                 PlusMenuItem(

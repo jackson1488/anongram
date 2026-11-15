@@ -80,7 +80,8 @@ data class LocalAiI18nStrings(
     val sourcesLabel: String,
     val resetPromptBtn: String,
     val maxTokensTitle: String,
-    val webSearchSettingsHint: String
+    val webSearchSettingsHint: String,
+    val searchBlockTitle: (Int, Boolean) -> String
 ) {
     fun reasoningLabel(level: AiReasoningLevel): String = when (level) {
         AiReasoningLevel.OFF -> reasoningOff
@@ -174,7 +175,14 @@ object LocalAiI18n {
         sourcesLabel = "Источники",
         resetPromptBtn = "Сбросить",
         maxTokensTitle = "Макс. длина ответа",
-        webSearchSettingsHint = "При включении запросы отправляются в DuckDuckGo / Wikipedia для поиска свежих данных."
+        webSearchSettingsHint = "Включено по умолчанию: ИИ сам решает, когда искать в интернете и открывать сайты.",
+        searchBlockTitle = { count, active ->
+            when {
+                active -> "Поиск в интернете…"
+                count > 0 -> "Поиск · $count истор."
+                else -> "Поиск"
+            }
+        }
     )
 
     private val en = LocalAiI18nStrings(
@@ -251,7 +259,14 @@ object LocalAiI18n {
         sourcesLabel = "Sources",
         resetPromptBtn = "Reset",
         maxTokensTitle = "Max response length",
-        webSearchSettingsHint = "When enabled, queries are sent to DuckDuckGo / Wikipedia for live web results."
+        webSearchSettingsHint = "Enabled by default: AI automatically decides when to search the web and read pages.",
+        searchBlockTitle = { count, active ->
+            when {
+                active -> "Searching web…"
+                count > 0 -> "Search · $count sources"
+                else -> "Search"
+            }
+        }
     )
 
     val current: LocalAiI18nStrings

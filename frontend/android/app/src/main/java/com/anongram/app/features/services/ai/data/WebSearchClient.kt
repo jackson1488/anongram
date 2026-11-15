@@ -30,29 +30,35 @@ object WebSearchClient {
         "https://search.bus-hit.me"
     )
 
-    suspend fun search(query: String, maxResults: Int = 5, fetchTopPages: Int = 2): List<WebSearchResult> =
+    suspend fun search(query: String, maxResults: Int = 5, fetchTopPages: Int = 1): List<WebSearchResult> =
         withContext(Dispatchers.IO) {
             val clean = query.trim().take(220)
             if (clean.isEmpty()) return@withContext emptyList()
 
             val results = mutableListOf<WebSearchResult>()
 
-            // 1. SearXNG JSON (живой веб-поиск)
-            for (base in searxInstances) {
-                val found = runCatching { searchSearxJson(base, clean, maxResults) }.getOrDefault(emptyList())
-                if (found.isNotEmpty()) {
-                    results.addAll(found)
-                    break
+            // 1. DuckDuckGo HTML (живой веб-поиск без API-ключей)
+            val ddg = runCatching { searchDuckDuckGoHtml(clean, maxResults) }.getOrDefault(emptyList())
+            results.addAll(ddg)
+
+            // 2. SearXNG JSON (резерв, если DuckDuckGo не ответил)
+            if (results.size < 2) {
+                for (base in searxInstances) {
+                    val found = runCatching { searchSearxJson(base, clean, maxResults) }.getOrDefault(emptyList())
+                    if (found.isNotEmpty()) {
+                        results.addAll(found)
+                        break
+                    }
                 }
             }
 
-            // 2. Google News RSS (свежие новости, если SearXNG дал мало или недоступен)
+            // 3. Google News RSS (свежие новости, если выдачи мало)
             if (results.size < 2) {
                 val news = runCatching { searchGoogleNewsRss(clean, maxResults) }.getOrDefault(emptyList())
                 results.addAll(news)
             }
 
-            // 3. Wikipedia (последний резерв)
+            // 4. Wikipedia (последний резерв)
             if (results.isEmpty()) {
                 val wiki = runCatching { searchWikipedia(clean, maxResults) }.getOrDefault(emptyList())
                 results.addAll(wiki)
@@ -60,7 +66,6 @@ object WebSearchClient {
 
             val deduped = results.distinctBy { it.url }.take(maxResults)
 
-            // Подгружаем реальный текст первых 1-2 страниц, чтобы модель читала не только заголовок
             deduped.mapIndexed { idx, item ->
                 if (idx < fetchTopPages && !item.url.contains("news.google.com/rss/articles")) {
                     val excerpt = runCatching { fetchPageExcerpt(item.url, 1500) }.getOrNull().orEmpty()
@@ -70,6 +75,62 @@ object WebSearchClient {
                 }
             }
         }
+
+    suspend fun fetchPageText(url: String, maxChars: Int = 3500): String = withContext(Dispatchers.IO) {
+        val cleanUrl = url.trim()
+        if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) return@withContext ""
+        runCatching { fetchPageExcerpt(cleanUrl, maxChars).orEmpty() }.getOrDefault("")
+    }
+
+    private fun searchDuckDuckGoHtml(query: String, maxResults: Int): List<WebSearchResult> {
+        val encoded = URLEncoder.encode(query, "UTF-8")
+        val conn = (URL("https://html.duckduckgo.com/html/?q=$encoded").openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            instanceFollowRedirects = true
+            connectTimeout = 5000
+            readTimeout = 7000
+            setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36")
+            setRequestProperty("Accept", "text/html,application/xhtml+xml")
+        }
+        return try {
+            if (conn.responseCode !in 200..299) return emptyList()
+            val html = conn.inputStream.bufferedReader().use { it.readText() }
+            val titleLinkRegex = Regex(
+                """<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]+)"[^>]*>(.*?)</a>""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            )
+            val snippetRegex = Regex(
+                """class="[^"]*result__snippet[^"]*"[^>]*>(.*?)</(?:a|div|span)>""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+            )
+            val links = titleLinkRegex.findAll(html).toList()
+            val snippets = snippetRegex.findAll(html).toList()
+            val out = mutableListOf<WebSearchResult>()
+            for (i in links.indices) {
+                if (out.size >= maxResults) break
+                val rawHref = decodeHtml(links[i].groupValues[1].trim())
+                val resolvedUrl = resolveDdgRedirect(rawHref)
+                val title = stripHtml(links[i].groupValues[2])
+                val snippet = snippets.getOrNull(i)?.let { stripHtml(it.groupValues[1]) }.orEmpty()
+                if (resolvedUrl.startsWith("http") && title.isNotBlank()) {
+                    out.add(WebSearchResult(title = title, url = resolvedUrl, snippet = snippet))
+                }
+            }
+            out
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun resolveDdgRedirect(href: String): String {
+        val normalized = if (href.startsWith("//")) "https:$href" else href
+        val uddgIdx = normalized.indexOf("uddg=")
+        if (uddgIdx >= 0) {
+            val encodedPart = normalized.substring(uddgIdx + 5).substringBefore('&')
+            return runCatching { java.net.URLDecoder.decode(encodedPart, "UTF-8") }.getOrDefault(normalized)
+        }
+        return normalized
+    }
 
     private fun searchSearxJson(baseUrl: String, query: String, maxResults: Int): List<WebSearchResult> {
         val encoded = URLEncoder.encode(query, "UTF-8")

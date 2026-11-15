@@ -14,14 +14,17 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
@@ -184,73 +187,127 @@ fun LocalAiMessageBubble(
     }
 
     // Сообщение ИИ
+    var searchExpanded by remember(message.id) { mutableStateOf(false) }
     var thoughtsExpanded by remember(message.id) { mutableStateOf(false) }
     var editingThoughts by remember(message.id) { mutableStateOf(false) }
     var editedThoughts by remember(message.id, message.thinking) { mutableStateOf(message.thinking) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        if (!message.searchStatus.isNullOrBlank()) {
-            Row(
+        val isSearchingNow = !message.searchStatus.isNullOrBlank()
+        val hasSearchData = isSearchingNow || message.searchSteps.isNotEmpty() || message.webSources.isNotEmpty()
+        if (hasSearchData) {
+            Column(
                 modifier = Modifier
+                    .fillMaxWidth()
                     .padding(bottom = 8.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(scheme.accent.copy(alpha = 0.12f))
-                    .border(0.8.dp, scheme.accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(scheme.card)
+                    .border(
+                        width = 1.dp,
+                        color = if (isSearchingNow) scheme.accent.copy(alpha = 0.55f) else scheme.islandBorder,
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Public,
-                    contentDescription = null,
-                    tint = scheme.accent,
-                    modifier = Modifier.size(15.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = message.searchStatus,
-                    color = scheme.accent,
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { searchExpanded = !searchExpanded },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Public,
+                        contentDescription = null,
+                        tint = scheme.accent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = if (isSearchingNow) {
+                            message.searchStatus!!
+                        } else {
+                            strings.searchBlockTitle(message.webSources.size, false)
+                        },
+                        color = if (isSearchingNow) scheme.accent else scheme.textSecondary,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = if (searchExpanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                        contentDescription = null,
+                        tint = scheme.textMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
 
-        if (message.webSources.isNotEmpty()) {
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.padding(bottom = 8.dp)
-            ) {
-                items(message.webSources) { src ->
-                    val host = runCatching { Uri.parse(src.url).host?.removePrefix("www.") }.getOrNull().orEmpty()
-                    Row(
+                AnimatedVisibility(visible = searchExpanded) {
+                    Column(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(scheme.card)
-                            .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
-                            .clickable {
-                                runCatching {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(src.url)))
+                            .fillMaxWidth()
+                            .padding(top = 8.dp)
+                            .heightIn(max = 220.dp)
+                            .verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        message.searchSteps.forEach { step ->
+                            Text(
+                                text = step,
+                                color = scheme.textSecondary,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        }
+                        if (message.webSources.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            message.webSources.forEach { src ->
+                                val host = runCatching { Uri.parse(src.url).host?.removePrefix("www.") }.getOrNull().orEmpty()
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(scheme.surface)
+                                        .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            runCatching {
+                                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(src.url)))
+                                            }
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 7.dp)
+                                ) {
+                                    Text(
+                                        text = src.title.ifBlank { host },
+                                        color = scheme.accent,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    if (host.isNotBlank()) {
+                                        Text(
+                                            text = host,
+                                            color = scheme.textMuted,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    if (src.snippet.isNotBlank()) {
+                                        Text(
+                                            text = src.snippet,
+                                            color = scheme.textSecondary,
+                                            fontSize = 11.5.sp,
+                                            lineHeight = 15.sp,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
                                 }
                             }
-                            .padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Public,
-                            contentDescription = null,
-                            tint = scheme.accent,
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(5.dp))
-                        Text(
-                            text = if (host.isNotBlank()) host else src.title,
-                            color = scheme.textSecondary,
-                            fontSize = 11.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        }
                     }
                 }
             }
