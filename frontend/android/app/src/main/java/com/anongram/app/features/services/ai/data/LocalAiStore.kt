@@ -570,11 +570,14 @@ object LocalAiStore {
             append("Current date: $today.\n")
             append("You are the AnonGram on-device AI engine. Answer clearly, accurately, and in the user's language.")
             if (webSearchEnabled) {
-                append("\n\n[Internet Tools]\n")
-                append("You have live internet tools. Use them ONLY when fresh facts, current events, prices, weather, or verification are needed (do NOT search for greetings or basic coding/math).\n")
-                append("1. [TOOL:web_search(\"concise search keywords\")] — search the web. Formulate short, targeted keywords yourself (never copy the user's full conversational question).\n")
-                append("2. [TOOL:open_url(\"https://...\")] — read the full text of a specific URL from search results if snippets are not enough.\n")
-                append("When calling a tool, output ONLY the [TOOL:...] tag on its own line and wait for [TOOL_RESULT]. Once you have enough facts, give your final answer without any [TOOL:...] tags.")
+                append("\n\n# Tools\n")
+                append("You may call one or more functions to assist with the user query. Use them ONLY when fresh facts, current events, prices, weather, or web verification are needed (do NOT call tools for greetings, math, coding, or summarizing attached files).\n")
+                append("<tools>\n")
+                append("{\"type\": \"function\", \"function\": {\"name\": \"web_search\", \"description\": \"Search the internet using short keywords.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}}\n")
+                append("{\"type\": \"function\", \"function\": {\"name\": \"open_url\", \"description\": \"Read full text of a webpage URL from search results.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"url\": {\"type\": \"string\"}}, \"required\": [\"url\"]}}}\n")
+                append("</tools>\n")
+                append("For each function call, return a json object within <tool_call></tool_call> XML tags:\n")
+                append("<tool_call>\n{\"name\": \"web_search\", \"arguments\": {\"query\": \"short search keywords\"}}\n</tool_call>")
             }
             if (isRussian) {
                 append("\nAlways reply in Russian unless the user writes in another language.")
@@ -583,16 +586,31 @@ object LocalAiStore {
     }
 
     private fun extractToolCall(text: String): Pair<String, String>? {
-        val regex = Regex("""\[TOOL:(web_search|open_url)\(\s*["']?(.+?)["']?\s*\)\]""", RegexOption.IGNORE_CASE)
-        val match = regex.find(text) ?: return null
-        val tool = match.groupValues[1].lowercase()
-        val arg = match.groupValues[2].trim().trim('"', '\'')
-        return if (arg.isNotBlank()) tool to arg else null
+        val tagRegex = Regex("""<tool_call>\s*(\{.*?\})\s*</tool_call>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        val tagMatch = tagRegex.find(text)
+        if (tagMatch != null) {
+            val parsed = parseToolCallJson(tagMatch.groupValues[1])
+            if (parsed != null) return parsed
+        }
+        return null
     }
 
+    private fun parseToolCallJson(jsonStr: String): Pair<String, String>? = runCatching {
+        val obj = JSONObject(jsonStr.trim())
+        val name = obj.optString("name").trim().lowercase()
+        val args = obj.optJSONObject("arguments") ?: obj.optJSONObject("parameters") ?: JSONObject()
+        val arg = when (name) {
+            "web_search" -> args.optString("query").ifBlank { args.optString("q") }
+            "open_url" -> args.optString("url")
+            else -> ""
+        }.trim()
+        if (name in setOf("web_search", "open_url") && arg.isNotBlank()) name to arg else null
+    }.getOrNull()
+
     private fun stripToolTags(text: String): String =
-        text.replace(Regex("""\[TOOL:(web_search|open_url)\([^\]]*\)\]""", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("""\[TOOL:[^\n]*$"""), "")
+        text.replace(Regex("""<tool_call>.*?</tool_call>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+            .replace(Regex("""<tool_call>.*$""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE)), "")
+            .replace(Regex("""<tool_?[a-z_]*$""", RegexOption.IGNORE_CASE), "")
             .trim()
 
     private fun parseThinkingAndAnswer(raw: String): Pair<String, String> {
@@ -721,9 +739,11 @@ object LocalAiStore {
                             if (!att.textContent.isNullOrBlank()) {
                                 val tag = if (att.isImage) "OCR text from image: ${att.name}" else "File: ${att.name}"
                                 append("\n\n[$tag]\n")
-                                append(att.textContent.take(4000))
+                                append(att.textContent.take(6000))
                             } else if (att.isImage) {
-                                append("\n[Attached image: ${att.name}]")
+                                append("\n[Image attached: ${att.name} — no text detected via OCR; local text-only GGUF model cannot inspect raw image pixels. State this honestly if asked about visual contents.]")
+                            } else {
+                                append("\n[File attached: ${att.name} — unsupported binary format or empty document.]")
                             }
                         }
                     }
@@ -853,16 +873,17 @@ object LocalAiStore {
                                     )
                                 }
                                 buildString {
-                                    append("[TOOL_RESULT web_search(\"$toolArg\")]\n")
+                                    append("<tool_response>\n")
                                     found.forEachIndexed { idx, r ->
                                         append("${idx + 1}. ${r.title} (${r.url})\n")
                                         if (r.snippet.isNotBlank()) append("   Snippet: ${r.snippet}\n")
                                         if (r.pageExcerpt.isNotBlank()) append("   Excerpt: ${r.pageExcerpt.take(900)}\n")
                                     }
-                                    append("[If you need full text of a specific link, call [TOOL:open_url(\"url\")]. Otherwise answer the user clearly now without any [TOOL:...] tags.]")
+                                    append("</tool_response>\n")
+                                    append("If you need full text of a specific URL, call <tool_call>{\"name\": \"open_url\", \"arguments\": {\"url\": \"...\"}}</tool_call>. Otherwise answer the user clearly now.")
                                 }
                             } else {
-                                "[TOOL_RESULT web_search(\"$toolArg\")] No results found. Try a different query or answer based on what you know."
+                                "<tool_response>\nNo results found for \"$toolArg\". Try a different query or answer based on what you know.\n</tool_response>"
                             }
                         } else {
                             val pageText = WebSearchClient.fetchPageText(toolArg, maxChars = 3500)
@@ -879,9 +900,9 @@ object LocalAiStore {
                                         searchSteps = collectedSteps.toList()
                                     )
                                 }
-                                "[TOOL_RESULT open_url(\"$toolArg\")]\n$pageText\n[Now answer the user accurately based on the read page text without [TOOL:...] tags.]"
+                                "<tool_response>\n$pageText\n</tool_response>\nNow answer the user accurately based on the read page text."
                             } else {
-                                "[TOOL_RESULT open_url(\"$toolArg\")] Could not extract readable text from this URL."
+                                "<tool_response>\nCould not extract readable text from $toolArg.\n</tool_response>"
                             }
                         }
 
@@ -966,8 +987,9 @@ object LocalAiStore {
         if (mime.startsWith("text/")) return true
         val ext = name.substringAfterLast('.', "").lowercase()
         return ext in setOf(
-            "txt", "md", "json", "xml", "csv", "log", "kt", "java", "py", "js", "ts",
-            "c", "cpp", "h", "hpp", "rs", "go", "sh", "yaml", "yml", "toml", "ini", "html", "css"
+            "txt", "md", "json", "xml", "csv", "tsv", "log", "kt", "kts", "java", "py", "js", "ts",
+            "c", "cpp", "h", "hpp", "rs", "go", "sh", "bat", "ps1", "yaml", "yml", "toml", "ini",
+            "conf", "properties", "env", "sql", "gradle", "pro", "html", "css", "svg"
         )
     }
 
