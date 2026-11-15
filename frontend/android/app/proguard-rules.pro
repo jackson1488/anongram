@@ -7,6 +7,8 @@
 
 -keep class com.anongram.app.core.crypto.NativeCryptoBridge { *; }
 -keep class com.anongram.app.features.chats.media.voice.stt.WhisperNativeBridge { *; }
+-keep class com.anongram.llama.** { *; }
+-keep class * implements com.anongram.llama.LlamaTokenListener { *; }
 
 # Bergamot TranslateKit (JNI C++ -> Java callbacks: LanguageResult, TranslationResult)
 -keep class io.github.marcosholgado.translatekit.** { *; }
