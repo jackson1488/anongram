@@ -283,7 +283,7 @@ fun LocalAiDrawer(
                         if (pinned.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = strings.pinnedChats,
+                                    text = strings.pinnedSection,
                                     color = scheme.textMuted,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
@@ -307,7 +307,7 @@ fun LocalAiDrawer(
                         if (others.isNotEmpty()) {
                             item {
                                 Text(
-                                    text = strings.recentChats,
+                                    text = strings.allChatsSection,
                                     color = scheme.textMuted,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
