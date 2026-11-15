@@ -597,8 +597,9 @@ object LocalAiStore {
                 return@launch
             }
 
-            if (!LlamaNativeBridge.isAvailable) {
-                val msg = if (isRussian) "Нативный движок llama.cpp недоступен на этом устройстве." else "Native llama.cpp engine is unavailable on this device."
+            val llamaReady = com.anongram.app.core.assets.NativeModuleManager.ensureLlamaReady(context)
+            if (!llamaReady) {
+                val msg = if (isRussian) "Не удалось загрузить движок llama.cpp из anongram-assets." else "Failed to load llama.cpp engine from anongram-assets."
                 updateAssistantMessage(sessionId, assistantMsgId) { it.copy(content = msg) }
                 _state.update { it.copy(isGenerating = false) }
                 persistSessions(context)

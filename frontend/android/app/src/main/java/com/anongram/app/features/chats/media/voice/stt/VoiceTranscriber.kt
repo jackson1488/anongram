@@ -91,7 +91,11 @@ object VoiceTranscriber {
         modelFile: File,
         language: String
     ): Flow<TranscriptionEvent> = callbackFlow {
-        if (!WhisperNativeBridge.isAvailable) {
+        val whisperReady = com.anongram.app.core.assets.NativeModuleManager.ensureDownloaded(
+            context,
+            com.anongram.app.core.assets.NativeModuleManager.WHISPER_SO
+        ) && WhisperNativeBridge.ensureLoaded(context)
+        if (!whisperReady) {
             trySend(TranscriptionEvent.Error("Whisper native engine unavailable"))
             close()
             return@callbackFlow
@@ -123,6 +127,18 @@ object VoiceTranscriber {
         audioUri: String,
         modelDir: File
     ): Flow<TranscriptionEvent> = flow {
+        val voskReady = com.anongram.app.core.assets.NativeModuleManager.ensureDownloaded(
+            context,
+            com.anongram.app.core.assets.NativeModuleManager.VOSK_SO
+        ) && com.anongram.app.core.assets.NativeModuleManager.loadLibrary(
+            context,
+            com.anongram.app.core.assets.NativeModuleManager.VOSK_SO,
+            "vosk"
+        )
+        if (!voskReady) {
+            emit(TranscriptionEvent.Error("Vosk native engine unavailable"))
+            return@flow
+        }
         val pcmShorts = AudioPcmDecoder.decodeTo16kMonoPcm(context, audioUri)
         val model = Model(modelDir.absolutePath)
         try {

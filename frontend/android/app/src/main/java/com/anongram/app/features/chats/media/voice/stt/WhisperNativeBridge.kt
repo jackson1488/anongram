@@ -9,13 +9,30 @@ object WhisperNativeBridge {
         fun onNewSegment(segmentText: String)
     }
 
-    val isAvailable: Boolean by lazy {
-        try {
-            System.loadLibrary("anongram_whisper")
-            true
-        } catch (_: Throwable) {
-            false
+    @Volatile
+    private var loaded: Boolean = false
+
+    val isAvailable: Boolean
+        get() {
+            if (loaded) return true
+            return try {
+                System.loadLibrary("anongram_whisper")
+                loaded = true
+                true
+            } catch (_: Throwable) {
+                false
+            }
         }
+
+    fun ensureLoaded(context: android.content.Context): Boolean {
+        if (loaded) return true
+        val ok = com.anongram.app.core.assets.NativeModuleManager.loadLibrary(
+            context,
+            com.anongram.app.core.assets.NativeModuleManager.WHISPER_SO,
+            "anongram_whisper"
+        )
+        if (ok) loaded = true
+        return ok
     }
 
     external fun transcribePcm16k(

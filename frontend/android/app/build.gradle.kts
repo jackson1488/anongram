@@ -75,6 +75,11 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
+            excludes += listOf(
+                "**/libanongram_llama.so",
+                "**/libanongram_whisper.so",
+                "**/libvosk.so"
+            )
         }
         dex {
             useLegacyPackaging = false
