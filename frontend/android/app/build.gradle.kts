@@ -78,7 +78,8 @@ android {
             excludes += listOf(
                 "**/libanongram_llama.so",
                 "**/libanongram_whisper.so",
-                "**/libvosk.so"
+                "**/libvosk.so",
+                "**/libtranslate-kit.so"
             )
         }
         dex {

@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: frontend/android/app/libs/translate-kit-release.aar
-          key: translate-kit-aar-v0.1.0-arm64-v1
+          key: translate-kit-aar-v0.1.0-arm64-v2
 
       - name: 🛠️ Build Bergamot TranslateKit AAR (arm64-v8a)
         if: steps.cache-translate-kit.outputs.cache-hit != 'true'
@@ -93,6 +93,60 @@ jobs:
             inference/marian-fork/src/3rd_party/ruy \
             inference/marian-fork/src/3rd_party/simd_utils
           bash scripts/apply-engine-patches.sh
+          python3 - <<'PY'
+          from pathlib import Path
+          import textwrap
+          p = Path("android/translate-kit/src/main/java/io/github/marcosholgado/translatekit/TranslateKit.kt")
+          src = p.read_text()
+          old_field = "    @Volatile\n    private var nativeLibraryUnavailable: Boolean = false"
+          new_field = old_field + "\n\n" + textwrap.indent(textwrap.dedent("""\
+              @Volatile
+              private var nativeLibraryLoaded: Boolean = false
+
+              @Synchronized
+              fun loadFromPath(libraryPath: String): Boolean {
+                  if (nativeLibraryLoaded) return true
+                  return try {
+                      System.load(libraryPath)
+                      nativeLibraryLoaded = true
+                      nativeLibraryUnavailable = false
+                      true
+                  } catch (e: UnsatisfiedLinkError) {
+                      Log.w(TAG, "Failed to load translate-kit from $libraryPath", e)
+                      false
+                  }
+              }"""), "    ")
+          assert old_field in src, "field anchor not found"
+          src = src.replace(old_field, new_field, 1)
+          old_load = textwrap.indent(textwrap.dedent("""\
+              try {
+                  System.loadLibrary(LIBRARY_NAME)
+              } catch (e: UnsatisfiedLinkError) {
+                  // No native library for this device's ABI. Degrade gracefully rather
+                  // than crashing the host app; translation stays unavailable here.
+                  nativeLibraryUnavailable = true
+                  Log.w(TAG, "translate-kit native library unavailable for this device's ABI; " +
+                      "on-device translation is disabled here", e)
+                  return
+              }"""), "        ")
+          new_load = textwrap.indent(textwrap.dedent("""\
+              if (!nativeLibraryLoaded) {
+                  try {
+                      System.loadLibrary(LIBRARY_NAME)
+                      nativeLibraryLoaded = true
+                  } catch (e: UnsatisfiedLinkError) {
+                      // No native library for this device's ABI. Degrade gracefully rather
+                      // than crashing the host app; translation stays unavailable here.
+                      nativeLibraryUnavailable = true
+                      Log.w(TAG, "translate-kit native library unavailable for this device's ABI; " +
+                          "on-device translation is disabled here", e)
+                      return
+                  }
+              }"""), "        ")
+          assert old_load in src, "loadLibrary block not found"
+          src = src.replace(old_load, new_load, 1)
+          p.write_text(src)
+          PY
           cd android
           chmod +x gradlew
           ./gradlew :translate-kit:assembleRelease -PtestAbi=arm64-v8a --no-daemon

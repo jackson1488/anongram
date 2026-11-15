@@ -288,6 +288,19 @@ object LocalMessageTranslator {
         scope.launch {
             try {
                 val translated = engineMutex.withLock {
+                    if (!TranslateKit.isInitialized()) {
+                        val tkReady = com.anongram.app.core.assets.NativeModuleManager.ensureDownloaded(
+                            appContext,
+                            com.anongram.app.core.assets.NativeModuleManager.TRANSLATE_KIT_SO
+                        )
+                        if (tkReady) {
+                            val tkPath = com.anongram.app.core.assets.NativeModuleManager.libFile(
+                                appContext,
+                                com.anongram.app.core.assets.NativeModuleManager.TRANSLATE_KIT_SO
+                            ).absolutePath
+                            TranslateKit.loadFromPath(tkPath)
+                        }
+                    }
                     TranslateKit.init(appContext)
                     check(TranslateKit.isInitialized()) {
                         "Bergamot engine unavailable on this CPU architecture"

@@ -216,6 +216,26 @@ object LocalAiStore {
             )
         }
         downloadJob = scope.launch {
+            if (!com.anongram.app.core.assets.NativeModuleManager.isInstalled(
+                    context,
+                    com.anongram.app.core.assets.NativeModuleManager.LLAMA_SO
+                )
+            ) {
+                val engineOk = com.anongram.app.core.assets.NativeModuleManager.ensureDownloaded(
+                    context,
+                    com.anongram.app.core.assets.NativeModuleManager.LLAMA_SO
+                )
+                if (!engineOk) {
+                    _state.update {
+                        it.copy(
+                            downloadingModelId = null,
+                            downloadProgress = 0f,
+                            downloadError = "Failed to download llama.cpp engine"
+                        )
+                    }
+                    return@launch
+                }
+            }
             val res = HuggingFaceClient.downloadFile(url, destFile) { down, total ->
                 val p = if (total > 0L) (down.toFloat() / total.toFloat()).coerceIn(0f, 1f) else 0f
                 _state.update {

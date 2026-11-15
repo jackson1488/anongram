@@ -92,6 +92,13 @@ class ExternalAssetManager private constructor(private val appContext: Context) 
             val stageDir = File(modulesRoot, "${spec.id}.stage.tmp")
             try {
                 updateState(spec.id, AssetDownloadState.Downloading(0f, 0L, spec.approxSizeMb * 1024L * 1024L))
+                val requiredSo = NativeModuleManager.requiredSoForCategory(spec.category)
+                if (!NativeModuleManager.isInstalled(appContext, requiredSo)) {
+                    val soOk = NativeModuleManager.ensureDownloaded(appContext, requiredSo)
+                    if (!soOk) {
+                        throw IllegalStateException("Failed to download engine module $requiredSo")
+                    }
+                }
                 val onProgress: (Long, Long) -> Unit = { downloaded, total ->
                     val effectiveTotal = if (total > 0L) total else spec.approxSizeMb * 1024L * 1024L
                     val progress = (downloaded.toFloat() / effectiveTotal.toFloat()).coerceIn(0f, 0.99f)

@@ -16,14 +16,23 @@ object NativeModuleManager {
     const val LLAMA_SO = "libanongram_llama.so"
     const val WHISPER_SO = "libanongram_whisper.so"
     const val VOSK_SO = "libvosk.so"
+    const val TRANSLATE_KIT_SO = "libtranslate-kit.so"
 
     private const val BASE_URL = "https://raw.githubusercontent.com/jackson1488/anongram-assets/main/"
 
     fun libsDir(context: Context): File =
         File(context.applicationContext.filesDir, "native_libs/arm64-v8a").apply { mkdirs() }
 
+    fun libFile(context: Context, soName: String): File = File(libsDir(context), soName)
+
+    fun requiredSoForCategory(category: ModuleCategory): String = when (category) {
+        ModuleCategory.VOICE_WHISPER -> WHISPER_SO
+        ModuleCategory.VOICE_VOSK -> VOSK_SO
+        ModuleCategory.TRANSLATION -> TRANSLATE_KIT_SO
+    }
+
     fun isInstalled(context: Context, soName: String): Boolean {
-        val f = File(libsDir(context), soName)
+        val f = libFile(context, soName)
         return f.exists() && f.length() > 100_000L
     }
 

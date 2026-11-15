@@ -29,3 +29,7 @@ dist/
 *.db-journal
 .env
 .env.*
+
+# Local backup of offloaded native modules (stored remotely in jackson1488/anongram-assets)
+modules/
+
