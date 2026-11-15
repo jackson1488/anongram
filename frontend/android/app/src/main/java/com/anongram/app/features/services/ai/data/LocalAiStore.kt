@@ -614,10 +614,25 @@ object LocalAiStore {
                 sysBuilder.append("Follow these reasoning steps:\n$customThinking")
             }
 
+            val resolvedAttachments = attachments.map { att ->
+                if (!att.textContent.isNullOrBlank()) {
+                    att
+                } else {
+                    val parsed = DocumentParser.extractText(
+                        context = context,
+                        uri = Uri.parse(att.uriString),
+                        isImage = att.isImage,
+                        mimeType = att.mimeType,
+                        fileName = att.name
+                    )
+                    if (parsed != null) att.copy(textContent = parsed) else att
+                }
+            }
+
             val sessionMsgs = st.sessions.firstOrNull { it.id == sessionId }?.messages.orEmpty()
             val historyUntilPrompt = sessionMsgs
                 .takeWhile { it.id != assistantMsgId }
-                .filter { it.content.isNotBlank() }
+                .filter { it.content.isNotBlank() || it.attachments.isNotEmpty() }
 
             val rolesList = mutableListOf<String>()
             val contentsList = mutableListOf<String>()
@@ -626,29 +641,26 @@ object LocalAiStore {
                 contentsList.add(sysBuilder.toString())
             }
             historyUntilPrompt.takeLast(10).forEachIndexed { index, msg ->
-                val isLastUser = !msg.isUser.not() && index == historyUntilPrompt.takeLast(10).lastIndex
+                val isLastUser = msg.isUser && index == historyUntilPrompt.takeLast(10).lastIndex
+                val msgAtts = if (isLastUser && resolvedAttachments.isNotEmpty()) resolvedAttachments else msg.attachments
                 val text = buildString {
                     append(msg.content)
-                    if (msg.isUser && msg.attachments.isNotEmpty()) {
-                        msg.attachments.forEach { att ->
+                    if (msg.isUser && msgAtts.isNotEmpty()) {
+                        msgAtts.forEach { att ->
                             if (!att.textContent.isNullOrBlank()) {
-                                append("\n\n[File: ${att.name}]\n")
-                                append(att.textContent.take(2000))
+                                val tag = if (att.isImage) "OCR text from image: ${att.name}" else "File: ${att.name}"
+                                append("\n\n[$tag]\n")
+                                append(att.textContent.take(4000))
                             } else if (att.isImage) {
                                 append("\n[Attached image: ${att.name}]")
                             }
                         }
-                    } else if (isLastUser && attachments.isNotEmpty()) {
-                        attachments.forEach { att ->
-                            if (!att.textContent.isNullOrBlank()) {
-                                append("\n\n[File: ${att.name}]\n")
-                                append(att.textContent.take(2000))
-                            }
-                        }
                     }
+                }.trim()
+                if (text.isNotEmpty()) {
+                    rolesList.add(if (msg.isUser) "user" else "assistant")
+                    contentsList.add(text)
                 }
-                rolesList.add(if (msg.isUser) "user" else "assistant")
-                contentsList.add(text)
             }
             if (rolesList.none { it == "user" }) {
                 rolesList.add("user")

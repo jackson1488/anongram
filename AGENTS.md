@@ -21,11 +21,11 @@
 - **Запрещено** хардкодить цвета (`Color(0xFF...)`, `Color.White`, `ObsidianBlack`, `CardDark`, `TextPrimary`, `TextSecondary`, `IslandBackground`, `SurfaceDark`, `Attach*`) в UI-компонентах.
 - Для всех экранов, оверлеев, меню (`⋮`), диалогов, плеера и меню вложений всегда использовать [`AnonGramScreenSurface`](file:///home/jackson/anongram/frontend/android/app/src/main/java/com/anongram/app/core/ui/AnonGramScreenSurface.kt) и токены `LocalAnonGramScheme.current.*` (`scheme.background`, `scheme.surface`, `scheme.card`, `scheme.islandBg`, `scheme.islandBorder`, `scheme.textPrimary`, `scheme.textSecondary`, `scheme.textMuted`, `scheme.accent`, `scheme.onAccent`, `scheme.outgoingText`, `scheme.incomingText`, `scheme.divider`), чтобы тема автоматически применялась ко всем тёмным, светлым, Ч/Б и кастомным палитрам.
 - **Правило i18n (строго обязательно)**: при **каждом** изменении или добавлении пользовательского текста в интерфейсе (кнопки, заголовки, пункты меню, диалоги, тосты, плейсхолдеры) обязательно сразу обновлять соответствующие словари локализации (RU + EN через `core/i18n/` и модульные `i18n/`-контракты, например `LocalInputStrings.current` / `InputI18n.current`), не оставляя захардкоженных строк в UI.
+- **Стиль кнопок и поиска**: все кнопки действий, чипы категорий и поля поиска делать чистыми и закруглёнными/капсульными (`RoundedCornerShape(20.dp–24.dp)` / `CircleShape`).
 
 ## 5. Git-дисциплина и изоляция параллельной работы
 - **Строго запрещено** использовать `git add -A` или `git add .` — всегда индексировать (`git add <file1> <file2> ...`) **только свои** изменённые или созданные файлы.
 - Над `frontend/web/` ведётся параллельная работа другим агентом: **запрещено** изменять, удалять или добавлять в коммит любые файлы из `frontend/web/`, если пользователь явно об этом не просил.
 
-## 6. Минификация / R8 (`isMinifyEnabled`)
-- Файл `frontend/android/app/proguard-rules.pro` уже подготовлен, но **флаг `isMinifyEnabled = true` сейчас НЕ включать** (`isMinifyEnabled = false` в `frontend/android/app/build.gradle.kts` не менять), пока пользователь явно не скажет включить его для финального релиза.
-
+## 6. Целевая архитектура (ABI)
+- Собирать APK **только под `arm64-v8a`** (`abiFilters += listOf("arm64-v8a")` в `frontend/android/app/build.gradle.kts`), не включать `armeabi-v7a`, `x86`, `x86_64` без явного запроса.

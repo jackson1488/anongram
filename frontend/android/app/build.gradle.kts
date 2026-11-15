@@ -43,7 +43,8 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             signingConfig = signingConfigs.findByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -67,10 +68,10 @@ android {
     }
     packaging {
         jniLibs {
-            useLegacyPackaging = true
+            useLegacyPackaging = false
         }
         dex {
-            useLegacyPackaging = true
+            useLegacyPackaging = false
         }
     }
     externalNativeBuild {
@@ -102,6 +103,7 @@ dependencies {
     implementation("com.google.zxing:core:3.5.3")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("com.alphacephei:vosk-android:0.3.47")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
     implementation(files("libs/translate-kit-release.aar"))
     implementation(project(":llama-jni"))
 

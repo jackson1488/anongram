@@ -165,7 +165,7 @@ fun LocalAiChatScreen(
         }
     }
 
-    AnonGramScreenSurface(modifier = modifier) {
+    AnonGramScreenSurface(modifier = modifier, applySystemBarsPadding = false) {
         if (state.installedModels.isEmpty()) {
             LocalAiFirstRunGate(
                 strings = strings,
@@ -874,10 +874,10 @@ private fun LocalAiFirstRunGate(
                     }
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .background(if (active) scheme.accent else scheme.card)
                             .clickable { selectedCategory = cat }
-                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                            .padding(horizontal = 14.dp, vertical = 8.dp)
                     ) {
                         Text(
                             text = label,
@@ -892,7 +892,7 @@ private fun LocalAiFirstRunGate(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(20.dp))
                     .background(scheme.card)
             ) {
                 filteredPresets.forEachIndexed { idx, preset ->
@@ -943,10 +943,10 @@ private fun LocalAiFirstRunGate(
                             } else {
                                 Row(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .clip(RoundedCornerShape(24.dp))
                                         .background(scheme.accent)
                                         .clickable(enabled = downloadingModelId == null) { onDownloadPreset(preset) }
-                                        .padding(horizontal = 12.dp, vertical = 7.dp),
+                                        .padding(horizontal = 14.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Icon(
@@ -988,10 +988,10 @@ private fun LocalAiFirstRunGate(
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(24.dp))
                         .background(scheme.card)
                         .clickable(onClick = onImportGguf)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -1015,10 +1015,10 @@ private fun LocalAiFirstRunGate(
                 Row(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(24.dp))
                         .background(scheme.card)
                         .clickable(onClick = onOpenModules)
-                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

@@ -177,9 +177,9 @@ fun LocalAiModuleSettingsScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(24.dp))
                         .background(scheme.card)
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                        .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
@@ -222,17 +222,24 @@ fun LocalAiModuleSettingsScreen(
                                     hfError = null
                                 }
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                     }
-                    Text(
-                        text = if (isRu) "Найти" else "Search",
-                        color = if (searchQuery.isNotBlank()) scheme.accent else scheme.textMuted,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.clickable(enabled = !hfLoading && searchQuery.isNotBlank()) {
-                            runHfSearch(searchQuery)
-                        }
-                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(if (searchQuery.isNotBlank()) scheme.accent else scheme.surface)
+                            .clickable(enabled = !hfLoading && searchQuery.isNotBlank()) {
+                                runHfSearch(searchQuery)
+                            }
+                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                    ) {
+                        Text(
+                            text = if (isRu) "Найти" else "Search",
+                            color = if (searchQuery.isNotBlank()) scheme.onAccent else scheme.textMuted,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 // Категории под поиском
@@ -248,10 +255,10 @@ fun LocalAiModuleSettingsScreen(
                         }
                         Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(20.dp))
                                 .background(if (active) scheme.accent else scheme.card)
                                 .clickable { selectedCategory = cat }
-                                .padding(horizontal = 12.dp, vertical = 7.dp)
+                                .padding(horizontal = 14.dp, vertical = 8.dp)
                         ) {
                             Text(
                                 text = label,
