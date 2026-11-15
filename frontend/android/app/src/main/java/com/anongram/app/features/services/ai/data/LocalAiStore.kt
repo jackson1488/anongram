@@ -32,6 +32,7 @@ data class LocalAiState(
     val temperature: Float = 0.7f,
     val cpuThreads: Int = 4,
     val contextLength: Int = 2048,
+    val maxTokens: Int = 1024,
     val webSearchEnabled: Boolean = false,
     val systemPromptPreset: AiSystemPromptPreset = AiSystemPromptPreset.DEFAULT,
     val customSystemPrompt: String = "",
@@ -50,7 +51,7 @@ data class LocalAiState(
     val totalInstalledBytes: Long
         get() = installedModels.sumOf { it.sizeBytes }
 
-    fun effectiveSystemPrompt(isRussian: Boolean): String = when (systemPromptPreset) {
+    fun presetText(preset: AiSystemPromptPreset, isRussian: Boolean): String = when (preset) {
         AiSystemPromptPreset.DEFAULT -> if (isRussian) {
             "Ты — локальный ИИ-помощник AnonGram. Отвечай точно, понятно и уважай приватность пользователя."
         } else {
@@ -76,8 +77,12 @@ data class LocalAiState(
         } else {
             "Answer as concisely and directly as possible without filler."
         }
-        AiSystemPromptPreset.CUSTOM -> customSystemPrompt.trim()
+        AiSystemPromptPreset.CUSTOM -> customSystemPrompt
     }
+
+    fun effectiveSystemPrompt(isRussian: Boolean): String =
+        if (systemPromptPreset == AiSystemPromptPreset.CUSTOM) customSystemPrompt.trim()
+        else presetText(systemPromptPreset, isRussian)
 }
 
 object LocalAiStore {
@@ -87,6 +92,7 @@ object LocalAiStore {
     private const val KEY_TEMP = "temperature"
     private const val KEY_THREADS = "cpu_threads"
     private const val KEY_CTX = "context_length"
+    private const val KEY_MAX_TOKENS = "max_tokens"
     private const val KEY_WEB_SEARCH = "web_search"
     private const val KEY_PROMPT_PRESET = "prompt_preset"
     private const val KEY_CUSTOM_PROMPT = "custom_prompt"
@@ -127,6 +133,7 @@ object LocalAiStore {
                     temperature = prefs.getFloat(KEY_TEMP, 0.7f).coerceIn(0f, 1.5f),
                     cpuThreads = prefs.getInt(KEY_THREADS, 4).coerceIn(1, 8),
                     contextLength = prefs.getInt(KEY_CTX, 2048).coerceIn(512, 8192),
+                    maxTokens = prefs.getInt(KEY_MAX_TOKENS, 1024).coerceIn(256, 4096),
                     webSearchEnabled = prefs.getBoolean(KEY_WEB_SEARCH, false),
                     systemPromptPreset = preset,
                     customSystemPrompt = prefs.getString(KEY_CUSTOM_PROMPT, "") ?: "",
@@ -296,6 +303,13 @@ object LocalAiStore {
         ensureInitialized(context)
         prefs(context).edit().putBoolean(KEY_WEB_SEARCH, enabled).apply()
         _state.update { it.copy(webSearchEnabled = enabled) }
+    }
+
+    fun setMaxTokens(context: Context, maxTokens: Int) {
+        ensureInitialized(context)
+        val clamped = maxTokens.coerceIn(256, 4096)
+        prefs(context).edit().putInt(KEY_MAX_TOKENS, clamped).apply()
+        _state.update { it.copy(maxTokens = clamped) }
     }
 
     fun setSystemPromptPreset(context: Context, preset: AiSystemPromptPreset) {
@@ -667,6 +681,41 @@ object LocalAiStore {
                 contentsList.add(userPrompt)
             }
 
+            if (st.webSearchEnabled && userPrompt.isNotBlank()) {
+                val searchingLabel = if (isRussian) {
+                    "Ищу в интернете: ${userPrompt.take(36)}${if (userPrompt.length > 36) "…" else ""}"
+                } else {
+                    "Searching web: ${userPrompt.take(36)}${if (userPrompt.length > 36) "…" else ""}"
+                }
+                updateAssistantMessage(sessionId, assistantMsgId) { it.copy(searchStatus = searchingLabel) }
+
+                val results = WebSearchClient.search(userPrompt, maxResults = 5)
+                if (results.isNotEmpty()) {
+                    val readingLabel = if (isRussian) {
+                        "Найдено источников: ${results.size} · осмысление..."
+                    } else {
+                        "Found ${results.size} sources · thinking..."
+                    }
+                    updateAssistantMessage(sessionId, assistantMsgId) {
+                        it.copy(searchStatus = readingLabel, webSources = results)
+                    }
+                    val webContext = buildString {
+                        append("\n\n[Live Web Search Results]\n")
+                        results.forEachIndexed { idx, r ->
+                            append("${idx + 1}. ${r.title} (${r.url})\n")
+                            if (r.snippet.isNotBlank()) append("   ${r.snippet}\n")
+                        }
+                        append("[Use the live web search results above to answer accurately and mention source names/URLs when helpful.]")
+                    }
+                    val lastUserIdx = rolesList.indexOfLast { it == "user" }
+                    if (lastUserIdx >= 0) {
+                        contentsList[lastUserIdx] = contentsList[lastUserIdx] + webContext
+                    }
+                } else {
+                    updateAssistantMessage(sessionId, assistantMsgId) { it.copy(searchStatus = null) }
+                }
+            }
+
             val startNs = System.nanoTime()
             try {
                 val resultCode = withContext(Dispatchers.IO) {
@@ -679,11 +728,10 @@ object LocalAiStore {
 
                     val rawSb = StringBuilder()
                     var lastUiUpdateMs = 0L
-                    val maxTokens = when (reasoning) {
-                        AiReasoningLevel.OFF -> 512
-                        AiReasoningLevel.LOW -> 640
-                        AiReasoningLevel.MEDIUM -> 1024
-                        AiReasoningLevel.HIGH -> 1536
+                    val maxTokens = if (reasoning == AiReasoningLevel.HIGH) {
+                        maxOf(st.maxTokens, 1536)
+                    } else {
+                        st.maxTokens
                     }
 
                     val code = LlamaNativeBridge.nativeGenerate(
@@ -700,6 +748,7 @@ object LocalAiStore {
                                 val elapsedSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
                                 updateAssistantMessage(sessionId, assistantMsgId) { m ->
                                     m.copy(
+                                        searchStatus = null,
                                         thinking = customThinking ?: parsedThink,
                                         thinkingDurationSec = if (parsedThink.isNotEmpty() || customThinking != null) elapsedSec else 0f,
                                         content = parsedAnswer
@@ -713,6 +762,7 @@ object LocalAiStore {
                     val totalSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
                     updateAssistantMessage(sessionId, assistantMsgId) { m ->
                         m.copy(
+                            searchStatus = null,
                             thinking = customThinking ?: finalThink,
                             thinkingDurationSec = if (finalThink.isNotEmpty() || customThinking != null) totalSec else 0f,
                             content = finalAnswer.ifBlank { m.content }

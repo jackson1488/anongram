@@ -74,7 +74,13 @@ data class LocalAiI18nStrings(
     val gateSubtitle: String,
     val gateDownloadBtn: String,
     val gateImportBtn: String,
-    val gateOpenModulesBtn: String
+    val gateOpenModulesBtn: String,
+    val searchingWebStatus: (String) -> String,
+    val readingSourcesStatus: (Int) -> String,
+    val sourcesLabel: String,
+    val resetPromptBtn: String,
+    val maxTokensTitle: String,
+    val webSearchSettingsHint: String
 ) {
     fun reasoningLabel(level: AiReasoningLevel): String = when (level) {
         AiReasoningLevel.OFF -> reasoningOff
@@ -162,7 +168,13 @@ object LocalAiI18n {
         gateSubtitle = "Без загруженной GGUF-модели локальный ИИ не может отвечать. Выберите модель ниже или импортируйте свою.",
         gateDownloadBtn = "Скачать",
         gateImportBtn = "Импортировать .gguf",
-        gateOpenModulesBtn = "Открыть Модули"
+        gateOpenModulesBtn = "Открыть Модули",
+        searchingWebStatus = { q -> "Ищу в интернете: ${q.take(36)}${if (q.length > 36) "…" else ""}" },
+        readingSourcesStatus = { n -> "Найдено источников: $n · осмысление..." },
+        sourcesLabel = "Источники",
+        resetPromptBtn = "Сбросить",
+        maxTokensTitle = "Макс. длина ответа",
+        webSearchSettingsHint = "При включении запросы отправляются в DuckDuckGo / Wikipedia для поиска свежих данных."
     )
 
     private val en = LocalAiI18nStrings(
@@ -233,7 +245,13 @@ object LocalAiI18n {
         gateSubtitle = "Local AI requires at least one GGUF model on device. Download one below or import your own.",
         gateDownloadBtn = "Download",
         gateImportBtn = "Import .gguf",
-        gateOpenModulesBtn = "Open Modules"
+        gateOpenModulesBtn = "Open Modules",
+        searchingWebStatus = { q -> "Searching web: ${q.take(36)}${if (q.length > 36) "…" else ""}" },
+        readingSourcesStatus = { n -> "Found $n sources · thinking..." },
+        sourcesLabel = "Sources",
+        resetPromptBtn = "Reset",
+        maxTokensTitle = "Max response length",
+        webSearchSettingsHint = "When enabled, queries are sent to DuckDuckGo / Wikipedia for live web results."
     )
 
     val current: LocalAiI18nStrings

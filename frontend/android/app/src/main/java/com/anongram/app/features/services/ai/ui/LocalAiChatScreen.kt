@@ -622,7 +622,7 @@ fun LocalAiChatScreen(
                 onOpenModules = onOpenModules
             )
 
-            // Отдельный экран настроек ИИ (системный промпт, температура, потоки, контекст)
+            // Отдельный экран настроек ИИ (системный промпт, температура, потоки, контекст, веб-поиск)
             LocalAiSettingsScreen(
                 visible = isAiSettingsOpen,
                 state = state,
@@ -633,6 +633,8 @@ fun LocalAiChatScreen(
                 onChangeCustomPrompt = { LocalAiStore.setCustomSystemPrompt(context, it) },
                 onSelectThreads = { LocalAiStore.setCpuThreads(context, it) },
                 onSelectContext = { LocalAiStore.setContextLength(context, it) },
+                onSelectMaxTokens = { LocalAiStore.setMaxTokens(context, it) },
+                onToggleWebSearch = { LocalAiStore.setWebSearchEnabled(context, it) },
                 onOpenModules = onOpenModules
             )
         }

@@ -1,6 +1,7 @@
 package com.anongram.app.features.services.ai.ui
 
 import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
@@ -17,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -25,10 +28,12 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Psychology
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -184,6 +189,73 @@ fun LocalAiMessageBubble(
     var editedThoughts by remember(message.id, message.thinking) { mutableStateOf(message.thinking) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+        if (!message.searchStatus.isNullOrBlank()) {
+            Row(
+                modifier = Modifier
+                    .padding(bottom = 8.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(scheme.accent.copy(alpha = 0.12f))
+                    .border(0.8.dp, scheme.accent.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Public,
+                    contentDescription = null,
+                    tint = scheme.accent,
+                    modifier = Modifier.size(15.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = message.searchStatus,
+                    color = scheme.accent,
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        if (message.webSources.isNotEmpty()) {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(bottom = 8.dp)
+            ) {
+                items(message.webSources) { src ->
+                    val host = runCatching { Uri.parse(src.url).host?.removePrefix("www.") }.getOrNull().orEmpty()
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(scheme.card)
+                            .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+                            .clickable {
+                                runCatching {
+                                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(src.url)))
+                                }
+                            }
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Public,
+                            contentDescription = null,
+                            tint = scheme.accent,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = if (host.isNotBlank()) host else src.title,
+                            color = scheme.textSecondary,
+                            fontSize = 11.5.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+        }
+
         if (message.thinking.isNotBlank()) {
             Column(
                 modifier = Modifier

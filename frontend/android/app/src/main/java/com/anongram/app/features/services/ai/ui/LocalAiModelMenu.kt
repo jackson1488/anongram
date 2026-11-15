@@ -34,11 +34,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -271,6 +274,8 @@ fun LocalAiSettingsScreen(
     onChangeCustomPrompt: (String) -> Unit,
     onSelectThreads: (Int) -> Unit,
     onSelectContext: (Int) -> Unit,
+    onSelectMaxTokens: (Int) -> Unit,
+    onToggleWebSearch: (Boolean) -> Unit,
     onOpenModules: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -280,7 +285,10 @@ fun LocalAiSettingsScreen(
         enter = fadeIn(),
         exit = fadeOut()
     ) {
-        AnonGramScreenSurface(modifier = Modifier.fillMaxSize()) {
+        AnonGramScreenSurface(
+            modifier = Modifier.fillMaxSize(),
+            applySystemBarsPadding = false
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -321,14 +329,43 @@ fun LocalAiSettingsScreen(
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
-                    // Системный промпт
+                    // Системный промпт (всегда редактируемый)
+                    val activePromptText = if (state.systemPromptPreset == AiSystemPromptPreset.CUSTOM) {
+                        state.customSystemPrompt
+                    } else {
+                        state.presetText(state.systemPromptPreset, strings.isRussian)
+                    }
+
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text(
-                            text = strings.systemPromptTitle,
-                            color = scheme.textSecondary,
-                            fontSize = 12.5.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = strings.systemPromptTitle,
+                                color = scheme.textSecondary,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (state.systemPromptPreset != AiSystemPromptPreset.DEFAULT) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(scheme.card)
+                                        .clickable { onSelectPromptPreset(AiSystemPromptPreset.DEFAULT) }
+                                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = strings.resetPromptBtn,
+                                        color = scheme.accent,
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -337,10 +374,16 @@ fun LocalAiSettingsScreen(
                                 val selected = state.systemPromptPreset == preset
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .clip(RoundedCornerShape(20.dp))
                                         .background(if (selected) scheme.accent else scheme.card)
-                                        .clickable { onSelectPromptPreset(preset) }
-                                        .padding(horizontal = 12.dp, vertical = 7.dp)
+                                        .clickable {
+                                            if (preset == AiSystemPromptPreset.CUSTOM) {
+                                                onChangeCustomPrompt(activePromptText)
+                                            } else {
+                                                onSelectPromptPreset(preset)
+                                            }
+                                        }
+                                        .padding(horizontal = 14.dp, vertical = 7.dp)
                                 ) {
                                     Text(
                                         text = strings.promptPresetLabel(preset),
@@ -351,33 +394,86 @@ fun LocalAiSettingsScreen(
                                 }
                             }
                         }
-                        if (state.systemPromptPreset == AiSystemPromptPreset.CUSTOM) {
-                            Box(
+
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(scheme.card)
+                                .padding(horizontal = 14.dp, vertical = 12.dp)
+                        ) {
+                            BasicTextField(
+                                value = activePromptText,
+                                onValueChange = onChangeCustomPrompt,
+                                textStyle = TextStyle(color = scheme.textPrimary, fontSize = 14.sp, lineHeight = 20.sp),
+                                cursorBrush = SolidColor(scheme.accent),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(scheme.card)
-                                    .padding(horizontal = 14.dp, vertical = 12.dp)
-                            ) {
-                                BasicTextField(
-                                    value = state.customSystemPrompt,
-                                    onValueChange = onChangeCustomPrompt,
-                                    textStyle = TextStyle(color = scheme.textPrimary, fontSize = 14.sp, lineHeight = 20.sp),
-                                    cursorBrush = SolidColor(scheme.accent),
-                                    modifier = Modifier.fillMaxWidth(),
-                                    decorationBox = { inner ->
-                                        if (state.customSystemPrompt.isEmpty()) {
-                                            Text(
-                                                text = strings.systemPromptPlaceholder,
-                                                color = scheme.textMuted,
-                                                fontSize = 14.sp
-                                            )
-                                        }
-                                        inner()
+                                    .heightIn(min = 68.dp),
+                                decorationBox = { inner ->
+                                    if (activePromptText.isEmpty()) {
+                                        Text(
+                                            text = strings.systemPromptPlaceholder,
+                                            color = scheme.textMuted,
+                                            fontSize = 14.sp
+                                        )
                                     }
-                                )
-                            }
+                                    inner()
+                                }
+                            )
+                            Text(
+                                text = "${activePromptText.length}",
+                                color = scheme.textMuted,
+                                fontSize = 11.sp,
+                                modifier = Modifier.align(Alignment.End)
+                            )
                         }
+                    }
+
+                    HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+
+                    // Веб-поиск в реальном времени
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(scheme.card)
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Public,
+                                contentDescription = null,
+                                tint = if (state.webSearchEnabled) scheme.accent else scheme.textSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                            Text(
+                                text = strings.attachWebSearch,
+                                color = scheme.textPrimary,
+                                fontSize = 14.5.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f)
+                            )
+                            Switch(
+                                checked = state.webSearchEnabled,
+                                onCheckedChange = onToggleWebSearch,
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = scheme.onAccent,
+                                    checkedTrackColor = scheme.accent
+                                )
+                            )
+                        }
+                        Text(
+                            text = strings.webSearchSettingsHint,
+                            color = scheme.textSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
                     }
 
                     HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
@@ -424,11 +520,11 @@ fun LocalAiSettingsScreen(
 
                     HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
-                    // Потоки CPU и длина контекста
+                    // Потоки CPU, длина контекста и макс. длина ответа
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .background(scheme.card)
                     ) {
                         Row(
@@ -448,10 +544,10 @@ fun LocalAiSettingsScreen(
                                     val selected = state.cpuThreads == thr
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(RoundedCornerShape(20.dp))
                                             .background(if (selected) scheme.accent else scheme.surface)
                                             .clickable { onSelectThreads(thr) }
-                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                            .padding(horizontal = 11.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             text = "$thr",
@@ -483,13 +579,48 @@ fun LocalAiSettingsScreen(
                                     val selected = state.contextLength == ctx
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
+                                            .clip(RoundedCornerShape(20.dp))
                                             .background(if (selected) scheme.accent else scheme.surface)
                                             .clickable { onSelectContext(ctx) }
-                                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
                                     ) {
                                         Text(
                                             text = "$ctx",
+                                            color = if (selected) scheme.onAccent else scheme.textPrimary,
+                                            fontSize = 12.5.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = strings.maxTokensTitle,
+                                color = scheme.textPrimary,
+                                fontSize = 14.sp
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf(512, 1024, 2048).forEach { tok ->
+                                    val selected = state.maxTokens == tok
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(if (selected) scheme.accent else scheme.surface)
+                                            .clickable { onSelectMaxTokens(tok) }
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(
+                                            text = "$tok",
                                             color = if (selected) scheme.onAccent else scheme.textPrimary,
                                             fontSize = 12.5.sp,
                                             fontWeight = FontWeight.Medium
@@ -503,13 +634,13 @@ fun LocalAiSettingsScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(24.dp))
                             .background(scheme.card)
                             .clickable {
                                 onDismiss()
                                 onOpenModules()
                             }
-                            .padding(horizontal = 14.dp, vertical = 13.dp),
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
