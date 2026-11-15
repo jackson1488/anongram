@@ -568,16 +568,16 @@ object LocalAiStore {
         return buildString {
             append("[Core System Rules]\n")
             append("Current date: $today.\n")
-            append("You are the AnonGram on-device AI engine. Answer clearly, accurately, and in the user's language.")
+            append("You are the AnonGram AI assistant. Answer clearly, accurately, and in the user's language.")
             if (webSearchEnabled) {
-                append("\n\n# Tools\n")
-                append("You may call one or more functions to assist with the user query. Use them ONLY when fresh facts, current events, prices, weather, or web verification are needed (do NOT call tools for greetings, math, coding, or summarizing attached files).\n")
-                append("<tools>\n")
-                append("{\"type\": \"function\", \"function\": {\"name\": \"web_search\", \"description\": \"Search the internet using short keywords.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"query\": {\"type\": \"string\"}}, \"required\": [\"query\"]}}}\n")
-                append("{\"type\": \"function\", \"function\": {\"name\": \"open_url\", \"description\": \"Read full text of a webpage URL from search results.\", \"parameters\": {\"type\": \"object\", \"properties\": {\"url\": {\"type\": \"string\"}}, \"required\": [\"url\"]}}}\n")
-                append("</tools>\n")
-                append("For each function call, return a json object within <tool_call></tool_call> XML tags:\n")
-                append("<tool_call>\n{\"name\": \"web_search\", \"arguments\": {\"query\": \"short search keywords\"}}\n</tool_call>")
+                append("\n\n[Live Internet Access]\n")
+                append("You HAVE live internet access right now through web_search and open_url.\n")
+                append("NEVER say \"I cannot search the internet\", \"I have no internet access\", \"я не могу искать в интернете\", or \"у меня нет доступа к сети\".\n")
+                append("When you need fresh facts, news, weather, prices, or verification, reply ONLY with:\n")
+                append("<tool_call>{\"name\": \"web_search\", \"arguments\": {\"query\": \"short search keywords\"}}</tool_call>\n")
+                append("To read the full text of a URL from search results, reply ONLY with:\n")
+                append("<tool_call>{\"name\": \"open_url\", \"arguments\": {\"url\": \"https://...\"}}</tool_call>\n")
+                append("Do NOT call tools for simple greetings, math, coding, or summarizing attached files.")
             }
             if (isRussian) {
                 append("\nAlways reply in Russian unless the user writes in another language.")
@@ -586,13 +586,50 @@ object LocalAiStore {
     }
 
     private fun extractToolCall(text: String): Pair<String, String>? {
-        val tagRegex = Regex("""<tool_call>\s*(\{.*?\})\s*</tool_call>""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
-        val tagMatch = tagRegex.find(text)
-        if (tagMatch != null) {
-            val parsed = parseToolCallJson(tagMatch.groupValues[1])
-            if (parsed != null) return parsed
+        val tagRegex = Regex("""<tool_call>\s*(\{.*?\})\s*(?:</tool_call>|$)""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        tagRegex.find(text)?.let { m ->
+            parseToolCallJson(m.groupValues[1])?.let { return it }
+        }
+        val rawJsonRegex = Regex("""(\{\s*"name"\s*:\s*"(?:web_search|open_url)"\s*,\s*"(?:arguments|parameters)"\s*:\s*\{.*?\}\s*\})""", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+        rawJsonRegex.find(text)?.let { m ->
+            parseToolCallJson(m.groupValues[1])?.let { return it }
         }
         return null
+    }
+
+    private fun looksLikeSearchRefusal(answer: String): Boolean {
+        val lower = answer.lowercase()
+        val phrases = listOf(
+            "не могу искать", "нет доступа к интернету", "нет доступа к сети",
+            "не имею доступа к интернету", "не подключаюсь к интернету",
+            "мои знания ограничены", "информация ограничена",
+            "cannot search", "can't search", "no internet access",
+            "don't have access to the internet", "do not have access to the internet",
+            "cannot browse", "unable to search", "knowledge cutoff"
+        )
+        return phrases.any { it in lower }
+    }
+
+    private fun userExplicitlyRequestedSearch(prompt: String): Boolean {
+        val lower = prompt.lowercase()
+        val cues = listOf(
+            "найди", "поищи", "погугли", "в интернете", "в сети", "загугли",
+            "актуальн", "свежие новости", "курс ", "погода ", "search ", "look up", "google "
+        )
+        return cues.any { it in lower }
+    }
+
+    private fun compactSearchQuery(prompt: String): String {
+        val stopWords = setOf(
+            "найди", "поищи", "погугли", "загугли", "пожалуйста", "скажи", "подскажи",
+            "мне", "в", "на", "по", "про", "об", "о", "интернете", "сети", "и", "что", "такое",
+            "как", "сколько", "сейчас", "please", "search", "find", "look", "up", "for", "the", "in"
+        )
+        val cleaned = prompt
+            .replace(Regex("""[^\p{L}\p{N}\s.\-]"""), " ")
+            .split(Regex("""\s+"""))
+            .filter { it.length > 1 && it.lowercase() !in stopWords }
+        return if (cleaned.isNotEmpty()) cleaned.take(7).joinToString(" ") else prompt.trim().take(80)
     }
 
     private fun parseToolCallJson(jsonStr: String): Pair<String, String>? = runCatching {
@@ -820,10 +857,20 @@ object LocalAiStore {
                             accumulatedThinking.append(roundThink)
                         }
 
-                        val toolCall = if (st.webSearchEnabled && round < maxToolRounds) {
+                        var toolCall = if (st.webSearchEnabled && round < maxToolRounds) {
                             extractToolCall(roundAnswer) ?: extractToolCall(rawRound)
                         } else {
                             null
+                        }
+
+                        if (toolCall == null && st.webSearchEnabled && round == 0 &&
+                            (looksLikeSearchRefusal(roundAnswer) || userExplicitlyRequestedSearch(userPrompt))
+                        ) {
+                            val fallbackQuery = compactSearchQuery(userPrompt)
+                            if (fallbackQuery.isNotBlank()) {
+                                toolCall = "web_search" to fallbackQuery
+                                updateAssistantMessage(sessionId, assistantMsgId) { m -> m.copy(content = "") }
+                            }
                         }
 
                         if (toolCall == null) {
