@@ -239,4 +239,24 @@ interface InputI18nStrings {
     val themeFilterAll: String
     val themeFilterDark: String
     val themeFilterLight: String
+
+    // Меню выделения и форматирования текста в поле ввода
+    val selectionCut: String
+    val selectionCopy: String
+    val selectionPaste: String
+    val selectionSelectAll: String
+    val selectionQuote: String
+    val selectionSpoiler: String
+    val selectionBold: String
+    val selectionItalic: String
+    val selectionMono: String
+    val selectionStrike: String
+    val selectionUnderline: String
+    val selectionAddLink: String
+    val selectionPlain: String
+    val selectionBack: String
+    val selectionUrlLabel: String
+    val selectionCancel: String
+    val selectionOk: String
+    val selectionMore: String
 }
