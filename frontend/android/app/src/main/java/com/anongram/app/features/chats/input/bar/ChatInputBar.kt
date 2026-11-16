@@ -113,17 +113,44 @@ fun ChatInputBar(
     val scrollState = rememberScrollState()
     val isMultiline = !isRecording && !isHiddenByTrim && (input.lines().size >= 3 || input.length >= 60)
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-    ) {
-        // Основной островок ввода всегда в дереве (при isLockedRecording / isHiddenByTrim прозрачен, чтобы не терять фокус/клавиатуру)
+    var textFieldValue by remember {
+        mutableStateOf(TextFieldValue(input, TextRange(input.length)))
+    }
+    if (textFieldValue.text != input) {
+        textFieldValue = TextFieldValue(input, TextRange(input.length))
+    }
+    val selectionController = rememberChatInputSelectionController(
+        getValue = { textFieldValue },
+        onValueChange = { next ->
+            textFieldValue = next
+            if (next.text != input) {
+                onInputChange(next.text)
+            }
+        }
+    )
+    val richVisualTransformation = remember(scheme.textPrimary, scheme.accent) {
+        createRichInputVisualTransformation(
+            textPrimary = scheme.textPrimary,
+            accentColor = scheme.accent
+        )
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (!isRecording && !isHiddenByTrim) {
+            ChatInputSelectionToolbarOverlay(controller = selectionController)
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .alpha(if (isLockedRecording || isHiddenByTrim) 0f else 1f)
+                .padding(horizontal = 8.dp, vertical = 4.dp)
         ) {
+            // Основной островок ввода всегда в дереве (при isLockedRecording / isHiddenByTrim прозрачен, чтобы не терять фокус/клавиатуру)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .alpha(if (isLockedRecording || isHiddenByTrim) 0f else 1f)
+            ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -205,22 +232,7 @@ fun ChatInputBar(
                                             fontSize = 15.sp
                                         )
                                     }
-                                    var textFieldValue by remember {
-                                        mutableStateOf(TextFieldValue(input, TextRange(input.length)))
-                                    }
-                                    if (textFieldValue.text != input) {
-                                        textFieldValue = TextFieldValue(input, TextRange(input.length))
-                                    }
-                                    val selectionToolbar = rememberChatInputSelectionToolbar(
-                                        getValue = { textFieldValue },
-                                        onValueChange = { next ->
-                                            textFieldValue = next
-                                            if (next.text != input) {
-                                                onInputChange(next.text)
-                                            }
-                                        }
-                                    )
-                                    CompositionLocalProvider(LocalTextToolbar provides selectionToolbar) {
+                                    CompositionLocalProvider(LocalTextToolbar provides selectionController.textToolbar) {
                                         BasicTextField(
                                             value = textFieldValue,
                                             onValueChange = { newValue ->
@@ -231,6 +243,7 @@ fun ChatInputBar(
                                                     }
                                                 }
                                             },
+                                            visualTransformation = richVisualTransformation,
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .onFocusChanged { if (it.isFocused && !isRecording) onFocusInput() }
@@ -353,6 +366,7 @@ fun ChatInputBar(
                 onSend = onStopLockedRecording,
                 modifier = Modifier.fillMaxWidth()
             )
+        }
         }
     }
 }

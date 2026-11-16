@@ -114,7 +114,9 @@ fun BubbleTextMessage(
                 highlightColor = scheme.accent
             )
         } else {
-            buildRichAnnotatedText(textToDisplay, scheme.accent)
+            buildRichAnnotatedText(textToDisplay, scheme.accent) { url ->
+                InAppBrowserStore.openUrl(context, url)
+            }
         }
         val annotatedText = remember(baseAnnotatedText, scheme.accent) {
             baseAnnotatedText.withClickableUrls(scheme.accent) { url ->
@@ -326,7 +328,11 @@ internal fun InlineSpoilerLine(
  * - `код`
  * - [font=serif]...[/font], [font=mono]...[/font], [font=cursive]...[/font]
  */
-fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString {
+fun buildRichAnnotatedText(
+    source: String,
+    accentColor: Color,
+    onOpenUrl: ((String) -> Unit)? = null
+): AnnotatedString {
     return buildAnnotatedString {
         var cursor = 0
         val len = source.length
@@ -339,7 +345,8 @@ fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString 
             "(<u>([^<]+)<\\/u>)|" +                        // 7: <u>underline</u>
             "(`([^`]+)`)|" +                               // 9: `code`
             "(\\[font=(sans|serif|mono|cursive)\\]([\\s\\S]*?)\\[\\/font\\])|" + // 11: font
-            "(\\|\\|([\\s\\S]*?)\\|\\|)"                   // 14: ||spoiler||
+            "(\\|\\|([\\s\\S]*?)\\|\\|)|" +                // 14: ||spoiler||
+            "(\\[([^\\]]+)\\]\\(([^)]+)\\))"               // 16: [text](url)
         )
 
         val matches = tokenRegex.findAll(source).toList()
@@ -419,6 +426,31 @@ fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString 
                     )
                     append(inner)
                     pop()
+                }
+                // [text](url)
+                m.groupValues[16].isNotEmpty() -> {
+                    val label = m.groupValues[17]
+                    val targetUrl = LinkPreviewFetcher.normalizeUrl(m.groupValues[18])
+                    if (onOpenUrl != null) {
+                        pushLink(
+                            LinkAnnotation.Url(
+                                url = targetUrl,
+                                styles = TextLinkStyles(
+                                    style = SpanStyle(
+                                        color = accentColor,
+                                        textDecoration = TextDecoration.Underline
+                                    )
+                                ),
+                                linkInteractionListener = { onOpenUrl(targetUrl) }
+                            )
+                        )
+                        append(label)
+                        pop()
+                    } else {
+                        pushStyle(SpanStyle(color = accentColor, textDecoration = TextDecoration.Underline))
+                        append(label)
+                        pop()
+                    }
                 }
             }
             lastEnd = m.range.last + 1
