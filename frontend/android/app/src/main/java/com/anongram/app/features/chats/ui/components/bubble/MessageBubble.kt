@@ -356,27 +356,17 @@ internal fun MessageBubble(
                 .then(
                     if (!isStandaloneCircle) {
                         Modifier.combinedClickable(
-                            enabled = !isPartialTextSelect,
+                            enabled = !(isSelectionMode && isSelected && message.text.isNotBlank()),
                             interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                             indication = null,
                             onClick = {
                                 if (isSelectionMode) {
-                                    if (isSelected && message.text.isNotBlank()) {
-                                        isPartialTextSelect = true
-                                    } else {
-                                        onSelect()
-                                    }
+                                    onSelect()
                                 } else {
                                     onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                                 }
                             },
-                            onLongClick = {
-                                if (isSelectionMode && isSelected && message.text.isNotBlank()) {
-                                    isPartialTextSelect = true
-                                } else {
-                                    onLongClick()
-                                }
-                            }
+                            onLongClick = onLongClick
                         )
                     } else Modifier
                 )
@@ -434,27 +424,17 @@ internal fun MessageBubble(
                     .align(if (isIncoming) Alignment.TopStart else Alignment.TopEnd)
                     .offset(x = incomingShiftDp)
                     .combinedClickable(
-                        enabled = !isPartialTextSelect,
+                        enabled = !(isSelectionMode && isSelected && message.text.isNotBlank()),
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null,
                         onClick = {
                             if (isSelectionMode) {
-                                if (isSelected && message.text.isNotBlank()) {
-                                    isPartialTextSelect = true
-                                } else {
-                                    onSelect()
-                                }
+                                onSelect()
                             } else {
                                 onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                             }
                         },
-                        onLongClick = {
-                            if (isSelectionMode && isSelected && message.text.isNotBlank()) {
-                                isPartialTextSelect = true
-                            } else {
-                                onLongClick()
-                            }
-                        }
+                        onLongClick = onLongClick
                     ),
                 contentAlignment = if (isIncoming) Alignment.TopStart else Alignment.TopEnd
             ) {
@@ -765,7 +745,7 @@ internal fun MessageBubble(
                                                 Modifier
                                             }
                                         ) {
-                                            if (isPartialTextSelect) {
+                                            if (isSelectionMode && isSelected && message.text.isNotBlank()) {
                                                 SelectionContainer {
                                                     BubbleTextMessage(
                                                         message = effectiveMessage,
@@ -774,21 +754,6 @@ internal fun MessageBubble(
                                                         searchQuery = searchQuery,
                                                         onOpenFullText = { onOpenFullTextMessage(effectiveMessage) },
                                                         onRetry = onRetry
-                                                    )
-                                                }
-                                                Spacer(modifier = Modifier.height(6.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(scheme.accent.copy(alpha = 0.16f))
-                                                        .clickable { isPartialTextSelect = false }
-                                                        .padding(horizontal = 10.dp, vertical = 4.dp)
-                                                ) {
-                                                    Text(
-                                                        text = moduleStrings.partialSelectDone,
-                                                        color = scheme.accent,
-                                                        fontSize = 11.5.sp,
-                                                        fontWeight = FontWeight.SemiBold
                                                     )
                                                 }
                                             } else {

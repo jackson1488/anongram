@@ -174,9 +174,10 @@ internal fun MessagesList(
 
     val dragSelectModifier = if (isSelectionMode) {
         Modifier.pointerInput(isSelectionMode) {
+            val railWidthPx = with(density) { 56.dp.toPx() }
             val edgePx = with(density) { 84.dp.toPx() }
             val maxScrollPx = with(density) { 18.dp.toPx() }
-            val touchSlop = viewConfiguration.touchSlop
+            val startSlop = viewConfiguration.touchSlop * 0.4f
 
             fun findIndexAtY(screenY: Float): Int? {
                 val layoutInfo = listState.layoutInfo
@@ -199,16 +200,17 @@ internal fun MessagesList(
             }
 
             awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                if (down.position.x > railWidthPx) return@awaitEachGesture
+
                 val items = latestRenderItems
                 if (items.isEmpty()) return@awaitEachGesture
-                val anchorIdx = findIndexAtY(longPress.position.y)?.coerceIn(0, items.lastIndex) ?: return@awaitEachGesture
+                val anchorIdx = findIndexAtY(down.position.y)?.coerceIn(0, items.lastIndex) ?: return@awaitEachGesture
                 val initialSet = latestSelection.toSet()
                 val anchorId = items[anchorIdx].message.id
                 val selecting = anchorId !in initialSet
                 var dragStarted = false
-                var currentY = longPress.position.y
+                var currentY = down.position.y
                 var lastEmitted: Set<String>? = null
 
                 fun applyRange(targetIdx: Int) {
@@ -234,7 +236,7 @@ internal fun MessagesList(
                         val change = event.changes.firstOrNull { it.id == down.id } ?: break
                         if (!change.pressed) break
                         currentY = change.position.y
-                        if (!dragStarted && kotlin.math.abs(currentY - longPress.position.y) > touchSlop) {
+                        if (!dragStarted && kotlin.math.abs(currentY - down.position.y) > startSlop) {
                             dragStarted = true
                             haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                             applyRange(anchorIdx)
