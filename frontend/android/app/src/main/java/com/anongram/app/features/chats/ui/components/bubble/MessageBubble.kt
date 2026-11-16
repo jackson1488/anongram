@@ -40,12 +40,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import android.util.TypedValue
-import android.widget.TextView
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Reply
@@ -749,42 +746,17 @@ internal fun MessageBubble(
                                             }
                                         ) {
                                             if (isSelectionMode && isSelected && message.text.isNotBlank()) {
-                                                 val selectableColor = if (isIncoming) scheme.incomingText else scheme.outgoingText
-                                                 val accentColorArgb = scheme.accent.toArgb()
-                                                 val textColorArgb = selectableColor.toArgb()
-                                                 val highlightColorArgb = scheme.accent.copy(alpha = 0.28f).toArgb()
-                                                 Column(modifier = Modifier) {
-                                                     AndroidView(
-                                                         factory = { ctx ->
-                                                             TextView(ctx).apply {
-                                                                 setTextIsSelectable(true)
-                                                                 setPadding(0, 0, 0, 0)
-                                                                 includeFontPadding = false
-                                                                 setLineSpacing(0f, 1.15f)
-                                                                 layoutParams = android.view.ViewGroup.LayoutParams(
-                                                                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-                                                                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-                                                                 )
-                                                             }
-                                                         },
-                                                         update = { tv ->
-                                                             if (tv.text.toString() != effectiveMessage.text) {
-                                                                 tv.text = effectiveMessage.text
-                                                             }
-                                                             tv.setTextColor(textColorArgb)
-                                                             tv.setLinkTextColor(accentColorArgb)
-                                                             tv.highlightColor = highlightColorArgb
-                                                             tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, messageTextSizeSp.toFloat())
-                                                         }
-                                                     )
-                                                     Text(
-                                                         text = message.timeLabel(),
-                                                         color = selectableColor.copy(alpha = 0.65f),
-                                                         fontSize = (10.5f * textScale).sp,
-                                                         modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
-                                                     )
-                                                 }
-                                             } else {
+                                                SelectionContainer {
+                                                    BubbleTextMessage(
+                                                        message = effectiveMessage,
+                                                        textSizeSp = messageTextSizeSp,
+                                                        textScale = textScale,
+                                                        searchQuery = searchQuery,
+                                                        onOpenFullText = { onOpenFullTextMessage(effectiveMessage) },
+                                                        onRetry = onRetry
+                                                    )
+                                                }
+                                            } else {
                                                 BubbleTextMessage(
                                                     message = effectiveMessage,
                                                     textSizeSp = messageTextSizeSp,
