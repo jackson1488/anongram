@@ -234,30 +234,20 @@ fun ChatInputBar(
                                             fontSize = 15.sp
                                         )
                                     }
-                                    CompositionLocalProvider(LocalTextToolbar provides selectionController.textToolbar) {
-                                        BasicTextField(
-                                            value = textFieldValue,
-                                            onValueChange = { newValue ->
-                                                if (!isRecording) {
-                                                    textFieldValue = newValue
-                                                    if (newValue.text != input) {
-                                                        onInputChange(newValue.text)
-                                                    }
-                                                }
-                                            },
-                                            visualTransformation = richVisualTransformation,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .onFocusChanged { if (it.isFocused && !isRecording) onFocusInput() }
-                                                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-                                            textStyle = TextStyle(
-                                                color = scheme.textPrimary,
-                                                fontSize = 15.sp,
-                                                lineHeight = 20.sp
-                                            ),
-                                            cursorBrush = SolidColor(scheme.accent)
-                                        )
-                                    }
+                                    ChatInputTextField(
+                                        value = textFieldValue,
+                                        isRecording = isRecording,
+                                        richVisualTransformation = richVisualTransformation,
+                                        selectionController = selectionController,
+                                        focusRequester = focusRequester,
+                                        onFocusInput = onFocusInput,
+                                        onValueChange = { newValue ->
+                                            textFieldValue = newValue
+                                            if (newValue.text != input) {
+                                                onInputChange(newValue.text)
+                                            }
+                                        }
+                                    )
                                 }
                             }
 
@@ -370,5 +360,39 @@ fun ChatInputBar(
             )
         }
         }
+    }
+}
+
+@Composable
+private fun ChatInputTextField(
+    value: TextFieldValue,
+    isRecording: Boolean,
+    richVisualTransformation: androidx.compose.ui.text.input.VisualTransformation,
+    selectionController: ChatInputSelectionController,
+    focusRequester: FocusRequester?,
+    onFocusInput: () -> Unit,
+    onValueChange: (TextFieldValue) -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    CompositionLocalProvider(LocalTextToolbar provides selectionController.textToolbar) {
+        BasicTextField(
+            value = value,
+            onValueChange = { newValue ->
+                if (!isRecording) {
+                    onValueChange(newValue)
+                }
+            },
+            visualTransformation = richVisualTransformation,
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { if (it.isFocused && !isRecording) onFocusInput() }
+                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+            textStyle = TextStyle(
+                color = scheme.textPrimary,
+                fontSize = 15.sp,
+                lineHeight = 20.sp
+            ),
+            cursorBrush = SolidColor(scheme.accent)
+        )
     }
 }

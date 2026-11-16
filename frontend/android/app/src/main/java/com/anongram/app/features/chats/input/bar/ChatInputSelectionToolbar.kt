@@ -245,7 +245,7 @@ fun ChatInputSelectionToolbarOverlay(
                     if (hasSelection) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(40.dp)
                                 .clip(CircleShape)
                                 .clickable { controller.isFormatMenuOpen = true },
                             contentAlignment = Alignment.Center
@@ -254,7 +254,7 @@ fun ChatInputSelectionToolbarOverlay(
                                 imageVector = Icons.Outlined.MoreVert,
                                 contentDescription = strings.selectionMore,
                                 tint = scheme.textPrimary,
-                                modifier = Modifier.size(19.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -527,12 +527,12 @@ private fun ToolbarTextButton(
     Text(
         text = label,
         color = scheme.textPrimary,
-        fontSize = 13.5.sp,
+        fontSize = 15.sp,
         fontWeight = FontWeight.Medium,
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp)
+            .padding(horizontal = 16.dp, vertical = 11.dp)
     )
 }
 
