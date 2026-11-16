@@ -598,7 +598,6 @@ fun LocalAiChatScreen(
                 onSelectThreads = { LocalAiStore.setCpuThreads(context, it) },
                 onSelectContext = { LocalAiStore.setContextLength(context, it) },
                 onSelectMaxTokens = { LocalAiStore.setMaxTokens(context, it) },
-                onToggleWebSearch = { LocalAiStore.setWebSearchEnabled(context, it) },
                 onOpenModules = onOpenModules
             )
         }

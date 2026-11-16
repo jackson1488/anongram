@@ -275,7 +275,6 @@ fun LocalAiSettingsScreen(
     onSelectThreads: (Int) -> Unit,
     onSelectContext: (Int) -> Unit,
     onSelectMaxTokens: (Int) -> Unit,
-    onToggleWebSearch: (Boolean) -> Unit,
     onOpenModules: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -433,51 +432,6 @@ fun LocalAiSettingsScreen(
                     HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
                     // Веб-поиск в реальном времени
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(scheme.card)
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Public,
-                                contentDescription = null,
-                                tint = if (state.webSearchEnabled) scheme.accent else scheme.textSecondary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Text(
-                                text = strings.attachWebSearch,
-                                color = scheme.textPrimary,
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Switch(
-                                checked = state.webSearchEnabled,
-                                onCheckedChange = onToggleWebSearch,
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = scheme.onAccent,
-                                    checkedTrackColor = scheme.accent
-                                )
-                            )
-                        }
-                        Text(
-                            text = strings.webSearchSettingsHint,
-                            color = scheme.textSecondary,
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp
-                        )
-                    }
-
-                    HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
                     // Температура
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         val tempLabel = when {

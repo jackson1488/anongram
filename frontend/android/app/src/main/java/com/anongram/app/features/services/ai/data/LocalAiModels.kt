@@ -81,9 +81,6 @@ data class AiMessage(
     val thinking: String = "",
     val thinkingDurationSec: Float = 0f,
     val attachments: List<AiAttachment> = emptyList(),
-    val searchStatus: String? = null,
-    val searchSteps: List<String> = emptyList(),
-    val webSources: List<WebSearchResult> = emptyList(),
     val timestampMs: Long = System.currentTimeMillis()
 )
 

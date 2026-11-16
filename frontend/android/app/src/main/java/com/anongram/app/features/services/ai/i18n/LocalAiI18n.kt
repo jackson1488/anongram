@@ -39,8 +39,6 @@ data class LocalAiI18nStrings(
     val promptPresetTranslator: String,
     val promptPresetConcise: String,
     val promptPresetCustom: String,
-    val webSearchTooltip: String,
-    val webSearchEnabledBadge: String,
     val emptyHeroTitle: String,
     val emptyHeroSubtitle: String,
     val quickPrompt1: String,
@@ -50,7 +48,6 @@ data class LocalAiI18nStrings(
     val attachCamera: String,
     val attachPhoto: String,
     val attachFiles: String,
-    val attachWebSearch: String,
     val attachThinkDeeper: String,
     val thoughtBlockTitle: (Float) -> String,
     val thoughtEditBtn: String,
@@ -75,13 +72,8 @@ data class LocalAiI18nStrings(
     val gateDownloadBtn: String,
     val gateImportBtn: String,
     val gateOpenModulesBtn: String,
-    val searchingWebStatus: (String) -> String,
-    val readingSourcesStatus: (Int) -> String,
-    val sourcesLabel: String,
     val resetPromptBtn: String,
-    val maxTokensTitle: String,
-    val webSearchSettingsHint: String,
-    val searchBlockTitle: (Int, Boolean) -> String
+    val maxTokensTitle: String
 ) {
     fun reasoningLabel(level: AiReasoningLevel): String = when (level) {
         AiReasoningLevel.OFF -> reasoningOff
@@ -132,8 +124,6 @@ object LocalAiI18n {
         promptPresetTranslator = "Переводчик",
         promptPresetConcise = "Кратко",
         promptPresetCustom = "Свой",
-        webSearchTooltip = "Веб-поиск",
-        webSearchEnabledBadge = "Веб-поиск вкл",
         emptyHeroTitle = "Локальный ИИ AnonGram",
         emptyHeroSubtitle = "Приватные ответы прямо на устройстве",
         quickPrompt1 = "Объясни сложную тему простыми словами",
@@ -143,7 +133,6 @@ object LocalAiI18n {
         attachCamera = "Камера",
         attachPhoto = "Фото",
         attachFiles = "Файлы",
-        attachWebSearch = "Веб-поиск",
         attachThinkDeeper = "Размышлять глубже",
         thoughtBlockTitle = { sec -> if (sec > 0f) "Ход мыслей · ${"%.1f".format(sec)} с" else "Ход мыслей" },
         thoughtEditBtn = "Редактировать мысли",
@@ -170,19 +159,8 @@ object LocalAiI18n {
         gateDownloadBtn = "Скачать",
         gateImportBtn = "Импортировать .gguf",
         gateOpenModulesBtn = "Открыть Модули",
-        searchingWebStatus = { q -> "Ищу в интернете: ${q.take(36)}${if (q.length > 36) "…" else ""}" },
-        readingSourcesStatus = { n -> "Найдено источников: $n · осмысление..." },
-        sourcesLabel = "Источники",
         resetPromptBtn = "Сбросить",
-        maxTokensTitle = "Макс. длина ответа",
-        webSearchSettingsHint = "Включено по умолчанию: ИИ сам решает, когда искать в интернете и открывать сайты.",
-        searchBlockTitle = { count, active ->
-            when {
-                active -> "Поиск в интернете…"
-                count > 0 -> "Поиск · $count истор."
-                else -> "Поиск"
-            }
-        }
+        maxTokensTitle = "Макс. длина ответа"
     )
 
     private val en = LocalAiI18nStrings(
@@ -216,8 +194,6 @@ object LocalAiI18n {
         promptPresetTranslator = "Translator",
         promptPresetConcise = "Concise",
         promptPresetCustom = "Custom",
-        webSearchTooltip = "Web search",
-        webSearchEnabledBadge = "Web search on",
         emptyHeroTitle = "AnonGram Local AI",
         emptyHeroSubtitle = "Private on-device intelligence",
         quickPrompt1 = "Explain a complex topic simply",
@@ -227,7 +203,6 @@ object LocalAiI18n {
         attachCamera = "Camera",
         attachPhoto = "Photo",
         attachFiles = "Files",
-        attachWebSearch = "Web search",
         attachThinkDeeper = "Think deeper",
         thoughtBlockTitle = { sec -> if (sec > 0f) "Reasoning · ${"%.1f".format(sec)}s" else "Reasoning" },
         thoughtEditBtn = "Edit thoughts",
@@ -254,19 +229,8 @@ object LocalAiI18n {
         gateDownloadBtn = "Download",
         gateImportBtn = "Import .gguf",
         gateOpenModulesBtn = "Open Modules",
-        searchingWebStatus = { q -> "Searching web: ${q.take(36)}${if (q.length > 36) "…" else ""}" },
-        readingSourcesStatus = { n -> "Found $n sources · thinking..." },
-        sourcesLabel = "Sources",
         resetPromptBtn = "Reset",
-        maxTokensTitle = "Max response length",
-        webSearchSettingsHint = "Enabled by default: AI automatically decides when to search the web and read pages.",
-        searchBlockTitle = { count, active ->
-            when {
-                active -> "Searching web…"
-                count > 0 -> "Search · $count sources"
-                else -> "Search"
-            }
-        }
+        maxTokensTitle = "Max response length"
     )
 
     val current: LocalAiI18nStrings
