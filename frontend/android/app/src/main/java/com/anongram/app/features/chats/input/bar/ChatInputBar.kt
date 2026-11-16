@@ -137,16 +137,15 @@ fun ChatInputBar(
         )
     }
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        if (!isRecording && !isHiddenByTrim) {
-            ChatInputSelectionToolbarOverlay(controller = selectionController)
-        }
+    if (!isRecording && !isHiddenByTrim) {
+        ChatInputSelectionToolbarOverlay(controller = selectionController)
+    }
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp)
-        ) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+    ) {
             // Основной островок ввода всегда в дереве (при isLockedRecording / isHiddenByTrim прозрачен, чтобы не терять фокус/клавиатуру)
             Box(
                 modifier = Modifier
@@ -358,7 +357,6 @@ fun ChatInputBar(
                 onSend = onStopLockedRecording,
                 modifier = Modifier.fillMaxWidth()
             )
-        }
         }
     }
 }

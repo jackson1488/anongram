@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,9 +40,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.TextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -54,11 +55,19 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.input.i18n.LocalInputStrings
+import kotlin.math.roundToInt
 
 @Stable
 class ChatInputSelectionController(
@@ -66,6 +75,8 @@ class ChatInputSelectionController(
     private val onValueChange: (TextFieldValue) -> Unit
 ) {
     var isShown by mutableStateOf(false)
+        private set
+    var anchorRect by mutableStateOf(Rect.Zero)
         private set
     var isFormatMenuOpen by mutableStateOf(false)
         internal set
@@ -92,6 +103,7 @@ class ChatInputSelectionController(
             onCutRequested: (() -> Unit)?,
             onSelectAllRequested: (() -> Unit)?
         ) {
+            anchorRect = rect
             onCopyAction = onCopyRequested
             onPasteAction = onPasteRequested
             onCutAction = onCutRequested
@@ -197,18 +209,51 @@ fun rememberChatInputSelectionController(
     }
 }
 
+private class AnchorRectPopupPositionProvider(
+    private val rect: Rect,
+    private val gapPx: Int,
+    private val marginPx: Int
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset {
+        val centerX = ((rect.left + rect.right) / 2f).roundToInt()
+        val rawX = centerX - popupContentSize.width / 2
+        val maxX = (windowSize.width - popupContentSize.width - marginPx).coerceAtLeast(marginPx)
+        val x = rawX.coerceIn(marginPx, maxX)
+
+        val aboveY = rect.top.roundToInt() - popupContentSize.height - gapPx
+        val belowY = rect.bottom.roundToInt() + gapPx
+        val maxY = (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
+        val y = if (aboveY >= marginPx) aboveY else belowY.coerceIn(marginPx, maxY)
+        return IntOffset(x, y)
+    }
+}
+
 @Composable
 fun ChatInputSelectionToolbarOverlay(
-    controller: ChatInputSelectionController,
-    modifier: Modifier = Modifier
+    controller: ChatInputSelectionController
 ) {
+    val density = LocalDensity.current
     if (controller.isShown) {
         val hasSelection = !controller.currentValue().selection.collapsed
-        Box(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
+        val rect = controller.anchorRect
+        val positionProvider = remember(rect, density) {
+            with(density) {
+                AnchorRectPopupPositionProvider(
+                    rect = rect,
+                    gapPx = 10.dp.roundToPx(),
+                    marginPx = 10.dp.roundToPx()
+                )
+            }
+        }
+        Popup(
+            popupPositionProvider = positionProvider,
+            onDismissRequest = { controller.hide() },
+            properties = PopupProperties(focusable = false, clippingEnabled = true)
         ) {
             if (!controller.isFormatMenuOpen) {
                 SelectionActionBar(controller = controller, hasSelection = hasSelection)
@@ -232,20 +277,16 @@ private fun SelectionActionBar(
     val strings = LocalInputStrings.current
     Row(
         modifier = Modifier
-            .shadow(10.dp, RoundedCornerShape(20.dp))
-            .clip(RoundedCornerShape(20.dp))
+            .height(46.dp)
+            .shadow(12.dp, RoundedCornerShape(22.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(scheme.card)
-            .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        controller.onCutAction?.let { cut ->
-            ToolbarTextButton(label = strings.selectionCut) {
-                cut()
-                controller.hide()
-            }
-        }
+        // Порядок как в Telegram: Копировать -> Вставить -> Вырезать -> ⋮
         controller.onCopyAction?.let { copy ->
             ToolbarTextButton(label = strings.selectionCopy) {
                 copy()
@@ -255,6 +296,12 @@ private fun SelectionActionBar(
         controller.onPasteAction?.let { paste ->
             ToolbarTextButton(label = strings.selectionPaste) {
                 paste()
+                controller.hide()
+            }
+        }
+        controller.onCutAction?.let { cut ->
+            ToolbarTextButton(label = strings.selectionCut) {
+                cut()
                 controller.hide()
             }
         }
@@ -277,15 +324,6 @@ private fun SelectionActionBar(
     }
 }
 
-private data class FormatActionItem(
-    val label: String,
-    val fontWeight: FontWeight = FontWeight.Normal,
-    val fontStyle: FontStyle = FontStyle.Normal,
-    val fontFamily: FontFamily = FontFamily.Default,
-    val textDecoration: TextDecoration = TextDecoration.None,
-    val onClick: () -> Unit
-)
-
 @Composable
 private fun SelectionFormatMenu(
     controller: ChatInputSelectionController,
@@ -293,38 +331,9 @@ private fun SelectionFormatMenu(
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = LocalInputStrings.current
-
-    val items = buildList {
-        if (hasSelection) {
-            add(FormatActionItem(strings.selectionQuote) { controller.applyQuote() })
-            add(FormatActionItem(strings.selectionSpoiler) { controller.applyWrap("||") })
-        }
-        controller.onSelectAllAction?.let { selectAll ->
-            add(FormatActionItem(strings.selectionSelectAll) {
-                selectAll()
-                controller.isFormatMenuOpen = false
-            })
-        }
-        if (hasSelection) {
-            add(FormatActionItem(strings.selectionBold, fontWeight = FontWeight.Bold) { controller.applyWrap("**") })
-            add(FormatActionItem(strings.selectionItalic, fontStyle = FontStyle.Italic) { controller.applyWrap("*") })
-            add(FormatActionItem(strings.selectionMono, fontFamily = FontFamily.Monospace) { controller.applyWrap("`") })
-            add(FormatActionItem(strings.selectionStrike, textDecoration = TextDecoration.LineThrough) { controller.applyWrap("~~") })
-            add(FormatActionItem(strings.selectionUnderline, textDecoration = TextDecoration.Underline) { controller.applyWrap("<u>", "</u>") })
-            add(FormatActionItem(strings.selectionAddLink) {
-                controller.savedSelectionForLink = controller.currentValue().selection
-                controller.linkUrlInput = "https://"
-                controller.isLinkDialogOpen = true
-                controller.hide()
-            })
-            add(FormatActionItem(strings.selectionPlain) { controller.clearFormatting() })
-        }
-    }
-
     Column(
         modifier = Modifier
-            .widthIn(min = 200.dp, max = 250.dp)
-            .heightIn(max = 280.dp)
+            .widthIn(min = 200.dp, max = 248.dp)
             .shadow(12.dp, RoundedCornerShape(18.dp))
             .clip(RoundedCornerShape(18.dp))
             .background(scheme.card)
@@ -332,28 +341,20 @@ private fun SelectionFormatMenu(
     ) {
         Column(
             modifier = Modifier
-                .weight(1f, fill = false)
+                .fillMaxWidth()
+                .heightIn(max = 260.dp)
                 .verticalScroll(rememberScrollState())
                 .padding(vertical = 4.dp)
         ) {
-            items.forEach { item ->
-                FormatMenuItem(
-                    label = item.label,
-                    fontWeight = item.fontWeight,
-                    fontStyle = item.fontStyle,
-                    fontFamily = item.fontFamily,
-                    textDecoration = item.textDecoration,
-                    onClick = item.onClick
-                )
-            }
+            SelectionFormatItemsTop(controller = controller, hasSelection = hasSelection)
+            SelectionFormatItemsStyles(controller = controller, hasSelection = hasSelection)
         }
-
         HorizontalDivider(color = scheme.divider)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { controller.isFormatMenuOpen = false }
-                .padding(horizontal = 14.dp, vertical = 11.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
@@ -366,11 +367,50 @@ private fun SelectionFormatMenu(
             Text(
                 text = strings.selectionBack,
                 color = scheme.textPrimary,
-                fontSize = 14.5.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium
             )
         }
     }
+}
+
+@Composable
+private fun SelectionFormatItemsTop(
+    controller: ChatInputSelectionController,
+    hasSelection: Boolean
+) {
+    val strings = LocalInputStrings.current
+    if (hasSelection) {
+        FormatMenuItem(label = strings.selectionQuote) { controller.applyQuote() }
+        FormatMenuItem(label = strings.selectionSpoiler) { controller.applyWrap("||") }
+    }
+    controller.onSelectAllAction?.let { selectAll ->
+        FormatMenuItem(label = strings.selectionSelectAll) {
+            selectAll()
+            controller.isFormatMenuOpen = false
+        }
+    }
+}
+
+@Composable
+private fun SelectionFormatItemsStyles(
+    controller: ChatInputSelectionController,
+    hasSelection: Boolean
+) {
+    if (!hasSelection) return
+    val strings = LocalInputStrings.current
+    FormatMenuItem(label = strings.selectionBold, fontWeight = FontWeight.Bold) { controller.applyWrap("**") }
+    FormatMenuItem(label = strings.selectionItalic, fontStyle = FontStyle.Italic) { controller.applyWrap("*") }
+    FormatMenuItem(label = strings.selectionMono, fontFamily = FontFamily.Monospace) { controller.applyWrap("`") }
+    FormatMenuItem(label = strings.selectionStrike, textDecoration = TextDecoration.LineThrough) { controller.applyWrap("~~") }
+    FormatMenuItem(label = strings.selectionUnderline, textDecoration = TextDecoration.Underline) { controller.applyWrap("<u>", "</u>") }
+    FormatMenuItem(label = strings.selectionAddLink) {
+        controller.savedSelectionForLink = controller.currentValue().selection
+        controller.linkUrlInput = "https://"
+        controller.isLinkDialogOpen = true
+        controller.hide()
+    }
+    FormatMenuItem(label = strings.selectionPlain) { controller.clearFormatting() }
 }
 
 @Composable
@@ -559,10 +599,10 @@ private fun ToolbarTextButton(
     Text(
         text = label,
         color = scheme.textPrimary,
-        fontSize = 15.sp,
+        fontSize = 15.5.sp,
         fontWeight = FontWeight.Medium,
         modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 11.dp)
     )
@@ -581,7 +621,7 @@ private fun FormatMenuItem(
     Text(
         text = label,
         color = scheme.textPrimary,
-        fontSize = 14.sp,
+        fontSize = 15.sp,
         fontWeight = fontWeight,
         fontStyle = fontStyle,
         fontFamily = fontFamily,
@@ -589,7 +629,7 @@ private fun FormatMenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 11.dp)
     )
 }
 
