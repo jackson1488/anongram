@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.blur
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -187,6 +188,13 @@ fun ChatScreen(
         state.isNotificationsOpen ||
         state.isKeyCheckOpen ||
         state.editing != null
+
+    val focusManager = LocalFocusManager.current
+    LaunchedEffect(state.isSelectionMode) {
+        if (state.isSelectionMode) {
+            focusManager.clearFocus(force = true)
+        }
+    }
 
     BackHandler(enabled = hasInnerBackTarget) {
         when {

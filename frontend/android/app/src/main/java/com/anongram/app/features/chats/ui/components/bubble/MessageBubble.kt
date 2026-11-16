@@ -753,7 +753,7 @@ internal fun MessageBubble(
                                                  val accentColorArgb = scheme.accent.toArgb()
                                                  val textColorArgb = selectableColor.toArgb()
                                                  val highlightColorArgb = scheme.accent.copy(alpha = 0.28f).toArgb()
-                                                 Column(modifier = Modifier.fillMaxWidth()) {
+                                                 Column(modifier = Modifier) {
                                                      AndroidView(
                                                          factory = { ctx ->
                                                              TextView(ctx).apply {
@@ -761,6 +761,10 @@ internal fun MessageBubble(
                                                                  setPadding(0, 0, 0, 0)
                                                                  includeFontPadding = false
                                                                  setLineSpacing(0f, 1.15f)
+                                                                 layoutParams = android.view.ViewGroup.LayoutParams(
+                                                                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                                                                     android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+                                                                 )
                                                              }
                                                          },
                                                          update = { tv ->
@@ -771,8 +775,7 @@ internal fun MessageBubble(
                                                              tv.setLinkTextColor(accentColorArgb)
                                                              tv.highlightColor = highlightColorArgb
                                                              tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, messageTextSizeSp.toFloat())
-                                                         },
-                                                         modifier = Modifier.fillMaxWidth()
+                                                         }
                                                      )
                                                      Text(
                                                          text = message.timeLabel(),
