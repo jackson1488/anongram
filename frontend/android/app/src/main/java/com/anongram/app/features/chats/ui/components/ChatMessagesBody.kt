@@ -152,6 +152,7 @@ internal fun ChatMessagesBody(
                 },
                 onToggleReaction = viewModel::toggleReaction,
                 onSelectMessage = viewModel::toggleSelection,
+                onReplaceSelection = viewModel::replaceSelection,
                 onToggleAlbumPhoto = viewModel::toggleAlbumPhotoSelection,
                 onToggleFileGroupItem = viewModel::toggleFileGroupItemSelection,
                 onToggleMusicGroupItem = viewModel::toggleMusicGroupItemSelection,

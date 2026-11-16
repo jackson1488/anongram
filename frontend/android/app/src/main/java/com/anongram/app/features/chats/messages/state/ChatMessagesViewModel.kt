@@ -737,6 +737,10 @@ class ChatMessagesViewModel(
 
     fun clearSelection() = _uiState.update { it.copy(selection = emptySet()) }
 
+    fun replaceSelection(newSelection: Set<String>) {
+        _uiState.update { it.copy(selection = newSelection, actionMenuFor = null) }
+    }
+
     // --- Пересылка (в выбранный чат или «Избранное») ---
 
     fun forwardMessages(messageIds: Collection<String>, authorName: String) {

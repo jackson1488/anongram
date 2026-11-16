@@ -370,7 +370,13 @@ internal fun MessageBubble(
                                     onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                                 }
                             },
-                            onLongClick = onLongClick
+                            onLongClick = {
+                                if (isSelectionMode && isSelected && message.text.isNotBlank()) {
+                                    isPartialTextSelect = true
+                                } else {
+                                    onLongClick()
+                                }
+                            }
                         )
                     } else Modifier
                 )
@@ -442,7 +448,13 @@ internal fun MessageBubble(
                                 onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
                             }
                         },
-                        onLongClick = onLongClick
+                        onLongClick = {
+                            if (isSelectionMode && isSelected && message.text.isNotBlank()) {
+                                isPartialTextSelect = true
+                            } else {
+                                onLongClick()
+                            }
+                        }
                     ),
                 contentAlignment = if (isIncoming) Alignment.TopStart else Alignment.TopEnd
             ) {

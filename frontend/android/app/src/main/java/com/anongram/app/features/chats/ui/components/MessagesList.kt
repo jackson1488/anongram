@@ -1,6 +1,10 @@
 package com.anongram.app.features.chats.ui.components
 
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.awaitLongPressOrCancellation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,9 +24,14 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -47,6 +56,8 @@ import com.anongram.app.features.chats.messages.domain.isSameDay
 import com.anongram.app.features.chats.media.player.ChatTrack
 import com.anongram.app.features.chats.ui.animateScrollAndCenterItem
 import com.anongram.app.features.chats.ui.components.bubble.MessageBubble
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /** Позволяет медиа-превью в пузырях откладывать старт декодеров на время активного скролла без перекомпозиции списка */
@@ -88,6 +99,7 @@ internal fun MessagesList(
     onReplyMessage: (ChatMessage, Int?) -> Unit = { _, _ -> },
     onToggleReaction: (String, String) -> Unit = { _, _ -> },
     onSelectMessage: (String) -> Unit = {},
+    onReplaceSelection: (Set<String>) -> Unit = {},
     onToggleAlbumPhoto: (String, Int, Int) -> Unit = { _, _, _ -> },
     onToggleFileGroupItem: (String, Int, Int) -> Unit = { _, _, _ -> },
     onToggleMusicGroupItem: (String, Int, Int) -> Unit = { _, _, _ -> },
@@ -153,6 +165,115 @@ internal fun MessagesList(
         ModulesSettingsStore.ensureInitialized(context)
     }
 
+    val isSelectionMode = selection.isNotEmpty()
+    val latestSelection by rememberUpdatedState(selection)
+    val latestRenderItems by rememberUpdatedState(renderItems)
+    val latestOnReplaceSelection by rememberUpdatedState(onReplaceSelection)
+    val haptic = LocalHapticFeedback.current
+    val density = LocalDensity.current
+
+    val dragSelectModifier = if (isSelectionMode) {
+        Modifier.pointerInput(isSelectionMode) {
+            val edgePx = with(density) { 84.dp.toPx() }
+            val maxScrollPx = with(density) { 18.dp.toPx() }
+            val touchSlop = viewConfiguration.touchSlop
+
+            fun findIndexAtY(screenY: Float): Int? {
+                val layoutInfo = listState.layoutInfo
+                val visible = layoutInfo.visibleItemsInfo
+                if (visible.isEmpty()) return null
+                val vpH = layoutInfo.viewportSize.height.toFloat()
+                var bestIdx = visible.first().index
+                var bestDist = Float.MAX_VALUE
+                for (item in visible) {
+                    val topY = vpH - item.offset - item.size
+                    val bottomY = vpH - item.offset
+                    if (screenY in topY..bottomY) return item.index
+                    val dist = if (screenY < topY) topY - screenY else screenY - bottomY
+                    if (dist < bestDist) {
+                        bestDist = dist
+                        bestIdx = item.index
+                    }
+                }
+                return bestIdx
+            }
+
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+                val items = latestRenderItems
+                if (items.isEmpty()) return@awaitEachGesture
+                val anchorIdx = findIndexAtY(longPress.position.y)?.coerceIn(0, items.lastIndex) ?: return@awaitEachGesture
+                val initialSet = latestSelection.toSet()
+                val anchorId = items[anchorIdx].message.id
+                val selecting = anchorId !in initialSet
+                var dragStarted = false
+                var currentY = longPress.position.y
+                var lastEmitted: Set<String>? = null
+
+                fun applyRange(targetIdx: Int) {
+                    val curItems = latestRenderItems
+                    if (curItems.isEmpty()) return
+                    val lo = minOf(anchorIdx, targetIdx).coerceIn(0, curItems.lastIndex)
+                    val hi = maxOf(anchorIdx, targetIdx).coerceIn(0, curItems.lastIndex)
+                    val next = initialSet.toMutableSet()
+                    for (i in lo..hi) {
+                        val id = curItems[i].message.id
+                        if (selecting) next.add(id) else next.remove(id)
+                    }
+                    if (next != lastEmitted) {
+                        lastEmitted = next
+                        latestOnReplaceSelection(next)
+                    }
+                }
+
+                var autoScrollJob: kotlinx.coroutines.Job? = null
+                try {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                        if (!change.pressed) break
+                        currentY = change.position.y
+                        if (!dragStarted && kotlin.math.abs(currentY - longPress.position.y) > touchSlop) {
+                            dragStarted = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            applyRange(anchorIdx)
+                            autoScrollJob = scope.launch {
+                                while (isActive) {
+                                    val vpH = listState.layoutInfo.viewportSize.height.toFloat()
+                                    val scrollDelta = when {
+                                        currentY < edgePx && vpH > 0f -> {
+                                            val ratio = ((edgePx - currentY) / edgePx).coerceIn(0.15f, 1f)
+                                            maxScrollPx * ratio
+                                        }
+                                        currentY > vpH - edgePx && vpH > 0f -> {
+                                            val ratio = ((currentY - (vpH - edgePx)) / edgePx).coerceIn(0.15f, 1f)
+                                            -maxScrollPx * ratio
+                                        }
+                                        else -> 0f
+                                    }
+                                    if (scrollDelta != 0f) {
+                                        listState.scrollBy(scrollDelta)
+                                        findIndexAtY(currentY)?.let { applyRange(it) }
+                                    }
+                                    delay(16L)
+                                }
+                            }
+                        }
+                        if (dragStarted) {
+                            change.consume()
+                            findIndexAtY(currentY)?.let { applyRange(it) }
+                        }
+                    }
+                } finally {
+                    autoScrollJob?.cancel()
+                }
+            }
+        }
+    } else {
+        Modifier
+    }
+
     CompositionLocalProvider(
         LocalIsListScrollingState provides scrollingState,
         LocalMessageTextSizeSp provides messageTextSizeSp,
@@ -164,6 +285,7 @@ internal fun MessagesList(
         reverseLayout = true,
         modifier = Modifier
             .fillMaxSize()
+            .then(dragSelectModifier)
             .then(
                 if (isVideoCircleExpanded) {
                     Modifier.pointerInput(Unit) {
