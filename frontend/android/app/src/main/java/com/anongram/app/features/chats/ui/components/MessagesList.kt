@@ -165,115 +165,111 @@ internal fun MessagesList(
         ModulesSettingsStore.ensureInitialized(context)
     }
 
-    val isSelectionMode = selection.isNotEmpty()
     val latestSelection by rememberUpdatedState(selection)
     val latestRenderItems by rememberUpdatedState(renderItems)
     val latestOnReplaceSelection by rememberUpdatedState(onReplaceSelection)
     val haptic = LocalHapticFeedback.current
     val density = LocalDensity.current
 
-    val dragSelectModifier = if (isSelectionMode) {
-        Modifier.pointerInput(isSelectionMode) {
-            val railWidthPx = with(density) { 56.dp.toPx() }
-            val edgePx = with(density) { 84.dp.toPx() }
-            val maxScrollPx = with(density) { 18.dp.toPx() }
-            val startSlop = viewConfiguration.touchSlop * 0.4f
+    val dragSelectModifier = Modifier.pointerInput(Unit) {
+        val railWidthPx = with(density) { 56.dp.toPx() }
+        val edgePx = with(density) { 84.dp.toPx() }
+        val maxScrollPx = with(density) { 18.dp.toPx() }
 
-            fun findIndexAtY(screenY: Float): Int? {
-                val layoutInfo = listState.layoutInfo
-                val visible = layoutInfo.visibleItemsInfo
-                if (visible.isEmpty()) return null
-                val vpH = layoutInfo.viewportSize.height.toFloat()
-                var bestIdx = visible.first().index
-                var bestDist = Float.MAX_VALUE
-                for (item in visible) {
-                    val topY = vpH - item.offset - item.size
-                    val bottomY = vpH - item.offset
-                    if (screenY in topY..bottomY) return item.index
-                    val dist = if (screenY < topY) topY - screenY else screenY - bottomY
-                    if (dist < bestDist) {
-                        bestDist = dist
-                        bestIdx = item.index
-                    }
+        fun findIndexAtY(screenY: Float): Int? {
+            val layoutInfo = listState.layoutInfo
+            val visible = layoutInfo.visibleItemsInfo
+            if (visible.isEmpty()) return null
+            val vpH = layoutInfo.viewportSize.height.toFloat()
+            var bestIdx = visible.first().index
+            var bestDist = Float.MAX_VALUE
+            for (item in visible) {
+                val topY = vpH - item.offset - item.size
+                val bottomY = vpH - item.offset
+                if (screenY in topY..bottomY) return item.index
+                val dist = if (screenY < topY) topY - screenY else screenY - bottomY
+                if (dist < bestDist) {
+                    bestDist = dist
+                    bestIdx = item.index
                 }
-                return bestIdx
+            }
+            return bestIdx
+        }
+
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false)
+            val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+            val items = latestRenderItems
+            if (items.isEmpty()) return@awaitEachGesture
+            val anchorIdx = findIndexAtY(longPress.position.y)?.coerceIn(0, items.lastIndex) ?: return@awaitEachGesture
+            val initialSet = latestSelection.toSet()
+            val anchorMsg = items[anchorIdx].message
+            val anchorId = anchorMsg.id
+
+            // Если сообщение уже выбрано и у него есть текст/подпись, и палец не в левой полосе галочек,
+            // отдаём жест родному Android TextView для выделения слов без конфликтов.
+            if (initialSet.isNotEmpty() && anchorId in initialSet && anchorMsg.text.isNotBlank() && longPress.position.x > railWidthPx) {
+                return@awaitEachGesture
             }
 
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                if (down.position.x > railWidthPx) return@awaitEachGesture
+            val selecting = anchorId !in initialSet
+            var currentY = longPress.position.y
+            var lastEmitted: Set<String>? = null
 
-                val items = latestRenderItems
-                if (items.isEmpty()) return@awaitEachGesture
-                val anchorIdx = findIndexAtY(down.position.y)?.coerceIn(0, items.lastIndex) ?: return@awaitEachGesture
-                val initialSet = latestSelection.toSet()
-                val anchorId = items[anchorIdx].message.id
-                val selecting = anchorId !in initialSet
-                var dragStarted = false
-                var currentY = down.position.y
-                var lastEmitted: Set<String>? = null
-
-                fun applyRange(targetIdx: Int) {
-                    val curItems = latestRenderItems
-                    if (curItems.isEmpty()) return
-                    val lo = minOf(anchorIdx, targetIdx).coerceIn(0, curItems.lastIndex)
-                    val hi = maxOf(anchorIdx, targetIdx).coerceIn(0, curItems.lastIndex)
-                    val next = initialSet.toMutableSet()
-                    for (i in lo..hi) {
-                        val id = curItems[i].message.id
-                        if (selecting) next.add(id) else next.remove(id)
-                    }
-                    if (next != lastEmitted) {
-                        lastEmitted = next
-                        latestOnReplaceSelection(next)
-                    }
+            fun applyRange(targetIdx: Int) {
+                val curItems = latestRenderItems
+                if (curItems.isEmpty()) return
+                val lo = minOf(anchorIdx, targetIdx).coerceIn(0, curItems.lastIndex)
+                val hi = maxOf(anchorIdx, targetIdx).coerceIn(0, curItems.lastIndex)
+                val next = initialSet.toMutableSet()
+                for (i in lo..hi) {
+                    val id = curItems[i].message.id
+                    if (selecting) next.add(id) else next.remove(id)
                 }
-
-                var autoScrollJob: kotlinx.coroutines.Job? = null
-                try {
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        if (!change.pressed) break
-                        currentY = change.position.y
-                        if (!dragStarted && kotlin.math.abs(currentY - down.position.y) > startSlop) {
-                            dragStarted = true
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            applyRange(anchorIdx)
-                            autoScrollJob = scope.launch {
-                                while (isActive) {
-                                    val vpH = listState.layoutInfo.viewportSize.height.toFloat()
-                                    val scrollDelta = when {
-                                        currentY < edgePx && vpH > 0f -> {
-                                            val ratio = ((edgePx - currentY) / edgePx).coerceIn(0.15f, 1f)
-                                            maxScrollPx * ratio
-                                        }
-                                        currentY > vpH - edgePx && vpH > 0f -> {
-                                            val ratio = ((currentY - (vpH - edgePx)) / edgePx).coerceIn(0.15f, 1f)
-                                            -maxScrollPx * ratio
-                                        }
-                                        else -> 0f
-                                    }
-                                    if (scrollDelta != 0f) {
-                                        listState.scrollBy(scrollDelta)
-                                        findIndexAtY(currentY)?.let { applyRange(it) }
-                                    }
-                                    delay(16L)
-                                }
-                            }
-                        }
-                        if (dragStarted) {
-                            change.consume()
-                            findIndexAtY(currentY)?.let { applyRange(it) }
-                        }
-                    }
-                } finally {
-                    autoScrollJob?.cancel()
+                if (next != lastEmitted) {
+                    lastEmitted = next
+                    latestOnReplaceSelection(next)
                 }
+            }
+
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            applyRange(anchorIdx)
+
+            val autoScrollJob = scope.launch {
+                while (isActive) {
+                    val vpH = listState.layoutInfo.viewportSize.height.toFloat()
+                    val scrollDelta = when {
+                        currentY < edgePx && vpH > 0f -> {
+                            val ratio = ((edgePx - currentY) / edgePx).coerceIn(0.15f, 1f)
+                            maxScrollPx * ratio
+                        }
+                        currentY > vpH - edgePx && vpH > 0f -> {
+                            val ratio = ((currentY - (vpH - edgePx)) / edgePx).coerceIn(0.15f, 1f)
+                            -maxScrollPx * ratio
+                        }
+                        else -> 0f
+                    }
+                    if (scrollDelta != 0f) {
+                        listState.scrollBy(scrollDelta)
+                        findIndexAtY(currentY)?.let { applyRange(it) }
+                    }
+                    delay(16L)
+                }
+            }
+
+            try {
+                while (true) {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                    if (!change.pressed) break
+                    currentY = change.position.y
+                    change.consume()
+                    findIndexAtY(currentY)?.let { applyRange(it) }
+                }
+            } finally {
+                autoScrollJob.cancel()
             }
         }
-    } else {
-        Modifier
     }
 
     CompositionLocalProvider(
