@@ -47,6 +47,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -63,6 +64,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalTextToolbar
+import com.anongram.app.features.chats.input.bar.ChatInputSelectionToolbarOverlay
+import com.anongram.app.features.chats.input.bar.RichInputSpan
+import com.anongram.app.features.chats.input.bar.adjustSpansForTextEdit
+import com.anongram.app.features.chats.input.bar.createSpanVisualTransformation
+import com.anongram.app.features.chats.input.bar.parseRichInput
+import com.anongram.app.features.chats.input.bar.rememberChatInputSelectionController
+import com.anongram.app.features.chats.input.bar.serializeRichInput
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
@@ -127,8 +136,15 @@ fun ChatFullTextEditorScreen(
         initialFontMatch?.groupValues?.get(1) ?: "sans"
     }
 
-    val undoState = rememberUndoRedoState(cleanInitialText)
+    val parsedInitial = remember(cleanInitialText) { parseRichInput(cleanInitialText) }
+    var editorSpans by remember(cleanInitialText) { mutableStateOf(parsedInitial.second) }
+    val undoState = rememberUndoRedoState(parsedInitial.first)
     val focusRequester = remember { FocusRequester() }
+    val editorSelectionController = rememberChatInputSelectionController(
+        getValue = { undoState.textFieldValue },
+        getSpans = { editorSpans },
+        onSpansChange = { editorSpans = it }
+    )
 
     var selectedFontFamily by remember { mutableStateOf(initialFontKey) }
     var selectedFormat by remember { mutableStateOf(TextStyleFormat.NORMAL) }
@@ -144,7 +160,7 @@ fun ChatFullTextEditorScreen(
     var isEditorAttachOpen by remember { mutableStateOf(false) }
 
     fun getFinalText(): String {
-        val raw = undoState.currentText
+        val raw = serializeRichInput(undoState.currentText, editorSpans)
         return if (selectedFontFamily != "sans" && raw.isNotBlank()) {
             "[font=$selectedFontFamily]$raw[/font]"
         } else {
@@ -745,17 +761,29 @@ fun ChatFullTextEditorScreen(
                             )
                         }
 
-                        BasicTextField(
-                            value = undoState.textFieldValue,
-                            onValueChange = { newVal ->
-                                val processed = SmartListEnterHelper.processEnter(undoState.textFieldValue, newVal)
-                                undoState.updateValue(processed)
-                            },
-                            onTextLayout = { textLayoutResult = it },
-                            visualTransformation = remember(scheme) { EditorWysiwygVisualTransformation(scheme) },
-                            textStyle = textStyle,
-                            cursorBrush = SolidColor(scheme.accent),
-                            modifier = Modifier
+                        ChatInputSelectionToolbarOverlay(controller = editorSelectionController)
+                        CompositionLocalProvider(LocalTextToolbar provides editorSelectionController.textToolbar) {
+                            BasicTextField(
+                                value = undoState.textFieldValue,
+                                onValueChange = { newVal ->
+                                    val oldText = undoState.textFieldValue.text
+                                    val processed = SmartListEnterHelper.processEnter(undoState.textFieldValue, newVal)
+                                    if (oldText != processed.text) {
+                                        editorSpans = adjustSpansForTextEdit(editorSpans, oldText, processed.text)
+                                    }
+                                    undoState.updateValue(processed)
+                                },
+                                onTextLayout = { textLayoutResult = it },
+                                visualTransformation = remember(editorSpans, scheme) {
+                                    if (editorSpans.isNotEmpty()) {
+                                        createSpanVisualTransformation(editorSpans, scheme.textPrimary, scheme.accent)
+                                    } else {
+                                        EditorWysiwygVisualTransformation(scheme)
+                                    }
+                                },
+                                textStyle = textStyle,
+                                cursorBrush = SolidColor(scheme.accent),
+                                modifier = Modifier
                                 .fillMaxWidth()
                                 .focusRequester(focusRequester)
                                 .pointerInput(undoState.textFieldValue.text) {
@@ -798,7 +826,8 @@ fun ChatFullTextEditorScreen(
                                         }
                                     }
                                 }
-                        )
+                            )
+                        }
                     }
                 }
             }

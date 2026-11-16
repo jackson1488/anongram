@@ -1,5 +1,7 @@
 package com.anongram.app.features.chats.input.bar
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -38,22 +40,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.TextToolbar
 import androidx.compose.ui.platform.TextToolbarStatus
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
@@ -72,7 +68,8 @@ import kotlin.math.roundToInt
 @Stable
 class ChatInputSelectionController(
     private val getValue: () -> TextFieldValue,
-    private val onValueChange: (TextFieldValue) -> Unit
+    private val getSpans: () -> List<RichInputSpan>,
+    private val onSpansChange: (List<RichInputSpan>) -> Unit
 ) {
     var isShown by mutableStateOf(false)
         private set
@@ -124,39 +121,15 @@ class ChatInputSelectionController(
         textToolbar.hide()
     }
 
-    fun applyWrap(prefix: String, suffix: String = prefix) {
+    fun applyStyle(style: RichSpanStyle, url: String = "") {
         val current = getValue()
         val start = minOf(current.selection.start, current.selection.end).coerceIn(0, current.text.length)
         val end = maxOf(current.selection.start, current.selection.end).coerceIn(0, current.text.length)
         if (start >= end) return
-        val selected = current.text.substring(start, end)
-        val wrapped = "$prefix$selected$suffix"
-        val updatedText = current.text.substring(0, start) + wrapped + current.text.substring(end)
-        onValueChange(
-            current.copy(
-                text = updatedText,
-                selection = TextRange(start + prefix.length, start + prefix.length + selected.length)
-            )
-        )
-        hide()
-    }
-
-    fun applyQuote() {
-        val current = getValue()
-        val start = minOf(current.selection.start, current.selection.end).coerceIn(0, current.text.length)
-        val end = maxOf(current.selection.start, current.selection.end).coerceIn(0, current.text.length)
-        if (start >= end) return
-        val selected = current.text.substring(start, end)
-        val quoted = selected.lines().joinToString("\n") { line ->
-            if (line.startsWith("> ")) line else "> $line"
+        val existing = getSpans().filterNot {
+            it.style == style && it.start == start && it.end == end
         }
-        val updatedText = current.text.substring(0, start) + quoted + current.text.substring(end)
-        onValueChange(
-            current.copy(
-                text = updatedText,
-                selection = TextRange(start, start + quoted.length)
-            )
-        )
+        onSpansChange(existing + RichInputSpan(start = start, end = end, style = style, url = url))
         hide()
     }
 
@@ -165,15 +138,16 @@ class ChatInputSelectionController(
         val start = minOf(current.selection.start, current.selection.end).coerceIn(0, current.text.length)
         val end = maxOf(current.selection.start, current.selection.end).coerceIn(0, current.text.length)
         if (start >= end) return
-        val selected = current.text.substring(start, end)
-        val cleaned = stripFormattingMarkers(selected)
-        val updatedText = current.text.substring(0, start) + cleaned + current.text.substring(end)
-        onValueChange(
-            current.copy(
-                text = updatedText,
-                selection = TextRange(start, start + cleaned.length)
-            )
-        )
+        val updated = mutableListOf<RichInputSpan>()
+        for (sp in getSpans()) {
+            if (sp.end <= start || sp.start >= end) {
+                updated.add(sp)
+            } else {
+                if (sp.start < start) updated.add(sp.copy(end = start))
+                if (sp.end > end) updated.add(sp.copy(start = end))
+            }
+        }
+        onSpansChange(updated)
         hide()
     }
 
@@ -184,15 +158,10 @@ class ChatInputSelectionController(
             val s = minOf(savedSelectionForLink.start, savedSelectionForLink.end).coerceIn(0, current.text.length)
             val e = maxOf(savedSelectionForLink.start, savedSelectionForLink.end).coerceIn(0, current.text.length)
             if (s < e) {
-                val selected = current.text.substring(s, e)
-                val replacement = "[$selected]($url)"
-                val updated = current.text.substring(0, s) + replacement + current.text.substring(e)
-                onValueChange(
-                    current.copy(
-                        text = updated,
-                        selection = TextRange(s + replacement.length)
-                    )
-                )
+                val filtered = getSpans().filterNot {
+                    it.style == RichSpanStyle.LINK && it.start < e && it.end > s
+                }
+                onSpansChange(filtered + RichInputSpan(start = s, end = e, style = RichSpanStyle.LINK, url = url))
             }
         }
         isLinkDialogOpen = false
@@ -202,10 +171,15 @@ class ChatInputSelectionController(
 @Composable
 fun rememberChatInputSelectionController(
     getValue: () -> TextFieldValue,
-    onValueChange: (TextFieldValue) -> Unit
+    getSpans: () -> List<RichInputSpan>,
+    onSpansChange: (List<RichInputSpan>) -> Unit
 ): ChatInputSelectionController {
     return remember {
-        ChatInputSelectionController(getValue = getValue, onValueChange = onValueChange)
+        ChatInputSelectionController(
+            getValue = getValue,
+            getSpans = getSpans,
+            onSpansChange = onSpansChange
+        )
     }
 }
 
@@ -237,7 +211,9 @@ private class AnchorRectPopupPositionProvider(
 fun ChatInputSelectionToolbarOverlay(
     controller: ChatInputSelectionController
 ) {
+    val scheme = LocalAnonGramScheme.current
     val density = LocalDensity.current
+
     if (controller.isShown) {
         val hasSelection = !controller.currentValue().selection.collapsed
         val rect = controller.anchorRect
@@ -255,10 +231,19 @@ fun ChatInputSelectionToolbarOverlay(
             onDismissRequest = { controller.hide() },
             properties = PopupProperties(focusable = false, clippingEnabled = true)
         ) {
-            if (!controller.isFormatMenuOpen) {
-                SelectionActionBar(controller = controller, hasSelection = hasSelection)
-            } else {
-                SelectionFormatMenu(controller = controller, hasSelection = hasSelection)
+            Box(
+                modifier = Modifier
+                    .shadow(12.dp, RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(scheme.card)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+                    .animateContentSize(animationSpec = tween(180))
+            ) {
+                if (!controller.isFormatMenuOpen) {
+                    SelectionActionBar(controller = controller, hasSelection = hasSelection)
+                } else {
+                    SelectionFormatMenu(controller = controller, hasSelection = hasSelection)
+                }
             }
         }
     }
@@ -277,16 +262,12 @@ private fun SelectionActionBar(
     val strings = LocalInputStrings.current
     Row(
         modifier = Modifier
-            .height(46.dp)
-            .shadow(12.dp, RoundedCornerShape(22.dp))
-            .clip(RoundedCornerShape(22.dp))
-            .background(scheme.card)
-            .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
+            .height(48.dp)
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Порядок как в Telegram: Копировать -> Вставить -> Вырезать -> ⋮
+        // Порядок как в Telegram: Копировать -> Вставить -> Вырезать   ⋮
         controller.onCopyAction?.let { copy ->
             ToolbarTextButton(label = strings.selectionCopy) {
                 copy()
@@ -306,9 +287,10 @@ private fun SelectionActionBar(
             }
         }
         if (hasSelection) {
+            Spacer(modifier = Modifier.width(6.dp))
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(40.dp)
                     .clip(CircleShape)
                     .clickable { controller.isFormatMenuOpen = true },
                 contentAlignment = Alignment.Center
@@ -332,12 +314,7 @@ private fun SelectionFormatMenu(
     val scheme = LocalAnonGramScheme.current
     val strings = LocalInputStrings.current
     Column(
-        modifier = Modifier
-            .widthIn(min = 200.dp, max = 248.dp)
-            .shadow(12.dp, RoundedCornerShape(18.dp))
-            .clip(RoundedCornerShape(18.dp))
-            .background(scheme.card)
-            .border(1.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
+        modifier = Modifier.widthIn(min = 205.dp, max = 250.dp)
     ) {
         Column(
             modifier = Modifier
@@ -381,8 +358,8 @@ private fun SelectionFormatItemsTop(
 ) {
     val strings = LocalInputStrings.current
     if (hasSelection) {
-        FormatMenuItem(label = strings.selectionQuote) { controller.applyQuote() }
-        FormatMenuItem(label = strings.selectionSpoiler) { controller.applyWrap("||") }
+        FormatMenuItem(label = strings.selectionQuote) { controller.applyStyle(RichSpanStyle.QUOTE) }
+        FormatMenuItem(label = strings.selectionSpoiler) { controller.applyStyle(RichSpanStyle.SPOILER) }
     }
     controller.onSelectAllAction?.let { selectAll ->
         FormatMenuItem(label = strings.selectionSelectAll) {
@@ -399,11 +376,11 @@ private fun SelectionFormatItemsStyles(
 ) {
     if (!hasSelection) return
     val strings = LocalInputStrings.current
-    FormatMenuItem(label = strings.selectionBold, fontWeight = FontWeight.Bold) { controller.applyWrap("**") }
-    FormatMenuItem(label = strings.selectionItalic, fontStyle = FontStyle.Italic) { controller.applyWrap("*") }
-    FormatMenuItem(label = strings.selectionMono, fontFamily = FontFamily.Monospace) { controller.applyWrap("`") }
-    FormatMenuItem(label = strings.selectionStrike, textDecoration = TextDecoration.LineThrough) { controller.applyWrap("~~") }
-    FormatMenuItem(label = strings.selectionUnderline, textDecoration = TextDecoration.Underline) { controller.applyWrap("<u>", "</u>") }
+    FormatMenuItem(label = strings.selectionBold, fontWeight = FontWeight.Bold) { controller.applyStyle(RichSpanStyle.BOLD) }
+    FormatMenuItem(label = strings.selectionItalic, fontStyle = FontStyle.Italic) { controller.applyStyle(RichSpanStyle.ITALIC) }
+    FormatMenuItem(label = strings.selectionMono, fontFamily = FontFamily.Monospace) { controller.applyStyle(RichSpanStyle.MONO) }
+    FormatMenuItem(label = strings.selectionStrike, textDecoration = TextDecoration.LineThrough) { controller.applyStyle(RichSpanStyle.STRIKE) }
+    FormatMenuItem(label = strings.selectionUnderline, textDecoration = TextDecoration.Underline) { controller.applyStyle(RichSpanStyle.UNDERLINE) }
     FormatMenuItem(label = strings.selectionAddLink) {
         controller.savedSelectionForLink = controller.currentValue().selection
         controller.linkUrlInput = "https://"
@@ -480,116 +457,6 @@ private fun SelectionLinkDialog(controller: ChatInputSelectionController) {
     }
 }
 
-/**
- * VisualTransformation, скрывающий маркеры форматирования (**, *, ~~, <u>, </u>, `, ||, [текст](url))
- * и сразу отображающий стили (включая спойлер-плашку) прямо в поле ввода.
- */
-fun createRichInputVisualTransformation(
-    textPrimary: Color,
-    accentColor: Color
-): VisualTransformation {
-    val tokenRegex = Regex(
-        "(\\*\\*([^*]+)\\*\\*)|" +              // 1: **bold**
-        "(\\*([^*]+)\\*)|" +                    // 3: *italic*
-        "(~~([^~]+)~~)|" +                      // 5: ~~strike~~
-        "(<u>([^<]+)</u>)|" +                    // 7: <u>underline</u>
-        "(`([^`]+)`)|" +                        // 9: `code`
-        "(\\|\\|([^|]+)\\|\\|)|" +               // 11: ||spoiler||
-        "(\\[([^\\]]+)\\]\\(([^)]+)\\))"        // 13: [text](url)
-    )
-
-    return VisualTransformation { original ->
-        val src = original.text
-        if (src.isEmpty()) return@VisualTransformation TransformedText(original, OffsetMapping.Identity)
-
-        val matches = tokenRegex.findAll(src).toList()
-        if (matches.isEmpty()) return@VisualTransformation TransformedText(original, OffsetMapping.Identity)
-
-        val origToTrans = IntArray(src.length + 1)
-        val transToOrig = ArrayList<Int>(src.length + 1)
-        var transLen = 0
-
-        fun emitVisibleRange(start: Int, endExclusive: Int) {
-            for (i in start until endExclusive) {
-                origToTrans[i] = transLen
-                transToOrig.add(i)
-                transLen++
-            }
-        }
-
-        fun markHiddenRange(start: Int, endExclusive: Int) {
-            for (i in start until endExclusive) {
-                origToTrans[i] = transLen
-            }
-        }
-
-        val annotated = buildAnnotatedString {
-            var cursor = 0
-            for (m in matches) {
-                if (m.range.first > cursor) {
-                    emitVisibleRange(cursor, m.range.first)
-                    append(src.substring(cursor, m.range.first))
-                }
-
-                val (innerGroupIdx, style) = when {
-                    m.groupValues[1].isNotEmpty() -> 2 to SpanStyle(fontWeight = FontWeight.Bold)
-                    m.groupValues[3].isNotEmpty() -> 4 to SpanStyle(fontStyle = FontStyle.Italic)
-                    m.groupValues[5].isNotEmpty() -> 6 to SpanStyle(textDecoration = TextDecoration.LineThrough)
-                    m.groupValues[7].isNotEmpty() -> 8 to SpanStyle(textDecoration = TextDecoration.Underline)
-                    m.groupValues[9].isNotEmpty() -> 10 to SpanStyle(
-                        fontFamily = FontFamily.Monospace,
-                        background = accentColor.copy(alpha = 0.16f)
-                    )
-                    m.groupValues[11].isNotEmpty() -> 12 to SpanStyle(
-                        background = accentColor.copy(alpha = 0.28f),
-                        color = textPrimary.copy(alpha = 0.38f)
-                    )
-                    else -> 14 to SpanStyle(
-                        color = accentColor,
-                        textDecoration = TextDecoration.Underline
-                    )
-                }
-
-                val innerGroup = m.groups[innerGroupIdx]
-                if (innerGroup != null) {
-                    val innerStart = innerGroup.range.first
-                    val innerEnd = innerGroup.range.last + 1
-                    markHiddenRange(m.range.first, innerStart)
-                    emitVisibleRange(innerStart, innerEnd)
-                    pushStyle(style)
-                    append(src.substring(innerStart, innerEnd))
-                    pop()
-                    markHiddenRange(innerEnd, m.range.last + 1)
-                } else {
-                    emitVisibleRange(m.range.first, m.range.last + 1)
-                    append(m.value)
-                }
-                cursor = m.range.last + 1
-            }
-
-            if (cursor < src.length) {
-                emitVisibleRange(cursor, src.length)
-                append(src.substring(cursor))
-            }
-        }
-
-        origToTrans[src.length] = transLen
-        transToOrig.add(src.length)
-
-        val mapping = object : OffsetMapping {
-            override fun originalToTransformed(offset: Int): Int {
-                return origToTrans[offset.coerceIn(0, src.length)]
-            }
-
-            override fun transformedToOriginal(offset: Int): Int {
-                return transToOrig[offset.coerceIn(0, transToOrig.lastIndex)]
-            }
-        }
-
-        TransformedText(annotated, mapping)
-    }
-}
-
 @Composable
 private fun ToolbarTextButton(
     label: String,
@@ -604,7 +471,7 @@ private fun ToolbarTextButton(
         modifier = Modifier
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 11.dp)
+            .padding(horizontal = 15.dp, vertical = 11.dp)
     )
 }
 
@@ -631,18 +498,4 @@ private fun FormatMenuItem(
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 11.dp)
     )
-}
-
-private fun stripFormattingMarkers(text: String): String {
-    return text
-        .lines()
-        .joinToString("\n") { line -> line.removePrefix("> ") }
-        .replace(Regex("\\[([^\\]]+)]\\(([^)]+)\\)"), "$1")
-        .replace("**", "")
-        .replace("~~", "")
-        .replace("||", "")
-        .replace("<u>", "")
-        .replace("</u>", "")
-        .replace("`", "")
-        .replace(Regex("(?<!\\*)\\*(?!\\*)"), "")
 }

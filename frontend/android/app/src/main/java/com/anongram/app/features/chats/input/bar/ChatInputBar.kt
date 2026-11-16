@@ -113,25 +113,38 @@ fun ChatInputBar(
     val scrollState = rememberScrollState()
     val isMultiline = !isRecording && !isHiddenByTrim && (input.lines().size >= 3 || input.length >= 60)
 
+    var inputSpans by remember { mutableStateOf<List<RichInputSpan>>(emptyList()) }
     var textFieldValue by remember {
-        mutableStateOf(TextFieldValue(input, TextRange(input.length)))
+        val (plain, parsed) = parseRichInput(input)
+        inputSpans = parsed
+        mutableStateOf(TextFieldValue(plain, TextRange(plain.length)))
     }
     androidx.compose.runtime.LaunchedEffect(input) {
-        if (textFieldValue.text != input) {
-            textFieldValue = TextFieldValue(input, TextRange(input.length))
+        if (input.isEmpty()) {
+            if (textFieldValue.text.isNotEmpty() || inputSpans.isNotEmpty()) {
+                inputSpans = emptyList()
+                textFieldValue = TextFieldValue("")
+            }
+        } else if (serializeRichInput(textFieldValue.text, inputSpans) != input) {
+            val (plain, parsed) = parseRichInput(input)
+            inputSpans = parsed
+            textFieldValue = TextFieldValue(plain, TextRange(plain.length))
         }
     }
     val selectionController = rememberChatInputSelectionController(
         getValue = { textFieldValue },
-        onValueChange = { next ->
-            textFieldValue = next
-            if (next.text != input) {
-                onInputChange(next.text)
+        getSpans = { inputSpans },
+        onSpansChange = { nextSpans ->
+            inputSpans = nextSpans
+            val serialized = serializeRichInput(textFieldValue.text, nextSpans)
+            if (serialized != input) {
+                onInputChange(serialized)
             }
         }
     )
-    val richVisualTransformation = remember(scheme.textPrimary, scheme.accent) {
-        createRichInputVisualTransformation(
+    val richVisualTransformation = remember(inputSpans, scheme.textPrimary, scheme.accent) {
+        createSpanVisualTransformation(
+            spans = inputSpans,
             textPrimary = scheme.textPrimary,
             accentColor = scheme.accent
         )
@@ -241,9 +254,18 @@ fun ChatInputBar(
                                         focusRequester = focusRequester,
                                         onFocusInput = onFocusInput,
                                         onValueChange = { newValue ->
+                                            val oldText = textFieldValue.text
+                                            val newText = newValue.text
+                                            val updatedSpans = if (oldText != newText) {
+                                                adjustSpansForTextEdit(inputSpans, oldText, newText)
+                                            } else {
+                                                inputSpans
+                                            }
+                                            inputSpans = updatedSpans
                                             textFieldValue = newValue
-                                            if (newValue.text != input) {
-                                                onInputChange(newValue.text)
+                                            val serialized = serializeRichInput(newText, updatedSpans)
+                                            if (serialized != input) {
+                                                onInputChange(serialized)
                                             }
                                         }
                                     )
