@@ -6,6 +6,7 @@ import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.WebView
 import com.anongram.app.core.theme.ChatTextSettingsStore
+import com.anongram.app.features.chats.links.preview.LinkPreviewData
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +14,7 @@ import kotlinx.coroutines.flow.update
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.net.URLEncoder
 
 enum class BrowserSearchEngine(val label: String, val searchUrl: String) {
     GOOGLE("Google", "https://www.google.com/search?q="),
@@ -43,7 +45,8 @@ data class InAppBrowserState(
     val searchEngine: BrowserSearchEngine = BrowserSearchEngine.GOOGLE,
     val cookieSizeBytes: Long = 0L,
     val cacheSizeBytes: Long = 0L,
-    val reloadNonce: Long = 0L
+    val reloadNonce: Long = 0L,
+    val inlineMediaPreview: LinkPreviewData? = null
 )
 
 object InAppBrowserStore {
@@ -116,6 +119,28 @@ object InAppBrowserStore {
             }
             context.startActivity(intent)
         }
+    }
+
+    fun openInlineMedia(preview: LinkPreviewData) {
+        _state.update { it.copy(inlineMediaPreview = preview) }
+    }
+
+    fun closeInlineMedia() {
+        _state.update { it.copy(inlineMediaPreview = null) }
+    }
+
+    fun navigateFromBar(context: Context, rawInput: String) {
+        val query = rawInput.trim()
+        if (query.isBlank()) return
+        val looksLikeUrl = query.startsWith("http://", ignoreCase = true) ||
+            query.startsWith("https://", ignoreCase = true) ||
+            (!query.contains(' ') && query.contains('.') && !query.startsWith(".") && !query.endsWith("."))
+        val target = if (looksLikeUrl) {
+            normalizeUrl(query)
+        } else {
+            _state.value.searchEngine.searchUrl + URLEncoder.encode(query, "UTF-8")
+        }
+        openUrl(context, target)
     }
 
     fun updatePageProgress(url: String?, title: String?, progress: Int) {

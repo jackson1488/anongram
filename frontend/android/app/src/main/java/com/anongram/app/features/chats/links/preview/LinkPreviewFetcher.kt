@@ -23,7 +23,9 @@ import java.net.URL
 object LinkPreviewFetcher {
 
     private const val MAX_HEAD_BYTES = 65_536
-    private const val DISK_CACHE_FILE = "anongram_link_previews.json"
+    private const val DISK_CACHE_FILE = "anongram_link_previews_v2.json"
+    private val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp")
+    private val videoExtensions = setOf("mp4", "webm", "mov", "m4v", "mkv")
     private val urlRegex = Regex(
         """((?:https?://|www\.)[^\s<>\]\[)"'«»]+)""",
         RegexOption.IGNORE_CASE
@@ -81,11 +83,17 @@ object LinkPreviewFetcher {
             return cached
         }
 
+        detectDirectMediaByExtension(url)?.let { direct ->
+            ramCache.put(url, direct)
+            saveToDiskCache(context, direct)
+            return direct
+        }
+
         return withContext(Dispatchers.IO) {
             networkSemaphore.withPermit {
                 ramCache.get(url)?.let { return@withPermit it }
                 val fetched = runCatching { fetchMetaFromHead(url) }.getOrNull()
-                if (fetched != null && (fetched.title.isNotBlank() || fetched.description.isNotBlank())) {
+                if (fetched != null && (fetched.title.isNotBlank() || fetched.description.isNotBlank() || fetched.mediaType != LinkMediaType.NONE)) {
                     ramCache.put(url, fetched)
                     saveToDiskCache(context, fetched)
                     fetched
@@ -95,6 +103,51 @@ object LinkPreviewFetcher {
                 }
             }
         }
+    }
+
+    private fun detectDirectMediaByExtension(url: String): LinkPreviewData? {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
+        val host = uri.host?.removePrefix("www.").orEmpty()
+        val path = uri.path.orEmpty()
+        val ext = path.substringAfterLast('.', "").lowercase()
+        val fileName = path.substringAfterLast('/', "").ifBlank { host }
+        return when {
+            ext in imageExtensions -> LinkPreviewData(
+                url = url,
+                domain = host,
+                title = fileName,
+                imageUrl = url,
+                siteName = host,
+                mediaType = LinkMediaType.IMAGE
+            )
+            ext in videoExtensions -> LinkPreviewData(
+                url = url,
+                domain = host,
+                title = fileName,
+                siteName = host,
+                mediaType = LinkMediaType.VIDEO,
+                embedUrl = url
+            )
+            else -> null
+        }
+    }
+
+    private fun extractYoutubeEmbedUrl(url: String): String? {
+        val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
+        val host = uri.host?.lowercase()?.removePrefix("www.") ?: return null
+        val videoId = when {
+            host == "youtu.be" -> uri.pathSegments.firstOrNull()
+            host == "youtube.com" || host == "m.youtube.com" -> {
+                val path = uri.path.orEmpty()
+                when {
+                    path.startsWith("/shorts/") -> uri.pathSegments.getOrNull(1)
+                    path.startsWith("/embed/") -> uri.pathSegments.getOrNull(1)
+                    else -> uri.getQueryParameter("v")
+                }
+            }
+            else -> null
+        }?.takeIf { it.isNotBlank() } ?: return null
+        return "https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
     }
 
     private fun fetchMetaFromHead(url: String): LinkPreviewData? {
@@ -108,19 +161,42 @@ object LinkPreviewFetcher {
                 "User-Agent",
                 "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36"
             )
-            setRequestProperty("Accept", "text/html,application/xhtml+xml")
+            setRequestProperty("Accept", "text/html,application/xhtml+xml,image/*,video/*")
         }
         return try {
             if (conn.responseCode !in 200..299) return null
-            val contentType = conn.contentType.orEmpty()
+            val contentType = conn.contentType.orEmpty().lowercase()
+            val finalUrl = conn.url?.toString() ?: url
+            val uri = runCatching { Uri.parse(finalUrl) }.getOrNull()
+            val host = uri?.host?.removePrefix("www.").orEmpty()
+            val fileName = uri?.path?.substringAfterLast('/', "")?.ifBlank { host } ?: host
+
+            if (contentType.startsWith("image/")) {
+                return LinkPreviewData(
+                    url = url,
+                    domain = host,
+                    title = fileName,
+                    imageUrl = finalUrl,
+                    siteName = host,
+                    mediaType = LinkMediaType.IMAGE
+                )
+            }
+            if (contentType.startsWith("video/")) {
+                return LinkPreviewData(
+                    url = url,
+                    domain = host,
+                    title = fileName,
+                    siteName = host,
+                    mediaType = LinkMediaType.VIDEO,
+                    embedUrl = finalUrl
+                )
+            }
             if (contentType.isNotBlank() &&
-                !contentType.contains("text/html", ignoreCase = true) &&
-                !contentType.contains("xhtml", ignoreCase = true)
+                !contentType.contains("text/html") &&
+                !contentType.contains("xhtml")
             ) {
                 return null
             }
-            val finalUrl = conn.url?.toString() ?: url
-            val host = runCatching { Uri.parse(finalUrl).host?.removePrefix("www.") }.getOrNull().orEmpty()
             val html = conn.inputStream.use { input ->
                 val out = ByteArrayOutputStream()
                 val buf = ByteArray(4096)
@@ -147,17 +223,26 @@ object LinkPreviewFetcher {
             val rawImage = extractMeta(headSection, "og:image")
                 ?: extractMeta(headSection, "twitter:image")
                 ?: ""
+            val rawVideo = extractMeta(headSection, "og:video:secure_url")
+                ?: extractMeta(headSection, "og:video:url")
+                ?: extractMeta(headSection, "og:video")
+                ?: ""
             val siteName = extractMeta(headSection, "og:site_name") ?: host
             val resolvedImage = resolveImageUrl(finalUrl, rawImage)
+            val youtubeEmbed = extractYoutubeEmbedUrl(finalUrl) ?: extractYoutubeEmbedUrl(url)
+            val resolvedVideo = youtubeEmbed ?: resolveImageUrl(finalUrl, rawVideo)
+            val mediaType = if (resolvedVideo.isNotBlank()) LinkMediaType.VIDEO else LinkMediaType.NONE
 
-            if (ogTitle.isBlank() && ogDesc.isBlank()) return null
+            if (ogTitle.isBlank() && ogDesc.isBlank() && mediaType == LinkMediaType.NONE) return null
             LinkPreviewData(
                 url = url,
                 domain = host,
                 title = decodeHtml(ogTitle).trim(),
                 description = decodeHtml(ogDesc).trim(),
                 imageUrl = resolvedImage,
-                siteName = decodeHtml(siteName).trim().ifBlank { host }
+                siteName = decodeHtml(siteName).trim().ifBlank { host },
+                mediaType = mediaType,
+                embedUrl = resolvedVideo
             )
         } finally {
             conn.disconnect()
@@ -221,7 +306,11 @@ object LinkPreviewFetcher {
                             title = o.optString("title"),
                             description = o.optString("description"),
                             imageUrl = o.optString("imageUrl"),
-                            siteName = o.optString("siteName")
+                            siteName = o.optString("siteName"),
+                            mediaType = runCatching {
+                                LinkMediaType.valueOf(o.optString("mediaType", LinkMediaType.NONE.name))
+                            }.getOrDefault(LinkMediaType.NONE),
+                            embedUrl = o.optString("embedUrl")
                         )
                     }
                 }
@@ -252,6 +341,8 @@ object LinkPreviewFetcher {
                             put("description", v.description)
                             put("imageUrl", v.imageUrl)
                             put("siteName", v.siteName)
+                            put("mediaType", v.mediaType.name)
+                            put("embedUrl", v.embedUrl)
                         }
                     )
                 }

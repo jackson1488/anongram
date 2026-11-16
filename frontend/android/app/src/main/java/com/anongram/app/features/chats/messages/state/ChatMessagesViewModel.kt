@@ -253,17 +253,8 @@ class ChatMessagesViewModel(
         }
     }
 
-    /** Отправитель сам строит превью ссылки — без сервера. */
-    private fun buildLinkPreview(text: String): LinkPreview? {
-        val url = Regex("https?://\\S+").find(text)?.value ?: return null
-        val domain = url.removePrefix("https://").removePrefix("http://").substringBefore('/')
-        return LinkPreview(
-            url = url,
-            domain = domain,
-            title = "Ссылка от собеседника",
-            description = "Материал на $domain — превью собрано локально"
-        )
-    }
+    /** Реальное превью загружается асинхронно в UI через LinkPreviewFetcher. */
+    private fun buildLinkPreview(text: String): LinkPreview? = null
 
     private suspend fun runDeliveryLifecycle(messageId: String) {
         delay(600)

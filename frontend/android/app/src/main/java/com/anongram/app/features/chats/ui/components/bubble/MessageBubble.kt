@@ -705,15 +705,7 @@ internal fun MessageBubble(
                                         }
                                     }
 
-                                    // Превью ссылки (шаг 15)
-                                    message.linkPreview?.let { preview ->
-                                        LinkPreviewBlock(
-                                            preview = preview,
-                                            accent = scheme.accent,
-                                            searchQuery = searchQuery
-                                        )
-                                        Spacer(modifier = Modifier.height(6.dp))
-                                    }
+
 
                                     // Текст сообщения + отдельный блок времени (модульный BubbleTextMessage)
                                     if (message.text.isNotBlank()) {
@@ -790,7 +782,11 @@ internal fun MessageBubble(
                                                 com.anongram.app.features.chats.links.preview.LinkPreviewCard(
                                                     preview = preview,
                                                     onClick = {
-                                                        com.anongram.app.features.chats.links.browser.InAppBrowserStore.openUrl(context, preview.url)
+                                                        if (preview.mediaType != com.anongram.app.features.chats.links.preview.LinkMediaType.NONE) {
+                                                            com.anongram.app.features.chats.links.browser.InAppBrowserStore.openInlineMedia(preview)
+                                                        } else {
+                                                            com.anongram.app.features.chats.links.browser.InAppBrowserStore.openUrl(context, preview.url)
+                                                        }
                                                     }
                                                 )
                                             }

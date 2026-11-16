@@ -234,6 +234,7 @@ internal fun BoxScope.ChatInputDock(
                 }
             }
     ) {
+        if (state.isSelectionMode) return@Box
         Column(modifier = Modifier.fillMaxWidth()) {
             if (state.recording.isLocked && state.recording.mode == RecordMode.VOICE) {
                 VoiceLockedTopControls(

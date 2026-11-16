@@ -44,7 +44,11 @@ data class InAppBrowserStrings(
     val linkCopiedToast: String,
     val linksAndBrowserSection: String,
     val linkPreviewsTitle: String,
-    val linkPreviewsDesc: String
+    val linkPreviewsDesc: String,
+    val addressSearchPlaceholder: String,
+    val watchVideoLabel: String,
+    val viewPhotoLabel: String,
+    val openInBrowserLabel: String
 )
 
 object InAppBrowserI18n {
@@ -86,7 +90,11 @@ object InAppBrowserI18n {
         linkCopiedToast = "Ссылка скопирована",
         linksAndBrowserSection = "Ссылки и браузер",
         linkPreviewsTitle = "Предпросмотр ссылок",
-        linkPreviewsDesc = "Показывает заголовок и обложку ссылки под сообщением. Отключите для максимальной приватности."
+        linkPreviewsDesc = "Показывает заголовок и обложку ссылки под сообщением. Отключите для максимальной приватности.",
+        addressSearchPlaceholder = "Поиск или адрес сайта...",
+        watchVideoLabel = "Смотреть видео",
+        viewPhotoLabel = "Открыть фото",
+        openInBrowserLabel = "Открыть страницу"
     )
 
     private val en = InAppBrowserStrings(
@@ -127,7 +135,11 @@ object InAppBrowserI18n {
         linkCopiedToast = "Link copied",
         linksAndBrowserSection = "Links & Browser",
         linkPreviewsTitle = "Link previews",
-        linkPreviewsDesc = "Shows link title and preview card below messages. Disable for maximum privacy."
+        linkPreviewsDesc = "Shows link title and preview card below messages. Disable for maximum privacy.",
+        addressSearchPlaceholder = "Search or enter URL...",
+        watchVideoLabel = "Watch video",
+        viewPhotoLabel = "View photo",
+        openInBrowserLabel = "Open page"
     )
 
     val current: InAppBrowserStrings

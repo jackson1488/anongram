@@ -29,7 +29,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Bookmark
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -62,10 +65,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -73,7 +79,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.safeStatusBarPadding
 
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
@@ -88,6 +93,16 @@ fun InAppBrowserOverlay(
     var menuExpanded by remember { mutableStateOf(false) }
     var isFindOpen by remember { mutableStateOf(false) }
     var findQuery by remember { mutableStateOf("") }
+    var isAddressEditing by remember { mutableStateOf(false) }
+    var addressInput by remember { mutableStateOf("") }
+    val addressFocusRequester = remember { FocusRequester() }
+
+    LaunchedEffect(isAddressEditing) {
+        if (isAddressEditing) {
+            addressInput = state.activeUrl.orEmpty()
+            runCatching { addressFocusRequester.requestFocus() }
+        }
+    }
 
     val activeUrl = state.activeUrl ?: return
 
@@ -158,7 +173,9 @@ fun InAppBrowserOverlay(
     val isBookmarked = state.bookmarks.any { it.url == activeUrl }
 
     BackHandler(enabled = !state.isMinimized && !state.isSettingsOpen && !state.isHistoryOpen && !state.isBookmarksOpen) {
-        if (isFindOpen) {
+        if (isAddressEditing) {
+            isAddressEditing = false
+        } else if (isFindOpen) {
             isFindOpen = false
             findQuery = ""
             webView.clearMatches()
@@ -173,12 +190,9 @@ fun InAppBrowserOverlay(
     if (!state.isMinimized) {
         AnonGramScreenSurface(modifier = modifier.fillMaxSize()) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeStatusBarPadding()
-                    .safeNavigationBarPadding()
+                modifier = Modifier.fillMaxSize()
             ) {
-                // Верхняя панель как на скринах 1 и 2: ✕ | Заголовок + URL | ⌄ | ⋮
+                // Верхняя панель: ✕ (или ← при вводе) | Заголовок + URL / поиск | ⌄ | ⋮
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -191,37 +205,104 @@ fun InAppBrowserOverlay(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(CircleShape)
-                            .clickable { InAppBrowserStore.close() },
+                            .clickable {
+                                if (isAddressEditing) {
+                                    isAddressEditing = false
+                                } else {
+                                    InAppBrowserStore.close()
+                                }
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.Close,
+                            imageVector = if (isAddressEditing) Icons.AutoMirrored.Filled.ArrowBack else Icons.Outlined.Close,
                             contentDescription = strings.closeBrowser,
                             tint = scheme.textPrimary,
                             modifier = Modifier.size(22.dp)
                         )
                     }
 
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = 6.dp)
-                    ) {
-                        Text(
-                            text = state.pageTitle.ifBlank { InAppBrowserStore.extractHost(activeUrl) },
-                            color = scheme.textPrimary,
-                            fontSize = 15.5.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = activeUrl.removePrefix("https://").removePrefix("http://"),
-                            color = scheme.textSecondary,
-                            fontSize = 12.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                    if (isAddressEditing) {
+                        Row(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(38.dp)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(scheme.card)
+                                .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+                                .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            BasicTextField(
+                                value = addressInput,
+                                onValueChange = { addressInput = it },
+                                singleLine = true,
+                                textStyle = TextStyle(color = scheme.textPrimary, fontSize = 14.sp),
+                                cursorBrush = SolidColor(scheme.accent),
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                                keyboardActions = KeyboardActions(
+                                    onGo = {
+                                        InAppBrowserStore.navigateFromBar(context, addressInput)
+                                        isAddressEditing = false
+                                    }
+                                ),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .focusRequester(addressFocusRequester),
+                                decorationBox = { innerTextField ->
+                                    if (addressInput.isEmpty()) {
+                                        Text(
+                                            text = strings.addressSearchPlaceholder,
+                                            color = scheme.textMuted,
+                                            fontSize = 14.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                    innerTextField()
+                                }
+                            )
+                            if (addressInput.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .clickable { addressInput = "" },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Close,
+                                        contentDescription = strings.closeBrowser,
+                                        tint = scheme.textSecondary,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable { isAddressEditing = true }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = state.pageTitle.ifBlank { InAppBrowserStore.extractHost(activeUrl) },
+                                color = scheme.textPrimary,
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = activeUrl.removePrefix("https://").removePrefix("http://"),
+                                color = scheme.textSecondary,
+                                fontSize = 12.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
 
                     // Стрелка вниз — свернуть страницу в нижний бар, не закрывая
