@@ -323,11 +323,12 @@ fun MainAppShell(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.background)
-    ) {
+    com.anongram.app.features.chats.links.browser.InAppBrowserHost(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(scheme.background)
+        ) {
         Row(modifier = Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -640,6 +641,7 @@ fun MainAppShell(
                 onDismiss = { audioController.closeFullScreen() }
             )
         }
+    }
     }
 }
 

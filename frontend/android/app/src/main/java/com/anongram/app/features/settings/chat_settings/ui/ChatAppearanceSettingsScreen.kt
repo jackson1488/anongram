@@ -128,6 +128,125 @@ fun ChatAppearanceSettingsScreen(
                 onThemeSelect = onThemeSelect
             )
 
+            Spacer(modifier = Modifier.height(14.dp))
+
+            val browserStrings = com.anongram.app.features.chats.links.browser.InAppBrowserI18n.current
+            val linkPreviewsEnabled by ChatTextSettingsStore.linkPreviewsEnabled.collectAsState()
+            val inAppBrowserEnabled by ChatTextSettingsStore.inAppBrowserEnabled.collectAsState()
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp))
+                    .background(scheme.card)
+                    .padding(horizontal = 16.dp, vertical = 14.dp)
+            ) {
+                Text(
+                    text = browserStrings.linksAndBrowserSection,
+                    color = scheme.accent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ChatTextSettingsStore.setLinkPreviewsEnabled(context, !linkPreviewsEnabled)
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = browserStrings.linkPreviewsTitle,
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = browserStrings.linkPreviewsDesc,
+                            color = scheme.textSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = linkPreviewsEnabled,
+                        onCheckedChange = { ChatTextSettingsStore.setLinkPreviewsEnabled(context, it) },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = scheme.onAccent,
+                            checkedTrackColor = scheme.accent
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.material3.HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ChatTextSettingsStore.setInAppBrowserEnabled(context, !inAppBrowserEnabled)
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = browserStrings.useInAppBrowser,
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = browserStrings.useInAppBrowserDesc,
+                            color = scheme.textSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = inAppBrowserEnabled,
+                        onCheckedChange = { ChatTextSettingsStore.setInAppBrowserEnabled(context, it) },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = scheme.onAccent,
+                            checkedTrackColor = scheme.accent
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.material3.HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                        .clickable {
+                            com.anongram.app.features.chats.links.browser.InAppBrowserStore.openSettings(context)
+                        }
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = browserStrings.browserSettingsTitle,
+                        color = scheme.accent,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "→",
+                        color = scheme.accent,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
         }
     }

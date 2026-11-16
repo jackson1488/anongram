@@ -33,9 +33,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextLinkStyles
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -45,6 +48,8 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.links.browser.InAppBrowserStore
+import com.anongram.app.features.chats.links.preview.LinkPreviewFetcher
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageStatus
@@ -101,7 +106,8 @@ fun BubbleTextMessage(
         val isOverLimit = para.text.length > 4000
         val textToDisplay = if (isOverLimit) para.text.take(4000) + "…" else para.text
 
-        val annotatedText = if (searchQuery.isNotBlank()) {
+        val context = LocalContext.current
+        val baseAnnotatedText = if (searchQuery.isNotBlank()) {
             buildHighlightedText(
                 text = textToDisplay,
                 query = searchQuery,
@@ -109,6 +115,11 @@ fun BubbleTextMessage(
             )
         } else {
             buildRichAnnotatedText(textToDisplay, scheme.accent)
+        }
+        val annotatedText = remember(baseAnnotatedText, scheme.accent) {
+            baseAnnotatedText.withClickableUrls(scheme.accent) { url ->
+                InAppBrowserStore.openUrl(context, url)
+            }
         }
 
         Column(modifier = modifier) {
@@ -415,6 +426,31 @@ fun buildRichAnnotatedText(source: String, accentColor: Color): AnnotatedString 
 
         if (lastEnd < len) {
             append(source.substring(lastEnd, len))
+        }
+    }
+}
+
+private fun AnnotatedString.withClickableUrls(
+    accentColor: Color,
+    onOpenUrl: (String) -> Unit
+): AnnotatedString {
+    val urls = LinkPreviewFetcher.extractAllUrls(this.text)
+    if (urls.isEmpty()) return this
+    return buildAnnotatedString {
+        append(this@withClickableUrls)
+        val linkStyles = TextLinkStyles(
+            style = SpanStyle(color = accentColor, textDecoration = TextDecoration.Underline)
+        )
+        urls.forEach { (range, url) ->
+            addLink(
+                url = LinkAnnotation.Url(
+                    url = url,
+                    styles = linkStyles,
+                    linkInteractionListener = { onOpenUrl(url) }
+                ),
+                start = range.first,
+                end = range.last + 1
+            )
         }
     }
 }

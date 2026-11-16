@@ -767,6 +767,34 @@ internal fun MessageBubble(
                                                 )
                                             }
 
+                                            val linkPreviewsEnabled by com.anongram.app.core.theme.ChatTextSettingsStore.linkPreviewsEnabled.collectAsState()
+                                            val firstLinkUrl = remember(effectiveMessage.text, linkPreviewsEnabled) {
+                                                if (linkPreviewsEnabled) {
+                                                    com.anongram.app.features.chats.links.preview.LinkPreviewFetcher.extractFirstUrl(effectiveMessage.text)
+                                                } else {
+                                                    null
+                                                }
+                                            }
+                                            var linkPreviewData by remember(firstLinkUrl) {
+                                                mutableStateOf<com.anongram.app.features.chats.links.preview.LinkPreviewData?>(null)
+                                            }
+                                            LaunchedEffect(firstLinkUrl) {
+                                                linkPreviewData = if (firstLinkUrl != null) {
+                                                    com.anongram.app.features.chats.links.preview.LinkPreviewFetcher.fetch(context, firstLinkUrl)
+                                                } else {
+                                                    null
+                                                }
+                                            }
+                                            linkPreviewData?.let { preview ->
+                                                Spacer(modifier = Modifier.height(6.dp))
+                                                com.anongram.app.features.chats.links.preview.LinkPreviewCard(
+                                                    preview = preview,
+                                                    onClick = {
+                                                        com.anongram.app.features.chats.links.browser.InAppBrowserStore.openUrl(context, preview.url)
+                                                    }
+                                                )
+                                            }
+
                                             if (translationEntry != null && (translationEntry.isTranslating || translationEntry.translatedText != null || translationEntry.error != null)) {
                                                 Spacer(modifier = Modifier.height(3.dp))
                                                 val badgeLabel = when {

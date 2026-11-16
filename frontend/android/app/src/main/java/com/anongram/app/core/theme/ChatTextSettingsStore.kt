@@ -13,12 +13,20 @@ object ChatTextSettingsStore {
     private const val PREFS_NAME = "anongram_chat_text_settings"
     private const val KEY_TEXT_SIZE_SP = "message_text_size_sp"
     private const val KEY_USER_NAME = "registered_user_name"
+    private const val KEY_LINK_PREVIEWS = "link_previews_enabled"
+    private const val KEY_IN_APP_BROWSER = "in_app_browser_enabled"
 
     private val _messageTextSizeSp = MutableStateFlow(16)
     val messageTextSizeSp: StateFlow<Int> = _messageTextSizeSp.asStateFlow()
 
     private val _registeredUserName = MutableStateFlow("Кайрат")
     val registeredUserName: StateFlow<String> = _registeredUserName.asStateFlow()
+
+    private val _linkPreviewsEnabled = MutableStateFlow(true)
+    val linkPreviewsEnabled: StateFlow<Boolean> = _linkPreviewsEnabled.asStateFlow()
+
+    private val _inAppBrowserEnabled = MutableStateFlow(true)
+    val inAppBrowserEnabled: StateFlow<Boolean> = _inAppBrowserEnabled.asStateFlow()
 
     private var initialized = false
 
@@ -34,6 +42,8 @@ object ChatTextSettingsStore {
             ?: "Кайрат"
         _messageTextSizeSp.value = savedSize
         _registeredUserName.value = savedName.ifBlank { "Кайрат" }
+        _linkPreviewsEnabled.value = prefs.getBoolean(KEY_LINK_PREVIEWS, true)
+        _inAppBrowserEnabled.value = prefs.getBoolean(KEY_IN_APP_BROWSER, true)
     }
 
     fun setMessageTextSizeSp(context: Context, sizeSp: Int) {
@@ -53,6 +63,24 @@ object ChatTextSettingsStore {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putString(KEY_USER_NAME, clean)
+            .apply()
+    }
+
+    fun setLinkPreviewsEnabled(context: Context, enabled: Boolean) {
+        _linkPreviewsEnabled.value = enabled
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_LINK_PREVIEWS, enabled)
+            .apply()
+    }
+
+    fun setInAppBrowserEnabled(context: Context, enabled: Boolean) {
+        _inAppBrowserEnabled.value = enabled
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_IN_APP_BROWSER, enabled)
             .apply()
     }
 }
