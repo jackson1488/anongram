@@ -3,8 +3,8 @@ package com.anongram.app.features.chats.links.browser
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import com.anongram.app.features.settings.language.ui.AppLanguage
-import com.anongram.app.features.settings.language.ui.LanguageSettingsStore
+import com.anongram.app.core.i18n.AppLanguage
+import com.anongram.app.core.i18n.LanguageSettingsStore
 
 data class InAppBrowserStrings(
     val openInDefaultBrowser: String,

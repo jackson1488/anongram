@@ -1,5 +1,8 @@
 package com.anongram.app.features.chats.links.preview
 
+import android.graphics.BitmapFactory
+import android.util.LruCache
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,16 +20,25 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
+import java.net.URL
+
+private val thumbCache = LruCache<String, ImageBitmap>(48)
 
 @Composable
 fun LinkPreviewCard(
@@ -35,6 +47,41 @@ fun LinkPreviewCard(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+
+    val thumb by produceState<ImageBitmap?>(initialValue = thumbCache.get(preview.imageUrl), preview.imageUrl) {
+        if (preview.imageUrl.isBlank()) {
+            value = null
+            return@produceState
+        }
+        thumbCache.get(preview.imageUrl)?.let {
+            value = it
+            return@produceState
+        }
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                val conn = (URL(preview.imageUrl).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 4000
+                    readTimeout = 4500
+                    instanceFollowRedirects = true
+                    setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14)")
+                }
+                try {
+                    if (conn.responseCode !in 200..299) return@runCatching null
+                    val bytes = conn.inputStream.use { it.readBytes() }
+                    val opts = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+                    var sample = 1
+                    while (maxOf(opts.outWidth, opts.outHeight) / sample > 320) sample *= 2
+                    val decodeOpts = BitmapFactory.Options().apply { inSampleSize = sample }
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, decodeOpts)?.asImageBitmap()?.also { bmp ->
+                        thumbCache.put(preview.imageUrl, bmp)
+                    }
+                } finally {
+                    conn.disconnect()
+                }
+            }.getOrNull()
+        }
+    }
 
     Row(
         modifier = modifier
@@ -92,10 +139,10 @@ fun LinkPreviewCard(
                 )
             }
         }
-        if (preview.imageUrl.isNotBlank()) {
+        thumb?.let { bmp ->
             Spacer(modifier = Modifier.width(8.dp))
-            AsyncImage(
-                model = preview.imageUrl,
+            Image(
+                bitmap = bmp,
                 contentDescription = preview.title,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
