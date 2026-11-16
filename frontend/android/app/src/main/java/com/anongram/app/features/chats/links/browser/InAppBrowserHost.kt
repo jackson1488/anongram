@@ -33,10 +33,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -279,9 +283,16 @@ private fun InlineLinkMediaViewerOverlay(
                         p.endsWith(".mp4") || p.endsWith(".webm") || p.endsWith(".mov") || p.endsWith(".m4v")
                     }
                     if (isDirectVideo) {
+                        var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
+                        DisposableEffect(targetVideo) {
+                            onDispose {
+                                runCatching { videoViewRef?.stopPlayback() }
+                            }
+                        }
                         AndroidView(
                             factory = { ctx ->
                                 VideoView(ctx).apply {
+                                    videoViewRef = this
                                     val controller = MediaController(ctx)
                                     controller.setAnchorView(this)
                                     setMediaController(controller)
@@ -297,9 +308,20 @@ private fun InlineLinkMediaViewerOverlay(
                                 .aspectRatio(16f / 9f)
                         )
                     } else {
+                        var webViewRef by remember { mutableStateOf<WebView?>(null) }
+                        DisposableEffect(targetVideo) {
+                            onDispose {
+                                runCatching {
+                                    webViewRef?.stopLoading()
+                                    webViewRef?.loadUrl("about:blank")
+                                    webViewRef?.destroy()
+                                }
+                            }
+                        }
                         AndroidView(
                             factory = { ctx ->
                                 WebView(ctx).apply {
+                                    webViewRef = this
                                     settings.javaScriptEnabled = true
                                     settings.domStorageEnabled = true
                                     settings.mediaPlaybackRequiresUserGesture = false

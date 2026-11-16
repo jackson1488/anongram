@@ -132,22 +132,37 @@ object LinkPreviewFetcher {
         }
     }
 
-    private fun extractYoutubeEmbedUrl(url: String): String? {
+    private fun extractVideoEmbedUrl(url: String): String? {
         val uri = runCatching { Uri.parse(url) }.getOrNull() ?: return null
         val host = uri.host?.lowercase()?.removePrefix("www.") ?: return null
-        val videoId = when {
-            host == "youtu.be" -> uri.pathSegments.firstOrNull()
-            host == "youtube.com" || host == "m.youtube.com" -> {
+        if (host == "youtu.be" || host == "youtube.com" || host == "m.youtube.com") {
+            val videoId = if (host == "youtu.be") {
+                uri.pathSegments.firstOrNull()
+            } else {
                 val path = uri.path.orEmpty()
                 when {
                     path.startsWith("/shorts/") -> uri.pathSegments.getOrNull(1)
                     path.startsWith("/embed/") -> uri.pathSegments.getOrNull(1)
                     else -> uri.getQueryParameter("v")
                 }
+            }?.takeIf { it.isNotBlank() } ?: return null
+            return "https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
+        }
+        if (host == "tiktok.com" || host.endsWith(".tiktok.com")) {
+            val segments = uri.pathSegments
+            val videoIdx = segments.indexOf("video")
+            val videoId = if (videoIdx >= 0) segments.getOrNull(videoIdx + 1) else null
+            if (!videoId.isNullOrBlank() && videoId.all { it.isDigit() }) {
+                return "https://www.tiktok.com/embed/v2/$videoId"
             }
-            else -> null
-        }?.takeIf { it.isNotBlank() } ?: return null
-        return "https://www.youtube.com/embed/$videoId?autoplay=1&rel=0"
+        }
+        if (host == "vimeo.com") {
+            val videoId = uri.pathSegments.firstOrNull()?.takeIf { it.isNotBlank() && it.all(Char::isDigit) }
+            if (videoId != null) {
+                return "https://player.vimeo.com/video/$videoId?autoplay=1"
+            }
+        }
+        return null
     }
 
     private fun fetchMetaFromHead(url: String): LinkPreviewData? {
@@ -226,11 +241,12 @@ object LinkPreviewFetcher {
             val rawVideo = extractMeta(headSection, "og:video:secure_url")
                 ?: extractMeta(headSection, "og:video:url")
                 ?: extractMeta(headSection, "og:video")
+                ?: extractMeta(headSection, "twitter:player")
                 ?: ""
             val siteName = extractMeta(headSection, "og:site_name") ?: host
             val resolvedImage = resolveImageUrl(finalUrl, rawImage)
-            val youtubeEmbed = extractYoutubeEmbedUrl(finalUrl) ?: extractYoutubeEmbedUrl(url)
-            val resolvedVideo = youtubeEmbed ?: resolveImageUrl(finalUrl, rawVideo)
+            val knownEmbed = extractVideoEmbedUrl(finalUrl) ?: extractVideoEmbedUrl(url)
+            val resolvedVideo = knownEmbed ?: resolveImageUrl(finalUrl, rawVideo)
             val mediaType = if (resolvedVideo.isNotBlank()) LinkMediaType.VIDEO else LinkMediaType.NONE
 
             if (ogTitle.isBlank() && ogDesc.isBlank() && mediaType == LinkMediaType.NONE) return null

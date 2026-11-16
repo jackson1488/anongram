@@ -782,11 +782,15 @@ internal fun MessageBubble(
                                                 com.anongram.app.features.chats.links.preview.LinkPreviewCard(
                                                     preview = preview,
                                                     onClick = {
-                                                        if (preview.mediaType != com.anongram.app.features.chats.links.preview.LinkMediaType.NONE) {
-                                                            com.anongram.app.features.chats.links.browser.InAppBrowserStore.openInlineMedia(preview)
-                                                        } else {
-                                                            com.anongram.app.features.chats.links.browser.InAppBrowserStore.openUrl(context, preview.url)
-                                                        }
+                                                        com.anongram.app.features.chats.links.browser.InAppBrowserStore.openUrl(context, preview.url)
+                                                    },
+                                                    onImageClick = { imgPreview ->
+                                                        com.anongram.app.features.chats.links.browser.InAppBrowserStore.openInlineMedia(
+                                                            imgPreview.copy(mediaType = com.anongram.app.features.chats.links.preview.LinkMediaType.IMAGE)
+                                                        )
+                                                    },
+                                                    onExpandVideo = { videoPreview ->
+                                                        com.anongram.app.features.chats.links.browser.InAppBrowserStore.openInlineMedia(videoPreview)
                                                     }
                                                 )
                                             }
