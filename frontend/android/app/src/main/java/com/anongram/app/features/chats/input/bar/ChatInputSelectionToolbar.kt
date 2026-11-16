@@ -202,207 +202,239 @@ fun ChatInputSelectionToolbarOverlay(
     controller: ChatInputSelectionController,
     modifier: Modifier = Modifier
 ) {
-    val scheme = LocalAnonGramScheme.current
-    val strings = LocalInputStrings.current
-
     if (controller.isShown) {
         val hasSelection = !controller.currentValue().selection.collapsed
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            contentAlignment = Alignment.CenterStart
+                .padding(horizontal = 12.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
         ) {
             if (!controller.isFormatMenuOpen) {
-                Row(
-                    modifier = Modifier
-                        .shadow(8.dp, RoundedCornerShape(16.dp))
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(scheme.card)
-                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 6.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    controller.onCutAction?.let { cut ->
-                        ToolbarTextButton(label = strings.selectionCut) {
-                            cut()
-                            controller.hide()
-                        }
-                    }
-                    controller.onCopyAction?.let { copy ->
-                        ToolbarTextButton(label = strings.selectionCopy) {
-                            copy()
-                            controller.hide()
-                        }
-                    }
-                    controller.onPasteAction?.let { paste ->
-                        ToolbarTextButton(label = strings.selectionPaste) {
-                            paste()
-                            controller.hide()
-                        }
-                    }
-                    if (hasSelection) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable { controller.isFormatMenuOpen = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.MoreVert,
-                                contentDescription = strings.selectionMore,
-                                tint = scheme.textPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
+                SelectionActionBar(controller = controller, hasSelection = hasSelection)
             } else {
-                Column(
-                    modifier = Modifier
-                        .widthIn(min = 190.dp, max = 240.dp)
-                        .heightIn(max = 280.dp)
-                        .shadow(10.dp, RoundedCornerShape(16.dp))
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(scheme.card)
-                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f, fill = false)
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 4.dp)
-                    ) {
-                        if (hasSelection) {
-                            FormatMenuItem(label = strings.selectionQuote) { controller.applyQuote() }
-                            FormatMenuItem(label = strings.selectionSpoiler) { controller.applyWrap("||") }
-                        }
-                        controller.onSelectAllAction?.let { selectAll ->
-                            FormatMenuItem(label = strings.selectionSelectAll) {
-                                selectAll()
-                                controller.isFormatMenuOpen = false
-                            }
-                        }
-                        if (hasSelection) {
-                            FormatMenuItem(
-                                label = strings.selectionBold,
-                                fontWeight = FontWeight.Bold
-                            ) { controller.applyWrap("**") }
-                            FormatMenuItem(
-                                label = strings.selectionItalic,
-                                fontStyle = FontStyle.Italic
-                            ) { controller.applyWrap("*") }
-                            FormatMenuItem(
-                                label = strings.selectionMono,
-                                fontFamily = FontFamily.Monospace
-                            ) { controller.applyWrap("`") }
-                            FormatMenuItem(
-                                label = strings.selectionStrike,
-                                textDecoration = TextDecoration.LineThrough
-                            ) { controller.applyWrap("~~") }
-                            FormatMenuItem(
-                                label = strings.selectionUnderline,
-                                textDecoration = TextDecoration.Underline
-                            ) { controller.applyWrap("<u>", "</u>") }
-                            FormatMenuItem(label = strings.selectionAddLink) {
-                                controller.savedSelectionForLink = controller.currentValue().selection
-                                controller.linkUrlInput = "https://"
-                                controller.isLinkDialogOpen = true
-                                controller.hide()
-                            }
-                            FormatMenuItem(label = strings.selectionPlain) { controller.clearFormatting() }
-                        }
-                    }
-
-                    HorizontalDivider(color = scheme.divider)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { controller.isFormatMenuOpen = false }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = strings.selectionBack,
-                            tint = scheme.textPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Text(
-                            text = strings.selectionBack,
-                            color = scheme.textPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+                SelectionFormatMenu(controller = controller, hasSelection = hasSelection)
             }
         }
     }
 
     if (controller.isLinkDialogOpen) {
-        Dialog(onDismissRequest = { controller.isLinkDialogOpen = false }) {
-            Column(
+        SelectionLinkDialog(controller = controller)
+    }
+}
+
+@Composable
+private fun SelectionActionBar(
+    controller: ChatInputSelectionController,
+    hasSelection: Boolean
+) {
+    val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
+    Row(
+        modifier = Modifier
+            .shadow(10.dp, RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        controller.onCutAction?.let { cut ->
+            ToolbarTextButton(label = strings.selectionCut) {
+                cut()
+                controller.hide()
+            }
+        }
+        controller.onCopyAction?.let { copy ->
+            ToolbarTextButton(label = strings.selectionCopy) {
+                copy()
+                controller.hide()
+            }
+        }
+        controller.onPasteAction?.let { paste ->
+            ToolbarTextButton(label = strings.selectionPaste) {
+                paste()
+                controller.hide()
+            }
+        }
+        if (hasSelection) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(scheme.card)
-                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
-                    .padding(horizontal = 20.dp, vertical = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .clickable { controller.isFormatMenuOpen = true },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.MoreVert,
+                    contentDescription = strings.selectionMore,
+                    tint = scheme.textPrimary,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+        }
+    }
+}
+
+private data class FormatActionItem(
+    val label: String,
+    val fontWeight: FontWeight = FontWeight.Normal,
+    val fontStyle: FontStyle = FontStyle.Normal,
+    val fontFamily: FontFamily = FontFamily.Default,
+    val textDecoration: TextDecoration = TextDecoration.None,
+    val onClick: () -> Unit
+)
+
+@Composable
+private fun SelectionFormatMenu(
+    controller: ChatInputSelectionController,
+    hasSelection: Boolean
+) {
+    val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
+
+    val items = buildList {
+        if (hasSelection) {
+            add(FormatActionItem(strings.selectionQuote) { controller.applyQuote() })
+            add(FormatActionItem(strings.selectionSpoiler) { controller.applyWrap("||") })
+        }
+        controller.onSelectAllAction?.let { selectAll ->
+            add(FormatActionItem(strings.selectionSelectAll) {
+                selectAll()
+                controller.isFormatMenuOpen = false
+            })
+        }
+        if (hasSelection) {
+            add(FormatActionItem(strings.selectionBold, fontWeight = FontWeight.Bold) { controller.applyWrap("**") })
+            add(FormatActionItem(strings.selectionItalic, fontStyle = FontStyle.Italic) { controller.applyWrap("*") })
+            add(FormatActionItem(strings.selectionMono, fontFamily = FontFamily.Monospace) { controller.applyWrap("`") })
+            add(FormatActionItem(strings.selectionStrike, textDecoration = TextDecoration.LineThrough) { controller.applyWrap("~~") })
+            add(FormatActionItem(strings.selectionUnderline, textDecoration = TextDecoration.Underline) { controller.applyWrap("<u>", "</u>") })
+            add(FormatActionItem(strings.selectionAddLink) {
+                controller.savedSelectionForLink = controller.currentValue().selection
+                controller.linkUrlInput = "https://"
+                controller.isLinkDialogOpen = true
+                controller.hide()
+            })
+            add(FormatActionItem(strings.selectionPlain) { controller.clearFormatting() })
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .widthIn(min = 200.dp, max = 250.dp)
+            .heightIn(max = 280.dp)
+            .shadow(12.dp, RoundedCornerShape(18.dp))
+            .clip(RoundedCornerShape(18.dp))
+            .background(scheme.card)
+            .border(1.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 4.dp)
+        ) {
+            items.forEach { item ->
+                FormatMenuItem(
+                    label = item.label,
+                    fontWeight = item.fontWeight,
+                    fontStyle = item.fontStyle,
+                    fontFamily = item.fontFamily,
+                    textDecoration = item.textDecoration,
+                    onClick = item.onClick
+                )
+            }
+        }
+
+        HorizontalDivider(color = scheme.divider)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { controller.isFormatMenuOpen = false }
+                .padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                contentDescription = strings.selectionBack,
+                tint = scheme.textPrimary,
+                modifier = Modifier.size(18.dp)
+            )
+            Text(
+                text = strings.selectionBack,
+                color = scheme.textPrimary,
+                fontSize = 14.5.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+private fun SelectionLinkDialog(controller: ChatInputSelectionController) {
+    val scheme = LocalAnonGramScheme.current
+    val strings = LocalInputStrings.current
+    Dialog(onDismissRequest = { controller.isLinkDialogOpen = false }) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(22.dp))
+                .background(scheme.card)
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = strings.selectionAddLink,
+                color = scheme.textPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = strings.selectionUrlLabel,
+                    color = scheme.accent,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                BasicTextField(
+                    value = controller.linkUrlInput,
+                    onValueChange = { controller.linkUrlInput = it },
+                    singleLine = true,
+                    textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
+                    cursorBrush = SolidColor(scheme.accent),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                HorizontalDivider(color = scheme.accent, thickness = 1.5.dp)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
             ) {
                 Text(
-                    text = strings.selectionAddLink,
-                    color = scheme.textPrimary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.SemiBold
+                    text = strings.selectionCancel,
+                    color = scheme.accent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { controller.isLinkDialogOpen = false }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = strings.selectionUrlLabel,
-                        color = scheme.accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    BasicTextField(
-                        value = controller.linkUrlInput,
-                        onValueChange = { controller.linkUrlInput = it },
-                        singleLine = true,
-                        textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
-                        cursorBrush = SolidColor(scheme.accent),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    HorizontalDivider(color = scheme.accent, thickness = 1.5.dp)
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        text = strings.selectionCancel,
-                        color = scheme.accent,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable { controller.isLinkDialogOpen = false }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = strings.selectionOk,
-                        color = scheme.accent,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(16.dp))
-                            .clickable { controller.confirmLink() }
-                            .padding(horizontal = 14.dp, vertical = 8.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = strings.selectionOk,
+                    color = scheme.accent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .clickable { controller.confirmLink() }
+                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                )
             }
         }
     }
