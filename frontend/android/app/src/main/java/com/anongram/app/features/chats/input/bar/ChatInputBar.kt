@@ -116,8 +116,10 @@ fun ChatInputBar(
     var textFieldValue by remember {
         mutableStateOf(TextFieldValue(input, TextRange(input.length)))
     }
-    if (textFieldValue.text != input) {
-        textFieldValue = TextFieldValue(input, TextRange(input.length))
+    androidx.compose.runtime.LaunchedEffect(input) {
+        if (textFieldValue.text != input) {
+            textFieldValue = TextFieldValue(input, TextRange(input.length))
+        }
     }
     val selectionController = rememberChatInputSelectionController(
         getValue = { textFieldValue },

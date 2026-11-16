@@ -242,7 +242,7 @@ fun ChatInputSelectionToolbarOverlay(
                             controller.hide()
                         }
                     }
-                    if (hasSelection || controller.onSelectAllAction != null) {
+                    if (hasSelection) {
                         Box(
                             modifier = Modifier
                                 .size(34.dp)
@@ -422,7 +422,7 @@ fun createRichInputVisualTransformation(
         "(~~([^~]+)~~)|" +                      // 5: ~~strike~~
         "(<u>([^<]+)</u>)|" +                    // 7: <u>underline</u>
         "(`([^`]+)`)|" +                        // 9: `code`
-        "(\\|\\|([\\s\\S]*?)\\|\\|)|" +         // 11: ||spoiler||
+        "(\\|\\|([^|]+)\\|\\|)|" +               // 11: ||spoiler||
         "(\\[([^\\]]+)\\]\\(([^)]+)\\))"        // 13: [text](url)
     )
 
