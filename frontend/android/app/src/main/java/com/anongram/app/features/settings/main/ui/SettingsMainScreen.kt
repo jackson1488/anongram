@@ -151,16 +151,21 @@ fun SettingsMainScreen(
             }
     ) {
         // 1. Прокручиваемый контент настроек (проходит под полупрозрачной закреплённой шапкой)
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .hazeSource(state = hazeState)
-                .verticalScroll(scrollState)
-                .safeStatusBarPadding()
-                .padding(top = 46.dp)
-                .padding(horizontal = 14.dp)
-                .padding(bottom = 115.dp)
+                .background(scheme.background)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState)
+                    .safeStatusBarPadding()
+                    .padding(top = 46.dp)
+                    .padding(horizontal = 14.dp)
+                    .padding(bottom = 115.dp)
+            ) {
             // Шапка профиля (Аватар с камерой + Имя + Хэндл)
             SettingsProfileHeader(
                 displayName = displayName,
@@ -298,19 +303,25 @@ fun SettingsMainScreen(
                 )
             }
         }
+        }
 
         // 2. Закреплённая сверху полупрозрачная шапка с эффектом матового стекла (Telegram Frosted Glass):
         // Оптически размывает контент под собой при скролле, адаптируется под Ч/Б, Б/Ч и цветные темы.
+        val glassTintAlpha = if (scheme.isDark) {
+            0.28f + 0.16f * animatedHeaderAlpha
+        } else {
+            0.38f + 0.18f * animatedHeaderAlpha
+        }
         val headerBackgroundModifier = if (animState.glassBlurEnabled) {
             Modifier.hazeEffect(
                 state = hazeState,
                 style = HazeStyle(
                     backgroundColor = scheme.background,
                     tint = HazeTint(
-                        color = scheme.surface.copy(alpha = 0.70f + 0.14f * animatedHeaderAlpha)
+                        color = scheme.surface.copy(alpha = glassTintAlpha)
                     ),
-                    blurRadius = 24.dp,
-                    noiseFactor = 0.04f
+                    blurRadius = 18.dp,
+                    noiseFactor = 0.025f
                 )
             )
         } else {
