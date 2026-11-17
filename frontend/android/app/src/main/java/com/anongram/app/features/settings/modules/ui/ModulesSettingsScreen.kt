@@ -79,41 +79,13 @@ fun ModulesSettingsScreen(
     }
 
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Чистая плоская шапка
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .height(56.dp)
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = strings.back,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = strings.modulesTitle,
-                    color = scheme.textPrimary,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = strings.modulesTitle,
+        onBack = onBack,
+        backContentDescription = strings.back,
+        contentHorizontalPadding = 0.dp,
+        modifier = modifier
+    ) {
                 // 1. Расшифровка голосовых (ГС) — активный движок + своя память
                 val activeEngineLabel = when (settings.voiceEngine) {
                     VoiceSttEngine.WHISPER -> strings.engineWhisperTitle
@@ -197,6 +169,4 @@ fun ModulesSettingsScreen(
 
                 HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
             }
-        }
-    }
 }

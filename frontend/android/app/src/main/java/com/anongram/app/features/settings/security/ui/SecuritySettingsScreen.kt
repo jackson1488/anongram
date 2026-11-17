@@ -53,56 +53,45 @@ fun SecuritySettingsScreen(
 
     // Обработка системного жеста «Назад»
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Верхняя панель в стиле Telegram
-            SecurityTopBar(
-                title = "Безопасность",
-                onBack = onBack
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                // Карточка блокировки приложения, биометрии и 2FA
-                SecurityPasscodeCard(
-                    passcodeEnabled = passcodeEnabled,
-                    onPasscodeChange = { enabled ->
-                        passcodeEnabled = enabled
-                        prefs.edit().putBoolean("key_passcode_enabled", enabled).apply()
-                    },
-                    biometricsEnabled = biometricsEnabled,
-                    onBiometricsChange = { enabled ->
-                        biometricsEnabled = enabled
-                        prefs.edit().putBoolean("key_biometrics_enabled", enabled).apply()
-                    },
-                    autoLockOption = autoLockOption,
-                    onAutoLockOptionChange = { option ->
-                        autoLockOption = option
-                        prefs.edit().putString("key_autolock_option", option).apply()
-                    },
-                    screenProtectionEnabled = screenProtectionEnabled,
-                    onScreenProtectionChange = { enabled ->
-                        screenProtectionEnabled = enabled
-                        prefs.edit().putBoolean("key_screen_protection", enabled).apply()
-                    },
-                    twoFactorEnabled = twoFactorEnabled,
-                    onTwoFactorChange = { enabled ->
-                        twoFactorEnabled = enabled
-                        prefs.edit().putBoolean("key_two_factor_enabled", enabled).apply()
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(14.dp))
-
-                // Карточка квантовой криптографии AnonGram
-                SecurityCryptoCard()
-
-                Spacer(modifier = Modifier.height(24.dp))
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = "Безопасность",
+        onBack = onBack,
+        modifier = modifier
+    ) {
+        // Карточка блокировки приложения, биометрии и 2FA
+        SecurityPasscodeCard(
+            passcodeEnabled = passcodeEnabled,
+            onPasscodeChange = { enabled ->
+                passcodeEnabled = enabled
+                prefs.edit().putBoolean("key_passcode_enabled", enabled).apply()
+            },
+            biometricsEnabled = biometricsEnabled,
+            onBiometricsChange = { enabled ->
+                biometricsEnabled = enabled
+                prefs.edit().putBoolean("key_biometrics_enabled", enabled).apply()
+            },
+            autoLockOption = autoLockOption,
+            onAutoLockOptionChange = { option ->
+                autoLockOption = option
+                prefs.edit().putString("key_autolock_option", option).apply()
+            },
+            screenProtectionEnabled = screenProtectionEnabled,
+            onScreenProtectionChange = { enabled ->
+                screenProtectionEnabled = enabled
+                prefs.edit().putBoolean("key_screen_protection", enabled).apply()
+            },
+            twoFactorEnabled = twoFactorEnabled,
+            onTwoFactorChange = { enabled ->
+                twoFactorEnabled = enabled
+                prefs.edit().putBoolean("key_two_factor_enabled", enabled).apply()
             }
-        }
+        )
+
+        Spacer(modifier = Modifier.height(14.dp))
+
+        // Карточка квантовой криптографии AnonGram
+        SecurityCryptoCard()
+
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }

@@ -95,43 +95,13 @@ fun TranslationModuleSettingsScreen(
         list.sortedByDescending { downloaded.contains(it.tag) }
     }
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Плоская шапка
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .height(56.dp)
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = strings.back,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = strings.translationSectionTitle,
-                    color = scheme.textPrimary,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = strings.translationSectionTitle,
+        onBack = onBack,
+        backContentDescription = strings.back,
+        contentHorizontalPadding = 0.dp,
+        modifier = modifier
+    ) {
                 // Переключатель кнопки «Перевести»
                 Row(
                     modifier = Modifier
@@ -428,6 +398,4 @@ fun TranslationModuleSettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
             }
-        }
-    }
 }

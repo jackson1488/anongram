@@ -102,18 +102,12 @@ fun ScreenTransitionsSettingsScreen(
         AnimationsSettingsStore.ensureInitialized(context)
     }
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            AnimationsTopBar(
-                title = strings.transitionsSectionTitle,
-                onBack = onBack
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = strings.transitionsSectionTitle,
+        onBack = onBack,
+        contentHorizontalPadding = 0.dp,
+        modifier = modifier
+    ) {
                 SectionHeader(title = strings.transitionsBaseSectionHeader)
 
                 ComboToggleRow(
@@ -227,8 +221,6 @@ fun ScreenTransitionsSettingsScreen(
 
                 Spacer(modifier = Modifier.height(28.dp))
             }
-        }
-    }
 }
 
 @Composable

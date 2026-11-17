@@ -61,6 +61,8 @@ import com.anongram.app.features.services.ai.data.HfModelFile
 import com.anongram.app.features.services.ai.data.HfRepoSummary
 import com.anongram.app.features.services.ai.data.HuggingFaceClient
 import com.anongram.app.features.services.ai.data.LocalAiStore
+import com.anongram.app.features.settings.common.ui.SettingsGlassScaffold
+import com.anongram.app.features.settings.common.ui.settingsGlassPill
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import com.anongram.app.features.settings.modules.ui.voice.formatMb
 import kotlinx.coroutines.launch
@@ -127,52 +129,30 @@ fun LocalAiModuleSettingsScreen(
         }
     }
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Шапка ровно как у всех экранов настроек (56.dp)
-            Row(
+    SettingsGlassScaffold(
+        title = if (isRu) "Модели ИИ" else "AI Models",
+        onBack = onBack,
+        backContentDescription = modStrings.back,
+        contentHorizontalPadding = 16.dp,
+        modifier = modifier,
+        trailingAction = { hazeState ->
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .height(56.dp)
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .size(40.dp)
+                    .settingsGlassPill(hazeState = hazeState)
+                    .clickable { importPicker.launch(arrayOf("*/*")) },
+                contentAlignment = Alignment.Center
             ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = modStrings.back,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = if (isRu) "Модели ИИ" else "AI Models",
-                    color = scheme.textPrimary,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
+                Icon(
+                    imageVector = Icons.Outlined.FolderOpen,
+                    contentDescription = null,
+                    tint = scheme.accent,
+                    modifier = Modifier.size(20.dp)
                 )
-                IconButton(onClick = { importPicker.launch(arrayOf("*/*")) }) {
-                    Icon(
-                        imageVector = Icons.Outlined.FolderOpen,
-                        contentDescription = null,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(21.dp)
-                    )
-                }
             }
-
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 // Поиск сверху по всему Hugging Face
                 Row(
                     modifier = Modifier

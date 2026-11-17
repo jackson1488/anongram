@@ -62,55 +62,12 @@ fun ChatAppearanceSettingsScreen(
     val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
     val strings = com.anongram.app.features.chats.input.i18n.LocalInputStrings.current
 
-    Column(
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = strings.chatSettingsTitle,
+        onBack = onBack,
+        backContentDescription = strings.back,
         modifier = modifier
-            .fillMaxSize()
-            .background(scheme.background)
-            .safeStatusBarPadding()
-            .safeNavigationBarPadding()
     ) {
-        // Верхняя панель в стиле Telegram с круглой кнопкой возврата
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp)
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(scheme.islandBg)
-                    .clickable(onClick = onBack),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = strings.back,
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Text(
-                text = strings.chatSettingsTitle,
-                color = scheme.textPrimary,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.weight(1f)
-            )
-
-            Spacer(modifier = Modifier.size(40.dp))
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 10.dp)
-        ) {
             // Карточка размера текста с превью
             ChatTextSizeCard(
                 textSizeSp = textSizeSp,
@@ -323,5 +280,4 @@ fun ChatAppearanceSettingsScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
         }
-    }
 }

@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -56,8 +57,14 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.qr.i18n.QrI18n
 import com.anongram.app.features.settings.qr.ui.components.QrCodeCard
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import com.anongram.app.features.settings.qr.ui.components.QrColorPaletteSheet
 import com.anongram.app.features.settings.qr.ui.components.QrImageRenderer
 import com.anongram.app.features.settings.qr.ui.components.QrThemeItem
@@ -107,11 +114,33 @@ fun MyQrCodeScreen(
         animationSpec = tween(durationMillis = 250),
         label = "QrCardScale"
     )
+    val animState by AnimationsSettingsStore.state.collectAsState()
+    val hazeState = remember { HazeState() }
+
+    fun Modifier.qrGlassPill(shape: Shape): Modifier {
+        val base = if (animState.glassBlurEnabled) {
+            Modifier
+                .clip(shape)
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = selectedTheme.color,
+                        tint = HazeTint(Color.White.copy(alpha = 0.16f)),
+                        blurRadius = 18.dp,
+                        noiseFactor = 0.02f
+                    )
+                )
+        } else {
+            Modifier
+                .clip(shape)
+                .background(Color.White.copy(alpha = 0.18f))
+        }
+        return this.then(base).border(1.2.dp, Color.White.copy(alpha = 0.24f), shape)
+    }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(brush = Brush.verticalGradient(selectedTheme.gradient))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null
@@ -122,6 +151,14 @@ fun MyQrCodeScreen(
                 }
             }
     ) {
+        // Фоновый градиент как источник для живого матового стекла кнопок
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(state = hazeState)
+                .background(brush = Brush.verticalGradient(selectedTheme.gradient))
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -142,9 +179,7 @@ fun MyQrCodeScreen(
                 Box(
                     modifier = Modifier
                         .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.16f))
-                        .border(1.2.dp, Color.White.copy(alpha = 0.24f), CircleShape)
+                        .qrGlassPill(CircleShape)
                         .clickable {
                             if (isPaletteVisible) {
                                 isPaletteVisible = false
@@ -165,9 +200,7 @@ fun MyQrCodeScreen(
                 // Кнопка «Сканировать QR-код» справа (iPhone Glass Capsule)
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Color.White.copy(alpha = 0.16f))
-                        .border(1.2.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(24.dp))
+                        .qrGlassPill(RoundedCornerShape(24.dp))
                         .clickable(onClick = onOpenScanner)
                         .padding(horizontal = 16.dp, vertical = 10.dp),
                     contentAlignment = Alignment.Center
@@ -225,9 +258,7 @@ fun MyQrCodeScreen(
                         Box(
                             modifier = Modifier
                                 .size(52.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                                .qrGlassPill(CircleShape)
                             .clickable {
                                 QrImageRenderer.shareQrImage(
                                     context = context,
@@ -252,9 +283,7 @@ fun MyQrCodeScreen(
                         Box(
                             modifier = Modifier
                                 .size(52.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                                .qrGlassPill(CircleShape)
                                 .clickable {
                                     isPaletteVisible = true
                                 },
@@ -272,9 +301,7 @@ fun MyQrCodeScreen(
                         Box(
                             modifier = Modifier
                                 .size(52.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.18f))
-                                .border(1.2.dp, Color.White.copy(alpha = 0.26f), CircleShape)
+                                .qrGlassPill(CircleShape)
                             .clickable {
                                 val saved = QrImageRenderer.saveQrImageToGallery(
                                     context = context,

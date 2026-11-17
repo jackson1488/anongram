@@ -44,50 +44,15 @@ fun PrivacySecuritySettingsScreen(
     val scheme = LocalAnonGramScheme.current
     var hideOnlineStatus by remember { mutableStateOf(true) }
 
-    AnonGramScreenSurface(applySystemBarsPadding = false) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeNavigationBarPadding()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = scheme.textPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Конфиденциальность",
-                    color = scheme.textPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-            ) {
-                PrivacyKeyCard(
-                    publicKeyHex = publicKeyHex,
-                    hideOnlineStatus = hideOnlineStatus,
-                    onHideOnlineStatusChange = { hideOnlineStatus = it },
-                    anonymousForwardingAlwaysOn = true
-                )
-            }
-        }
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = "Конфиденциальность",
+        onBack = onBack
+    ) {
+        PrivacyKeyCard(
+            publicKeyHex = publicKeyHex,
+            hideOnlineStatus = hideOnlineStatus,
+            onHideOnlineStatusChange = { hideOnlineStatus = it },
+            anonymousForwardingAlwaysOn = true
+        )
     }
 }

@@ -2,6 +2,8 @@ package com.anongram.app.features.settings.account.ui
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -38,6 +41,8 @@ import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.account.ui.components.AccountInfoCard
+import com.anongram.app.features.settings.common.ui.SettingsGlassScaffold
+import com.anongram.app.features.settings.common.ui.settingsGlassPill
 
 /**
  * Экран раздела «Аккаунт» (`features/settings/account/`).
@@ -56,97 +61,67 @@ fun AccountSettingsScreen(
     var handle by remember { mutableStateOf(initialHandle.removePrefix("@")) }
     var bio by remember { mutableStateOf("Децентрализованный анонимный профиль AnonGram (Ed25519)") }
 
-    AnonGramScreenSurface(applySystemBarsPadding = false) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeNavigationBarPadding()
-        ) {
-            // Верхняя панель с безопасным отступом от статус-бара
-            Row(
+    SettingsGlassScaffold(
+        title = "Аккаунт",
+        onBack = onBack,
+        trailingAction = { hazeState ->
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = scheme.textPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Аккаунт",
-                    color = scheme.textPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
-                )
-                IconButton(
-                    onClick = {
+                    .size(40.dp)
+                    .settingsGlassPill(hazeState = hazeState)
+                    .clickable {
                         onSaveAccount(
                             displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
                             handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
                         )
                         Toast.makeText(context, "Профиль обновлён", Toast.LENGTH_SHORT).show()
                         onBack()
-                    }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Сохранить",
-                        tint = scheme.accent
-                    )
-                }
-            }
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-            ) {
-                AccountInfoCard(
-                    displayName = displayName,
-                    onDisplayNameChange = { displayName = it },
-                    handle = handle,
-                    onHandleChange = { handle = it.replace("@", "") },
-                    bio = bio,
-                    onBioChange = { bio = it }
-                )
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Button(
-                    onClick = {
-                        onSaveAccount(
-                            displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
-                            handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
-                        )
-                        Toast.makeText(context, "Изменения сохранены", Toast.LENGTH_SHORT).show()
-                        onBack()
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = scheme.accent,
-                        contentColor = scheme.onAccent
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                ) {
-                    Text(
-                        text = "Сохранить изменения",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Сохранить",
+                    tint = scheme.accent,
+                    modifier = Modifier.size(20.dp)
+                )
             }
+        }
+    ) {
+        AccountInfoCard(
+            displayName = displayName,
+            onDisplayNameChange = { displayName = it },
+            handle = handle,
+            onHandleChange = { handle = it.replace("@", "") },
+            bio = bio,
+            onBioChange = { bio = it }
+        )
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Button(
+            onClick = {
+                onSaveAccount(
+                    displayName.trim().ifBlank { initialDisplayName.ifBlank { "Пользователь" } },
+                    handle.trim().ifBlank { initialHandle.ifBlank { "anongram" } }
+                )
+                Toast.makeText(context, "Изменения сохранены", Toast.LENGTH_SHORT).show()
+                onBack()
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = scheme.accent,
+                contentColor = scheme.onAccent
+            ),
+            shape = RoundedCornerShape(14.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(50.dp)
+        ) {
+            Text(
+                text = "Сохранить изменения",
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }

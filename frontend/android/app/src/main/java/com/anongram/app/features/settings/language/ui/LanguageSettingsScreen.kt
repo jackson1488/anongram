@@ -64,55 +64,46 @@ fun LanguageSettingsScreen(
 
     // Обработка системного «Назад»
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Верхняя панель в стиле Telegram
-            LanguageTopBar(
-                title = strings.screenTitle,
-                onBack = onBack
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = strings.screenTitle,
+        onBack = onBack,
+        backContentDescription = strings.back,
+        modifier = modifier
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            // Карточка 1: Перевод сообщений
+            LanguageTranslationCard(
+                strings = strings,
+                showTranslateButton = showTranslateButton,
+                translateEntireChats = translateEntireChats,
+                doNotTranslateLanguage = doNotTranslateLanguage,
+                onShowTranslateButtonChange = {
+                    LanguageSettingsStore.setShowTranslateButton(context, it)
+                },
+                onTranslateEntireChatsChange = {
+                    LanguageSettingsStore.setTranslateEntireChats(context, it)
+                },
+                onDoNotTranslateClick = {
+                    showDoNotTranslateDialog = true
+                }
             )
 
-            // Основной скроллируемый контент
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                // Карточка 1: Перевод сообщений
-                LanguageTranslationCard(
-                    strings = strings,
-                    showTranslateButton = showTranslateButton,
-                    translateEntireChats = translateEntireChats,
-                    doNotTranslateLanguage = doNotTranslateLanguage,
-                    onShowTranslateButtonChange = {
-                        LanguageSettingsStore.setShowTranslateButton(context, it)
-                    },
-                    onTranslateEntireChatsChange = {
-                        LanguageSettingsStore.setTranslateEntireChats(context, it)
-                    },
-                    onDoNotTranslateClick = {
-                        showDoNotTranslateDialog = true
+            // Карточка 2: Список языков с радиокнопками слева (Русский и English)
+            LanguageListCard(
+                languages = LanguageCatalog.languages,
+                selectedLanguageCode = currentLanguage.code,
+                strings = strings,
+                onSelectLanguage = { lang ->
+                    when (lang.code.lowercase()) {
+                        "ru" -> LanguageSettingsStore.setLanguage(context, AppLanguage.RU)
+                        "en" -> LanguageSettingsStore.setLanguage(context, AppLanguage.EN)
                     }
-                )
+                }
+            )
 
-                // Карточка 2: Список языков с радиокнопками слева (Русский и English)
-                LanguageListCard(
-                    languages = LanguageCatalog.languages,
-                    selectedLanguageCode = currentLanguage.code,
-                    strings = strings,
-                    onSelectLanguage = { lang ->
-                        when (lang.code.lowercase()) {
-                            "ru" -> LanguageSettingsStore.setLanguage(context, AppLanguage.RU)
-                            "en" -> LanguageSettingsStore.setLanguage(context, AppLanguage.EN)
-                        }
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(40.dp))
-            }
+            Spacer(modifier = Modifier.height(40.dp))
         }
+    }
 
         // Диалог выбора языка исключения («Не переводить»)
         if (showDoNotTranslateDialog) {
@@ -165,5 +156,4 @@ fun LanguageSettingsScreen(
                 }
             )
         }
-    }
 }

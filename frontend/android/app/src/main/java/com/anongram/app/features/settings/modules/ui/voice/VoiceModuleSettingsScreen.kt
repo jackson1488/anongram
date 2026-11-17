@@ -58,49 +58,19 @@ fun VoiceModuleSettingsScreen(
     }
 
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Чистая плоская шапка
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .height(56.dp)
-                    .padding(horizontal = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = strings.back,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(22.dp)
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = strings.voiceSectionTitle,
-                    color = scheme.textPrimary,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = strings.voiceSectionTitle,
+        onBack = onBack,
+        backContentDescription = strings.back,
+        contentHorizontalPadding = 0.dp,
+        modifier = modifier
+    ) {
+        VoiceModuleSection(
+            settings = settings,
+            assetStates = assetStates,
+            assetManager = assetManager
+        )
 
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                VoiceModuleSection(
-                    settings = settings,
-                    assetStates = assetStates,
-                    assetManager = assetManager
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-        }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }

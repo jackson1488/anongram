@@ -40,49 +40,14 @@ fun DevicesSettingsScreen(
     val scheme = LocalAnonGramScheme.current
     val deviceName = "${Build.MANUFACTURER.replaceFirstChar { it.uppercase() }} ${Build.MODEL}"
 
-    AnonGramScreenSurface(applySystemBarsPadding = false) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeNavigationBarPadding()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = scheme.textPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Устройства",
-                    color = scheme.textPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-            ) {
-                DeviceSessionCard(
-                    deviceModel = deviceName,
-                    appVersion = "AnonGram Android 1.0",
-                    onLinkDesktopQr = onOpenQrScanner
-                )
-            }
-        }
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = "Устройства",
+        onBack = onBack
+    ) {
+        DeviceSessionCard(
+            deviceModel = deviceName,
+            appVersion = "AnonGram Android 1.0",
+            onLinkDesktopQr = onOpenQrScanner
+        )
     }
 }

@@ -44,52 +44,17 @@ fun NotificationsSettingsScreen(
     var groupsEnabled by remember { mutableStateOf(true) }
     var hidePreviewContent by remember { mutableStateOf(true) }
 
-    AnonGramScreenSurface(applySystemBarsPadding = false) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeNavigationBarPadding()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = scheme.textPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Уведомления и звуки",
-                    color = scheme.textPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-            ) {
-                NotificationToggleCard(
-                    privateChatsEnabled = privateChatsEnabled,
-                    onPrivateChatsChange = { privateChatsEnabled = it },
-                    groupsEnabled = groupsEnabled,
-                    onGroupsChange = { groupsEnabled = it },
-                    hidePreviewContent = hidePreviewContent,
-                    onHidePreviewContentChange = { hidePreviewContent = it }
-                )
-            }
-        }
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = "Уведомления и звуки",
+        onBack = onBack
+    ) {
+        NotificationToggleCard(
+            privateChatsEnabled = privateChatsEnabled,
+            onPrivateChatsChange = { privateChatsEnabled = it },
+            groupsEnabled = groupsEnabled,
+            onGroupsChange = { groupsEnabled = it },
+            hidePreviewContent = hidePreviewContent,
+            onHidePreviewContentChange = { hidePreviewContent = it }
+        )
     }
 }

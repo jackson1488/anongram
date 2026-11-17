@@ -71,6 +71,7 @@ import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.auth.data.crypto.KeystoreVault
+import com.anongram.app.features.settings.common.ui.settingsGlassPill
 import com.anongram.app.features.settings.main.ui.components.AccountsSectionCard
 import com.anongram.app.features.settings.main.ui.components.ConnectedAccountItem
 import com.anongram.app.features.settings.main.ui.components.SettingsItemRow
@@ -354,14 +355,16 @@ fun SettingsMainScreen(
                     .padding(horizontal = 14.dp, vertical = 4.dp)
                     .height(44.dp)
             ) {
-                // Круглая кнопка QR (с матовой стеклянной подложкой и тонкой окантовкой) - слева
+                // Круглая кнопка QR (живое матовое стекло поверх скролла) - слева
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .size(38.dp)
-                        .clip(CircleShape)
-                        .background(scheme.islandBg.copy(alpha = 0.90f))
-                        .border(0.8.dp, scheme.islandBorder, CircleShape)
+                        .settingsGlassPill(
+                            hazeState = hazeState,
+                            shape = CircleShape,
+                            glassBlurEnabled = animState.glassBlurEnabled
+                        )
                         .clickable { onNavigate(SettingsRoute.MyQr) },
                     contentAlignment = Alignment.Center
                 ) {
@@ -383,13 +386,15 @@ fun SettingsMainScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
 
-                // Островок Поиск + Меню 3 точки (с матовой стеклянной подложкой) - справа
+                // Островок Поиск + Меню 3 точки (живое матовое стекло поверх скролла) - справа
                 Row(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(scheme.islandBg.copy(alpha = 0.90f))
-                        .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
+                        .settingsGlassPill(
+                            hazeState = hazeState,
+                            shape = RoundedCornerShape(22.dp),
+                            glassBlurEnabled = animState.glassBlurEnabled
+                        )
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

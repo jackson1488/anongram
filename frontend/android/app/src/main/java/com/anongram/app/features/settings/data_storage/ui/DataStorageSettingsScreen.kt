@@ -45,51 +45,16 @@ fun DataStorageSettingsScreen(
     val scheme = LocalAnonGramScheme.current
     var cacheSizeMb by remember { mutableIntStateOf(42) }
 
-    AnonGramScreenSurface(applySystemBarsPadding = false) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeNavigationBarPadding()
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(scheme.surface)
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = scheme.textPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Данные и память",
-                    color = scheme.textPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold
-                )
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = "Данные и память",
+        onBack = onBack
+    ) {
+        StorageUsageCard(
+            cacheSizeMb = cacheSizeMb,
+            onClearCache = {
+                cacheSizeMb = 0
+                Toast.makeText(context, "Кэш медиафайлов очищен", Toast.LENGTH_SHORT).show()
             }
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-            ) {
-                StorageUsageCard(
-                    cacheSizeMb = cacheSizeMb,
-                    onClearCache = {
-                        cacheSizeMb = 0
-                        Toast.makeText(context, "Кэш медиафайлов очищен", Toast.LENGTH_SHORT).show()
-                    }
-                )
-            }
-        }
+        )
     }
 }

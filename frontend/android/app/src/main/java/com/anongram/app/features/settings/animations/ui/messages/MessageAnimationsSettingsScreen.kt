@@ -37,49 +37,41 @@ fun MessageAnimationsSettingsScreen(
     }
 
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            AnimationsTopBar(
-                title = strings.messagesSectionTitle,
-                onBack = onBack
-            )
+    com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+        title = strings.messagesSectionTitle,
+        onBack = onBack,
+        contentHorizontalPadding = 0.dp,
+        modifier = modifier
+    ) {
+        AnimationsMessagesCard(
+            messageAppearEnabled = state.messageAppearEnabled,
+            onMessageAppearEnabledChange = {
+                AnimationsSettingsStore.setMessageAppearEnabled(context, it)
+            },
+            appearStyle = state.messageAppearStyle,
+            onAppearStyleChange = {
+                AnimationsSettingsStore.setMessageAppearStyle(context, it)
+            },
+            tokenStreamSpeed = state.tokenStreamSpeed,
+            onTokenStreamSpeedChange = {
+                AnimationsSettingsStore.setTokenStreamSpeed(context, it)
+            },
+            deleteStyle = state.messageDeleteStyle,
+            onDeleteStyleChange = {
+                AnimationsSettingsStore.setMessageDeleteStyle(context, it)
+            },
+            listItemShiftEnabled = state.listItemShiftEnabled,
+            onListItemShiftEnabledChange = {
+                AnimationsSettingsStore.setListItemShiftEnabled(context, it)
+            },
+            statusCheckAnimEnabled = state.statusCheckAnimEnabled,
+            onStatusCheckAnimEnabledChange = {
+                AnimationsSettingsStore.setStatusCheckAnimEnabled(context, it)
+            },
+            speedMultiplier = state.speedMultiplier,
+            reduceMotionEnabled = state.reduceMotionEnabled
+        )
 
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-            ) {
-                AnimationsMessagesCard(
-                    messageAppearEnabled = state.messageAppearEnabled,
-                    onMessageAppearEnabledChange = {
-                        AnimationsSettingsStore.setMessageAppearEnabled(context, it)
-                    },
-                    appearStyle = state.messageAppearStyle,
-                    onAppearStyleChange = {
-                        AnimationsSettingsStore.setMessageAppearStyle(context, it)
-                    },
-                    tokenStreamSpeed = state.tokenStreamSpeed,
-                    onTokenStreamSpeedChange = {
-                        AnimationsSettingsStore.setTokenStreamSpeed(context, it)
-                    },
-                    deleteStyle = state.messageDeleteStyle,
-                    onDeleteStyleChange = {
-                        AnimationsSettingsStore.setMessageDeleteStyle(context, it)
-                    },
-                    listItemShiftEnabled = state.listItemShiftEnabled,
-                    onListItemShiftEnabledChange = {
-                        AnimationsSettingsStore.setListItemShiftEnabled(context, it)
-                    },
-                    statusCheckAnimEnabled = state.statusCheckAnimEnabled,
-                    onStatusCheckAnimEnabledChange = {
-                        AnimationsSettingsStore.setStatusCheckAnimEnabled(context, it)
-                    },
-                    speedMultiplier = state.speedMultiplier,
-                    reduceMotionEnabled = state.reduceMotionEnabled
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-        }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }

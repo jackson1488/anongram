@@ -29,6 +29,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -36,11 +38,18 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.navigation.SettingsRoute
 import com.anongram.app.features.settings.search.domain.SettingsSearchEngine
 import com.anongram.app.features.settings.search.i18n.SearchI18n
 import com.anongram.app.features.settings.search.ui.components.SettingsSearchResultRow
 import com.anongram.app.features.settings.search.ui.components.SettingsSearchTopBar
+import dev.chrisbanes.haze.HazeProgressive
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 
 /**
  * Экран поиска по настройкам AnonGram (`features/settings/search/`).
@@ -68,22 +77,24 @@ fun SettingsSearchScreen(
     }
 
 
-    AnonGramScreenSurface(modifier = modifier) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            // Верхняя панель поиска (по скриншоту)
-            SettingsSearchTopBar(
-                query = query,
-                onQueryChange = { query = it },
-                placeholder = strings.searchPlaceholder,
-                onBack = onBack
-            )
+    val animState by AnimationsSettingsStore.state.collectAsState()
+    val hazeState = remember { HazeState() }
 
-            Column(
+    AnonGramScreenSurface(modifier = modifier) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                    .hazeSource(state = hazeState)
+                    .background(scheme.background)
             ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(top = 68.dp, bottom = 16.dp)
+                        .padding(horizontal = 14.dp)
+                ) {
                 if (query.isNotBlank()) {
                     if (searchResults.isEmpty()) {
                         // Пустое состояние
@@ -185,6 +196,49 @@ fun SettingsSearchScreen(
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
+                }
+            }
+
+            val topBarModifier = if (animState.glassBlurEnabled) {
+                Modifier.hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = scheme.background,
+                        tint = HazeTint(scheme.surface.copy(alpha = if (scheme.isDark) 0.34f else 0.44f)),
+                        blurRadius = 22.dp,
+                        noiseFactor = 0.02f
+                    )
+                ) {
+                    progressive = HazeProgressive.verticalGradient(
+                        startIntensity = 1f,
+                        endIntensity = 0f
+                    )
+                }
+            } else {
+                Modifier.background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            scheme.surface.copy(alpha = 0.92f),
+                            scheme.background.copy(alpha = 0.65f),
+                            Color.Transparent
+                        )
+                    )
+                )
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.TopCenter)
+                    .then(topBarModifier)
+            ) {
+                SettingsSearchTopBar(
+                    query = query,
+                    onQueryChange = { query = it },
+                    placeholder = strings.searchPlaceholder,
+                    onBack = onBack
+                )
+                Spacer(modifier = Modifier.height(14.dp))
             }
         }
     }
