@@ -44,11 +44,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -101,7 +101,7 @@ fun SettingsMainScreen(
     val identity = remember { vault.loadIdentity() }
     val currentLanguage by LanguageSettingsStore.language.collectAsState()
     val animState by AnimationsSettingsStore.state.collectAsState()
-    val hazeState = rememberHazeState()
+    val hazeState = remember { HazeState() }
 
     val displayName = identity?.nickname?.takeIf { it.isNotBlank() } ?: "Пользователь"
     val handleTag = "@${displayName.replace(" ", "").uppercase().take(8)}"
