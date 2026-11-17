@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateMapOf
@@ -29,6 +30,8 @@ import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import kotlin.math.hypot
 import kotlin.random.Random
+
+val LocalChatRevealedSpoilers = compositionLocalOf<MutableMap<String, Set<Int>>?> { null }
 
 private const val REVEAL_DURATION_MS = 360L
 
@@ -55,7 +58,8 @@ fun TelegramTextSpoilerCanvas(
     revealedIndices: Set<Int>,
     motionEnabled: Boolean,
     onRevealIndex: (Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    interactionEnabled: Boolean = true
 ) {
     val scheme = LocalAnonGramScheme.current
     val layout = textLayoutResult ?: return
@@ -120,28 +124,34 @@ fun TelegramTextSpoilerCanvas(
     Canvas(
         modifier = modifier
             .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-            .pointerInput(activeRegionsByIdx) {
-                detectTapGestures { tapOffset ->
-                    activeRegionsByIdx.forEach { (idx, rects) ->
-                        if (idx !in reveals && rects.any { it.contains(tapOffset) }) {
-                            val union = rects.reduce { acc, r ->
-                                Rect(
-                                    left = minOf(acc.left, r.left),
-                                    top = minOf(acc.top, r.top),
-                                    right = maxOf(acc.right, r.right),
-                                    bottom = maxOf(acc.bottom, r.bottom)
-                                )
+            .then(
+                if (interactionEnabled) {
+                    Modifier.pointerInput(activeRegionsByIdx) {
+                        detectTapGestures { tapOffset ->
+                            activeRegionsByIdx.forEach { (idx, rects) ->
+                                if (idx !in reveals && rects.any { it.contains(tapOffset) }) {
+                                    val union = rects.reduce { acc, r ->
+                                        Rect(
+                                            left = minOf(acc.left, r.left),
+                                            top = minOf(acc.top, r.top),
+                                            right = maxOf(acc.right, r.right),
+                                            bottom = maxOf(acc.bottom, r.bottom)
+                                        )
+                                    }
+                                    val maxR = hypot(union.width, union.height) * 1.25f
+                                    reveals[idx] = SpoilerRevealAnim(
+                                        center = tapOffset,
+                                        maxRadius = maxR.coerceAtLeast(32f),
+                                        startMs = android.os.SystemClock.uptimeMillis()
+                                    )
+                                }
                             }
-                            val maxR = hypot(union.width, union.height) * 1.25f
-                            reveals[idx] = SpoilerRevealAnim(
-                                center = tapOffset,
-                                maxRadius = maxR.coerceAtLeast(32f),
-                                startMs = android.os.SystemClock.uptimeMillis()
-                            )
                         }
                     }
+                } else {
+                    Modifier
                 }
-            }
+            )
     ) {
         val nowMs = frameClockMs.takeIf { it > 0L } ?: (android.os.SystemClock.uptimeMillis())
         val corner = CornerRadius(4.dp.toPx(), 4.dp.toPx())

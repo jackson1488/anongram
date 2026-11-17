@@ -241,7 +241,11 @@ fun ChatScreen(
         !state.deleteDialogFor.isNullOrEmpty() ||
         viewingMediaMessage != null
 
-    CompositionLocalProvider(LocalMessageSnapshotRegistry provides snapshotRegistry) {
+    val revealedSpoilersMap = remember(session.id) { androidx.compose.runtime.mutableStateMapOf<String, Set<Int>>() }
+    CompositionLocalProvider(
+        LocalMessageSnapshotRegistry provides snapshotRegistry,
+        com.anongram.app.features.chats.ui.components.bubble.LocalChatRevealedSpoilers provides revealedSpoilersMap
+    ) {
     Box(
         modifier = modifier
             .fillMaxSize()

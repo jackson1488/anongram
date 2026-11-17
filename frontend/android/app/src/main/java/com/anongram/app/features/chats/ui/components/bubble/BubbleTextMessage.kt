@@ -77,7 +77,8 @@ fun BubbleTextMessage(
     searchQuery: String,
     onOpenFullText: () -> Unit,
     onRetry: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSelectionMode: Boolean = false
 ) {
     val scheme = LocalAnonGramScheme.current
     val rawText = message.text
@@ -134,7 +135,9 @@ fun BubbleTextMessage(
                 isEdited = message.isEdited,
                 isIncoming = isIncoming,
                 status = message.status,
-                onRetry = onRetry
+                onRetry = onRetry,
+                spoilerKey = message.id,
+                isSelectionMode = isSelectionMode
             )
 
             if (isOverLimit) {
@@ -517,7 +520,9 @@ fun AdaptiveMessageTextWithTimeLayout(
     status: MessageStatus,
     onRetry: () -> Unit,
     timeColor: Color = LocalContentColor.current.copy(alpha = 0.65f),
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    spoilerKey: String = text.text,
+    isSelectionMode: Boolean = false
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
     val spoilerAnnotations = remember(text) {
@@ -526,7 +531,9 @@ fun AdaptiveMessageTextWithTimeLayout(
     val spoilerRanges = remember(spoilerAnnotations) {
         spoilerAnnotations.map { it.start until it.end }
     }
-    var revealedIndices by remember(text.text) { mutableStateOf(emptySet<Int>()) }
+    val sessionRevealedMap = LocalChatRevealedSpoilers.current
+    var localRevealedIndices by remember(spoilerKey) { mutableStateOf(emptySet<Int>()) }
+    val revealedIndices = sessionRevealedMap?.get(spoilerKey) ?: localRevealedIndices
     val motionEnabled by com.anongram.app.core.theme.ChatTextSettingsStore.spoilerParticleMotionEnabled.collectAsState()
 
     val renderedText = remember(text, spoilerRanges, revealedIndices) {
@@ -568,7 +575,15 @@ fun AdaptiveMessageTextWithTimeLayout(
                         spoilerRanges = spoilerRanges,
                         revealedIndices = revealedIndices,
                         motionEnabled = motionEnabled,
-                        onRevealIndex = { idx -> revealedIndices = revealedIndices + idx },
+                        onRevealIndex = { idx ->
+                            val next = revealedIndices + idx
+                            if (sessionRevealedMap != null) {
+                                sessionRevealedMap[spoilerKey] = next
+                            } else {
+                                localRevealedIndices = next
+                            }
+                        },
+                        interactionEnabled = !isSelectionMode,
                         modifier = Modifier.matchParentSize()
                     )
                 }

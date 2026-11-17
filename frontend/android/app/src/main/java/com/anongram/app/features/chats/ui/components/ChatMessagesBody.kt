@@ -142,12 +142,12 @@ internal fun ChatMessagesBody(
                 },
                 onSwipeReply = { msg ->
                     viewModel.startReply(msg)
-                    inputFocusRequester.requestFocus()
+                    runCatching { inputFocusRequester.requestFocus() }
                     keyboardController?.show()
                 },
                 onReplyMessage = { msg, subIdx ->
                     viewModel.startReply(msg, subIdx)
-                    inputFocusRequester.requestFocus()
+                    runCatching { inputFocusRequester.requestFocus() }
                     keyboardController?.show()
                 },
                 onToggleReaction = viewModel::toggleReaction,

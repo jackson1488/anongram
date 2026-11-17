@@ -744,14 +744,32 @@ internal fun MessageBubble(
                                             }
                                         ) {
                                             if (isSelectionMode && isSelected && message.text.isNotBlank()) {
-                                                SelectionContainer {
-                                                    BubbleTextMessage(
-                                                        message = effectiveMessage,
-                                                        textSizeSp = messageTextSizeSp,
+                                                val cleanSelectableText = remember(effectiveMessage.text) {
+                                                    com.anongram.app.features.chats.input.bar.stripRichFormattingForClipboard(effectiveMessage.text)
+                                                }
+                                                val textColor = androidx.compose.material3.LocalContentColor.current
+                                                val lineHeightSp = (messageTextSizeSp * 1.26f).coerceAtLeast(messageTextSizeSp + 2f).sp
+                                                Column(modifier = Modifier.fillMaxWidth()) {
+                                                    androidx.compose.foundation.text.BasicTextField(
+                                                        value = cleanSelectableText,
+                                                        onValueChange = {},
+                                                        readOnly = true,
+                                                        textStyle = androidx.compose.ui.text.TextStyle(
+                                                            color = textColor,
+                                                            fontSize = messageTextSizeSp.sp,
+                                                            lineHeight = lineHeightSp
+                                                        ),
+                                                        modifier = Modifier.fillMaxWidth()
+                                                    )
+                                                    Spacer(modifier = Modifier.height(3.dp))
+                                                    BubbleTimestampRow(
+                                                        timeLabel = effectiveMessage.timeLabel(),
+                                                        isEdited = effectiveMessage.isEdited,
+                                                        isIncoming = isIncoming,
+                                                        status = effectiveMessage.status,
                                                         textScale = textScale,
-                                                        searchQuery = searchQuery,
-                                                        onOpenFullText = { onOpenFullTextMessage(effectiveMessage) },
-                                                        onRetry = onRetry
+                                                        onRetry = onRetry,
+                                                        modifier = Modifier.align(Alignment.End)
                                                     )
                                                 }
                                             } else {
@@ -761,7 +779,8 @@ internal fun MessageBubble(
                                                     textScale = textScale,
                                                     searchQuery = searchQuery,
                                                     onOpenFullText = { onOpenFullTextMessage(effectiveMessage) },
-                                                    onRetry = onRetry
+                                                    onRetry = onRetry,
+                                                    isSelectionMode = isSelectionMode
                                                 )
                                             }
 
