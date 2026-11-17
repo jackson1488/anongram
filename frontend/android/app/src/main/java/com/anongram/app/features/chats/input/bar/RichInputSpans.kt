@@ -275,3 +275,9 @@ fun parseRichInput(rawText: String): Pair<String, List<RichInputSpan>> {
 
     return plainBuilder.toString() to spans
 }
+
+fun stripRichFormattingForClipboard(rawText: String): String {
+    if (rawText.isEmpty()) return ""
+    val withoutFont = rawText.replace(Regex("\\[font=(sans|serif|mono|cursive)\\]|\\[/font\\]"), "")
+    return parseRichInput(withoutFont).first
+}

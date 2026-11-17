@@ -1,38 +1,40 @@
 package com.anongram.app.features.chats.attach.components
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import com.anongram.app.core.theme.ChatTextSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import kotlin.math.sin
 import kotlin.random.Random
 
-private data class SpoilerParticle(
-    val xNorm: Float,
-    val yNorm: Float,
-    val radius: Float,
-    val phaseOffset: Float,
-    val speed: Float
+private class MediaSpoilerParticle(
+    var x: Float,
+    var y: Float,
+    var vx: Float,
+    var vy: Float,
+    val radiusDp: Float,
+    val alpha: Float
 )
 
 /**
- * Анимированный эффект мерцающего спойлера в стиле Telegram с адаптацией под тему
- * и поддержкой отключения движения частиц (экономия батареи).
+ * Анимированный эффект мерцающего спойлера для фото/видео в стиле Telegram
+ * с адаптацией под тему и поддержкой отключения движения частиц (экономия батареи).
  */
 @Composable
 fun SpoilerOverlay(
@@ -41,33 +43,51 @@ fun SpoilerOverlay(
 ) {
     val scheme = LocalAnonGramScheme.current
     val motionEnabled by ChatTextSettingsStore.spoilerParticleMotionEnabled.collectAsState()
-    val particles = remember(particleCount) {
-        val rand = Random(42)
-        List(particleCount) {
-            SpoilerParticle(
-                xNorm = rand.nextFloat(),
-                yNorm = rand.nextFloat(),
-                radius = 0.8f + rand.nextFloat() * 2.2f,
-                phaseOffset = rand.nextFloat() * 6.28f,
-                speed = 0.6f + rand.nextFloat() * 1.6f
-            )
+    var boxSize by remember { mutableStateOf(Size.Zero) }
+    var frameClockMs by remember { mutableLongStateOf(0L) }
+
+    val particles = remember(boxSize, particleCount) {
+        if (boxSize.width <= 0f || boxSize.height <= 0f) {
+            emptyList()
+        } else {
+            val rand = Random(42)
+            List(particleCount) {
+                MediaSpoilerParticle(
+                    x = rand.nextFloat() * boxSize.width,
+                    y = rand.nextFloat() * boxSize.height,
+                    vx = (rand.nextFloat() - 0.5f) * 90f,
+                    vy = (rand.nextFloat() - 0.5f) * 90f,
+                    radiusDp = 0.75f + rand.nextFloat() * 1.35f,
+                    alpha = 0.32f + rand.nextFloat() * 0.65f
+                )
+            }
         }
     }
 
-    val progress = if (motionEnabled) {
-        val transition = rememberInfiniteTransition(label = "spoilerTransition")
-        val animated by transition.animateFloat(
-            initialValue = 0f,
-            targetValue = 6.28318f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 2400, easing = LinearEasing),
-                repeatMode = RepeatMode.Restart
-            ),
-            label = "spoilerProgress"
-        )
-        animated
-    } else {
-        0f
+    LaunchedEffect(motionEnabled, particles.size) {
+        if (!motionEnabled || particles.isEmpty()) return@LaunchedEffect
+        var lastMs = 0L
+        while (true) {
+            withFrameMillis { nowMs ->
+                val dt = if (lastMs == 0L) 0.016f else ((nowMs - lastMs) / 1000f).coerceIn(0.001f, 0.05f)
+                lastMs = nowMs
+                val w = boxSize.width
+                val h = boxSize.height
+                if (w > 0f && h > 0f) {
+                    for (p in particles) {
+                        p.x += p.vx * dt
+                        p.y += p.vy * dt
+                        if (p.x < 0f || p.x > w || p.y < 0f || p.y > h) {
+                            p.x = Random.nextFloat() * w
+                            p.y = Random.nextFloat() * h
+                            p.vx = (Random.nextFloat() - 0.5f) * 90f
+                            p.vy = (Random.nextFloat() - 0.5f) * 90f
+                        }
+                    }
+                }
+                frameClockMs = nowMs
+            }
+        }
     }
 
     Box(
@@ -76,8 +96,12 @@ fun SpoilerOverlay(
             .background(scheme.overlayScrim.copy(alpha = 0.45f))
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
+            if (boxSize != size) {
+                boxSize = size
+            }
             val w = size.width
             val h = size.height
+            val nowMs = frameClockMs
 
             drawCircle(
                 brush = Brush.radialGradient(
@@ -93,18 +117,16 @@ fun SpoilerOverlay(
                 center = Offset(w * 0.50f, h * 0.40f)
             )
 
-            particles.forEach { p ->
-                val wave = kotlin.math.sin(progress * p.speed + p.phaseOffset).toFloat()
-                val alpha = (0.25f + 0.75f * ((wave + 1f) / 2f)).coerceIn(0.15f, 0.95f)
-                val driftX = if (motionEnabled) wave * 3.5f else 0f
-                val driftY = if (motionEnabled) kotlin.math.cos(progress * p.speed + p.phaseOffset).toFloat() * 3.5f else 0f
-                val x = (p.xNorm * w + driftX).coerceIn(0f, w)
-                val y = (p.yNorm * h + driftY).coerceIn(0f, h)
-
+            particles.forEachIndexed { idx, p ->
+                val twinkle = if (motionEnabled) {
+                    0.65f + 0.35f * sin(nowMs * 0.005f + idx * 0.7f).toFloat()
+                } else {
+                    1f
+                }
                 drawCircle(
-                    color = scheme.textPrimary.copy(alpha = alpha),
-                    radius = p.radius,
-                    center = Offset(x, y)
+                    color = scheme.textPrimary.copy(alpha = (p.alpha * twinkle).coerceIn(0.18f, 0.96f)),
+                    radius = p.radiusDp * density,
+                    center = Offset(p.x, p.y)
                 )
             }
         }

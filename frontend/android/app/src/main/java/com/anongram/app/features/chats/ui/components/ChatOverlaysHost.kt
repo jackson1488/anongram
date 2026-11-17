@@ -412,12 +412,13 @@ private fun ChatMessageActionAndSettingsOverlays(
                 keyboardController?.show()
             },
             onCopy = {
-                val copyText = when (val att = message.attachment) {
+                val rawCopyText = when (val att = message.attachment) {
                     is MessageAttachment.Contact -> message.text.ifBlank { "${att.name}: ${att.phone}" }
                     is MessageAttachment.Geo -> message.text.ifBlank { att.address }
                     else -> message.text
                 }
-                clipboard.setText(AnnotatedString(copyText))
+                val cleanCopyText = com.anongram.app.features.chats.input.bar.stripRichFormattingForClipboard(rawCopyText)
+                clipboard.setText(AnnotatedString(cleanCopyText))
                 viewModel.closeActionMenu()
                 ChatActionBannerBus.show(Icons.Outlined.ContentCopy) { it.bannerCopiedToClipboard }
             },

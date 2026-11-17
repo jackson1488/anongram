@@ -101,8 +101,8 @@ fun BubbleTextMessage(
         return
     }
 
-    // 2. Одиночный абзац текста без спойлеров — адаптивная верстка со временем в конце строки
-    if (blocks.size == 1 && blocks[0] is com.anongram.app.features.chats.messages.domain.MessageBlock.Paragraph && !rawText.contains("||")) {
+    // 2. Одиночный абзац текста (включая спойлеры ||...||) — адаптивная верстка со временем в конце строки
+    if (blocks.size == 1 && blocks[0] is com.anongram.app.features.chats.messages.domain.MessageBlock.Paragraph) {
         val para = blocks[0] as com.anongram.app.features.chats.messages.domain.MessageBlock.Paragraph
         val isOverLimit = para.text.length > 4000
         val textToDisplay = if (isOverLimit) para.text.take(4000) + "…" else para.text

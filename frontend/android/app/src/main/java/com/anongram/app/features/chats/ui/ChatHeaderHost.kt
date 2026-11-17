@@ -88,7 +88,9 @@ internal fun ChatFloatingTopHeader(
                     isVoice = state.isSingleSelectedVoice,
                     onClose = viewModel::clearSelection,
                     onCopy = {
-                        val combined = state.selectedMessages.joinToString("\n") { it.text }
+                        val combined = state.selectedMessages.joinToString("\n") {
+                            com.anongram.app.features.chats.input.bar.stripRichFormattingForClipboard(it.text)
+                        }
                         clipboard.setText(AnnotatedString(combined))
                         viewModel.clearSelection()
                         ChatActionBannerBus.show(Icons.Outlined.ContentCopy) { it.bannerCopiedToClipboard }

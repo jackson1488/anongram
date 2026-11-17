@@ -717,10 +717,16 @@ internal fun MessageBubble(
                                         } else {
                                             message.text
                                         }
+                                        val hasRichFormatting = baseText.contains("**") ||
+                                            baseText.contains("||") ||
+                                            baseText.contains("<u>") ||
+                                            baseText.contains("~~") ||
+                                            baseText.contains("](") ||
+                                            baseText.startsWith("> ")
                                         val displayText = rememberStreamedMessageText(
                                             fullText = baseText,
                                             animateKey = message.id,
-                                            shouldStream = shouldStreamTokens,
+                                            shouldStream = shouldStreamTokens && !hasRichFormatting,
                                             tokenSpeed = animSettings.tokenStreamSpeed,
                                             speedMultiplier = animSettings.speedMultiplier,
                                             onStreamFinished = onAppearAnimationFinished

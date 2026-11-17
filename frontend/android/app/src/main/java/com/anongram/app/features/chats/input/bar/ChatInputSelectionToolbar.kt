@@ -314,14 +314,14 @@ private fun SelectionFormatMenu(
     val scheme = LocalAnonGramScheme.current
     val strings = LocalInputStrings.current
     Column(
-        modifier = Modifier.widthIn(min = 205.dp, max = 250.dp)
+        modifier = Modifier.widthIn(min = 175.dp, max = 215.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 260.dp)
+                .heightIn(max = 205.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = 4.dp)
+                .padding(vertical = 2.dp)
         ) {
             SelectionFormatItemsTop(controller = controller, hasSelection = hasSelection)
             SelectionFormatItemsStyles(controller = controller, hasSelection = hasSelection)
@@ -331,20 +331,20 @@ private fun SelectionFormatMenu(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { controller.isFormatMenuOpen = false }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = strings.selectionBack,
                 tint = scheme.textPrimary,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(17.dp)
             )
             Text(
                 text = strings.selectionBack,
                 color = scheme.textPrimary,
-                fontSize = 15.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
         }
@@ -383,7 +383,7 @@ private fun SelectionFormatItemsStyles(
     FormatMenuItem(label = strings.selectionUnderline, textDecoration = TextDecoration.Underline) { controller.applyStyle(RichSpanStyle.UNDERLINE) }
     FormatMenuItem(label = strings.selectionAddLink) {
         controller.savedSelectionForLink = controller.currentValue().selection
-        controller.linkUrlInput = "https://"
+        controller.linkUrlInput = ""
         controller.isLinkDialogOpen = true
         controller.hide()
     }
@@ -423,7 +423,17 @@ private fun SelectionLinkDialog(controller: ChatInputSelectionController) {
                     singleLine = true,
                     textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
                     cursorBrush = SolidColor(scheme.accent),
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth(),
+                    decorationBox = { inner ->
+                        if (controller.linkUrlInput.isEmpty()) {
+                            Text(
+                                text = "https://...",
+                                color = scheme.textMuted,
+                                fontSize = 15.sp
+                            )
+                        }
+                        inner()
+                    }
                 )
                 HorizontalDivider(color = scheme.accent, thickness = 1.5.dp)
             }
@@ -488,7 +498,7 @@ private fun FormatMenuItem(
     Text(
         text = label,
         color = scheme.textPrimary,
-        fontSize = 15.sp,
+        fontSize = 14.sp,
         fontWeight = fontWeight,
         fontStyle = fontStyle,
         fontFamily = fontFamily,
@@ -496,6 +506,6 @@ private fun FormatMenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 11.dp)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
     )
 }
