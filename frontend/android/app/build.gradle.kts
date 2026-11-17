@@ -118,6 +118,7 @@ dependencies {
     implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
     implementation(files("libs/translate-kit-release.aar"))
     implementation(project(":llama-jni"))
+    implementation("dev.chrisbanes.haze:haze:1.3.1")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

@@ -39,9 +39,16 @@ import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
@@ -93,6 +100,8 @@ fun SettingsMainScreen(
     val vault = remember { KeystoreVault(context) }
     val identity = remember { vault.loadIdentity() }
     val currentLanguage by LanguageSettingsStore.language.collectAsState()
+    val animState by AnimationsSettingsStore.state.collectAsState()
+    val hazeState = rememberHazeState()
 
     val displayName = identity?.nickname?.takeIf { it.isNotBlank() } ?: "Пользователь"
     val handleTag = "@${displayName.replace(" ", "").uppercase().take(8)}"
@@ -145,6 +154,7 @@ fun SettingsMainScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .hazeSource(state = hazeState)
                 .verticalScroll(scrollState)
                 .safeStatusBarPadding()
                 .padding(top = 46.dp)
@@ -289,21 +299,37 @@ fun SettingsMainScreen(
             }
         }
 
-        // 2. Закреплённая сверху полупрозрачная шапка с эффектом матового стекла (блюр-вуаль):
-        // Остаётся на месте при прокрутке вниз, кнопки QR, Поиск и 3 точки всегда доступны.
+        // 2. Закреплённая сверху полупрозрачная шапка с эффектом матового стекла (Telegram Frosted Glass):
+        // Оптически размывает контент под собой при скролле, адаптируется под Ч/Б, Б/Ч и цветные темы.
+        val headerBackgroundModifier = if (animState.glassBlurEnabled) {
+            Modifier.hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = scheme.background,
+                    tint = HazeTint(
+                        color = scheme.surface.copy(alpha = 0.70f + 0.14f * animatedHeaderAlpha)
+                    ),
+                    blurRadius = 24.dp,
+                    noiseFactor = 0.04f
+                )
+            )
+        } else {
+            Modifier.background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        scheme.surface.copy(alpha = 0.88f + 0.10f * animatedHeaderAlpha),
+                        scheme.background.copy(alpha = 0.70f + 0.25f * animatedHeaderAlpha),
+                        scheme.background.copy(alpha = 0.15f * (1f - animatedHeaderAlpha) + 0.90f * animatedHeaderAlpha)
+                    )
+                )
+            )
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            scheme.surface.copy(alpha = 0.84f + 0.14f * animatedHeaderAlpha),
-                            scheme.background.copy(alpha = 0.65f + 0.30f * animatedHeaderAlpha),
-                            scheme.background.copy(alpha = 0.15f * (1f - animatedHeaderAlpha) + 0.88f * animatedHeaderAlpha)
-                        )
-                    )
-                )
+                .then(headerBackgroundModifier)
         ) {
             Box(
                 modifier = Modifier
@@ -383,6 +409,14 @@ fun SettingsMainScreen(
                         )
                     }
                 }
+            }
+
+            // Едва заметная стеклянная фаска (тончайшая грань стекла при скролле, без резкой белой линии)
+            if (animatedHeaderAlpha > 0.05f) {
+                HorizontalDivider(
+                    color = scheme.divider.copy(alpha = 0.07f * animatedHeaderAlpha),
+                    thickness = 0.5.dp
+                )
             }
         }
 
