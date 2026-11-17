@@ -190,11 +190,6 @@ fun ChatScreen(
         state.editing != null
 
     val focusManager = LocalFocusManager.current
-    LaunchedEffect(state.isSelectionMode) {
-        if (state.isSelectionMode) {
-            focusManager.clearFocus(force = true)
-        }
-    }
 
     BackHandler(enabled = hasInnerBackTarget) {
         when {

@@ -234,8 +234,11 @@ internal fun BoxScope.ChatInputDock(
                 }
             }
     ) {
-        if (state.isSelectionMode) return@Box
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (state.isSelectionMode) Modifier.height(1.dp).alpha(0f) else Modifier)
+        ) {
             if (state.recording.isLocked && state.recording.mode == RecordMode.VOICE) {
                 VoiceLockedTopControls(
                     onPauseReview = viewModel::pauseVoiceRecordingToDraft,

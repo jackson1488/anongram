@@ -136,14 +136,14 @@ fun TelegramTextSpoilerCanvas(
                             reveals[idx] = SpoilerRevealAnim(
                                 center = tapOffset,
                                 maxRadius = maxR.coerceAtLeast(32f),
-                                startMs = System.nanoTime() / 1_000_000L
+                                startMs = android.os.SystemClock.uptimeMillis()
                             )
                         }
                     }
                 }
             }
     ) {
-        val nowMs = frameClockMs.takeIf { it > 0L } ?: (System.nanoTime() / 1_000_000L)
+        val nowMs = frameClockMs.takeIf { it > 0L } ?: (android.os.SystemClock.uptimeMillis())
         val corner = CornerRadius(4.dp.toPx(), 4.dp.toPx())
 
         activeRegionsByIdx.forEach { (idx, rects) ->
@@ -155,9 +155,10 @@ fun TelegramTextSpoilerCanvas(
                     cornerRadius = corner
                 )
             }
-            particlesByIdx[idx]?.forEach { p ->
+            particlesByIdx[idx]?.forEachIndexed { pIdx, p ->
+                val twinkle = 0.65f + 0.35f * kotlin.math.sin(nowMs * 0.005f + pIdx * 0.7f).toFloat()
                 drawCircle(
-                    color = particleColor.copy(alpha = p.alpha),
+                    color = particleColor.copy(alpha = (p.alpha * twinkle).coerceIn(0.18f, 0.98f)),
                     radius = p.radiusPx * density,
                     center = Offset(p.x, p.y)
                 )
@@ -237,7 +238,7 @@ fun TelegramBlurredMediaSpoiler(
                                 revealAnim = SpoilerRevealAnim(
                                     center = tapOffset,
                                     maxRadius = maxR.coerceAtLeast(64f),
-                                    startMs = System.nanoTime() / 1_000_000L
+                                    startMs = android.os.SystemClock.uptimeMillis()
                                 )
                             }
                         }
@@ -253,7 +254,7 @@ fun TelegramBlurredMediaSpoiler(
                     )
                 }
                 revealAnim?.let { anim ->
-                    val nowMs = frameClockMs.takeIf { it > 0L } ?: (System.nanoTime() / 1_000_000L)
+                    val nowMs = frameClockMs.takeIf { it > 0L } ?: (android.os.SystemClock.uptimeMillis())
                     val p = ((nowMs - anim.startMs).toFloat() / REVEAL_DURATION_MS).coerceIn(0f, 1f)
                     val eased = 1f - (1f - p) * (1f - p) * (1f - p)
                     drawCircle(
@@ -296,7 +297,7 @@ private fun computeSpoilerLineRects(layout: TextLayoutResult, range: IntRange): 
 private fun createParticlesForRects(rects: List<Rect>, maxCount: Int = 150): List<SpoilerParticle> {
     val totalArea = rects.sumOf { (it.width * it.height).toDouble() }.toFloat()
     if (totalArea <= 0f) return emptyList()
-    val count = (totalArea / 140f).roundToIntCompat().coerceIn(16, maxCount)
+    val count = (totalArea / 180f).roundToIntCompat().coerceIn(18, maxCount)
     val rand = Random(rects.hashCode())
     return List(count) {
         val rIdx = rand.nextInt(rects.size)
@@ -304,10 +305,10 @@ private fun createParticlesForRects(rects: List<Rect>, maxCount: Int = 150): Lis
         SpoilerParticle(
             x = r.left + rand.nextFloat() * r.width,
             y = r.top + rand.nextFloat() * r.height,
-            vx = (rand.nextFloat() - 0.5f) * 28f,
-            vy = (rand.nextFloat() - 0.5f) * 28f,
-            radiusPx = 0.65f + rand.nextFloat() * 1.25f,
-            alpha = 0.30f + rand.nextFloat() * 0.66f,
+            vx = (rand.nextFloat() - 0.5f) * 90f,
+            vy = (rand.nextFloat() - 0.5f) * 90f,
+            radiusPx = 0.75f + rand.nextFloat() * 1.25f,
+            alpha = 0.35f + rand.nextFloat() * 0.63f,
             regionIdx = rIdx
         )
     }
@@ -324,8 +325,8 @@ private fun advanceParticles(particles: List<SpoilerParticle>, rects: List<Rect>
             val nextR = rects[p.regionIdx]
             p.x = nextR.left + Random.nextFloat() * nextR.width
             p.y = nextR.top + Random.nextFloat() * nextR.height
-            p.vx = (Random.nextFloat() - 0.5f) * 28f
-            p.vy = (Random.nextFloat() - 0.5f) * 28f
+            p.vx = (Random.nextFloat() - 0.5f) * 90f
+            p.vy = (Random.nextFloat() - 0.5f) * 90f
         }
     }
 }
