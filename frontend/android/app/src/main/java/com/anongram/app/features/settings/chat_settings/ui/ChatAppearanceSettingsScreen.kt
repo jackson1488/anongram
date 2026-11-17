@@ -132,6 +132,8 @@ fun ChatAppearanceSettingsScreen(
 
             val browserStrings = com.anongram.app.features.chats.links.browser.InAppBrowserI18n.current
             val linkPreviewsEnabled by ChatTextSettingsStore.linkPreviewsEnabled.collectAsState()
+            val hiddenLinkPreviewsEnabled by ChatTextSettingsStore.hiddenLinkPreviewsEnabled.collectAsState()
+            val spoilerParticleMotionEnabled by ChatTextSettingsStore.spoilerParticleMotionEnabled.collectAsState()
             val inAppBrowserEnabled by ChatTextSettingsStore.inAppBrowserEnabled.collectAsState()
 
             Column(
@@ -174,6 +176,78 @@ fun ChatAppearanceSettingsScreen(
                     androidx.compose.material3.Switch(
                         checked = linkPreviewsEnabled,
                         onCheckedChange = { ChatTextSettingsStore.setLinkPreviewsEnabled(context, it) },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = scheme.onAccent,
+                            checkedTrackColor = scheme.accent
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.material3.HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ChatTextSettingsStore.setHiddenLinkPreviewsEnabled(context, !hiddenLinkPreviewsEnabled)
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = browserStrings.hiddenLinkPreviewsTitle,
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = browserStrings.hiddenLinkPreviewsDesc,
+                            color = scheme.textSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = hiddenLinkPreviewsEnabled,
+                        onCheckedChange = { ChatTextSettingsStore.setHiddenLinkPreviewsEnabled(context, it) },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = scheme.onAccent,
+                            checkedTrackColor = scheme.accent
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.material3.HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ChatTextSettingsStore.setSpoilerParticleMotionEnabled(context, !spoilerParticleMotionEnabled)
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = browserStrings.spoilerMotionTitle,
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = browserStrings.spoilerMotionDesc,
+                            color = scheme.textSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = spoilerParticleMotionEnabled,
+                        onCheckedChange = { ChatTextSettingsStore.setSpoilerParticleMotionEnabled(context, it) },
                         colors = androidx.compose.material3.SwitchDefaults.colors(
                             checkedThumbColor = scheme.onAccent,
                             checkedTrackColor = scheme.accent

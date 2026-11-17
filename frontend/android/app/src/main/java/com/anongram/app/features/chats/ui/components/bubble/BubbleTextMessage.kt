@@ -419,11 +419,7 @@ fun buildRichAnnotatedText(
                 // ||spoiler||
                 m.groupValues[14].isNotEmpty() -> {
                     val inner = m.groupValues[15]
-                    pushStyle(
-                        SpanStyle(
-                            background = accentColor.copy(alpha = 0.24f)
-                        )
-                    )
+                    pushStringAnnotation(tag = "SPOILER", annotation = "spoiler")
                     append(inner)
                     pop()
                 }
@@ -523,6 +519,30 @@ fun AdaptiveMessageTextWithTimeLayout(
     modifier: Modifier = Modifier
 ) {
     var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val spoilerAnnotations = remember(text) {
+        text.getStringAnnotations(tag = "SPOILER", start = 0, end = text.length)
+    }
+    val spoilerRanges = remember(spoilerAnnotations) {
+        spoilerAnnotations.map { it.start until it.end }
+    }
+    var revealedIndices by remember(text.text) { mutableStateOf(emptySet<Int>()) }
+    val motionEnabled by com.anongram.app.core.theme.ChatTextSettingsStore.spoilerParticleMotionEnabled.collectAsState()
+
+    val renderedText = remember(text, spoilerRanges, revealedIndices) {
+        if (spoilerRanges.isEmpty()) {
+            text
+        } else {
+            buildAnnotatedString {
+                append(text)
+                spoilerRanges.forEachIndexed { idx, range ->
+                    if (idx !in revealedIndices && range.first <= range.last) {
+                        addStyle(SpanStyle(color = Color.Transparent), range.first, range.last + 1)
+                    }
+                }
+            }
+        }
+    }
+
     val textLineHeight = (textSizeSp * 1.26f).coerceAtLeast(textSizeSp + 2f).sp
     val timeFontSize = (10.5f * textScale).coerceIn(5.5f, 14.5f).sp
     val editedFontSize = (9f * textScale).coerceIn(5f, 12.5f).sp
@@ -533,13 +553,25 @@ fun AdaptiveMessageTextWithTimeLayout(
     Layout(
         modifier = modifier,
         content = {
-            Text(
-                text = text,
-                color = LocalContentColor.current,
-                fontSize = textSizeSp.sp,
-                lineHeight = textLineHeight,
-                onTextLayout = { textLayoutResult = it }
-            )
+            Box {
+                Text(
+                    text = renderedText,
+                    color = LocalContentColor.current,
+                    fontSize = textSizeSp.sp,
+                    lineHeight = textLineHeight,
+                    onTextLayout = { textLayoutResult = it }
+                )
+                if (spoilerRanges.isNotEmpty()) {
+                    TelegramTextSpoilerCanvas(
+                        textLayoutResult = textLayoutResult,
+                        spoilerRanges = spoilerRanges,
+                        revealedIndices = revealedIndices,
+                        motionEnabled = motionEnabled,
+                        onRevealIndex = { idx -> revealedIndices = revealedIndices + idx },
+                        modifier = Modifier.matchParentSize()
+                    )
+                }
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {

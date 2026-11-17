@@ -14,6 +14,8 @@ object ChatTextSettingsStore {
     private const val KEY_TEXT_SIZE_SP = "message_text_size_sp"
     private const val KEY_USER_NAME = "registered_user_name"
     private const val KEY_LINK_PREVIEWS = "link_previews_enabled"
+    private const val KEY_HIDDEN_LINK_PREVIEWS = "hidden_link_previews_enabled"
+    private const val KEY_SPOILER_PARTICLE_MOTION = "spoiler_particle_motion_enabled"
     private const val KEY_IN_APP_BROWSER = "in_app_browser_enabled"
 
     private val _messageTextSizeSp = MutableStateFlow(16)
@@ -24,6 +26,12 @@ object ChatTextSettingsStore {
 
     private val _linkPreviewsEnabled = MutableStateFlow(true)
     val linkPreviewsEnabled: StateFlow<Boolean> = _linkPreviewsEnabled.asStateFlow()
+
+    private val _hiddenLinkPreviewsEnabled = MutableStateFlow(false)
+    val hiddenLinkPreviewsEnabled: StateFlow<Boolean> = _hiddenLinkPreviewsEnabled.asStateFlow()
+
+    private val _spoilerParticleMotionEnabled = MutableStateFlow(true)
+    val spoilerParticleMotionEnabled: StateFlow<Boolean> = _spoilerParticleMotionEnabled.asStateFlow()
 
     private val _inAppBrowserEnabled = MutableStateFlow(true)
     val inAppBrowserEnabled: StateFlow<Boolean> = _inAppBrowserEnabled.asStateFlow()
@@ -43,6 +51,8 @@ object ChatTextSettingsStore {
         _messageTextSizeSp.value = savedSize
         _registeredUserName.value = savedName.ifBlank { "Кайрат" }
         _linkPreviewsEnabled.value = prefs.getBoolean(KEY_LINK_PREVIEWS, true)
+        _hiddenLinkPreviewsEnabled.value = prefs.getBoolean(KEY_HIDDEN_LINK_PREVIEWS, false)
+        _spoilerParticleMotionEnabled.value = prefs.getBoolean(KEY_SPOILER_PARTICLE_MOTION, true)
         _inAppBrowserEnabled.value = prefs.getBoolean(KEY_IN_APP_BROWSER, true)
     }
 
@@ -72,6 +82,24 @@ object ChatTextSettingsStore {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_LINK_PREVIEWS, enabled)
+            .apply()
+    }
+
+    fun setHiddenLinkPreviewsEnabled(context: Context, enabled: Boolean) {
+        _hiddenLinkPreviewsEnabled.value = enabled
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_HIDDEN_LINK_PREVIEWS, enabled)
+            .apply()
+    }
+
+    fun setSpoilerParticleMotionEnabled(context: Context, enabled: Boolean) {
+        _spoilerParticleMotionEnabled.value = enabled
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_SPOILER_PARTICLE_MOTION, enabled)
             .apply()
     }
 

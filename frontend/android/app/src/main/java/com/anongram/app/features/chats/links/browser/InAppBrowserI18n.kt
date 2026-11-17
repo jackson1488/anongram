@@ -48,7 +48,11 @@ data class InAppBrowserStrings(
     val addressSearchPlaceholder: String,
     val watchVideoLabel: String,
     val viewPhotoLabel: String,
-    val openInBrowserLabel: String
+    val openInBrowserLabel: String,
+    val hiddenLinkPreviewsTitle: String,
+    val hiddenLinkPreviewsDesc: String,
+    val spoilerMotionTitle: String,
+    val spoilerMotionDesc: String
 )
 
 object InAppBrowserI18n {
@@ -94,7 +98,11 @@ object InAppBrowserI18n {
         addressSearchPlaceholder = "Поиск или адрес сайта...",
         watchVideoLabel = "Смотреть видео",
         viewPhotoLabel = "Открыть фото",
-        openInBrowserLabel = "Открыть страницу"
+        openInBrowserLabel = "Открыть страницу",
+        hiddenLinkPreviewsTitle = "Предпросмотр скрытых ссылок",
+        hiddenLinkPreviewsDesc = "Показывать карточку для ссылок, спрятанных в тексте через [текст](url).",
+        spoilerMotionTitle = "Движение частиц в спойлерах",
+        spoilerMotionDesc = "Плавный дрейф частиц поверх скрытого текста и медиа. При отключении частицы остаются статичными."
     )
 
     private val en = InAppBrowserStrings(
@@ -139,7 +147,11 @@ object InAppBrowserI18n {
         addressSearchPlaceholder = "Search or enter URL...",
         watchVideoLabel = "Watch video",
         viewPhotoLabel = "View photo",
-        openInBrowserLabel = "Open page"
+        openInBrowserLabel = "Open page",
+        hiddenLinkPreviewsTitle = "Hidden link previews",
+        hiddenLinkPreviewsDesc = "Show preview cards for inline links hidden inside [text](url).",
+        spoilerMotionTitle = "Spoiler particle motion",
+        spoilerMotionDesc = "Drifting particles over hidden text and media. Disable to keep particles static and save battery."
     )
 
     val current: InAppBrowserStrings

@@ -36,6 +36,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -131,22 +132,25 @@ fun ChatInputBar(
             textFieldValue = TextFieldValue(plain, TextRange(plain.length))
         }
     }
+    var revealedSpoilerIndices by remember { mutableStateOf(emptySet<Int>()) }
     val selectionController = rememberChatInputSelectionController(
         getValue = { textFieldValue },
         getSpans = { inputSpans },
         onSpansChange = { nextSpans ->
             inputSpans = nextSpans
+            revealedSpoilerIndices = emptySet()
             val serialized = serializeRichInput(textFieldValue.text, nextSpans)
             if (serialized != input) {
                 onInputChange(serialized)
             }
         }
     )
-    val richVisualTransformation = remember(inputSpans, scheme.textPrimary, scheme.accent) {
+    val richVisualTransformation = remember(inputSpans, scheme.textPrimary, scheme.accent, revealedSpoilerIndices) {
         createSpanVisualTransformation(
             spans = inputSpans,
             textPrimary = scheme.textPrimary,
-            accentColor = scheme.accent
+            accentColor = scheme.accent,
+            revealedSpoilerIndices = revealedSpoilerIndices
         )
     }
 
@@ -248,11 +252,14 @@ fun ChatInputBar(
                                     }
                                     ChatInputTextField(
                                         value = textFieldValue,
+                                        spans = inputSpans,
+                                        revealedSpoilerIndices = revealedSpoilerIndices,
                                         isRecording = isRecording,
                                         richVisualTransformation = richVisualTransformation,
                                         selectionController = selectionController,
                                         focusRequester = focusRequester,
                                         onFocusInput = onFocusInput,
+                                        onRevealSpoiler = { idx -> revealedSpoilerIndices = revealedSpoilerIndices + idx },
                                         onValueChange = { newValue ->
                                             val oldText = textFieldValue.text
                                             val newText = newValue.text
@@ -386,33 +393,60 @@ fun ChatInputBar(
 @Composable
 private fun ChatInputTextField(
     value: TextFieldValue,
+    spans: List<RichInputSpan>,
+    revealedSpoilerIndices: Set<Int>,
     isRecording: Boolean,
     richVisualTransformation: androidx.compose.ui.text.input.VisualTransformation,
     selectionController: ChatInputSelectionController,
     focusRequester: FocusRequester?,
     onFocusInput: () -> Unit,
+    onRevealSpoiler: (Int) -> Unit,
     onValueChange: (TextFieldValue) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
-    CompositionLocalProvider(LocalTextToolbar provides selectionController.textToolbar) {
-        BasicTextField(
-            value = value,
-            onValueChange = { newValue ->
-                if (!isRecording) {
-                    onValueChange(newValue)
-                }
-            },
-            visualTransformation = richVisualTransformation,
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { if (it.isFocused && !isRecording) onFocusInput() }
-                .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
-            textStyle = TextStyle(
-                color = scheme.textPrimary,
-                fontSize = 15.sp,
-                lineHeight = 20.sp
-            ),
-            cursorBrush = SolidColor(scheme.accent)
-        )
+    val motionEnabled by com.anongram.app.core.theme.ChatTextSettingsStore.spoilerParticleMotionEnabled.collectAsState()
+    var textLayoutResult by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+    val spoilerRanges = remember(spans, value.text.length) {
+        spans.filter { it.style == RichSpanStyle.SPOILER }
+            .mapNotNull { sp ->
+                val s = sp.start.coerceIn(0, value.text.length)
+                val e = sp.end.coerceIn(0, value.text.length)
+                if (s < e) s until e else null
+            }
+    }
+
+    Box(modifier = Modifier.fillMaxWidth()) {
+        CompositionLocalProvider(LocalTextToolbar provides selectionController.textToolbar) {
+            BasicTextField(
+                value = value,
+                onValueChange = { newValue ->
+                    if (!isRecording) {
+                        onValueChange(newValue)
+                    }
+                },
+                onTextLayout = { textLayoutResult = it },
+                visualTransformation = richVisualTransformation,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged { if (it.isFocused && !isRecording) onFocusInput() }
+                    .then(if (focusRequester != null) Modifier.focusRequester(focusRequester) else Modifier),
+                textStyle = TextStyle(
+                    color = scheme.textPrimary,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp
+                ),
+                cursorBrush = SolidColor(scheme.accent)
+            )
+        }
+        if (spoilerRanges.isNotEmpty()) {
+            com.anongram.app.features.chats.ui.components.bubble.TelegramTextSpoilerCanvas(
+                textLayoutResult = textLayoutResult,
+                spoilerRanges = spoilerRanges,
+                revealedIndices = revealedSpoilerIndices,
+                motionEnabled = motionEnabled,
+                onRevealIndex = onRevealSpoiler,
+                modifier = Modifier.matchParentSize()
+            )
+        }
     }
 }

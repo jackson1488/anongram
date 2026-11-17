@@ -49,6 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -138,12 +139,16 @@ fun ChatFullTextEditorScreen(
 
     val parsedInitial = remember(cleanInitialText) { parseRichInput(cleanInitialText) }
     var editorSpans by remember(cleanInitialText) { mutableStateOf(parsedInitial.second) }
+    var editorRevealedSpoilers by remember { mutableStateOf(emptySet<Int>()) }
     val undoState = rememberUndoRedoState(parsedInitial.first)
     val focusRequester = remember { FocusRequester() }
     val editorSelectionController = rememberChatInputSelectionController(
         getValue = { undoState.textFieldValue },
         getSpans = { editorSpans },
-        onSpansChange = { editorSpans = it }
+        onSpansChange = {
+            editorSpans = it
+            editorRevealedSpoilers = emptySet()
+        }
     )
 
     var selectedFontFamily by remember { mutableStateOf(initialFontKey) }
@@ -774,9 +779,14 @@ fun ChatFullTextEditorScreen(
                                     undoState.updateValue(processed)
                                 },
                                 onTextLayout = { textLayoutResult = it },
-                                visualTransformation = remember(editorSpans, scheme) {
+                                visualTransformation = remember(editorSpans, scheme, editorRevealedSpoilers) {
                                     if (editorSpans.isNotEmpty()) {
-                                        createSpanVisualTransformation(editorSpans, scheme.textPrimary, scheme.accent)
+                                        createSpanVisualTransformation(
+                                            spans = editorSpans,
+                                            textPrimary = scheme.textPrimary,
+                                            accentColor = scheme.accent,
+                                            revealedSpoilerIndices = editorRevealedSpoilers
+                                        )
                                     } else {
                                         EditorWysiwygVisualTransformation(scheme)
                                     }
@@ -826,6 +836,25 @@ fun ChatFullTextEditorScreen(
                                         }
                                     }
                                 }
+                            )
+                        }
+                        val editorSpoilerRanges = remember(editorSpans, undoState.textFieldValue.text.length) {
+                            editorSpans.filter { it.style == com.anongram.app.features.chats.input.bar.RichSpanStyle.SPOILER }
+                                .mapNotNull { sp ->
+                                    val s = sp.start.coerceIn(0, undoState.textFieldValue.text.length)
+                                    val e = sp.end.coerceIn(0, undoState.textFieldValue.text.length)
+                                    if (s < e) s until e else null
+                                }
+                        }
+                        if (editorSpoilerRanges.isNotEmpty()) {
+                            val motionEnabled by com.anongram.app.core.theme.ChatTextSettingsStore.spoilerParticleMotionEnabled.collectAsState()
+                            com.anongram.app.features.chats.ui.components.bubble.TelegramTextSpoilerCanvas(
+                                textLayoutResult = textLayoutResult,
+                                spoilerRanges = editorSpoilerRanges,
+                                revealedIndices = editorRevealedSpoilers,
+                                motionEnabled = motionEnabled,
+                                onRevealIndex = { idx -> editorRevealedSpoilers = editorRevealedSpoilers + idx },
+                                modifier = Modifier.matchParentSize()
                             )
                         }
                     }

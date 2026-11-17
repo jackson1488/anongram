@@ -760,11 +760,18 @@ internal fun MessageBubble(
                                             }
 
                                             val linkPreviewsEnabled by com.anongram.app.core.theme.ChatTextSettingsStore.linkPreviewsEnabled.collectAsState()
-                                            val firstLinkUrl = remember(effectiveMessage.text, linkPreviewsEnabled) {
-                                                if (linkPreviewsEnabled) {
-                                                    com.anongram.app.features.chats.links.preview.LinkPreviewFetcher.extractFirstUrl(effectiveMessage.text)
-                                                } else {
+                                            val hiddenLinkPreviewsEnabled by com.anongram.app.core.theme.ChatTextSettingsStore.hiddenLinkPreviewsEnabled.collectAsState()
+                                            val firstLinkUrl = remember(effectiveMessage.text, linkPreviewsEnabled, hiddenLinkPreviewsEnabled) {
+                                                if (!linkPreviewsEnabled) {
                                                     null
+                                                } else {
+                                                    val withoutSpoilers = effectiveMessage.text.replace(Regex("\\|\\|[^|]+\\|\\|"), "")
+                                                    val candidateText = if (hiddenLinkPreviewsEnabled) {
+                                                        withoutSpoilers
+                                                    } else {
+                                                        withoutSpoilers.replace(Regex("\\[([^\\]]+)\\]\\(([^)]+)\\)"), "$1")
+                                                    }
+                                                    com.anongram.app.features.chats.links.preview.LinkPreviewFetcher.extractFirstUrl(candidateText)
                                                 }
                                             }
                                             var linkPreviewData by remember(firstLinkUrl) {

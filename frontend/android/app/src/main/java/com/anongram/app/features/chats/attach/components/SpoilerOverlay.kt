@@ -11,12 +11,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import com.anongram.app.core.theme.ChatTextSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import kotlin.random.Random
 
@@ -29,7 +31,8 @@ private data class SpoilerParticle(
 )
 
 /**
- * Анимированный эффект мерцающего спойлера в стиле Telegram.
+ * Анимированный эффект мерцающего спойлера в стиле Telegram с адаптацией под тему
+ * и поддержкой отключения движения частиц (экономия батареи).
  */
 @Composable
 fun SpoilerOverlay(
@@ -37,6 +40,7 @@ fun SpoilerOverlay(
     particleCount: Int = 160
 ) {
     val scheme = LocalAnonGramScheme.current
+    val motionEnabled by ChatTextSettingsStore.spoilerParticleMotionEnabled.collectAsState()
     val particles = remember(particleCount) {
         val rand = Random(42)
         List(particleCount) {
@@ -50,16 +54,21 @@ fun SpoilerOverlay(
         }
     }
 
-    val transition = rememberInfiniteTransition(label = "spoilerTransition")
-    val progress by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 6.28318f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2400, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "spoilerProgress"
-    )
+    val progress = if (motionEnabled) {
+        val transition = rememberInfiniteTransition(label = "spoilerTransition")
+        val animated by transition.animateFloat(
+            initialValue = 0f,
+            targetValue = 6.28318f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 2400, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart
+            ),
+            label = "spoilerProgress"
+        )
+        animated
+    } else {
+        0f
+    }
 
     Box(
         modifier = modifier
@@ -70,10 +79,13 @@ fun SpoilerOverlay(
             val w = size.width
             val h = size.height
 
-            // Мягкое свечение для эффекта звёздного сияния как в Telegram
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color.White.copy(alpha = 0.22f), Color(0x33FFFFFF), Color.Transparent),
+                    colors = listOf(
+                        scheme.accent.copy(alpha = 0.20f),
+                        scheme.textPrimary.copy(alpha = 0.14f),
+                        Color.Transparent
+                    ),
                     center = Offset(w * 0.50f, h * 0.40f),
                     radius = minOf(w, h) * 0.85f
                 ),
@@ -83,12 +95,14 @@ fun SpoilerOverlay(
 
             particles.forEach { p ->
                 val wave = kotlin.math.sin(progress * p.speed + p.phaseOffset).toFloat()
-                val alpha = (0.25f + 0.75f * ((wave + 1f) / 2f)).coerceIn(0.12f, 1f)
-                val x = (p.xNorm * w + wave * 3.5f).coerceIn(0f, w)
-                val y = (p.yNorm * h + kotlin.math.cos(progress * p.speed + p.phaseOffset).toFloat() * 3.5f).coerceIn(0f, h)
+                val alpha = (0.25f + 0.75f * ((wave + 1f) / 2f)).coerceIn(0.15f, 0.95f)
+                val driftX = if (motionEnabled) wave * 3.5f else 0f
+                val driftY = if (motionEnabled) kotlin.math.cos(progress * p.speed + p.phaseOffset).toFloat() * 3.5f else 0f
+                val x = (p.xNorm * w + driftX).coerceIn(0f, w)
+                val y = (p.yNorm * h + driftY).coerceIn(0f, h)
 
                 drawCircle(
-                    color = Color.White.copy(alpha = alpha),
+                    color = scheme.textPrimary.copy(alpha = alpha),
                     radius = p.radius,
                     center = Offset(x, y)
                 )

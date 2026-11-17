@@ -71,7 +71,8 @@ fun adjustSpansForTextEdit(
 fun createSpanVisualTransformation(
     spans: List<RichInputSpan>,
     textPrimary: Color,
-    accentColor: Color
+    accentColor: Color,
+    revealedSpoilerIndices: Set<Int> = emptySet()
 ): VisualTransformation {
     return VisualTransformation { original ->
         val text = original.text
@@ -80,6 +81,7 @@ fun createSpanVisualTransformation(
         }
         val annotated = buildAnnotatedString {
             append(text)
+            var spoilerIdx = 0
             spans.forEach { span ->
                 val s = span.start.coerceIn(0, text.length)
                 val e = span.end.coerceIn(0, text.length)
@@ -93,10 +95,15 @@ fun createSpanVisualTransformation(
                         )
                         RichSpanStyle.STRIKE -> SpanStyle(textDecoration = TextDecoration.LineThrough)
                         RichSpanStyle.UNDERLINE -> SpanStyle(textDecoration = TextDecoration.Underline)
-                        RichSpanStyle.SPOILER -> SpanStyle(
-                            background = accentColor.copy(alpha = 0.28f),
-                            color = textPrimary.copy(alpha = 0.38f)
-                        )
+                        RichSpanStyle.SPOILER -> {
+                            val isRev = spoilerIdx in revealedSpoilerIndices
+                            spoilerIdx++
+                            if (isRev) {
+                                SpanStyle(background = accentColor.copy(alpha = 0.12f))
+                            } else {
+                                SpanStyle(color = Color.Transparent)
+                            }
+                        }
                         RichSpanStyle.QUOTE -> SpanStyle(
                             background = accentColor.copy(alpha = 0.14f),
                             fontStyle = FontStyle.Italic
