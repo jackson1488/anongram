@@ -67,7 +67,7 @@ fun LanguageSettingsScreen(
     com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
         title = strings.screenTitle,
         onBack = onBack,
-        backContentDescription = strings.back,
+        backContentDescription = if (currentLanguage == AppLanguage.RU) "Назад" else "Back",
         modifier = modifier
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
