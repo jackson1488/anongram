@@ -13,10 +13,10 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -318,10 +318,11 @@ internal fun MessageBubble(
             else -> screenWidth * 0.80f
         }
 
-        val incomingShiftDp by animateDpAsState(
-            targetValue = if (isSelectionMode && isIncoming) 36.dp else 0.dp,
+        val shiftTargetPx = with(density) { 36.dp.toPx() }
+        val incomingShiftPx by animateFloatAsState(
+            targetValue = if (isSelectionMode && isIncoming) shiftTargetPx else 0f,
             animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
-            label = "incomingShiftDp"
+            label = "incomingShiftPx"
         )
 
         val selectionViolet = scheme.selectedGlow
@@ -383,12 +384,14 @@ internal fun MessageBubble(
         ) {
             AnimatedVisibility(
                 visible = isSelectionMode,
-                enter = expandHorizontally(
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-                ) + fadeIn(),
-                exit = shrinkHorizontally(
-                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
-                ) + fadeOut(),
+                enter = scaleIn(
+                    initialScale = 0.78f,
+                    animationSpec = tween(180)
+                ) + fadeIn(animationSpec = tween(160)),
+                exit = scaleOut(
+                    targetScale = 0.78f,
+                    animationSpec = tween(140)
+                ) + fadeOut(animationSpec = tween(140)),
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .padding(start = 6.dp)
@@ -421,7 +424,7 @@ internal fun MessageBubble(
                 modifier = Modifier
                     .fillMaxWidth(0.84f)
                     .align(if (isIncoming) Alignment.TopStart else Alignment.TopEnd)
-                    .offset(x = incomingShiftDp)
+                    .graphicsLayer { translationX = incomingShiftPx }
                     .combinedClickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null,
