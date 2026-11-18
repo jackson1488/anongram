@@ -702,7 +702,11 @@ object LocalAiStore {
     }
 
     fun stopGeneration(context: Context) {
-        LlamaNativeBridge.nativeRequestStop()
+        if (_state.value.engineMode == AiEngineMode.LOCAL_GGUF &&
+            com.anongram.app.core.assets.NativeModuleManager.isLlamaLoaded()
+        ) {
+            runCatching { LlamaNativeBridge.nativeRequestStop() }
+        }
         generationJob?.cancel()
         generationJob = null
         _state.update { it.copy(isGenerating = false) }

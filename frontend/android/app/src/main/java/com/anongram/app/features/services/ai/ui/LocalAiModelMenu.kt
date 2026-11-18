@@ -129,7 +129,9 @@ fun LocalAiQuickModelMenu(
                         .verticalScroll(rememberScrollState())
                         .padding(vertical = 8.dp)
                 ) {
-                    val configuredProviders = state.cloudProviders.filter { it.baseUrl.isNotBlank() && it.models.isNotEmpty() }
+                    val configuredProviders = state.cloudProviders.filter {
+                        it.apiKey.isNotBlank() && it.baseUrl.isNotBlank() && it.models.isNotEmpty()
+                    }
                     if (configuredProviders.isNotEmpty()) {
                         Text(
                             text = strings.cloudModelsHeader,
@@ -139,9 +141,8 @@ fun LocalAiQuickModelMenu(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                         )
                         configuredProviders.forEach { provider ->
-                            val hasKey = provider.apiKey.isNotBlank()
                             Text(
-                                text = if (hasKey) provider.name else "${provider.name} (no key)",
+                                text = provider.name,
                                 color = scheme.textMuted,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
@@ -419,50 +420,20 @@ fun LocalAiSettingsScreen(
         enter = fadeIn(),
         exit = fadeOut()
     ) {
-        AnonGramScreenSurface(
-            modifier = Modifier.fillMaxSize(),
-            applySystemBarsPadding = false
+        com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+            title = strings.aiSettingsTitle,
+            onBack = onDismiss,
+            contentHorizontalPadding = 16.dp,
+            modifier = Modifier.fillMaxSize()
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 52.dp)
-                        .padding(horizontal = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = scheme.textPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = strings.aiSettingsTitle,
-                        color = scheme.textPrimary,
-                        fontSize = 19.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp)
-                ) {
+                com.anongram.app.features.settings.modules.ui.ai.CloudAiProvidersSection(
+                    state = state,
+                    isRu = strings.isRussian
+                )
                     // Системный промпт (всегда редактируемый)
                     val activePromptText = if (state.systemPromptPreset == AiSystemPromptPreset.CUSTOM) {
                         state.customSystemPrompt
@@ -742,5 +713,4 @@ fun LocalAiSettingsScreen(
                 }
             }
         }
-    }
 }

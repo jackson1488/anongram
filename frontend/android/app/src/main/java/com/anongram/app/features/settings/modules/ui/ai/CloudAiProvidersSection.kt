@@ -178,10 +178,21 @@ fun CloudAiProvidersSection(
             }
         }
 
-        state.cloudProviders.forEach { provider ->
+        val activeProviders = state.cloudProviders.filter { it.apiKey.isNotBlank() && it.baseUrl.isNotBlank() }
+        if (activeProviders.isEmpty()) {
+            Text(
+                text = if (isRu) {
+                    "Нет активных провайдеров. Нажмите «+ Добавить провайдера» или «Импорт OpenCode JSON»."
+                } else {
+                    "No active providers yet. Tap «+ Add provider» or «Import OpenCode JSON»."
+                },
+                color = scheme.textMuted,
+                fontSize = 12.5.sp
+            )
+        }
+        activeProviders.forEach { provider ->
             val isActiveProvider = state.engineMode == AiEngineMode.CLOUD_OPENAI &&
                 state.activeCloudProviderId == provider.id
-            val hasKey = provider.apiKey.isNotBlank()
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -204,17 +215,15 @@ fun CloudAiProvidersSection(
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = if (hasKey) {
-                                if (isRu) "Ключ задан" else "Key set"
-                            } else {
-                                if (isRu) "Нет ключа" else "No key"
-                            },
-                            color = if (hasKey) scheme.accent else scheme.textMuted,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        if (isActiveProvider) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (isRu) "Активен" else "Active",
+                                color = scheme.accent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                     Text(
                         text = "${provider.baseUrl} · ${provider.models.size} ${if (isRu) "мод." else "models"}",
@@ -292,27 +301,30 @@ fun CloudAiProvidersSection(
 
     if (showAddCustomDialog) {
         AddCustomProviderDialog(
+            presets = state.cloudProviders.filter { it.isPreset },
             isRu = isRu,
             onDismiss = { showAddCustomDialog = false },
-            onAdd = { name, baseUrl, apiKey, modelId ->
-                val cleanId = name.lowercase().replace(Regex("[^a-z0-9_-]"), "_").ifBlank {
+            onAdd = { selectedPreset, name, baseUrl, apiKey, modelId ->
+                val cleanId = selectedPreset?.id ?: name.lowercase().replace(Regex("[^a-z0-9_-]"), "_").ifBlank {
                     "custom_${System.currentTimeMillis()}"
+                }
+                val models = when {
+                    modelId.isNotBlank() -> {
+                        val custom = CloudModelInfo(modelId.trim(), modelId.trim(), supportsVision = true)
+                        ((selectedPreset?.models ?: emptyList()) + custom).distinctBy { it.id }
+                    }
+                    selectedPreset != null && selectedPreset.models.isNotEmpty() -> selectedPreset.models
+                    else -> listOf(CloudModelInfo("gpt-4o-mini", "gpt-4o-mini", supportsVision = true))
                 }
                 val profile = CloudProviderProfile(
                     id = cleanId,
-                    name = name.ifBlank { "Custom API" },
+                    name = name.ifBlank { selectedPreset?.name ?: "Custom API" },
                     baseUrl = baseUrl.trim().trimEnd('/'),
                     apiKey = apiKey.trim(),
-                    models = listOf(
-                        CloudModelInfo(
-                            id = modelId.trim().ifBlank { "gpt-4o-mini" },
-                            displayName = modelId.trim().ifBlank { "gpt-4o-mini" },
-                            supportsVision = true
-                        )
-                    ),
-                    isPreset = false
+                    models = models,
+                    isPreset = selectedPreset != null
                 )
-                LocalAiStore.upsertCloudProvider(context, profile, activate = true)
+                LocalAiStore.upsertCloudProvider(context, profile, activate = apiKey.isNotBlank())
                 showAddCustomDialog = false
             }
         )
@@ -647,16 +659,19 @@ private fun ImportOpenCodeJsonDialog(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AddCustomProviderDialog(
+    presets: List<CloudProviderProfile>,
     isRu: Boolean,
     onDismiss: () -> Unit,
-    onAdd: (name: String, baseUrl: String, apiKey: String, modelId: String) -> Unit
+    onAdd: (selectedPreset: CloudProviderProfile?, name: String, baseUrl: String, apiKey: String, modelId: String) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
-    var name by remember { mutableStateOf("") }
-    var baseUrl by remember { mutableStateOf("https://") }
-    var apiKey by remember { mutableStateOf("") }
+    var selectedPreset by remember { mutableStateOf<CloudProviderProfile?>(presets.firstOrNull()) }
+    var name by remember { mutableStateOf(presets.firstOrNull()?.name ?: "") }
+    var baseUrl by remember { mutableStateOf(presets.firstOrNull()?.baseUrl ?: "https://") }
+    var apiKey by remember { mutableStateOf(presets.firstOrNull()?.apiKey ?: "") }
     var modelId by remember { mutableStateOf("") }
 
     Dialog(onDismissRequest = onDismiss) {
@@ -670,11 +685,62 @@ private fun AddCustomProviderDialog(
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text(
-                text = if (isRu) "Новый провайдер" else "New provider",
+                text = if (isRu) "Добавить провайдера" else "Add provider",
                 color = scheme.textPrimary,
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold
             )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                presets.forEach { preset ->
+                    val active = selectedPreset?.id == preset.id
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(if (active) scheme.accent else scheme.surface)
+                            .border(1.dp, if (active) scheme.accent else scheme.islandBorder, RoundedCornerShape(16.dp))
+                            .clickable {
+                                selectedPreset = preset
+                                name = preset.name
+                                baseUrl = preset.baseUrl
+                                apiKey = preset.apiKey
+                            }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    ) {
+                        Text(
+                            text = preset.name,
+                            color = if (active) scheme.onAccent else scheme.textPrimary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+                val isCustom = selectedPreset == null
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(if (isCustom) scheme.accent else scheme.surface)
+                        .border(1.dp, if (isCustom) scheme.accent else scheme.islandBorder, RoundedCornerShape(16.dp))
+                        .clickable {
+                            selectedPreset = null
+                            name = ""
+                            baseUrl = "https://"
+                            apiKey = ""
+                        }
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                ) {
+                    Text(
+                        text = if (isRu) "Свой URL" else "Custom",
+                        color = if (isCustom) scheme.onAccent else scheme.textPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+
             ThemedInputBox(
                 label = if (isRu) "Название" else "Name",
                 value = name,
@@ -694,9 +760,9 @@ private fun AddCustomProviderDialog(
                 onValueChange = { apiKey = it }
             )
             ThemedInputBox(
-                label = if (isRu) "ID модели" else "Model ID",
+                label = if (isRu) "ID модели (необязательно для пресета)" else "Model ID (optional for preset)",
                 value = modelId,
-                placeholder = "gpt-4o-mini",
+                placeholder = selectedPreset?.models?.firstOrNull()?.id ?: "gpt-4o-mini",
                 onValueChange = { modelId = it }
             )
 
@@ -717,15 +783,15 @@ private fun AddCustomProviderDialog(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(18.dp))
-                        .background(if (baseUrl.isNotBlank()) scheme.accent else scheme.surface)
-                        .clickable(enabled = baseUrl.isNotBlank()) {
-                            onAdd(name, baseUrl, apiKey, modelId)
+                        .background(if (baseUrl.isNotBlank() && apiKey.isNotBlank()) scheme.accent else scheme.surface)
+                        .clickable(enabled = baseUrl.isNotBlank() && apiKey.isNotBlank()) {
+                            onAdd(selectedPreset, name, baseUrl, apiKey, modelId)
                         }
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
                         text = if (isRu) "Добавить" else "Add",
-                        color = if (baseUrl.isNotBlank()) scheme.onAccent else scheme.textMuted,
+                        color = if (baseUrl.isNotBlank() && apiKey.isNotBlank()) scheme.onAccent else scheme.textMuted,
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold
                     )

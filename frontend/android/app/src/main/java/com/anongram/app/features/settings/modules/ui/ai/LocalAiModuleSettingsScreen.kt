@@ -130,7 +130,7 @@ fun LocalAiModuleSettingsScreen(
     }
 
     SettingsGlassScaffold(
-        title = if (isRu) "ИИ Сервисы" else "AI Services",
+        title = if (isRu) "Модели ИИ" else "AI Models",
         onBack = onBack,
         backContentDescription = modStrings.back,
         contentHorizontalPadding = 16.dp,
@@ -153,8 +153,6 @@ fun LocalAiModuleSettingsScreen(
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                CloudAiProvidersSection(state = state, isRu = isRu)
-
                 // Поиск сверху по всему Hugging Face
                 Row(
                     modifier = Modifier
