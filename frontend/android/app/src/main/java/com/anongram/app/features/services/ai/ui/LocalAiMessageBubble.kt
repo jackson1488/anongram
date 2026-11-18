@@ -192,6 +192,27 @@ fun LocalAiMessageBubble(
     var editedThoughts by remember(message.id, message.thinking) { mutableStateOf(message.thinking) }
 
     Column(modifier = Modifier.fillMaxWidth()) {
+        if (message.toolSteps.isNotEmpty()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.card.copy(alpha = 0.72f))
+                    .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                message.toolSteps.forEach { stepLabel ->
+                    Text(
+                        text = stepLabel,
+                        color = scheme.textSecondary,
+                        fontSize = 11.5.sp,
+                        maxLines = 1
+                    )
+                }
+            }
+        }
 
         if (message.thinking.isNotBlank()) {
             Column(

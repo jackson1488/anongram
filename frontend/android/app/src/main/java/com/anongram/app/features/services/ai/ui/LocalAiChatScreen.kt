@@ -165,8 +165,9 @@ fun LocalAiChatScreen(
         }
     }
 
+    val hasConfiguredCloud = state.cloudProviders.any { it.apiKey.isNotBlank() && it.models.isNotEmpty() }
     AnonGramScreenSurface(modifier = modifier, applySystemBarsPadding = false) {
-        if (state.installedModels.isEmpty()) {
+        if (state.installedModels.isEmpty() && !hasConfiguredCloud && state.engineMode != com.anongram.app.features.services.ai.data.AiEngineMode.CLOUD_OPENAI) {
             LocalAiFirstRunGate(
                 strings = strings,
                 downloadingModelId = state.downloadingModelId,
@@ -568,7 +569,11 @@ fun LocalAiChatScreen(
                 onSelectModel = { modelId ->
                     LocalAiStore.selectModel(context, modelId)
                 },
-                onSelectReasoning = { LocalAiStore.setReasoningLevel(context, it) }
+                onSelectCloudModel = { providerId, modelId ->
+                    LocalAiStore.selectCloudModel(context, providerId, modelId)
+                },
+                onSelectReasoning = { LocalAiStore.setReasoningLevel(context, it) },
+                onToggleWebTools = { LocalAiStore.setWebToolsEnabled(context, it) }
             )
 
             // Левая шторка истории чатов (открывается ТОЛЬКО кнопкой '=')

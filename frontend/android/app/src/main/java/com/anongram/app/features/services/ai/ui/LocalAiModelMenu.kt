@@ -78,7 +78,9 @@ fun LocalAiQuickModelMenu(
     strings: LocalAiI18nStrings,
     onDismiss: () -> Unit,
     onSelectModel: (String) -> Unit,
-    onSelectReasoning: (AiReasoningLevel) -> Unit
+    onSelectCloudModel: (providerId: String, modelId: String) -> Unit,
+    onSelectReasoning: (AiReasoningLevel) -> Unit,
+    onToggleWebTools: (Boolean) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
     var reasoningExpanded by remember(visible) { mutableStateOf(false) }
@@ -127,8 +129,93 @@ fun LocalAiQuickModelMenu(
                         .verticalScroll(rememberScrollState())
                         .padding(vertical = 8.dp)
                 ) {
+                    val configuredProviders = state.cloudProviders.filter { it.baseUrl.isNotBlank() && it.models.isNotEmpty() }
+                    if (configuredProviders.isNotEmpty()) {
+                        Text(
+                            text = strings.cloudModelsHeader,
+                            color = scheme.accent,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                        configuredProviders.forEach { provider ->
+                            val hasKey = provider.apiKey.isNotBlank()
+                            Text(
+                                text = if (hasKey) provider.name else "${provider.name} (no key)",
+                                color = scheme.textMuted,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 3.dp)
+                            )
+                            provider.models.forEach { cModel ->
+                                val selected = state.engineMode == com.anongram.app.features.services.ai.data.AiEngineMode.CLOUD_OPENAI &&
+                                    state.activeCloudProviderId == provider.id &&
+                                    state.activeCloudModelId == cModel.id
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            onSelectCloudModel(provider.id, cModel.id)
+                                            onDismiss()
+                                        }
+                                        .padding(horizontal = 16.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier.width(24.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        if (selected) {
+                                            Icon(
+                                                imageVector = Icons.Default.Check,
+                                                contentDescription = null,
+                                                tint = scheme.accent,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = cModel.displayName,
+                                            color = scheme.textPrimary,
+                                            fontSize = 14.5.sp,
+                                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = buildString {
+                                                append(cModel.id)
+                                                if (cModel.supportsVision) append(" · Vision")
+                                            },
+                                            color = scheme.textSecondary,
+                                            fontSize = 11.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        HorizontalDivider(
+                            color = scheme.divider,
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(vertical = 4.dp)
+                        )
+                    }
+
+                    if (state.installedModels.isNotEmpty()) {
+                        Text(
+                            text = strings.localModelsHeader,
+                            color = scheme.textMuted,
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                    }
                     state.installedModels.forEach { model ->
-                        val selected = model.id == state.activeModelId
+                        val selected = state.engineMode == com.anongram.app.features.services.ai.data.AiEngineMode.LOCAL_GGUF &&
+                            model.id == state.activeModelId
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -171,6 +258,54 @@ fun LocalAiQuickModelMenu(
                                 )
                             }
                         }
+                    }
+
+                    HorizontalDivider(
+                        color = scheme.divider,
+                        thickness = 0.5.dp,
+                        modifier = Modifier.padding(vertical = 4.dp)
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onToggleWebTools(!state.webToolsEnabled) }
+                            .padding(horizontal = 16.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier.width(24.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Public,
+                                contentDescription = null,
+                                tint = if (state.webToolsEnabled) scheme.accent else scheme.textMuted,
+                                modifier = Modifier.size(17.dp)
+                            )
+                        }
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = strings.webToolsTitle,
+                                color = scheme.textPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = strings.webToolsSubtitle,
+                                color = scheme.textSecondary,
+                                fontSize = 11.sp,
+                                maxLines = 2
+                            )
+                        }
+                        Switch(
+                            checked = state.webToolsEnabled,
+                            onCheckedChange = onToggleWebTools,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = scheme.onAccent,
+                                checkedTrackColor = scheme.accent
+                            )
+                        )
                     }
 
                     HorizontalDivider(

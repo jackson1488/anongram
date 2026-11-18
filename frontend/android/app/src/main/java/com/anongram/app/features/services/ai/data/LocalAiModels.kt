@@ -80,6 +80,7 @@ data class AiMessage(
     val content: String,
     val thinking: String = "",
     val thinkingDurationSec: Float = 0f,
+    val toolSteps: List<String> = emptyList(),
     val attachments: List<AiAttachment> = emptyList(),
     val timestampMs: Long = System.currentTimeMillis()
 )

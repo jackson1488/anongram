@@ -21,8 +21,15 @@ import java.io.File
 import java.util.UUID
 
 data class LocalAiState(
+    val engineMode: AiEngineMode = AiEngineMode.LOCAL_GGUF,
     val activeModelId: String = AiCatalog.presets[3].id,
     val installedModels: List<InstalledAiModel> = emptyList(),
+    val cloudProviders: List<CloudProviderProfile> = emptyList(),
+    val activeCloudProviderId: String = "iishko",
+    val activeCloudModelId: String = "auto",
+    val webToolsEnabled: Boolean = true,
+    val isFetchingCloudModels: Boolean = false,
+    val cloudModelsError: String? = null,
     val downloadingModelId: String? = null,
     val downloadProgress: Float = 0f,
     val downloadedBytes: Long = 0L,
@@ -39,10 +46,31 @@ data class LocalAiState(
     val activeSessionId: String = "",
     val isGenerating: Boolean = false
 ) {
+    val activeCloudProvider: CloudProviderProfile?
+        get() = cloudProviders.firstOrNull { it.id == activeCloudProviderId }
+            ?: cloudProviders.firstOrNull()
+
+    val activeCloudModel: CloudModelInfo?
+        get() {
+            val prov = activeCloudProvider ?: return null
+            return prov.models.firstOrNull { it.id == activeCloudModelId }
+                ?: prov.models.firstOrNull()
+        }
+
     val activeModelDisplayName: String
-        get() = installedModels.firstOrNull { it.id == activeModelId }?.displayName
-            ?: AiCatalog.presets.firstOrNull { it.id == activeModelId }?.displayName
-            ?: activeModelId
+        get() = if (engineMode == AiEngineMode.CLOUD_OPENAI) {
+            val prov = activeCloudProvider
+            val mod = activeCloudModel
+            if (mod != null && prov != null) {
+                "${mod.displayName} · ${prov.name}"
+            } else {
+                activeCloudModelId
+            }
+        } else {
+            installedModels.firstOrNull { it.id == activeModelId }?.displayName
+                ?: AiCatalog.presets.firstOrNull { it.id == activeModelId }?.displayName
+                ?: activeModelId
+        }
 
     val activeSession: AiChatSession?
         get() = sessions.firstOrNull { it.id == activeSessionId }
@@ -86,7 +114,11 @@ data class LocalAiState(
 
 object LocalAiStore {
     private const val PREFS_NAME = "anongram_local_ai_prefs"
+    private const val KEY_ENGINE_MODE = "engine_mode"
     private const val KEY_ACTIVE_MODEL = "active_model_id"
+    private const val KEY_ACTIVE_CLOUD_PROVIDER = "active_cloud_provider_id"
+    private const val KEY_ACTIVE_CLOUD_MODEL = "active_cloud_model_id"
+    private const val KEY_WEB_TOOLS = "web_tools_enabled"
     private const val KEY_REASONING = "reasoning_level"
     private const val KEY_TEMP = "temperature"
     private const val KEY_THREADS = "cpu_threads"
@@ -110,6 +142,9 @@ object LocalAiStore {
         synchronized(this) {
             if (initialized) return
             val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val engineMode = runCatching {
+                AiEngineMode.valueOf(prefs.getString(KEY_ENGINE_MODE, AiEngineMode.LOCAL_GGUF.name)!!)
+            }.getOrDefault(AiEngineMode.LOCAL_GGUF)
             val reasoning = runCatching {
                 AiReasoningLevel.valueOf(prefs.getString(KEY_REASONING, AiReasoningLevel.MEDIUM.name)!!)
             }.getOrDefault(AiReasoningLevel.MEDIUM)
@@ -117,6 +152,7 @@ object LocalAiStore {
                 AiSystemPromptPreset.valueOf(prefs.getString(KEY_PROMPT_PRESET, AiSystemPromptPreset.DEFAULT.name)!!)
             }.getOrDefault(AiSystemPromptPreset.DEFAULT)
 
+            val cloudProviders = CloudAiConfigStore.loadProfiles(context)
             val savedSessions = parseSessions(prefs.getString(KEY_SESSIONS_JSON, null))
             val initialSession = savedSessions.firstOrNull() ?: AiChatSession(
                 id = UUID.randomUUID().toString(),
@@ -126,7 +162,12 @@ object LocalAiStore {
 
             _state.update {
                 it.copy(
+                    engineMode = engineMode,
                     activeModelId = prefs.getString(KEY_ACTIVE_MODEL, it.activeModelId) ?: it.activeModelId,
+                    cloudProviders = cloudProviders,
+                    activeCloudProviderId = prefs.getString(KEY_ACTIVE_CLOUD_PROVIDER, it.activeCloudProviderId) ?: it.activeCloudProviderId,
+                    activeCloudModelId = prefs.getString(KEY_ACTIVE_CLOUD_MODEL, it.activeCloudModelId) ?: it.activeCloudModelId,
+                    webToolsEnabled = prefs.getBoolean(KEY_WEB_TOOLS, true),
                     reasoningLevel = reasoning,
                     temperature = prefs.getFloat(KEY_TEMP, 0.7f).coerceIn(0f, 1.5f),
                     cpuThreads = prefs.getInt(KEY_THREADS, 4).coerceIn(1, 8),
@@ -176,8 +217,122 @@ object LocalAiStore {
 
     fun selectModel(context: Context, modelId: String) {
         ensureInitialized(context)
-        prefs(context).edit().putString(KEY_ACTIVE_MODEL, modelId).apply()
-        _state.update { it.copy(activeModelId = modelId) }
+        prefs(context).edit()
+            .putString(KEY_ENGINE_MODE, AiEngineMode.LOCAL_GGUF.name)
+            .putString(KEY_ACTIVE_MODEL, modelId)
+            .apply()
+        _state.update { it.copy(engineMode = AiEngineMode.LOCAL_GGUF, activeModelId = modelId) }
+    }
+
+    fun selectCloudModel(context: Context, providerId: String, modelId: String) {
+        ensureInitialized(context)
+        prefs(context).edit()
+            .putString(KEY_ENGINE_MODE, AiEngineMode.CLOUD_OPENAI.name)
+            .putString(KEY_ACTIVE_CLOUD_PROVIDER, providerId)
+            .putString(KEY_ACTIVE_CLOUD_MODEL, modelId)
+            .apply()
+        _state.update {
+            it.copy(
+                engineMode = AiEngineMode.CLOUD_OPENAI,
+                activeCloudProviderId = providerId,
+                activeCloudModelId = modelId
+            )
+        }
+    }
+
+    fun setWebToolsEnabled(context: Context, enabled: Boolean) {
+        ensureInitialized(context)
+        prefs(context).edit().putBoolean(KEY_WEB_TOOLS, enabled).apply()
+        _state.update { it.copy(webToolsEnabled = enabled) }
+    }
+
+    fun upsertCloudProvider(context: Context, profile: CloudProviderProfile, activate: Boolean = false) {
+        ensureInitialized(context)
+        val current = _state.value.cloudProviders.toMutableList()
+        val idx = current.indexOfFirst { it.id == profile.id }
+        if (idx >= 0) {
+            current[idx] = profile
+        } else {
+            current.add(0, profile)
+        }
+        CloudAiConfigStore.saveProfiles(context, current)
+        val firstModelId = profile.models.firstOrNull()?.id ?: _state.value.activeCloudModelId
+        if (activate) {
+            prefs(context).edit()
+                .putString(KEY_ENGINE_MODE, AiEngineMode.CLOUD_OPENAI.name)
+                .putString(KEY_ACTIVE_CLOUD_PROVIDER, profile.id)
+                .putString(KEY_ACTIVE_CLOUD_MODEL, firstModelId)
+                .apply()
+        }
+        _state.update { st ->
+            st.copy(
+                cloudProviders = current,
+                engineMode = if (activate) AiEngineMode.CLOUD_OPENAI else st.engineMode,
+                activeCloudProviderId = if (activate) profile.id else st.activeCloudProviderId,
+                activeCloudModelId = if (activate) firstModelId else st.activeCloudModelId
+            )
+        }
+    }
+
+    fun deleteCloudProvider(context: Context, providerId: String) {
+        ensureInitialized(context)
+        val filtered = _state.value.cloudProviders.filterNot { it.id == providerId }
+        CloudAiConfigStore.saveProfiles(context, filtered)
+        _state.update { st ->
+            val fallback = filtered.firstOrNull()
+            val nextMode = if (st.activeCloudProviderId == providerId && fallback == null) {
+                AiEngineMode.LOCAL_GGUF
+            } else {
+                st.engineMode
+            }
+            st.copy(
+                cloudProviders = filtered,
+                engineMode = nextMode,
+                activeCloudProviderId = if (st.activeCloudProviderId == providerId) (fallback?.id ?: "") else st.activeCloudProviderId,
+                activeCloudModelId = if (st.activeCloudProviderId == providerId) (fallback?.models?.firstOrNull()?.id ?: "") else st.activeCloudModelId
+            )
+        }
+    }
+
+    fun importCloudJsonConfig(context: Context, rawJson: String): Result<List<CloudProviderProfile>> {
+        ensureInitialized(context)
+        return runCatching {
+            val parsed = CloudAiConfigStore.importOpenCodeJson(rawJson)
+            if (parsed.isEmpty()) error("No valid OpenAI-compatible providers found in JSON")
+            parsed.forEachIndexed { idx, p ->
+                upsertCloudProvider(context, p, activate = idx == 0)
+            }
+            parsed
+        }
+    }
+
+    fun fetchCloudModels(context: Context, providerId: String) {
+        ensureInitialized(context)
+        val profile = _state.value.cloudProviders.firstOrNull { it.id == providerId } ?: return
+        if (profile.baseUrl.isBlank()) return
+        _state.update { it.copy(isFetchingCloudModels = true, cloudModelsError = null) }
+        scope.launch {
+            val res = OpenAiCompatibleClient.fetchModels(profile.baseUrl, profile.apiKey)
+            res.onSuccess { fetched ->
+                val merged = if (fetched.isEmpty()) {
+                    profile.models
+                } else {
+                    val existingMap = profile.models.associateBy { it.id }
+                    fetched.map { f ->
+                        existingMap[f.id]?.let { existing ->
+                            f.copy(
+                                displayName = existing.displayName,
+                                supportsVision = existing.supportsVision || f.supportsVision
+                            )
+                        } ?: f
+                    }
+                }
+                upsertCloudProvider(context, profile.copy(models = merged), activate = false)
+                _state.update { it.copy(isFetchingCloudModels = false, cloudModelsError = null) }
+            }.onFailure { err ->
+                _state.update { it.copy(isFetchingCloudModels = false, cloudModelsError = err.message ?: "Error") }
+            }
+        }
     }
 
     fun downloadPreset(context: Context, preset: AiModelPreset) {
@@ -595,6 +750,94 @@ object LocalAiStore {
         generationJob?.cancel()
         generationJob = scope.launch {
             val st = _state.value
+            if (st.engineMode == AiEngineMode.CLOUD_OPENAI) {
+                val provider = st.activeCloudProvider
+                val model = st.activeCloudModel
+                if (provider == null || model == null || provider.baseUrl.isBlank() || provider.apiKey.isBlank()) {
+                    val msg = if (isRussian) {
+                        "Не задан API-ключ или провайдер. Откройте «Модули → ИИ Сервисы» и добавьте ключ или импортируйте JSON."
+                    } else {
+                        "API key or provider is not configured. Open Modules → AI Services to add a key or import JSON."
+                    }
+                    updateAssistantMessage(sessionId, assistantMsgId) { it.copy(content = msg) }
+                    _state.update { it.copy(isGenerating = false) }
+                    persistSessions(context)
+                    return@launch
+                }
+
+                val coreSys = buildCoreSystemPrompt(isRussian = isRussian)
+                val userSys = st.effectiveSystemPrompt(isRussian).trim()
+                val fullSys = buildString {
+                    append(coreSys)
+                    if (userSys.isNotBlank()) {
+                        append("\n\n[User Instructions]\n").append(userSys)
+                    }
+                    if (!customThinking.isNullOrBlank()) {
+                        append("\n\nUse the following reasoning steps to form your final answer:\n").append(customThinking)
+                    }
+                }
+                val historyMsgs = _state.value.sessions
+                    .firstOrNull { it.id == sessionId }
+                    ?.messages
+                    ?.filter { it.id != assistantMsgId }
+                    .orEmpty()
+
+                val startNs = System.nanoTime()
+                val steps = mutableListOf<String>()
+                try {
+                    AiAgentRunner.runCloudTurn(
+                        context = context,
+                        provider = provider,
+                        model = model,
+                        systemPrompt = fullSys,
+                        historyMessages = historyMsgs,
+                        userPrompt = userPrompt,
+                        attachments = attachments,
+                        temperature = st.temperature,
+                        maxTokens = st.maxTokens,
+                        webToolsEnabled = st.webToolsEnabled,
+                        isRussian = isRussian,
+                        onToolStep = { label ->
+                            steps.add(label)
+                            val snapshot = steps.toList()
+                            updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                m.copy(toolSteps = snapshot)
+                            }
+                        },
+                        onStreamUpdate = { rawContent, rawReasoning ->
+                            val (tagThink, tagAnswer) = parseThinkingAndAnswer(rawContent)
+                            val combinedThink = listOf(rawReasoning.trim(), tagThink)
+                                .filter { it.isNotBlank() }
+                                .joinToString("\n\n")
+                            val finalAnswer = if (tagThink.isNotEmpty() || rawContent.contains("<think>")) tagAnswer else rawContent
+                            val elapsedSec = ((System.nanoTime() - startNs) / 1_000_000_000f)
+                            updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                                m.copy(
+                                    thinking = customThinking ?: combinedThink,
+                                    thinkingDurationSec = if (combinedThink.isNotEmpty() || customThinking != null) elapsedSec else 0f,
+                                    content = finalAnswer
+                                )
+                            }
+                        }
+                    )
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
+                } catch (e: Exception) {
+                    val errText = if (isRussian) {
+                        "Ошибка облачного ИИ (${provider.name}): ${e.message ?: "неизвестная ошибка"}"
+                    } else {
+                        "Cloud AI error (${provider.name}): ${e.message ?: "unknown error"}"
+                    }
+                    updateAssistantMessage(sessionId, assistantMsgId) { m ->
+                        if (m.content.isBlank()) m.copy(content = errText) else m
+                    }
+                } finally {
+                    _state.update { it.copy(isGenerating = false) }
+                    persistSessions(context)
+                }
+                return@launch
+            }
+
             val installed = st.installedModels.firstOrNull { it.id == st.activeModelId }
                 ?: st.installedModels.firstOrNull()
 

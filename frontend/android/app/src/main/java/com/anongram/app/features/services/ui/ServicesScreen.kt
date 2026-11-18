@@ -89,15 +89,15 @@ fun ServicesScreen(
             },
             title = aiStrings.title,
             accent = scheme.accent,
-            body = if (aiState.installedModels.isNotEmpty()) {
+            body = if (aiState.engineMode == com.anongram.app.features.services.ai.data.AiEngineMode.CLOUD_OPENAI || aiState.installedModels.isNotEmpty()) {
                 "${aiState.activeModelDisplayName} • ${aiStrings.reasoningLabel(aiState.reasoningLevel)}"
             } else {
                 aiStrings.emptyHeroSubtitle
             },
             detail = if (aiStrings.isRussian) {
-                "Чат, мысли, системный промпт, фото и файлы (llama.cpp)"
+                "Локальный ИИ (llama.cpp), облачные OpenAI API, веб-поиск, фото и файлы"
             } else {
-                "Chat, reasoning, system prompt, photos & files (llama.cpp)"
+                "Local AI (llama.cpp), cloud OpenAI APIs, web search, photos & files"
             },
             onClick = onOpenLocalAi
         )
