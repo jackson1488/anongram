@@ -414,26 +414,37 @@ fun LocalAiSettingsScreen(
     onOpenModules: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    var editorTarget by remember(visible) { mutableStateOf<com.anongram.app.features.services.ai.data.CloudProviderProfile?>(null) }
+    var isEditorOpen by remember(visible) { mutableStateOf(false) }
 
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
         exit = fadeOut()
     ) {
-        com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
-            title = strings.aiSettingsTitle,
-            onBack = onDismiss,
-            contentHorizontalPadding = 16.dp,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
+        Box(modifier = Modifier.fillMaxSize()) {
+            com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
+                title = strings.aiSettingsTitle,
+                onBack = onDismiss,
+                contentHorizontalPadding = 16.dp,
+                modifier = Modifier.fillMaxSize()
             ) {
-                com.anongram.app.features.settings.modules.ui.ai.CloudAiProvidersSection(
-                    state = state,
-                    isRu = strings.isRussian
-                )
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    com.anongram.app.features.settings.modules.ui.ai.CloudAiProvidersSection(
+                        state = state,
+                        isRu = strings.isRussian,
+                        onOpenAddProvider = {
+                            editorTarget = null
+                            isEditorOpen = true
+                        },
+                        onOpenEditProvider = { profile ->
+                            editorTarget = profile
+                            isEditorOpen = true
+                        }
+                    )
                     // Системный промпт (всегда редактируемый)
                     val activePromptText = if (state.systemPromptPreset == AiSystemPromptPreset.CUSTOM) {
                         state.customSystemPrompt
@@ -712,5 +723,19 @@ fun LocalAiSettingsScreen(
                     }
                 }
             }
+
+            AnimatedVisibility(
+                visible = isEditorOpen,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                CloudProviderEditorScreen(
+                    initialProvider = editorTarget,
+                    state = state,
+                    isRu = strings.isRussian,
+                    onBack = { isEditorOpen = false }
+                )
+            }
         }
+    }
 }

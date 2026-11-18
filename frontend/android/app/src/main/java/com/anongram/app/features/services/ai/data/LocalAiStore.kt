@@ -755,6 +755,20 @@ object LocalAiStore {
         generationJob?.cancel()
         generationJob = scope.launch {
             val st = _state.value
+            val resolvedCloudOrLocalAttachments = attachments.map { att ->
+                if (att.isImage || !att.textContent.isNullOrBlank()) {
+                    att
+                } else {
+                    val parsed = DocumentParser.extractText(
+                        context = context,
+                        uri = Uri.parse(att.uriString),
+                        isImage = false,
+                        mimeType = att.mimeType,
+                        fileName = att.name
+                    )
+                    if (parsed != null) att.copy(textContent = parsed) else att
+                }
+            }
             if (st.engineMode == AiEngineMode.CLOUD_OPENAI) {
                 val provider = st.activeCloudProvider
                 val model = st.activeCloudModel
@@ -797,7 +811,7 @@ object LocalAiStore {
                         systemPrompt = fullSys,
                         historyMessages = historyMsgs,
                         userPrompt = userPrompt,
-                        attachments = attachments,
+                        attachments = resolvedCloudOrLocalAttachments,
                         temperature = st.temperature,
                         maxTokens = st.maxTokens,
                         webToolsEnabled = st.webToolsEnabled,

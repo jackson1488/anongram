@@ -62,15 +62,15 @@ import com.anongram.app.features.services.ai.i18n.LocalAiI18n
 @Composable
 fun CloudAiProvidersSection(
     state: LocalAiState,
-    isRu: Boolean
+    isRu: Boolean,
+    onOpenAddProvider: () -> Unit = {},
+    onOpenEditProvider: (CloudProviderProfile) -> Unit = {}
 ) {
     val context = LocalContext.current
     val scheme = LocalAnonGramScheme.current
     val aiStrings = LocalAiI18n.current
 
-    var editingProvider by remember { mutableStateOf<CloudProviderProfile?>(null) }
     var showImportJsonDialog by remember { mutableStateOf(false) }
-    var showAddCustomDialog by remember { mutableStateOf(false) }
 
     val jsonFilePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
@@ -157,7 +157,7 @@ fun CloudAiProvidersSection(
                     .clip(RoundedCornerShape(20.dp))
                     .background(scheme.surface)
                     .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
-                    .clickable { showAddCustomDialog = true }
+                    .clickable { onOpenAddProvider() }
                     .padding(horizontal = 12.dp, vertical = 9.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -203,7 +203,7 @@ fun CloudAiProvidersSection(
                         color = if (isActiveProvider) scheme.accent else scheme.islandBorder,
                         shape = RoundedCornerShape(16.dp)
                     )
-                    .clickable { editingProvider = provider }
+                    .clickable { onOpenEditProvider(provider) }
                     .padding(horizontal = 12.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -245,38 +245,6 @@ fun CloudAiProvidersSection(
         }
     }
 
-    editingProvider?.let { initial ->
-        val current = state.cloudProviders.firstOrNull { it.id == initial.id } ?: initial
-        EditCloudProviderDialog(
-            provider = current,
-            isRu = isRu,
-            isFetchingModels = state.isFetchingCloudModels,
-            fetchError = state.cloudModelsError,
-            activeModelId = if (state.engineMode == AiEngineMode.CLOUD_OPENAI && state.activeCloudProviderId == current.id) {
-                state.activeCloudModelId
-            } else null,
-            onDismiss = { editingProvider = null },
-            onSave = { updated ->
-                LocalAiStore.upsertCloudProvider(context, updated, activate = updated.apiKey.isNotBlank())
-                editingProvider = null
-            },
-            onFetchModels = { updated ->
-                LocalAiStore.upsertCloudProvider(context, updated, activate = false)
-                LocalAiStore.fetchCloudModels(context, updated.id)
-            },
-            onSelectModel = { modelId ->
-                LocalAiStore.selectCloudModel(context, current.id, modelId)
-                editingProvider = null
-            },
-            onDelete = if (!current.isPreset) {
-                {
-                    LocalAiStore.deleteCloudProvider(context, current.id)
-                    editingProvider = null
-                }
-            } else null
-        )
-    }
-
     if (showImportJsonDialog) {
         ImportOpenCodeJsonDialog(
             isRu = isRu,
@@ -295,37 +263,6 @@ fun CloudAiProvidersSection(
                     .onFailure { err ->
                         Toast.makeText(context, err.message ?: "Invalid JSON", Toast.LENGTH_LONG).show()
                     }
-            }
-        )
-    }
-
-    if (showAddCustomDialog) {
-        AddCustomProviderDialog(
-            presets = state.cloudProviders.filter { it.isPreset },
-            isRu = isRu,
-            onDismiss = { showAddCustomDialog = false },
-            onAdd = { selectedPreset, name, baseUrl, apiKey, modelId ->
-                val cleanId = selectedPreset?.id ?: name.lowercase().replace(Regex("[^a-z0-9_-]"), "_").ifBlank {
-                    "custom_${System.currentTimeMillis()}"
-                }
-                val models = when {
-                    modelId.isNotBlank() -> {
-                        val custom = CloudModelInfo(modelId.trim(), modelId.trim(), supportsVision = true)
-                        ((selectedPreset?.models ?: emptyList()) + custom).distinctBy { it.id }
-                    }
-                    selectedPreset != null && selectedPreset.models.isNotEmpty() -> selectedPreset.models
-                    else -> listOf(CloudModelInfo("gpt-4o-mini", "gpt-4o-mini", supportsVision = true))
-                }
-                val profile = CloudProviderProfile(
-                    id = cleanId,
-                    name = name.ifBlank { selectedPreset?.name ?: "Custom API" },
-                    baseUrl = baseUrl.trim().trimEnd('/'),
-                    apiKey = apiKey.trim(),
-                    models = models,
-                    isPreset = selectedPreset != null
-                )
-                LocalAiStore.upsertCloudProvider(context, profile, activate = apiKey.isNotBlank())
-                showAddCustomDialog = false
             }
         )
     }
