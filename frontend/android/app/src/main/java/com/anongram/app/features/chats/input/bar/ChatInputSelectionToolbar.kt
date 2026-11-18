@@ -194,13 +194,17 @@ private class AnchorRectPopupPositionProvider(
         layoutDirection: LayoutDirection,
         popupContentSize: IntSize
     ): IntOffset {
-        val centerX = ((rect.left + rect.right) / 2f).roundToInt()
+        val left = rect.left.takeIf { it.isFinite() } ?: 0f
+        val right = rect.right.takeIf { it.isFinite() } ?: left
+        val top = rect.top.takeIf { it.isFinite() } ?: 0f
+        val bottom = rect.bottom.takeIf { it.isFinite() } ?: top
+        val centerX = ((left + right) / 2f).roundToInt()
         val rawX = centerX - popupContentSize.width / 2
         val maxX = (windowSize.width - popupContentSize.width - marginPx).coerceAtLeast(marginPx)
         val x = rawX.coerceIn(marginPx, maxX)
 
-        val aboveY = rect.top.roundToInt() - popupContentSize.height - gapPx
-        val belowY = rect.bottom.roundToInt() + gapPx
+        val aboveY = top.roundToInt() - popupContentSize.height - gapPx
+        val belowY = bottom.roundToInt() + gapPx
         val maxY = (windowSize.height - popupContentSize.height - marginPx).coerceAtLeast(marginPx)
         val y = if (aboveY >= marginPx) aboveY else belowY.coerceIn(marginPx, maxY)
         return IntOffset(x, y)
