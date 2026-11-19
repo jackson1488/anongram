@@ -2,6 +2,7 @@ package com.anongram.app.features.chats.mainmenu.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
@@ -18,7 +20,6 @@ import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -28,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -36,26 +36,45 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.NeonEmerald
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.settings.common.ui.settingsGlassPill
+import dev.chrisbanes.haze.HazeState
 
-/** Топбар главного меню: название, onion-статус, поиск и три точки справа. */
+/**
+ * Топбар главного меню чатов (Telegram Liquid Glass):
+ * название, тематический onion-статус и стеклянный островок «Поиск + Меню».
+ */
 @Composable
 internal fun ChatsTopBar(
     onOpenSearch: () -> Unit,
     onEnterSelection: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
+    glassBlurEnabled: Boolean = true
 ) {
     val scheme = LocalAnonGramScheme.current
-    val onionBg = if (scheme.isDark) Color(0xFF0F261E) else Color(0xFFE6F7F0)
-    val onionTint = if (scheme.isDark) NeonEmerald else Color(0xFF059669)
+    val onionBg = scheme.accentSoft
+    val onionTint = scheme.accent
     var menuOpen by remember { mutableStateOf(false) }
+
+    val islandModifier = if (hazeState != null) {
+        Modifier.settingsGlassPill(
+            hazeState = hazeState,
+            shape = RoundedCornerShape(22.dp),
+            glassBlurEnabled = glassBlurEnabled
+        )
+    } else {
+        Modifier
+            .clip(RoundedCornerShape(22.dp))
+            .background(scheme.islandBg.copy(alpha = 0.90f))
+            .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
+    }
 
     Row(
         modifier = modifier
             .fillMaxWidth()
             .safeStatusBarPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(
@@ -73,7 +92,7 @@ internal fun ChatsTopBar(
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(onionBg)
-                    .border(1.dp, onionTint.copy(alpha = 0.5f), CircleShape)
+                    .border(1.dp, onionTint.copy(alpha = 0.45f), CircleShape)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -94,24 +113,45 @@ internal fun ChatsTopBar(
             }
         }
 
-        IconButton(onClick = onOpenSearch) {
-            Icon(
-                imageVector = Icons.Outlined.Search,
-                contentDescription = "Поиск",
-                tint = scheme.accent,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-
+        // Стеклянный островок Поиск + Меню 3 точки (как в шапке Настроек)
         Box {
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(
-                    imageVector = Icons.Outlined.MoreVert,
-                    contentDescription = "Меню",
-                    tint = scheme.textSecondary,
-                    modifier = Modifier.size(22.dp)
-                )
+            Row(
+                modifier = islandModifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onOpenSearch),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Search,
+                        contentDescription = "Поиск",
+                        tint = scheme.textPrimary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(2.dp))
+
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .clickable { menuOpen = true },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.MoreVert,
+                        contentDescription = "Меню",
+                        tint = scheme.textPrimary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
             }
+
             DropdownMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
