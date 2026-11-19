@@ -4,6 +4,7 @@ import { AVATAR_GRADIENTS } from '../../core/crypto/identity';
 import { clear, el } from '../../core/ui/dom';
 import { icons } from '../../core/ui/icons';
 import { authStore } from '../auth/authStore';
+import { createCallsView } from '../calls/CallsView';
 import { createChatListView } from '../chats/ChatListView';
 import { createChatRoomView } from '../chats/ChatRoomView';
 import '../chats/chats.css';
@@ -21,7 +22,7 @@ import '../settings/settings.css';
 import { createAppHeader } from './components/AppHeader';
 
 type MainTab = 'chats' | 'services' | 'settings' | 'profile';
-type Cleanable = HTMLElement & { __cleanup?: () => void; __refresh?: () => void };
+type Cleanable = HTMLElement & { __cleanup?: () => void; __refresh?: () => void; __openArchive?: () => void };
 
 /**
  * Responsive shell.
@@ -108,77 +109,121 @@ export function createAppShell(): HTMLElement {
     }
   };
 
+  /** Telegram Web style compact dropdown menu anchored under the hamburger button. */
   const openDrawer = () => {
     const t = i18nStore.t;
     const id = authStore.identity;
     const grad = AVATAR_GRADIENTS[id?.avatarIndex ?? 0];
+    const archivedCount = chatStore.threads.filter((th) => th.isArchived).length;
     const close = () => scrim.remove();
 
-    const item = (icon: SVGElement, label: string, action: () => void) =>
+    const item = (icon: SVGElement, label: string, action: () => void, badge?: string, trailing?: HTMLElement) =>
       el(
         'button',
         {
-          class: 'ag-drawer__item',
+          class: 'ag-pop__item',
           onClick: () => {
-            close();
+            if (!trailing) close();
             action();
           },
         },
         icon,
-        el('span', null, label),
+        el('span', { class: 'ag-pop__label' }, label),
+        badge ? el('span', { class: 'ag-pop__badge' }, badge) : null,
+        trailing ?? null,
       );
 
+    const nightSwitch = el('span', { class: `ag-switch ag-switch--sm ${themeStore.scheme.isDark ? 'is-on' : ''}` }, el('span', { class: 'ag-switch__thumb' }));
+
     const panel = el(
-      'aside',
-      { class: 'ag-drawer' },
+      'div',
+      { class: 'ag-pop' },
       el(
         'div',
-        { class: 'ag-drawer__head' },
+        { class: 'ag-pop__account' },
         el(
           'div',
           {
-            class: 'ag-avatar',
-            style: `background:linear-gradient(135deg, ${grad[0]}, ${grad[1]});color:#fff;border:none;font-weight:700;`,
+            class: 'ag-pop__avatar',
+            style: `background:linear-gradient(135deg, ${grad[0]}, ${grad[1]});`,
           },
           (id?.displayName ?? 'G').slice(0, 1).toUpperCase(),
         ),
-        el('strong', null, id?.displayName ?? 'Ghost'),
-        el('span', null, id?.username ?? ''),
+        el('span', { class: 'ag-pop__label' }, id?.displayName ?? 'Ghost'),
       ),
-      el(
-        'div',
-        { class: 'ag-drawer__list' },
-        item(icons.bookmark(20), t.chats.savedMessages, () => {
+      el('div', { class: 'ag-pop__sep' }),
+      item(icons.bookmark(18), t.chats.savedMessages, () => {
+        goTab('chats');
+        selectChat('saved');
+      }),
+      item(
+        icons.archive(18),
+        'Архив чатов',
+        () => {
           goTab('chats');
-          selectChat('saved');
-        }),
-        item(icons.users(20), 'Контакты', () =>
-          openContactsOverlay((chatId) => {
-            goTab('chats');
-            selectChat(chatId);
-          }),
-        ),
-        item(icons.chats(20), t.nav.chats, () => goTab('chats')),
-        item(icons.shield(20), t.nav.services, () => goTab('services')),
-        item(icons.user(20), t.nav.profile, () => goTab('profile')),
-        item(icons.settings(20), t.nav.settings, () => goTab('settings')),
-        item(icons.qr(20), t.nav.qrHub, () => openQrHubOverlay()),
-        item(icons.moon(20), themeStore.scheme.isDark ? 'Светлая тема' : 'Тёмная тема', () =>
-          themeStore.selectPreset(themeStore.scheme.isDark ? 'telegram_day' : 'telegram_night'),
-        ),
+          chatListRef?.__openArchive?.();
+        },
+        archivedCount > 0 ? String(archivedCount) : undefined,
       ),
-      el('div', { class: 'ag-drawer__foot' }, 'AnonGram Web • Onion v3'),
+      item(icons.users(18), 'Контакты', () =>
+        openContactsOverlay((chatId) => {
+          goTab('chats');
+          selectChat(chatId);
+        }),
+      ),
+      item(icons.phone(18), 'Звонки', () => openCallsModal()),
+      item(icons.shield(18), t.nav.services, () => goTab('services')),
+      item(icons.qr(18), t.nav.qrHub, () => openQrHubOverlay()),
+      el('div', { class: 'ag-pop__sep' }),
+      item(icons.settings(18), t.nav.settings, () => goTab('settings')),
+      item(
+        icons.moon(18),
+        'Ночной режим',
+        () => {
+          themeStore.selectPreset(themeStore.scheme.isDark ? 'telegram_day' : 'telegram_night');
+          nightSwitch.classList.toggle('is-on', themeStore.scheme.isDark);
+        },
+        undefined,
+        nightSwitch,
+      ),
+      el('div', { class: 'ag-pop__foot' }, 'AnonGram Web • Onion v3'),
     );
 
     const scrim = el('div', {
-      class: 'ag-drawer-scrim',
+      class: 'ag-pop-scrim',
       onClick: (e: Event) => {
         if (e.target === scrim) close();
+      },
+      onContextMenu: (e: Event) => {
+        e.preventDefault();
+        close();
       },
     });
     scrim.appendChild(panel);
     document.body.appendChild(scrim);
     requestAnimationFrame(() => scrim.classList.add('is-open'));
+  };
+
+  const openCallsModal = () => {
+    const overlay = el('div', {
+      class: 'ag-modal-overlay',
+      onClick: (e: Event) => {
+        if (e.target === overlay) overlay.remove();
+      },
+    });
+    const box = el(
+      'div',
+      { class: 'ag-card ag-forward-modal', style: 'max-width:420px;height:70vh;display:flex;flex-direction:column;padding:0;overflow:hidden;' },
+      el(
+        'div',
+        { class: 'ag-chat-header' },
+        el('div', { class: 'ag-chat-header__title' }, 'Звонки'),
+        el('button', { class: 'ag-icon-btn', onClick: () => overlay.remove() }, icons.close(18)),
+      ),
+      createCallsView(),
+    );
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
   };
 
   const render = () => {
@@ -327,7 +372,7 @@ export function createAppShell(): HTMLElement {
     }
 
     if (e.key === 'Escape') {
-      const scrim = document.querySelector('.ag-drawer-scrim');
+      const scrim = document.querySelector('.ag-pop-scrim');
       if (scrim) {
         scrim.remove();
         return;

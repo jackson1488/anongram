@@ -332,6 +332,10 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
 
   // Lets the shell highlight the active chat without rebuilding the pane (search keeps focus/text).
   (root as unknown as { __refresh?: () => void }).__refresh = refresh;
+  (root as unknown as { __openArchive?: () => void }).__openArchive = () => {
+    inArchive = true;
+    showArchive();
+  };
   (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
     u1();
     u2();

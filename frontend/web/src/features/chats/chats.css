@@ -1151,99 +1151,174 @@
   gap: 6px;
 }
 
-.ag-drawer-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: transparent;
-  transition: background-color 0.2s ease;
-}
-
-.ag-drawer-scrim.is-open {
-  background: var(--ag-overlay-scrim);
-}
-
-.ag-drawer {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 300px;
-  max-width: 86vw;
-  display: flex;
-  flex-direction: column;
-  background: var(--ag-surface);
-  border-right: 1px solid var(--ag-divider);
-  box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
-  transform: translateX(-100%);
-  transition: transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
-}
-
-.ag-drawer-scrim.is-open .ag-drawer {
-  transform: translateX(0);
-}
-
-.ag-drawer__head {
-  padding: 22px 18px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: var(--ag-card);
-  border-bottom: 1px solid var(--ag-divider);
-}
-
-.ag-drawer__head .ag-avatar {
-  margin-bottom: 8px;
-}
-
-.ag-drawer__head strong {
-  font-size: 16px;
-}
-
-.ag-drawer__head span {
-  font-size: 13px;
-  color: var(--ag-text-secondary);
-}
-
-.ag-drawer__list {
-  flex: 1;
-  overflow-y: auto;
-  padding: 8px;
-}
-
-.ag-drawer__item {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 14px;
-  border-radius: 14px;
-  font-size: 14px;
-  font-weight: 550;
-  text-align: left;
-  color: var(--ag-text-primary);
-}
-
-.ag-drawer__item svg {
-  color: var(--ag-text-secondary);
-}
-
-.ag-drawer__item:hover {
-  background: var(--ag-accent-soft);
-}
-
-.ag-drawer__foot {
-  padding: 14px 18px;
-  font-size: 12px;
-  color: var(--ag-text-muted);
-  border-top: 1px solid var(--ag-divider);
-}
-
 @media (min-width: 840px) {
   .ag-left-pane {
     width: 380px;
   }
   .ag-app-header {
     display: none;
+  }
+}
+
+/* ---- Telegram Web style compact dropdown menu ---- */
+.ag-pop-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+}
+
+.ag-pop {
+  position: absolute;
+  left: 14px;
+  top: 58px;
+  width: 248px;
+  padding: 6px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--ag-surface) 92%, transparent);
+  backdrop-filter: blur(22px);
+  border: 1px solid var(--ag-card-border);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5);
+  transform-origin: top left;
+  transform: scale(0.92);
+  opacity: 0;
+  transition: transform 0.14s ease, opacity 0.14s ease;
+}
+
+.ag-pop-scrim.is-open .ag-pop {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.ag-pop__account {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ag-pop__avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ag-pop__sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--ag-divider);
+}
+
+.ag-pop__item {
+  width: 100%;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ag-text-primary);
+  text-align: left;
+}
+
+.ag-pop__item svg {
+  color: var(--ag-text-secondary);
+  flex-shrink: 0;
+}
+
+.ag-pop__item:hover {
+  background: var(--ag-accent-soft);
+}
+
+.ag-pop__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ag-pop__badge {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--ag-divider);
+  color: var(--ag-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ag-pop__foot {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  color: var(--ag-text-muted);
+}
+
+.ag-switch--sm {
+  width: 30px;
+  height: 18px;
+  padding: 2px;
+}
+
+.ag-switch--sm .ag-switch__thumb {
+  width: 14px;
+  height: 14px;
+}
+
+.ag-switch--sm.is-on .ag-switch__thumb {
+  transform: translateX(12px);
+}
+
+/* ---- Desktop: floating rounded panels like Telegram Web ---- */
+@media (min-width: 840px) {
+  .ag-shell {
+    background: var(--ag-bg);
+  }
+
+  .ag-shell-body {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .ag-left-pane {
+    border-right: none;
+    border-radius: 20px;
+    overflow: hidden;
+    background: var(--ag-surface);
+    border: 1px solid var(--ag-divider);
+  }
+
+  .ag-right-pane {
+    border-radius: 20px;
+    overflow: hidden;
+    border: 1px solid var(--ag-divider);
+  }
+
+  .ag-chat-header {
+    border-bottom: none;
+  }
+
+  .ag-composer {
+    border-top: none;
+    background: transparent;
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .ag-messages-scroll {
+    padding-left: max(14px, calc((100% - 760px) / 2));
+    padding-right: max(14px, calc((100% - 760px) / 2));
   }
 }
