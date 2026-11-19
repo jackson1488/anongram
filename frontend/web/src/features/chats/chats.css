@@ -82,6 +82,117 @@
   background: #10b981;
 }
 
+.ag-onion-badge.is-offline {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: #f59e0b;
+}
+
+.ag-onion-badge.is-offline .ag-onion-dot {
+  background: #f59e0b;
+}
+
+.ag-onion-banner {
+  margin: 0 14px 8px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: var(--ag-text-secondary);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ag-onion-banner svg {
+  color: #f59e0b;
+  flex-shrink: 0;
+}
+
+.ag-archive-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: background-color 0.14s ease;
+}
+
+.ag-archive-pill:hover {
+  background: var(--ag-surface);
+}
+
+.ag-archive-pill__icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.14);
+  color: var(--ag-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ag-archive-pill__count {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.24);
+  color: var(--ag-text-secondary);
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ag-chats-fab {
+  position: absolute;
+  right: 16px;
+  bottom: 92px;
+  z-index: 30;
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--ag-card), var(--ag-surface));
+  border: 1.5px solid var(--ag-accent);
+  color: var(--ag-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px var(--ag-accent-soft);
+  transition: transform 0.14s ease;
+}
+
+.ag-chats-fab:active {
+  transform: scale(0.94);
+}
+
+@media (min-width: 840px) {
+  .ag-chats-fab {
+    bottom: 20px;
+  }
+}
+
+.ag-draft-prefix {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.ag-otp-badge {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.16);
+  color: #ef4444;
+  font-size: 10px;
+  font-weight: 700;
+}
+
 /* Floating Island (1-to-1 Android MainFloatingIsland.kt: 4 tabs + elevated center Stealth QR) */
 .ag-island-wrap {
   position: fixed;

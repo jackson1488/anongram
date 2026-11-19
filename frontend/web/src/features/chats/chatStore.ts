@@ -56,6 +56,17 @@ const INITIAL_THREADS: ChatThread[] = [
     isPinned: false,
     unreadCount: 0,
   },
+  {
+    id: 'archived_relay',
+    title: 'Onion Relay Logs',
+    avatarEmoji: '🧅',
+    avatarColor: '#64748B',
+    statusText: 'архивный узел',
+    isOnline: false,
+    isPinned: false,
+    unreadCount: 0,
+    isArchived: true,
+  },
 ];
 
 const now = Date.now();
@@ -155,11 +166,21 @@ function formatTime(date = new Date()): string {
 class ChatStore {
   private threadList: ChatThread[];
   private messagesMap: Record<string, ChatMessage[]>;
+  private isOnionOnline = true;
   private listeners = new Set<ChatListener>();
 
   constructor() {
     this.threadList = kvStore.getJson<ChatThread[]>(KEY_THREADS, INITIAL_THREADS);
     this.messagesMap = kvStore.getJson<Record<string, ChatMessage[]>>(KEY_MESSAGES, INITIAL_MESSAGES);
+  }
+
+  get onionOnline(): boolean {
+    return this.isOnionOnline;
+  }
+
+  toggleOnionOnline(): void {
+    this.isOnionOnline = !this.isOnionOnline;
+    this.emit();
   }
 
   get threads(): ChatThread[] {
@@ -198,6 +219,43 @@ class ChatStore {
     );
     this.persist();
     this.emit();
+  }
+
+  toggleArchive(chatId: string): void {
+    this.threadList = this.threadList.map((t) =>
+      t.id === chatId ? { ...t, isArchived: !t.isArchived, isPinned: false } : t,
+    );
+    this.persist();
+    this.emit();
+  }
+
+  ensureChat(
+    id: string,
+    title: string,
+    avatarEmoji: string,
+    avatarColor: string,
+    isOtpBurn: boolean,
+  ): string {
+    const existing = this.threadList.find((t) => t.id === id);
+    if (!existing) {
+      this.threadList = [
+        {
+          id,
+          title,
+          avatarEmoji,
+          avatarColor,
+          statusText: isOtpBurn ? 'сгораемый OTP-канал' : 'в сети',
+          isOnline: true,
+          isPinned: false,
+          unreadCount: 0,
+          isOtpBurn,
+        },
+        ...this.threadList,
+      ];
+      this.persist();
+      this.emit();
+    }
+    return id;
   }
 
   sendMessage(

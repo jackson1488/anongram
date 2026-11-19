@@ -3,6 +3,7 @@ import { clear, copyToClipboard, el } from '../../core/ui/dom';
 import { icons } from '../../core/ui/icons';
 import { showToast } from '../../core/ui/toast';
 import { openActiveCallModal } from '../calls/CallsView';
+import { draftsStore } from '../drafts/draftsStore';
 import { audioPlayer, createMiniAudioPlayerBar } from '../player/audioPlayer';
 import { chatStore } from './chatStore';
 import type { AttachmentType, ChatMessage, MessageAttachment, ReplyPreview } from './models';
@@ -63,7 +64,7 @@ export function createChatRoomView(
   const root = el('div', { class: 'ag-chat-room' });
   let replyTarget: ReplyPreview | null = null;
   let openPanel: 'none' | 'emoji' | 'attach' = 'none';
-  let draftText = '';
+  let draftText = draftsStore.getDraft(chatId)?.text ?? '';
   let contextMenuEl: HTMLElement | null = null;
 
   const closeContextMenu = () => {
@@ -393,6 +394,7 @@ export function createChatRoomView(
       value: draftText,
       onInput: (e: Event) => {
         draftText = (e.target as HTMLInputElement).value;
+        draftsStore.setDraft(chatId, draftText, replyTarget?.messageId, replyTarget?.snippet);
       },
       onKeyDown: (e: Event) => {
         const ke = e as KeyboardEvent;
@@ -409,6 +411,7 @@ export function createChatRoomView(
       draftText = '';
       replyTarget = null;
       openPanel = 'none';
+      draftsStore.clearDraft(chatId);
       render();
     };
 

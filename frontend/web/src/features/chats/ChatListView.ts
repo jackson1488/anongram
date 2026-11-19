@@ -1,6 +1,8 @@
 import { i18nStore } from '../../core/i18n/i18nStore';
 import { clear, el } from '../../core/ui/dom';
 import { icons } from '../../core/ui/icons';
+import { openContactsOverlay } from '../contacts/ContactsOverlay';
+import { draftsStore } from '../drafts/draftsStore';
 import { chatStore } from './chatStore';
 import type { ChatFolder } from './models';
 
@@ -11,15 +13,74 @@ export interface ChatListCallbacks {
 }
 
 export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
-  const root = el('div', { class: 'ag-list-pane' });
+  const root = el('div', { class: 'ag-list-pane', style: 'position:relative;' });
   let query = '';
   let folder: ChatFolder = 'all';
+  let inArchive = false;
   let searchInputRef: HTMLInputElement | null = null;
 
   const render = () => {
     clear(root);
     const t = i18nStore.t;
     const activeId = callbacks.getActiveChatId();
+
+    if (inArchive) {
+      root.appendChild(
+        el(
+          'div',
+          { class: 'ag-chat-header' },
+          el(
+            'button',
+            {
+              class: 'ag-icon-btn',
+              onClick: () => {
+                inArchive = false;
+                render();
+              },
+            },
+            icons.back(20),
+          ),
+          el('div', { class: 'ag-chat-header__title' }, 'Архив'),
+        ),
+      );
+      const archList = el('div', { class: 'ag-scroll-list' });
+      const archived = chatStore.threads.filter((th) => th.isArchived);
+      if (archived.length === 0) {
+        archList.appendChild(el('div', { class: 'ag-empty-inline' }, 'Архив пуст'));
+      } else {
+        for (const thread of archived) {
+          archList.appendChild(
+            el(
+              'div',
+              {
+                class: `ag-chat-row ${activeId === thread.id ? 'is-selected' : ''}`,
+                onClick: () => callbacks.onSelectChat(thread.id),
+              },
+              el('div', { class: 'ag-avatar', style: `background:${thread.avatarColor}22` }, thread.avatarEmoji),
+              el(
+                'div',
+                { class: 'ag-chat-row__body' },
+                el('div', { class: 'ag-chat-row__title' }, thread.title),
+                el('div', { class: 'ag-chat-row__preview' }, thread.statusText),
+              ),
+              el(
+                'button',
+                {
+                  class: 'ag-chip',
+                  onClick: (e: Event) => {
+                    e.stopPropagation();
+                    chatStore.toggleArchive(thread.id);
+                  },
+                },
+                'Вернуть',
+              ),
+            ),
+          );
+        }
+      }
+      root.appendChild(archList);
+      return;
+    }
 
     const searchInput = el('input', {
       type: 'text',
@@ -31,14 +92,6 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
       },
     }) as HTMLInputElement;
     searchInputRef = searchInput;
-
-    root.appendChild(
-      el(
-        'div',
-        { class: 'ag-pane-header' },
-        el('h1', { class: 'ag-pane-title' }, t.chats.title),
-      ),
-    );
 
     root.appendChild(
       el(
@@ -66,6 +119,17 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
         ),
       ),
     );
+
+    if (!chatStore.onionOnline) {
+      root.appendChild(
+        el(
+          'div',
+          { class: 'ag-onion-banner' },
+          icons.alert(16),
+          el('span', null, 'Onion-сеть недоступна — исходящие ждут в очереди шифрования'),
+        ),
+      );
+    }
 
     const folders: Array<{ id: ChatFolder; label: string }> = [
       { id: 'all', label: t.chats.folderAll },
@@ -99,7 +163,38 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
     const renderListOnly = () => {
       clear(listWrap);
       const q = query.trim().toLowerCase();
+
+      // ArchivePill (1-to-1 Android ArchivePill.kt)
+      const archivedThreads = chatStore.threads.filter((th) => th.isArchived);
+      if (archivedThreads.length > 0 && !q && folder === 'all') {
+        const preview = archivedThreads
+          .slice(0, 2)
+          .map((th) => th.title)
+          .join(', ');
+        listWrap.appendChild(
+          el(
+            'div',
+            {
+              class: 'ag-archive-pill',
+              onClick: () => {
+                inArchive = true;
+                render();
+              },
+            },
+            el('div', { class: 'ag-archive-pill__icon' }, icons.archive(20)),
+            el(
+              'div',
+              { class: 'ag-chat-row__body' },
+              el('div', { class: 'ag-chat-row__title' }, 'Архив'),
+              el('div', { class: 'ag-chat-row__preview' }, preview),
+            ),
+            el('span', { class: 'ag-archive-pill__count' }, String(archivedThreads.length)),
+          ),
+        );
+      }
+
       const threads = chatStore.threads.filter((thread) => {
+        if (thread.isArchived) return false;
         if (folder === 'unread' && thread.unreadCount === 0) return false;
         if (folder === 'pinned' && !thread.isPinned) return false;
         if (!q) return true;
@@ -117,11 +212,23 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
 
       for (const thread of threads) {
         const last = chatStore.getLastMessage(thread.id);
-        const previewText = last
-          ? last.attachment && !last.text
-            ? `📎 ${last.attachment.title}`
-            : last.text
-          : t.chats.noMessages;
+        const draft = draftsStore.getDraft(thread.id);
+        const previewNode = draft
+          ? el(
+              'span',
+              { class: 'ag-chat-row__preview' },
+              el('span', { class: 'ag-draft-prefix' }, 'Черновик: '),
+              draft.text || draft.replySnippet || 'В ответ на сообщение',
+            )
+          : el(
+              'span',
+              { class: 'ag-chat-row__preview' },
+              last
+                ? last.attachment && !last.text
+                  ? `📎 ${last.attachment.title}`
+                  : last.text
+                : t.chats.noMessages,
+            );
 
         listWrap.appendChild(
           el(
@@ -148,13 +255,18 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
               el(
                 'div',
                 { class: 'ag-chat-row__top' },
-                el('span', { class: 'ag-chat-row__title' }, thread.title),
+                el(
+                  'span',
+                  { class: 'ag-chat-row__title' },
+                  thread.title,
+                  thread.isOtpBurn ? el('span', { class: 'ag-otp-badge' }, 'OTP') : null,
+                ),
                 el('span', { class: 'ag-chat-row__time' }, last?.timestamp ?? ''),
               ),
               el(
                 'div',
                 { class: 'ag-chat-row__bottom' },
-                el('span', { class: 'ag-chat-row__preview' }, previewText),
+                previewNode,
                 thread.unreadCount > 0
                   ? el('span', { class: 'ag-unread-badge' }, String(thread.unreadCount))
                   : thread.isPinned
@@ -168,6 +280,23 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
     };
 
     renderListOnly();
+
+    // ChatsFab (1-to-1 Android ChatsFab.kt)
+    root.appendChild(
+      el(
+        'button',
+        {
+          class: 'ag-chats-fab',
+          title: 'Новое сообщение',
+          onClick: () =>
+            openContactsOverlay((chatId) => {
+              chatStore.markRead(chatId);
+              callbacks.onSelectChat(chatId);
+            }),
+        },
+        icons.edit(22),
+      ),
+    );
   };
 
   if (callbacks.focusSearchSignal) {
@@ -176,8 +305,16 @@ export function createChatListView(callbacks: ChatListCallbacks): HTMLElement {
     });
   }
 
-  chatStore.subscribe(render);
-  i18nStore.subscribe(render);
+  const u1 = chatStore.subscribe(render);
+  const u2 = draftsStore.subscribe(render);
+  const u3 = i18nStore.subscribe(render);
   render();
+
+  (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
+    u1();
+    u2();
+    u3();
+  };
+
   return root;
 }

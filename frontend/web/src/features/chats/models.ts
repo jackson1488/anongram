@@ -48,4 +48,6 @@ export interface ChatThread {
   isPinned: boolean;
   unreadCount: number;
   isSavedMessages?: boolean;
+  isArchived?: boolean;
+  isOtpBurn?: boolean;
 }
