@@ -388,6 +388,7 @@ export function createChatRoomView(
     }
 
     // Input bar
+    let updateFab: () => void = () => {};
     const input = el('input', {
       type: 'text',
       class: 'ag-msg-input',
@@ -395,6 +396,7 @@ export function createChatRoomView(
       value: draftText,
       onInput: (e: Event) => {
         draftText = (e.target as HTMLInputElement).value;
+        updateFab();
         draftsStore.setDraft(chatId, draftText, replyTarget?.messageId, replyTarget?.snippet);
       },
       onKeyDown: (e: Event) => {
@@ -415,6 +417,31 @@ export function createChatRoomView(
       draftsStore.clearDraft(chatId);
       refocusNext = true;
       render();
+    };
+
+    const fab = el(
+      'button',
+      {
+        class: 'ag-send-fab',
+        title: t.input.send,
+        onClick: () => {
+          if (draftText.trim()) {
+            sendCurrent();
+          } else {
+            chatStore.sendMessage(chatId, '', replyTarget ?? undefined, {
+              type: 'voice',
+              title: t.input.attachVoice,
+              durationSec: 7,
+            });
+            replyTarget = null;
+            render();
+          }
+        },
+      },
+      draftText.trim() ? icons.send(18) : icons.mic(18),
+    ) as HTMLButtonElement;
+    updateFab = () => {
+      fab.replaceChildren(draftText.trim() ? icons.send(18) : icons.mic(18));
     };
 
     root.appendChild(
@@ -450,27 +477,7 @@ export function createChatRoomView(
             icons.smile(20),
           ),
         ),
-        el(
-          'button',
-          {
-            class: 'ag-send-fab',
-            title: t.input.send,
-            onClick: () => {
-              if (draftText.trim()) {
-                sendCurrent();
-              } else {
-                chatStore.sendMessage(chatId, '', replyTarget ?? undefined, {
-                  type: 'voice',
-                  title: t.input.attachVoice,
-                  durationSec: 7,
-                });
-                replyTarget = null;
-                render();
-              }
-            },
-          },
-          draftText.trim() ? icons.send(18) : icons.mic(18),
-        ),
+        fab,
       ),
     );
 

@@ -1322,3 +1322,16 @@
     padding-right: max(14px, calc((100% - 760px) / 2));
   }
 }
+
+/* Telegram-style compact popups */
+.ag-context-menu, .ag-attach-grid.ag-drawer-panel { }
+.ag-context-menu {
+  min-width: 200px; padding: 6px; border-radius: 18px;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+}
+.ag-context-menu .ag-menu-item {
+  height: 36px; padding: 0 12px; border-radius: 10px; font-size: 13px;
+  display: flex; align-items: center; gap: 10px;
+}
+.ag-context-menu .ag-menu-item:hover { background: var(--ag-accent-soft); }
+.ag-quick-reacts { border-radius: 18px; padding: 4px 6px; }
