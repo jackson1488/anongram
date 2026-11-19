@@ -152,6 +152,7 @@ private val SmoothInOutEasing = CubicBezierEasing(0.4f, 0.0f, 0.2f, 1.0f)
  * - в PDF зум выполняется только жестом двумя пальцами (pinch-to-zoom);
  * - при ошибке чтения автоматически открывает системный просмотрщик.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
     val file by InAppDocumentViewerStore.activeFile.collectAsState()
