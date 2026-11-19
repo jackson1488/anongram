@@ -1,18 +1,21 @@
 import { i18nStore } from '../../core/i18n/i18nStore';
 import { clear, el } from '../../core/ui/dom';
 import { icons } from '../../core/ui/icons';
-import { createCallsView } from '../calls/CallsView';
 import { createChatListView } from '../chats/ChatListView';
 import { createChatRoomView } from '../chats/ChatRoomView';
 import '../chats/chats.css';
+import { createProfileView } from '../profile/ProfileView';
+import { openQrHubOverlay } from '../qr/QrHubOverlay';
+import { createServicesView } from '../services/ServicesView';
 import {
   createSettingsDetailView,
   createSettingsListPane,
   type SettingsRoute,
 } from '../settings/SettingsView';
 import '../settings/settings.css';
+import { createAppHeader } from './components/AppHeader';
 
-type MainTab = 'chats' | 'calls' | 'settings';
+type MainTab = 'chats' | 'services' | 'settings' | 'profile';
 
 export function createAppShell(): HTMLElement {
   const root = el('div', { class: 'ag-shell' });
@@ -42,18 +45,22 @@ export function createAppShell(): HTMLElement {
     const t = i18nStore.t;
     const body = el('div', { class: 'ag-shell-body' });
 
-    const navItems: Array<{ id: MainTab; label: string; icon: SVGElement }> = [
+    const leftTabs: Array<{ id: MainTab; label: string; icon: SVGElement }> = [
       { id: 'chats', label: t.nav.chats, icon: icons.chats(20) },
-      { id: 'calls', label: t.nav.calls, icon: icons.phone(20) },
-      { id: 'settings', label: t.nav.settings, icon: icons.settings(20) },
+      { id: 'services', label: t.nav.services, icon: icons.shield(20) },
     ];
+    const rightTabs: Array<{ id: MainTab; label: string; icon: SVGElement }> = [
+      { id: 'settings', label: t.nav.settings, icon: icons.settings(20) },
+      { id: 'profile', label: t.nav.profile, icon: icons.user(20) },
+    ];
+    const allTabs = [...leftTabs, ...rightTabs];
 
     // Desktop Left Rail
     const rail = el(
       'aside',
       { class: 'ag-left-rail' },
       el('div', { class: 'ag-rail-brand' }, icons.shield(22)),
-      ...navItems.map((item) =>
+      ...allTabs.map((item) =>
         el(
           'button',
           {
@@ -67,11 +74,24 @@ export function createAppShell(): HTMLElement {
           el('span', null, item.label),
         ),
       ),
+      el(
+        'button',
+        {
+          class: 'ag-rail-btn',
+          style: 'margin-top:auto;',
+          title: t.nav.qrHub,
+          onClick: () => openQrHubOverlay(),
+        },
+        icons.qr(20),
+        el('span', null, 'QR'),
+      ),
     );
     body.appendChild(rail);
 
-    // Left Pane
+    // Left Pane (with AppHeader matching Android)
     const leftPane = el('section', { class: 'ag-left-pane' });
+    leftPane.appendChild(createAppHeader());
+
     let leftContent: HTMLElement;
     if (activeTab === 'chats') {
       leftContent = createChatListView({
@@ -85,8 +105,10 @@ export function createAppShell(): HTMLElement {
           focusChatSearchFn = fn;
         },
       });
-    } else if (activeTab === 'calls') {
-      leftContent = createCallsView();
+    } else if (activeTab === 'services') {
+      leftContent = createServicesView();
+    } else if (activeTab === 'profile') {
+      leftContent = createProfileView();
     } else {
       leftContent = createSettingsListPane(
         () => settingsRoute,
@@ -131,32 +153,50 @@ export function createAppShell(): HTMLElement {
 
     root.appendChild(body);
 
-    // Mobile Floating Island (hidden when detail view is open on mobile)
+    // Mobile Floating Island (1-to-1 with Android MainFloatingIsland: 4 tabs + center elevated QR button)
     const showMobileDetail =
       !isDesktop() &&
       ((activeTab === 'chats' && mobileChatOpen && activeChatId !== null) ||
         (activeTab === 'settings' && mobileSettingsOpen));
 
     if (!showMobileDetail) {
+      const makeIslandTab = (item: { id: MainTab; label: string; icon: SVGElement }) =>
+        el(
+          'button',
+          {
+            class: `ag-island__tab ${activeTab === item.id ? 'is-active' : ''}`,
+            onClick: () => {
+              activeTab = item.id;
+              mobileChatOpen = false;
+              mobileSettingsOpen = false;
+              render();
+            },
+          },
+          item.icon,
+          el('span', null, item.label),
+        );
+
       root.appendChild(
         el(
-          'nav',
-          { class: 'ag-island' },
-          ...navItems.map((item) =>
-            el(
-              'button',
-              {
-                class: `ag-island__btn ${activeTab === item.id ? 'is-active' : ''}`,
-                onClick: () => {
-                  activeTab = item.id;
-                  mobileChatOpen = false;
-                  mobileSettingsOpen = false;
-                  render();
-                },
-              },
-              item.icon,
-              el('span', null, item.label),
-            ),
+          'div',
+          { class: 'ag-island-wrap' },
+          el(
+            'nav',
+            { class: 'ag-island-bar' },
+            makeIslandTab(leftTabs[0]),
+            makeIslandTab(leftTabs[1]),
+            el('div', { class: 'ag-island-spacer' }),
+            makeIslandTab(rightTabs[0]),
+            makeIslandTab(rightTabs[1]),
+          ),
+          el(
+            'button',
+            {
+              class: 'ag-island-qr-btn',
+              title: t.nav.qrHub,
+              onClick: () => openQrHubOverlay(),
+            },
+            icons.qr(22),
           ),
         ),
       );

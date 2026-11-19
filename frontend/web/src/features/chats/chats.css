@@ -28,41 +28,169 @@
   }
 }
 
-/* Floating Island (Mobile Bottom Pill -> Desktop Left Rail) */
-.ag-island {
-  position: fixed;
-  left: 50%;
-  bottom: 14px;
-  transform: translateX(-50%);
-  z-index: 40;
+/* AppHeader (1-to-1 Android AppHeader.kt) */
+.ag-app-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px;
-  border-radius: 9999px;
-  background: var(--ag-island-bg);
-  border: 1px solid var(--ag-island-border);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.36);
-  backdrop-filter: blur(18px);
+  justify-content: space-between;
+  padding: 12px 18px 6px;
 }
 
-.ag-island__btn {
+.ag-app-header__left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ag-app-header__logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: var(--ag-accent-soft);
+  border: 1px solid var(--ag-accent);
+  color: var(--ag-accent);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 18px;
+}
+
+.ag-app-header__title {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: var(--ag-text-primary);
+}
+
+.ag-onion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
   border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.14);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #10b981;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ag-onion-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #10b981;
+}
+
+/* Floating Island (1-to-1 Android MainFloatingIsland.kt: 4 tabs + elevated center Stealth QR) */
+.ag-island-wrap {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  z-index: 40;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ag-island-bar {
+  width: 100%;
+  max-width: 480px;
+  height: 64px;
+  padding: 0 8px;
+  border-radius: 28px;
+  background: var(--ag-island-bg);
+  border: 1px solid var(--ag-island-border);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(18px);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  pointer-events: auto;
+}
+
+.ag-island-spacer {
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.ag-island__tab {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 56px;
+  height: 48px;
+  padding: 0 8px;
+  border-radius: 18px;
   color: var(--ag-text-secondary);
-  font-size: 13px;
+  font-size: 10px;
   font-weight: 600;
   transition: background-color 0.16s ease, color 0.16s ease;
 }
 
-.ag-island__btn.is-active {
+.ag-island__tab.is-active {
   background: var(--ag-accent-soft);
   color: var(--ag-accent);
+}
+
+.ag-island-qr-btn {
+  position: absolute;
+  left: 50%;
+  top: -20px;
+  transform: translateX(-50%);
+  width: 56px;
+  height: 56px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, var(--ag-card), var(--ag-surface));
+  border: 2px solid var(--ag-accent);
+  color: var(--ag-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px var(--ag-accent-soft);
+  pointer-events: auto;
+  transition: transform 0.14s ease;
+}
+
+.ag-island-qr-btn:active {
+  transform: translateX(-50%) scale(0.94);
+}
+
+.ag-service-card {
+  margin: 6px 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  cursor: pointer;
+}
+
+.ag-service-card__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 16px;
+  background: var(--ag-accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.ag-service-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ag-service-card__body span {
+  font-size: 12px;
+  color: var(--ag-text-secondary);
 }
 
 /* Desktop multi-pane layout */
@@ -83,7 +211,7 @@
 }
 
 @media (min-width: 840px) {
-  .ag-island {
+  .ag-island-wrap {
     display: none !important;
   }
 

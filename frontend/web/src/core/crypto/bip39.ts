@@ -33,8 +33,8 @@ const WORDS = [
   'business', 'busy', 'butter', 'buyer', 'buzz', 'cabbage', 'cabin', 'cable',
 ];
 
-export function generateSeedWords(count = 24): string[] {
-  const bytes = new Uint8Array(count);
+export function generate12Words(): string[] {
+  const bytes = new Uint8Array(12);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => WORDS[b % WORDS.length]);
 }
@@ -45,4 +45,14 @@ export function normalizeSeed(raw: string): string[] {
     .toLowerCase()
     .split(/\s+/)
     .filter(Boolean);
+}
+
+export function findSuggestions(prefix: string, limit = 6): string[] {
+  const clean = prefix.trim().toLowerCase();
+  if (clean.length < 2) return [];
+  return WORDS.filter((w) => w.startsWith(clean)).slice(0, limit);
+}
+
+export function isValidWord(word: string): boolean {
+  return WORDS.includes(word.trim().toLowerCase());
 }

@@ -41,8 +41,10 @@ export const EN_STRINGS: AnonGramStrings = {
   },
   nav: {
     chats: 'Chats',
-    calls: 'Calls',
+    services: 'Services',
     settings: 'Settings',
+    profile: 'Profile',
+    qrHub: 'Stealth QR',
     selectChatHint: 'Select a chat to start messaging',
     searchShortcut: 'Search (Ctrl+K)',
   },

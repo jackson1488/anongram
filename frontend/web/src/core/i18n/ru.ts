@@ -41,8 +41,10 @@ export const RU_STRINGS: AnonGramStrings = {
   },
   nav: {
     chats: 'Чаты',
-    calls: 'Звонки',
+    services: 'Сервисы',
     settings: 'Настройки',
+    profile: 'Профиль',
+    qrHub: 'Stealth QR',
     selectChatHint: 'Выберите чат, чтобы начать общение',
     searchShortcut: 'Поиск (Ctrl+K)',
   },

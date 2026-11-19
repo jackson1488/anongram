@@ -41,8 +41,10 @@ export interface AnonGramStrings {
   };
   nav: {
     chats: string;
-    calls: string;
+    services: string;
     settings: string;
+    profile: string;
+    qrHub: string;
     selectChatHint: string;
     searchShortcut: string;
   };
