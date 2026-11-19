@@ -150,6 +150,8 @@ fun InAppBrowserHost(
                 }
             )
         }
+
+        com.anongram.app.features.chats.viewer.DocumentViewerBottomSheetHost()
     }
 }
 

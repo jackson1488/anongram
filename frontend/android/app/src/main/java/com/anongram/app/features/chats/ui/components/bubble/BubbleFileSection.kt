@@ -132,6 +132,8 @@ internal fun ChatFileItemRow(
                         onItemClick()
                     } else if (isImageFile && !file.uri.isNullOrBlank()) {
                         onOpenPhotoAt(fileIndex)
+                    } else if (com.anongram.app.core.theme.ChatTextSettingsStore.inAppDocumentViewerEnabled.value) {
+                        com.anongram.app.features.chats.viewer.InAppDocumentViewerStore.open(file)
                     } else {
                         openFileInSystemViewer(context, file)
                     }

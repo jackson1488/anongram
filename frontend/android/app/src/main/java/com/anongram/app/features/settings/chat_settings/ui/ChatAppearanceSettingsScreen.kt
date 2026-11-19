@@ -250,6 +250,48 @@ fun ChatAppearanceSettingsScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
                 androidx.compose.material3.HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                val inAppDocViewerEnabled by ChatTextSettingsStore.inAppDocumentViewerEnabled.collectAsState()
+                val isRu = com.anongram.app.core.i18n.LanguageSettingsStore.language.collectAsState().value == com.anongram.app.core.i18n.AppLanguage.RU
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            ChatTextSettingsStore.setInAppDocumentViewerEnabled(context, !inAppDocViewerEnabled)
+                        },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (isRu) "Встроенный просмотрщик документов" else "In-app document viewer",
+                            color = scheme.textPrimary,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = if (isRu) {
+                                "Открывать PDF, DOCX, TXT, CSV и ZIP во встроенной шторке"
+                            } else {
+                                "Open PDF, DOCX, TXT, CSV & ZIP in a bottom sheet"
+                            },
+                            color = scheme.textSecondary,
+                            fontSize = 12.sp,
+                            lineHeight = 16.sp
+                        )
+                    }
+                    androidx.compose.material3.Switch(
+                        checked = inAppDocViewerEnabled,
+                        onCheckedChange = { ChatTextSettingsStore.setInAppDocumentViewerEnabled(context, it) },
+                        colors = androidx.compose.material3.SwitchDefaults.colors(
+                            checkedThumbColor = scheme.onAccent,
+                            checkedTrackColor = scheme.accent
+                        )
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.material3.HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Row(

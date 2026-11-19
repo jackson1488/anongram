@@ -17,6 +17,7 @@ object ChatTextSettingsStore {
     private const val KEY_HIDDEN_LINK_PREVIEWS = "hidden_link_previews_enabled"
     private const val KEY_SPOILER_PARTICLE_MOTION = "spoiler_particle_motion_enabled"
     private const val KEY_IN_APP_BROWSER = "in_app_browser_enabled"
+    private const val KEY_IN_APP_DOC_VIEWER = "in_app_document_viewer_enabled"
 
     private val _messageTextSizeSp = MutableStateFlow(16)
     val messageTextSizeSp: StateFlow<Int> = _messageTextSizeSp.asStateFlow()
@@ -36,6 +37,9 @@ object ChatTextSettingsStore {
     private val _inAppBrowserEnabled = MutableStateFlow(true)
     val inAppBrowserEnabled: StateFlow<Boolean> = _inAppBrowserEnabled.asStateFlow()
 
+    private val _inAppDocumentViewerEnabled = MutableStateFlow(true)
+    val inAppDocumentViewerEnabled: StateFlow<Boolean> = _inAppDocumentViewerEnabled.asStateFlow()
+
     private var initialized = false
 
     fun ensureInitialized(context: Context) {
@@ -54,6 +58,7 @@ object ChatTextSettingsStore {
         _hiddenLinkPreviewsEnabled.value = prefs.getBoolean(KEY_HIDDEN_LINK_PREVIEWS, false)
         _spoilerParticleMotionEnabled.value = prefs.getBoolean(KEY_SPOILER_PARTICLE_MOTION, true)
         _inAppBrowserEnabled.value = prefs.getBoolean(KEY_IN_APP_BROWSER, true)
+        _inAppDocumentViewerEnabled.value = prefs.getBoolean(KEY_IN_APP_DOC_VIEWER, true)
     }
 
     fun setMessageTextSizeSp(context: Context, sizeSp: Int) {
@@ -109,6 +114,15 @@ object ChatTextSettingsStore {
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_IN_APP_BROWSER, enabled)
+            .apply()
+    }
+
+    fun setInAppDocumentViewerEnabled(context: Context, enabled: Boolean) {
+        _inAppDocumentViewerEnabled.value = enabled
+        context.applicationContext
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_IN_APP_DOC_VIEWER, enabled)
             .apply()
     }
 }
