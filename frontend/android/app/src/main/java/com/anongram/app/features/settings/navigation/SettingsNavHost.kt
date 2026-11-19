@@ -340,6 +340,7 @@ fun SettingsNavHost(
                     onOpenVoiceModule = { navigateTo(SettingsRoute.ModulesVoice) },
                     onOpenTranslationModule = { navigateTo(SettingsRoute.ModulesTranslation) },
                     onOpenLocalAiModule = { navigateTo(SettingsRoute.ModulesLocalAi) },
+                    onOpenFontsModule = { navigateTo(SettingsRoute.ModulesFonts) },
                     onBack = popBack
                 )
             }
@@ -358,6 +359,12 @@ fun SettingsNavHost(
 
             SettingsRoute.ModulesLocalAi -> {
                 LocalAiModuleSettingsScreen(
+                    onBack = popBack
+                )
+            }
+
+            SettingsRoute.ModulesFonts -> {
+                com.anongram.app.features.settings.modules.ui.fonts.FontsModuleSettingsScreen(
                     onBack = popBack
                 )
             }

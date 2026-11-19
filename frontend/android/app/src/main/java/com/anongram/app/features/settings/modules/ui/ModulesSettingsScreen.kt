@@ -57,6 +57,7 @@ fun ModulesSettingsScreen(
     onOpenVoiceModule: () -> Unit,
     onOpenTranslationModule: () -> Unit,
     onOpenLocalAiModule: () -> Unit = {},
+    onOpenFontsModule: () -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -69,11 +70,13 @@ fun ModulesSettingsScreen(
     val settings by ModulesSettingsStore.state.collectAsState()
     val downloadedTranslatePacks by LocalMessageTranslator.downloadedLanguages.collectAsState()
     val aiState by LocalAiStore.state.collectAsState()
+    val fontState by com.anongram.app.core.theme.FontModuleStore.state.collectAsState()
 
     LaunchedEffect(Unit) {
         ModulesSettingsStore.ensureInitialized(context)
         LocalAiStore.ensureInitialized(context)
         LocalAiStore.refreshInstalledModels(context)
+        com.anongram.app.core.theme.FontModuleStore.ensureInitialized(context)
         assetManager.refreshAllStates()
         LocalMessageTranslator.refreshDownloadedModels(context)
     }
@@ -166,6 +169,61 @@ fun ModulesSettingsScreen(
                     installedBytes = aiState.totalInstalledBytes,
                     onClick = onOpenLocalAiModule
                 )
+
+                HorizontalDivider(
+                    color = scheme.divider,
+                    thickness = 0.5.dp,
+                    modifier = Modifier.padding(start = 56.dp)
+                )
+
+                // 4. Шрифты (Fontsource + импорт .ttf/.otf/.zip)
+                val activeFontLabel = fontState.activeInstalledFont?.displayName
+                    ?: if (strings.isRussian) "Системный" else "System"
+                val fontsBytes = remember(fontState.installedFonts) {
+                    fontState.installedFonts.sumOf { it.sizeBytes }
+                }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenFontsModule)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Outlined.TextFields,
+                            contentDescription = null,
+                            tint = scheme.accent,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = if (strings.isRussian) "Шрифты" else "Fonts",
+                                color = scheme.textPrimary,
+                                fontSize = 15.5.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = "$activeFontLabel • ${strings.moduleMemoryLabel(formatMb(fontsBytes))}",
+                                color = scheme.textSecondary,
+                                fontSize = 13.sp
+                            )
+                        }
+                    }
+
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = scheme.textMuted,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
 
                 HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
             }

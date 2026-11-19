@@ -24,4 +24,5 @@ sealed interface SettingsRoute {
     data object ModulesVoice : SettingsRoute
     data object ModulesTranslation : SettingsRoute
     data object ModulesLocalAi : SettingsRoute
+    data object ModulesFonts : SettingsRoute
 }

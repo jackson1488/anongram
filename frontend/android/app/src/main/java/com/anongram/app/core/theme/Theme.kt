@@ -35,9 +35,40 @@ fun AnonGramTheme(
     val context = LocalContext.current
     LaunchedEffect(context) {
         LanguageSettingsStore.ensureInitialized(context)
+        FontModuleStore.ensureInitialized(context)
     }
     val currentLanguage by LanguageSettingsStore.language.collectAsState()
     val inputStrings = remember(currentLanguage) { InputI18n.forLanguage(currentLanguage) }
+    val fontState by FontModuleStore.state.collectAsState()
+    val activeFontFamily = remember(fontState.activeFontId, fontState.installedFonts) {
+        FontModuleStore.resolveFontFamily(context, fontState.activeFontId)
+    }
+    val uiFontFamily = if (fontState.applyScope != FontApplyScope.MESSAGES_ONLY) activeFontFamily else null
+    val messageFontFamily = if (fontState.applyScope != FontApplyScope.UI_ONLY) activeFontFamily else null
+    val typography = remember(uiFontFamily) {
+        if (uiFontFamily == null) {
+            androidx.compose.material3.Typography()
+        } else {
+            val base = androidx.compose.material3.Typography()
+            androidx.compose.material3.Typography(
+                displayLarge = base.displayLarge.copy(fontFamily = uiFontFamily),
+                displayMedium = base.displayMedium.copy(fontFamily = uiFontFamily),
+                displaySmall = base.displaySmall.copy(fontFamily = uiFontFamily),
+                headlineLarge = base.headlineLarge.copy(fontFamily = uiFontFamily),
+                headlineMedium = base.headlineMedium.copy(fontFamily = uiFontFamily),
+                headlineSmall = base.headlineSmall.copy(fontFamily = uiFontFamily),
+                titleLarge = base.titleLarge.copy(fontFamily = uiFontFamily),
+                titleMedium = base.titleMedium.copy(fontFamily = uiFontFamily),
+                titleSmall = base.titleSmall.copy(fontFamily = uiFontFamily),
+                bodyLarge = base.bodyLarge.copy(fontFamily = uiFontFamily),
+                bodyMedium = base.bodyMedium.copy(fontFamily = uiFontFamily),
+                bodySmall = base.bodySmall.copy(fontFamily = uiFontFamily),
+                labelLarge = base.labelLarge.copy(fontFamily = uiFontFamily),
+                labelMedium = base.labelMedium.copy(fontFamily = uiFontFamily),
+                labelSmall = base.labelSmall.copy(fontFamily = uiFontFamily)
+            )
+        }
+    }
 
     val colorScheme = if (scheme.isDark) {
         darkColorScheme(
@@ -100,10 +131,12 @@ fun AnonGramTheme(
     CompositionLocalProvider(
         LocalAnonGramScheme provides scheme,
         LocalThemeController provides controller,
-        LocalInputStrings provides inputStrings
+        LocalInputStrings provides inputStrings,
+        LocalChatMessageFontFamily provides messageFontFamily
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
+            typography = typography,
             content = content
         )
     }

@@ -566,6 +566,7 @@ fun AdaptiveMessageTextWithTimeLayout(
                     text = renderedText,
                     color = LocalContentColor.current,
                     fontSize = textSizeSp.sp,
+                    fontFamily = com.anongram.app.core.theme.LocalChatMessageFontFamily.current,
                     lineHeight = textLineHeight,
                     onTextLayout = { textLayoutResult = it }
                 )
