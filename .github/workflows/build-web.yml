@@ -1,4 +1,4 @@
-name: Build AnonGram Web (Compose Multiplatform Wasm)
+name: Build AnonGram Web (TypeScript + Vite)
 
 on:
   push:
@@ -23,60 +23,46 @@ permissions:
 
 jobs:
   build:
-    name: 🌐 Build Compose Wasm Web Bundle in Cloud
+    name: 🌐 Build TypeScript Web Bundle in Cloud
     runs-on: ubuntu-latest
 
     steps:
       - name: 📥 Checkout repository
         uses: actions/checkout@v4
 
-      - name: ☕ Set up Java 21
-        uses: actions/setup-java@v4
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          distribution: 'temurin'
-          java-version: '21'
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: frontend/web/package-lock.json
 
-      - name: 🐘 Setup Gradle & Cloud Cache
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.14.3'
-          cache-read-only: false
+      - name: 📦 Install dependencies
+        working-directory: frontend/web
+        run: npm ci
+
+      - name: 🔎 Typecheck TypeScript
+        working-directory: frontend/web
+        run: npm run typecheck
 
       - name: 🛠️ Build Web Distribution
         working-directory: frontend/web
         run: |
-          gradle wasmJsBrowserDistribution --stacktrace 2>&1 | tee build_web.log
+          npm run build
           mkdir -p build/dist/bundle
-          
-          # Находим каталог, где лежит скомпилированный index.html
-          INDEX_PATH=$(find build -name "index.html" | grep -E "(productionExecutable|developmentExecutable|dist)" | head -n 1)
-          if [ -z "$INDEX_PATH" ]; then
-            echo "::error::Compiled index.html not found!"
-            exit 1
-          fi
-          DIST_DIR=$(dirname "$INDEX_PATH")
-          echo "Copying web assets from $DIST_DIR to build/dist/bundle/"
-          cp -r "$DIST_DIR"/* build/dist/bundle/
-          
+          cp -r dist/* build/dist/bundle/
+
           # Обязательно для GitHub Pages: отключаем Jekyll и дублируем 404 для SPA
           touch build/dist/bundle/.nojekyll
           cp build/dist/bundle/index.html build/dist/bundle/404.html
-          
+
           echo "=== FINAL BUNDLE CONTENTS ==="
           ls -lh build/dist/bundle/
-
-      - name: 📋 Upload Build Failure Log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-build-log
-          path: frontend/web/build/
-          retention-days: 3
 
       - name: 📦 Upload Web Bundle Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: anongram-web-wasm-dist
+          name: anongram-web-dist
           path: frontend/web/build/dist/bundle/
           retention-days: 14
 
