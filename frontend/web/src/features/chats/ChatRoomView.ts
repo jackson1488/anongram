@@ -238,7 +238,8 @@ export function createChatRoomView(
 
   const miniPlayer = createMiniAudioPlayerBar();
 
-  const render = () => {
+  let refocusNext = false;
+  const renderInner = () => {
     clear(root);
     const t = i18nStore.t;
     const thread = chatStore.getThread(chatId);
@@ -412,6 +413,7 @@ export function createChatRoomView(
       replyTarget = null;
       openPanel = 'none';
       draftsStore.clearDraft(chatId);
+      refocusNext = true;
       render();
     };
 
@@ -577,10 +579,45 @@ export function createChatRoomView(
     }
   };
 
+  // Re-render that never steals the composer focus (typing / sending must stay focused).
+  const render = () => {
+    const active = document.activeElement as HTMLInputElement | null;
+    const inputWasFocused =
+      active !== null &&
+      active.classList !== undefined &&
+      active.classList.contains('ag-msg-input') &&
+      root.contains(active);
+    const hadFocus = refocusNext || inputWasFocused;
+    const caret = inputWasFocused ? active!.selectionStart : null;
+    refocusNext = false;
+    renderInner();
+    if (hadFocus) {
+      const inp = root.querySelector('.ag-msg-input') as HTMLInputElement | null;
+      if (inp) {
+        inp.focus();
+        const pos = caret ?? inp.value.length;
+        inp.setSelectionRange(pos, pos);
+      }
+    }
+  };
+
   const unsubChats = chatStore.subscribe(render);
-  const unsubAudio = audioPlayer.subscribe(render);
+  let audioKey = '';
+  const unsubAudio = audioPlayer.subscribe(() => {
+    // Ignore position ticks: only re-render when track / play state changes.
+    const key = `${audioPlayer.currentTrack?.id ?? ''}|${audioPlayer.playing}`;
+    if (key !== audioKey) {
+      audioKey = key;
+      render();
+    }
+  });
   const unsubI18n = i18nStore.subscribe(render);
-  render();
+  renderInner();
+  if (window.innerWidth >= 840) {
+    requestAnimationFrame(() => {
+      (root.querySelector('.ag-msg-input') as HTMLInputElement | null)?.focus();
+    });
+  }
 
   (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
     unsubChats();
