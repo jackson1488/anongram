@@ -369,19 +369,30 @@ fun ChatsMainMenuScreen(
 
                     if (state.hasArchived) {
                         item(key = "archive_pill") {
-                            Box(
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        translationY = -pillTravelPx * archiveHideProgress.value
-                                        alpha = 1f - archiveHideProgress.value
+                            val archiveReveal = 1f - archiveHideProgress.value
+                            if (archiveReveal > 0.005f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(74.dp * archiveReveal)
+                                        .clipToBounds()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 10.dp)
+                                            .graphicsLayer {
+                                                alpha = archiveReveal
+                                                translationY = -18.dp.toPx() * (1f - archiveReveal)
+                                            }
+                                    ) {
+                                        ArchivePill(
+                                            chatCount = state.archivedSessions.size,
+                                            preview = state.archivePreview,
+                                            onClick = onOpenArchive
+                                        )
                                     }
-                                    .padding(bottom = 10.dp)
-                            ) {
-                                ArchivePill(
-                                    chatCount = state.archivedSessions.size,
-                                    preview = state.archivePreview,
-                                    onClick = onOpenArchive
-                                )
+                                }
                             }
                         }
                     }
