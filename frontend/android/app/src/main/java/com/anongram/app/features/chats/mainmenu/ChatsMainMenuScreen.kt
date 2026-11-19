@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -115,6 +116,10 @@ fun ChatsMainMenuScreen(
     val pillTravelPx = with(density) { (64 + 10).dp.toPx() }
     val archiveHideProgress = remember { Animatable(if (state.isArchiveCollapsed) 1f else 0f) }
 
+    // Поиск как в Telegram: скрыт по умолчанию, раскрывается при потягивании шапки/списка вниз.
+    val searchTravelPx = with(density) { 52.dp.toPx() }
+    val searchRevealProgress = remember { Animatable(0f) }
+
     // Коммиты из ViewModel дожимают прогресс анимацией (после жеста или архивации).
     LaunchedEffect(state.isArchiveCollapsed, state.hasArchived) {
         val target = if (!state.hasArchived || state.isArchiveCollapsed) 1f else 0f
@@ -125,23 +130,48 @@ fun ChatsMainMenuScreen(
         viewModel.setArchiveCollapsed(collapsed)
     }
 
-    // Жесты архива через nestedScroll (как в Telegram): тяга вверх при верхнем
-    // положении списка сворачивает пилюлю, тяга вниз с самого верха — раскрывает.
-    val archiveScrollConnection = remember(state.hasArchived, pillTravelPx) {
+    // Жесты архива и поиска через nestedScroll (как в Telegram):
+    // потягивание вниз с самого верха раскрывает Архив (если скрыт) и затем Поиск;
+    // тяга вверх — сначала прячет Поиск, затем сворачивает Архив.
+    val archiveScrollConnection = remember(state.hasArchived, pillTravelPx, searchTravelPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (!state.hasArchived || available.y >= 0f) return Offset.Zero
+                if (available.y >= 0f) return Offset.Zero
                 val atTop = listState.firstVisibleItemIndex == 0 &&
                     listState.firstVisibleItemScrollOffset == 0
-                if (!atTop || archiveHideProgress.value >= 1f) return Offset.Zero
-                val neededPx = (1f - archiveHideProgress.value) * pillTravelPx
-                val consumePx = minOf(neededPx, -available.y)
-                scope.launch {
-                    archiveHideProgress.snapTo(
-                        (archiveHideProgress.value + consumePx / pillTravelPx).coerceIn(0f, 1f)
-                    )
+                if (!atTop) return Offset.Zero
+
+                var remainingUp = -available.y
+                var totalConsumed = 0f
+
+                if (searchRevealProgress.value > 0f) {
+                    val neededSearchPx = searchRevealProgress.value * searchTravelPx
+                    val consumeSearch = minOf(neededSearchPx, remainingUp)
+                    if (consumeSearch > 0f) {
+                        scope.launch {
+                            searchRevealProgress.snapTo(
+                                (searchRevealProgress.value - consumeSearch / searchTravelPx).coerceIn(0f, 1f)
+                            )
+                        }
+                        remainingUp -= consumeSearch
+                        totalConsumed += consumeSearch
+                    }
                 }
-                return Offset(0f, -consumePx)
+
+                if (state.hasArchived && archiveHideProgress.value < 1f && remainingUp > 0f) {
+                    val neededArchivePx = (1f - archiveHideProgress.value) * pillTravelPx
+                    val consumeArchive = minOf(neededArchivePx, remainingUp)
+                    if (consumeArchive > 0f) {
+                        scope.launch {
+                            archiveHideProgress.snapTo(
+                                (archiveHideProgress.value + consumeArchive / pillTravelPx).coerceIn(0f, 1f)
+                            )
+                        }
+                        totalConsumed += consumeArchive
+                    }
+                }
+
+                return if (totalConsumed > 0f) Offset(0f, -totalConsumed) else Offset.Zero
             }
 
             override fun onPostScroll(
@@ -149,23 +179,51 @@ fun ChatsMainMenuScreen(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                if (!state.hasArchived || available.y <= 0f) return Offset.Zero
+                if (available.y <= 0f) return Offset.Zero
                 val atTop = listState.firstVisibleItemIndex == 0 &&
                     listState.firstVisibleItemScrollOffset == 0
                 if (!atTop) return Offset.Zero
-                val neededPx = archiveHideProgress.value * pillTravelPx
-                val consumePx = minOf(neededPx, available.y)
-                scope.launch {
-                    archiveHideProgress.snapTo(
-                        (archiveHideProgress.value - consumePx / pillTravelPx).coerceIn(0f, 1f)
-                    )
+
+                var remainingDown = available.y
+                var totalConsumed = 0f
+
+                if (state.hasArchived && archiveHideProgress.value > 0f) {
+                    val neededArchivePx = archiveHideProgress.value * pillTravelPx
+                    val consumeArchive = minOf(neededArchivePx, remainingDown)
+                    if (consumeArchive > 0f) {
+                        scope.launch {
+                            archiveHideProgress.snapTo(
+                                (archiveHideProgress.value - consumeArchive / pillTravelPx).coerceIn(0f, 1f)
+                            )
+                        }
+                        remainingDown -= consumeArchive
+                        totalConsumed += consumeArchive
+                    }
                 }
-                return Offset(0f, consumePx)
+
+                if (remainingDown > 0f && searchRevealProgress.value < 1f) {
+                    val neededSearchPx = (1f - searchRevealProgress.value) * searchTravelPx
+                    val consumeSearch = minOf(neededSearchPx, remainingDown)
+                    if (consumeSearch > 0f) {
+                        scope.launch {
+                            searchRevealProgress.snapTo(
+                                (searchRevealProgress.value + consumeSearch / searchTravelPx).coerceIn(0f, 1f)
+                            )
+                        }
+                        totalConsumed += consumeSearch
+                    }
+                }
+
+                return if (totalConsumed > 0f) Offset(0f, totalConsumed) else Offset.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (state.hasArchived) {
                     requestArchiveCollapse(archiveHideProgress.value > 0.5f)
+                }
+                val targetSearch = if (searchRevealProgress.value > 0.42f) 1f else 0f
+                scope.launch {
+                    searchRevealProgress.animateTo(targetSearch, PhysicsSprings.screenSpringSpec())
                 }
                 return Velocity.Zero
             }
@@ -262,34 +320,48 @@ fun ChatsMainMenuScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(0.dp)
                 ) {
-                    // Поиск в стиле Telegram прямо под шапкой (уезжает под блюр при скролле)
+                    // Поиск в стиле Telegram: скрыт по умолчанию, раскрывается при потягивании вниз
                     if (!state.isSelection) {
                         item(key = "telegram_search_bar") {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 10.dp)
-                                    .height(42.dp)
-                                    .clip(RoundedCornerShape(21.dp))
-                                    .background(scheme.inputBg)
-                                    .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(21.dp))
-                                    .clickable(onClick = onOpenSearch)
-                                    .padding(horizontal = 16.dp),
-                                contentAlignment = Alignment.CenterStart
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Search,
-                                        contentDescription = null,
-                                        tint = scheme.textMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Text(
-                                        text = "Поиск",
-                                        color = scheme.textMuted,
-                                        fontSize = 15.sp
-                                    )
+                            val reveal = searchRevealProgress.value
+                            if (reveal > 0.005f) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(52.dp * reveal)
+                                        .clipToBounds()
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(bottom = 10.dp)
+                                            .height(42.dp)
+                                            .graphicsLayer {
+                                                alpha = reveal
+                                                translationY = -12.dp.toPx() * (1f - reveal)
+                                            }
+                                            .clip(RoundedCornerShape(21.dp))
+                                            .background(scheme.inputBg)
+                                            .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(21.dp))
+                                            .clickable(onClick = onOpenSearch)
+                                            .padding(horizontal = 16.dp),
+                                        contentAlignment = Alignment.CenterStart
+                                    ) {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Search,
+                                                contentDescription = null,
+                                                tint = scheme.textMuted,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(10.dp))
+                                            Text(
+                                                text = "Поиск",
+                                                color = scheme.textMuted,
+                                                fontSize = 15.sp
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
