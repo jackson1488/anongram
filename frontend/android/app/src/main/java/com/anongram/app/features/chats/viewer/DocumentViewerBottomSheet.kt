@@ -10,6 +10,9 @@ import android.os.ParcelFileDescriptor
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -18,10 +21,15 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -33,6 +41,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -44,12 +53,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ZoomIn
-import androidx.compose.material.icons.outlined.ZoomOut
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,14 +64,18 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +92,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
@@ -110,8 +121,8 @@ private sealed interface ViewerContent {
 }
 
 /**
- * Чистая выезжающая снизу шторка (82% высоты экрана) для просмотра документов:
- * PDF (нативный PdfRenderer с зумом), DOCX/XLSX/TXT/Код (с выделением текста), CSV-таблицы и ZIP-архивы.
+ * Выезжающая снизу шторка (старт 80%, перетаскивание 50%..100%, свайп вниз — закрытие)
+ * для просмотра PDF (жест pinch-to-zoom + двойной тап), DOCX/XLSX/TXT/кода, CSV и ZIP.
  */
 @Composable
 fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
@@ -120,6 +131,7 @@ fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val lang by LanguageSettingsStore.language.collectAsState()
     val isRu = lang == AppLanguage.RU
+    val scope = rememberCoroutineScope()
 
     BackHandler(enabled = file != null) {
         InAppDocumentViewerStore.close()
@@ -133,7 +145,7 @@ fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
             .fillMaxSize()
             .zIndex(45f)
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black.copy(alpha = 0.48f))
@@ -144,6 +156,8 @@ fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
                 ),
             contentAlignment = Alignment.BottomCenter
         ) {
+            val totalHeightPx = with(LocalDensity.current) { maxHeight.toPx().coerceAtLeast(1f) }
+
             AnimatedVisibility(
                 visible = file != null,
                 enter = slideInVertically(initialOffsetY = { it }),
@@ -153,182 +167,199 @@ fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
                 var content by remember(activeFile.uri, activeFile.name) {
                     mutableStateOf<ViewerContent>(ViewerContent.Loading)
                 }
-                var pdfZoom by remember(activeFile.uri) { mutableFloatStateOf(1f) }
                 var showPdfAsText by remember(activeFile.uri) { mutableStateOf(false) }
+
+                // Высота шторки: старт 0.80f, диапазон закрепления 0.50f..1.0f
+                val sheetFraction = remember(activeFile.uri) { Animatable(0.80f) }
 
                 LaunchedEffect(activeFile.uri, activeFile.name) {
                     content = loadDocumentContent(context, activeFile, isRu)
                 }
 
+                val isFullScreen = sheetFraction.value >= 0.96f
+                val topRadius = if (isFullScreen) 0.dp else 22.dp
+
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.82f)
-                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                        .fillMaxHeight(sheetFraction.value.coerceIn(0.1f, 1f))
+                        .clip(RoundedCornerShape(topStart = topRadius, topEnd = topRadius))
                         .background(scheme.surface)
-                        .border(
-                            width = 0.8.dp,
-                            color = scheme.islandBorder,
-                            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+                        .then(
+                            if (!isFullScreen) {
+                                Modifier.border(
+                                    width = 0.7.dp,
+                                    color = scheme.islandBorder,
+                                    shape = RoundedCornerShape(topStart = topRadius, topEnd = topRadius)
+                                )
+                            } else Modifier
                         )
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = {}
                         )
+                        .then(if (isFullScreen) Modifier.statusBarsPadding() else Modifier)
                         .navigationBarsPadding()
                 ) {
-                    // Ручка сверху
-                    Box(
+                    // Перетаскиваемая шапка (ручка + компактная строка управления)
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 10.dp, bottom = 6.dp),
-                        contentAlignment = Alignment.Center
+                            .pointerInput(totalHeightPx) {
+                                detectVerticalDragGestures(
+                                    onVerticalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        val deltaFrac = -dragAmount / totalHeightPx
+                                        val next = (sheetFraction.value + deltaFrac).coerceIn(0.15f, 1f)
+                                        scope.launch { sheetFraction.snapTo(next) }
+                                    },
+                                    onDragEnd = {
+                                        val cur = sheetFraction.value
+                                        scope.launch {
+                                            when {
+                                                cur < 0.42f -> InAppDocumentViewerStore.close()
+                                                cur < 0.65f -> sheetFraction.animateTo(0.50f, spring(stiffness = Spring.StiffnessMediumLow))
+                                                cur > 0.90f -> sheetFraction.animateTo(1.0f, spring(stiffness = Spring.StiffnessMediumLow))
+                                                else -> sheetFraction.animateTo(0.80f, spring(stiffness = Spring.StiffnessMediumLow))
+                                            }
+                                        }
+                                    },
+                                    onDragCancel = {
+                                        scope.launch {
+                                            sheetFraction.animateTo(0.80f, spring(stiffness = Spring.StiffnessMediumLow))
+                                        }
+                                    }
+                                )
+                            }
                     ) {
                         Box(
                             modifier = Modifier
-                                .width(38.dp)
-                                .height(4.dp)
-                                .clip(RoundedCornerShape(2.dp))
-                                .background(scheme.textMuted.copy(alpha = 0.45f))
-                        )
-                    }
-
-                    // Шапка шторки: имя, размер, копировать, открыть в системе, закрыть
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = activeFile.name,
-                                color = scheme.textPrimary,
-                                fontSize = 15.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = activeFile.sizeLabel.ifBlank {
-                                    activeFile.name.substringAfterLast('.', "").uppercase()
-                                },
-                                color = scheme.textSecondary,
-                                fontSize = 11.5.sp
-                            )
-                        }
-
-                        val copyableText = when (val c = content) {
-                            is ViewerContent.TextDoc -> c.text
-                            is ViewerContent.CsvTable -> c.rawText
-                            is ViewerContent.PdfPages -> c.extractedText
-                            else -> ""
-                        }
-                        if (copyableText.isNotBlank()) {
-                            IconButton(
-                                onClick = {
-                                    val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                    cm.setPrimaryClip(ClipData.newPlainText(activeFile.name, copyableText))
-                                    Toast.makeText(
-                                        context,
-                                        if (isRu) "Текст скопирован" else "Copied",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ContentCopy,
-                                    contentDescription = if (isRu) "Копировать" else "Copy",
-                                    tint = scheme.textPrimary,
-                                    modifier = Modifier.size(19.dp)
-                                )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = { openFileInSystemViewer(context, activeFile) },
-                            modifier = Modifier.size(36.dp)
+                                .fillMaxWidth()
+                                .padding(top = 8.dp, bottom = 4.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
-                                contentDescription = if (isRu) "Открыть в приложении" else "Open with",
-                                tint = scheme.accent,
-                                modifier = Modifier.size(20.dp)
+                            Box(
+                                modifier = Modifier
+                                    .width(36.dp)
+                                    .height(4.dp)
+                                    .clip(RoundedCornerShape(2.dp))
+                                    .background(scheme.textMuted.copy(alpha = 0.45f))
                             )
                         }
 
-                        IconButton(
-                            onClick = { InAppDocumentViewerStore.close() },
-                            modifier = Modifier.size(36.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Close,
-                                contentDescription = if (isRu) "Закрыть" else "Close",
-                                tint = scheme.textMuted,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-
-                    // Панель управления PDF (зум + переключение на выделяемый текст)
-                    if (content is ViewerContent.PdfPages) {
-                        val pdf = content as ViewerContent.PdfPages
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 4.dp),
+                                .padding(start = 14.dp, end = 10.dp, top = 2.dp, bottom = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text(
-                                text = if (isRu) "Стр: ${pdf.pages.size}" else "Pages: ${pdf.pages.size}",
-                                color = scheme.textSecondary,
-                                fontSize = 12.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (pdf.extractedText.isNotBlank()) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = activeFile.name,
+                                    color = scheme.textPrimary,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                val subtitle = buildString {
+                                    append(activeFile.sizeLabel.ifBlank {
+                                        activeFile.name.substringAfterLast('.', "").uppercase()
+                                    })
+                                    if (content is ViewerContent.PdfPages) {
+                                        val pages = (content as ViewerContent.PdfPages).pages.size
+                                        append(if (isRu) " · $pages стр." else " · $pages p.")
+                                    }
+                                }
+                                Text(
+                                    text = subtitle,
+                                    color = scheme.textSecondary,
+                                    fontSize = 11.5.sp,
+                                    maxLines = 1
+                                )
+                            }
+
+                            if (content is ViewerContent.PdfPages && (content as ViewerContent.PdfPages).extractedText.isNotBlank()) {
                                 Box(
                                     modifier = Modifier
-                                        .clip(RoundedCornerShape(16.dp))
+                                        .clip(RoundedCornerShape(14.dp))
                                         .background(if (showPdfAsText) scheme.accent else scheme.card)
                                         .clickable { showPdfAsText = !showPdfAsText }
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                        .padding(horizontal = 9.dp, vertical = 5.dp)
                                 ) {
                                     Text(
                                         text = if (showPdfAsText) {
-                                            if (isRu) "Страницы" else "Pages"
+                                            if (isRu) "Стр." else "Pages"
                                         } else {
                                             if (isRu) "Текст" else "Text"
                                         },
                                         color = if (showPdfAsText) scheme.onAccent else scheme.textPrimary,
-                                        fontSize = 11.5.sp,
+                                        fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
                                     )
                                 }
                             }
-                            if (!showPdfAsText) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ZoomOut,
-                                    contentDescription = null,
-                                    tint = scheme.textPrimary,
+
+                            val copyableText = when (val c = content) {
+                                is ViewerContent.TextDoc -> c.text
+                                is ViewerContent.CsvTable -> c.rawText
+                                is ViewerContent.PdfPages -> c.extractedText
+                                else -> ""
+                            }
+                            if (copyableText.isNotBlank()) {
+                                Box(
                                     modifier = Modifier
-                                        .size(20.dp)
-                                        .clickable { pdfZoom = (pdfZoom - 0.25f).coerceAtLeast(1f) }
-                                )
-                                Text(
-                                    text = "${(pdfZoom * 100).toInt()}%",
-                                    color = scheme.textSecondary,
-                                    fontSize = 11.5.sp
-                                )
+                                        .size(32.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .clickable {
+                                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            cm.setPrimaryClip(ClipData.newPlainText(activeFile.name, copyableText))
+                                            Toast.makeText(
+                                                context,
+                                                if (isRu) "Текст скопирован" else "Copied",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ContentCopy,
+                                        contentDescription = if (isRu) "Копировать" else "Copy",
+                                        tint = scheme.textPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { openFileInSystemViewer(context, activeFile) },
+                                contentAlignment = Alignment.Center
+                            ) {
                                 Icon(
-                                    imageVector = Icons.Outlined.ZoomIn,
-                                    contentDescription = null,
-                                    tint = scheme.textPrimary,
-                                    modifier = Modifier
-                                        .size(20.dp)
-                                        .clickable { pdfZoom = (pdfZoom + 0.25f).coerceAtMost(2.5f) }
+                                    imageVector = Icons.AutoMirrored.Outlined.OpenInNew,
+                                    contentDescription = if (isRu) "Открыть в приложении" else "Open with",
+                                    tint = scheme.accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { InAppDocumentViewerStore.close() },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Close,
+                                    contentDescription = if (isRu) "Закрыть" else "Close",
+                                    tint = scheme.textMuted,
+                                    modifier = Modifier.size(19.dp)
                                 )
                             }
                         }
@@ -336,7 +367,7 @@ fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
 
                     HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
-                    // Контент документа (с поддержкой выделения текста)
+                    // Контент документа (с поддержкой выделения текста и жеста зума для PDF)
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -412,41 +443,73 @@ fun DocumentViewerBottomSheetHost(modifier: Modifier = Modifier) {
                                         )
                                     }
                                 } else {
-                                    LazyColumn(
+                                    var scale by remember(activeFile.uri) { mutableFloatStateOf(1f) }
+                                    var offsetX by remember(activeFile.uri) { mutableFloatStateOf(0f) }
+                                    var offsetY by remember(activeFile.uri) { mutableFloatStateOf(0f) }
+                                    val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+                                        val nextScale = (scale * zoomChange).coerceIn(1f, 3f)
+                                        scale = nextScale
+                                        if (nextScale > 1.02f) {
+                                            offsetX = (offsetX + panChange.x).coerceIn(-600f * nextScale, 600f * nextScale)
+                                            offsetY = (offsetY + panChange.y).coerceIn(-600f * nextScale, 600f * nextScale)
+                                        } else {
+                                            offsetX = 0f
+                                            offsetY = 0f
+                                        }
+                                    }
+
+                                    Box(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .then(
-                                                if (pdfZoom > 1.01f) {
-                                                    Modifier.horizontalScroll(rememberScrollState())
-                                                } else Modifier
-                                            ),
-                                        contentPadding = PaddingValues(12.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            .pointerInput(activeFile.uri) {
+                                                detectTapGestures(
+                                                    onDoubleTap = {
+                                                        if (scale > 1.1f) {
+                                                            scale = 1f
+                                                            offsetX = 0f
+                                                            offsetY = 0f
+                                                        } else {
+                                                            scale = 2f
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                            .transformable(state = transformState)
                                     ) {
-                                        itemsIndexed(c.pages) { idx, bmp ->
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                modifier = if (pdfZoom > 1.01f) {
-                                                    Modifier.width((340f * pdfZoom).dp)
-                                                } else {
-                                                    Modifier.fillMaxWidth()
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .graphicsLayer {
+                                                    scaleX = scale
+                                                    scaleY = scale
+                                                    translationX = offsetX
+                                                    translationY = offsetY
+                                                },
+                                            contentPadding = PaddingValues(12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                                            userScrollEnabled = scale <= 1.05f
+                                        ) {
+                                            itemsIndexed(c.pages) { idx, bmp ->
+                                                Column(
+                                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                                    modifier = Modifier.fillMaxWidth()
+                                                ) {
+                                                    Image(
+                                                        bitmap = bmp.asImageBitmap(),
+                                                        contentDescription = "Page ${idx + 1}",
+                                                        contentScale = ContentScale.FillWidth,
+                                                        modifier = Modifier
+                                                            .fillMaxWidth()
+                                                            .clip(RoundedCornerShape(8.dp))
+                                                            .background(Color.White)
+                                                    )
+                                                    Text(
+                                                        text = "${idx + 1} / ${c.pages.size}",
+                                                        color = scheme.textMuted,
+                                                        fontSize = 11.sp,
+                                                        modifier = Modifier.padding(top = 4.dp)
+                                                    )
                                                 }
-                                            ) {
-                                                Image(
-                                                    bitmap = bmp.asImageBitmap(),
-                                                    contentDescription = "Page ${idx + 1}",
-                                                    contentScale = ContentScale.FillWidth,
-                                                    modifier = Modifier
-                                                        .fillMaxWidth()
-                                                        .clip(RoundedCornerShape(8.dp))
-                                                        .background(Color.White)
-                                                )
-                                                Text(
-                                                    text = "${idx + 1} / ${c.pages.size}",
-                                                    color = scheme.textMuted,
-                                                    fontSize = 11.sp,
-                                                    modifier = Modifier.padding(top = 4.dp)
-                                                )
                                             }
                                         }
                                     }
