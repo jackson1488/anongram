@@ -1,6 +1,10 @@
 package com.anongram.app.features.chats.archive
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,38 +13,49 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.SelectAll
+import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.chats.archive.i18n.ArchiveI18n
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.timeLabel
 import com.anongram.app.features.chats.mainmenu.components.ChatListDialogs
@@ -48,11 +63,21 @@ import com.anongram.app.features.chats.mainmenu.components.ChatListItemCard
 import com.anongram.app.features.chats.mainmenu.components.SearchRow
 import com.anongram.app.features.chats.mainmenu.components.SelectionTopBar
 import com.anongram.app.features.chats.state.ChatListViewModel
+import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
+import com.anongram.app.features.settings.common.ui.SettingsGlassBackButton
+import com.anongram.app.features.settings.common.ui.settingsGlassPill
+import dev.chrisbanes.haze.HazeProgressive
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 
 /**
- * Экран архива (как в Telegram): назад, заголовок, три точки с «Выбрать чаты»,
- * строка поиска, плоский список архивных чатов и режим выбора
- * с «Из архива» в меню точек. Делит ChatListViewModel с главным меню.
+ * Экран «Архив чатов» (Telegram-style):
+ * - Бесшовный прогрессивный блюр шапки (`HazeProgressive.verticalGradient`) и стеклянные кнопки;
+ * - Меню `⋮`: «Настройки архива», «Как это работает?», «Выбрать чаты»;
+ * - Полная поддержка тем (`LocalAnonGramScheme`) и локализации (`ArchiveI18n`).
  */
 @Composable
 fun ArchiveScreen(
@@ -62,9 +87,25 @@ fun ArchiveScreen(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ArchiveI18n.current
     val state by viewModel.uiState.collectAsState()
+    val animState by AnimationsSettingsStore.state.collectAsState()
     val haptic = LocalHapticFeedback.current
+    val listState = rememberLazyListState()
+    val hazeState = remember { HazeState() }
+    val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+
     var query by remember { mutableStateOf("") }
+    var isSettingsOpen by remember { mutableStateOf(false) }
+    var isInfoSheetOpen by remember { mutableStateOf(false) }
+
+    if (isSettingsOpen) {
+        ArchiveSettingsScreen(
+            onBack = { isSettingsOpen = false },
+            modifier = modifier
+        )
+        return
+    }
 
     val archived = if (query.isBlank()) {
         state.archivedSessions
@@ -75,147 +116,256 @@ fun ArchiveScreen(
         }
     }
 
-    BackHandler(enabled = state.isSelection) {
-        viewModel.clearSelection()
+    val isScrolled by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 12
+        }
+    }
+    val animatedHeaderAlpha by animateFloatAsState(
+        targetValue = if (isScrolled) 1f else 0f,
+        label = "archiveHeaderAlpha"
+    )
+    val glassTintAlpha = if (scheme.isDark) {
+        0.30f + 0.14f * animatedHeaderAlpha
+    } else {
+        0.40f + 0.16f * animatedHeaderAlpha
     }
 
-    Column(
+    val headerBackgroundModifier = if (animState.glassBlurEnabled) {
+        Modifier.hazeEffect(
+            state = hazeState,
+            style = HazeStyle(
+                backgroundColor = scheme.background,
+                tint = HazeTint(color = scheme.surface.copy(alpha = glassTintAlpha)),
+                blurRadius = 22.dp,
+                noiseFactor = 0.02f
+            )
+        ) {
+            progressive = HazeProgressive.verticalGradient(
+                startIntensity = 1f,
+                endIntensity = 0f
+            )
+        }
+    } else {
+        Modifier.background(
+            Brush.verticalGradient(
+                colors = listOf(
+                    scheme.surface.copy(alpha = 0.90f + 0.08f * animatedHeaderAlpha),
+                    scheme.background.copy(alpha = 0.60f + 0.25f * animatedHeaderAlpha),
+                    Color.Transparent
+                )
+            )
+        )
+    }
+
+    BackHandler(enabled = isInfoSheetOpen || state.isSelection) {
+        when {
+            isInfoSheetOpen -> isInfoSheetOpen = false
+            state.isSelection -> viewModel.clearSelection()
+        }
+    }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(scheme.background)
     ) {
-        if (state.isSelection) {
-            SelectionTopBar(
-                selectedCount = state.selectedIds.size,
-                allPinned = state.allSelectedPinned,
-                allMuted = state.allSelectedMuted,
-                isArchiveMode = true,
-                onClose = viewModel::clearSelection,
-                onTogglePin = viewModel::onTogglePinAction,
-                onDelete = viewModel::onDeleteAction,
-                onMute = viewModel::onMuteAction,
-                onArchive = { viewModel.archiveSelected(false) },
-                onMarkRead = viewModel::onMarkReadAction,
-                onClearHistory = viewModel::onClearHistoryAction
-            )
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .safeStatusBarPadding()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Назад",
-                        tint = scheme.textSecondary,
-                        modifier = Modifier.size(22.dp)
-                    )
+        // 1. Основной скроллируемый контент (проезжает под прозрачной блюр-шапкой)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(state = hazeState)
+                .background(scheme.background)
+        ) {
+            if (archived.isEmpty() && query.isBlank()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Outlined.Inventory2,
+                            contentDescription = null,
+                            tint = scheme.accent.copy(alpha = 0.75f),
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = strings.archiveEmptyTitle,
+                            color = scheme.textPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
                 }
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "Архив",
-                    fontWeight = FontWeight.Bold,
-                    color = scheme.textPrimary,
-                    fontSize = 16.sp,
-                    modifier = Modifier.weight(1f)
-                )
-                ArchiveMenu(onSelectAll = { viewModel.selectAllSessions(archived = true) })
-            }
-
-            SearchRow(
-                query = query,
-                onQueryChange = { query = it }
-            )
-        }
-
-        if (archived.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.Outlined.Inventory2,
-                        contentDescription = null,
-                        tint = scheme.textSecondary.copy(alpha = 0.6f),
-                        modifier = Modifier.size(52.dp)
-                    )
-                    Spacer(modifier = Modifier.padding(top = 12.dp))
-                    Text(
-                        text = if (query.isBlank()) "Архив пуст" else "Ничего не найдено",
-                        color = scheme.textPrimary,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    )
-                    Spacer(modifier = Modifier.padding(top = 6.dp))
-                    Text(
-                        text = if (query.isBlank()) {
-                            "Заархивируйте чат через режим выбора"
-                        } else {
-                            "Попробуйте другое имя или отпечаток"
-                        },
-                        color = scheme.textSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 112.dp),
-                verticalArrangement = Arrangement.spacedBy(0.dp)
-            ) {
-                items(archived, key = { it.id }) { session ->
-                    ChatListItemCard(
-                        session = session,
-                        timeLabel = remember(session.id, session.lastMessageEpochMs) {
-                            session.timeLabel()
-                        },
-                        selectionMode = state.isSelection,
-                        isSelected = session.id in state.selectedIds,
-                        onClick = {
-                            if (state.isSelection) {
-                                viewModel.toggleSelection(session.id)
-                            } else {
-                                onChatOpen(session)
-                            }
-                        },
-                        onLongClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                            if (state.isSelection) {
-                                viewModel.toggleSelection(session.id)
-                            } else {
-                                viewModel.enterSelection(session.id)
-                            }
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = statusBarTop + 62.dp,
+                        bottom = 112.dp
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(0.dp)
+                ) {
+                    if (!state.isSelection) {
+                        item(key = "archive_search") {
+                            SearchRow(
+                                query = query,
+                                onQueryChange = { query = it },
+                                placeholder = strings.searchChatsPlaceholder,
+                                modifier = Modifier.padding(bottom = 6.dp)
+                            )
                         }
-                    )
+                    }
+
+                    items(archived, key = { it.id }) { session ->
+                        ChatListItemCard(
+                            session = session,
+                            timeLabel = remember(session.id, session.lastMessageEpochMs) {
+                                session.timeLabel()
+                            },
+                            selectionMode = state.isSelection,
+                            isSelected = session.id in state.selectedIds,
+                            onClick = {
+                                if (state.isSelection) {
+                                    viewModel.toggleSelection(session.id)
+                                } else {
+                                    onChatOpen(session)
+                                }
+                            },
+                            onLongClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                if (state.isSelection) {
+                                    viewModel.toggleSelection(session.id)
+                                } else {
+                                    viewModel.enterSelection(session.id)
+                                }
+                            }
+                        )
+                    }
                 }
             }
         }
-    }
 
-    ChatListDialogs(state = state, viewModel = viewModel)
+        // 2. Парящая прозрачная шапка с бесшовным блюром
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .then(headerBackgroundModifier)
+        ) {
+            if (state.isSelection) {
+                SelectionTopBar(
+                    selectedCount = state.selectedIds.size,
+                    allPinned = state.allSelectedPinned,
+                    allMuted = state.allSelectedMuted,
+                    isArchiveMode = true,
+                    onClose = viewModel::clearSelection,
+                    onTogglePin = viewModel::onTogglePinAction,
+                    onDelete = viewModel::onDeleteAction,
+                    onMute = viewModel::onMuteAction,
+                    onArchive = { viewModel.archiveSelected(false) },
+                    onMarkRead = viewModel::onMarkReadAction,
+                    onClearHistory = viewModel::onClearHistoryAction
+                )
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .safeStatusBarPadding()
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                        .height(44.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    SettingsGlassBackButton(
+                        hazeState = hazeState,
+                        onClick = onBack,
+                        contentDescription = strings.back,
+                        size = 40.dp
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = strings.archiveTitle,
+                        fontWeight = FontWeight.Bold,
+                        color = scheme.textPrimary,
+                        fontSize = 18.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    ArchiveMenu(
+                        hazeState = hazeState,
+                        glassBlurEnabled = animState.glassBlurEnabled,
+                        strings = strings,
+                        onOpenSettings = { isSettingsOpen = true },
+                        onOpenInfo = { isInfoSheetOpen = true },
+                        onSelectAll = { viewModel.selectAllSessions(archived = true) }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
+        // 3. Шторка «Это Ваш архив»
+        AnimatedVisibility(
+            visible = isInfoSheetOpen,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            ArchiveInfoBottomSheet(
+                onDismiss = { isInfoSheetOpen = false },
+                onOpenSettings = { isSettingsOpen = true }
+            )
+        }
+
+        ChatListDialogs(state = state, viewModel = viewModel)
+    }
 }
 
-/** Три точки экрана архива: выбор всех архивных чатов. */
+/**
+ * Меню ⋮ архива (по 4-му скриншоту Telegram):
+ * - Настройки архива
+ * - Как это работает?
+ * - Выбрать чаты
+ */
 @Composable
-private fun ArchiveMenu(onSelectAll: () -> Unit) {
+private fun ArchiveMenu(
+    hazeState: HazeState,
+    glassBlurEnabled: Boolean,
+    strings: com.anongram.app.features.chats.archive.i18n.ArchiveI18nStrings,
+    onOpenSettings: () -> Unit,
+    onOpenInfo: () -> Unit,
+    onSelectAll: () -> Unit
+) {
     val scheme = LocalAnonGramScheme.current
     var menuOpen by remember { mutableStateOf(false) }
+
     Box {
-        IconButton(onClick = { menuOpen = true }) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .settingsGlassPill(
+                    hazeState = hazeState,
+                    shape = CircleShape,
+                    glassBlurEnabled = glassBlurEnabled
+                )
+                .clickable { menuOpen = true },
+            contentAlignment = Alignment.Center
+        ) {
             Icon(
                 imageVector = Icons.Outlined.MoreVert,
-                contentDescription = "Меню архива",
-                tint = scheme.textSecondary,
-                modifier = Modifier.size(22.dp)
+                contentDescription = null,
+                tint = scheme.textPrimary,
+                modifier = Modifier.size(20.dp)
             )
         }
+
         DropdownMenu(
             expanded = menuOpen,
             onDismissRequest = { menuOpen = false },
@@ -223,14 +373,48 @@ private fun ArchiveMenu(onSelectAll: () -> Unit) {
         ) {
             DropdownMenuItem(
                 text = {
-                    Text(text = "Выбрать чаты", color = scheme.textPrimary, fontSize = 13.sp)
+                    Text(text = strings.archiveSettingsMenu, color = scheme.textPrimary, fontSize = 14.sp)
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.Tune,
+                        contentDescription = null,
+                        tint = scheme.textSecondary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                },
+                onClick = {
+                    menuOpen = false
+                    onOpenSettings()
+                }
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(text = strings.howItWorksMenu, color = scheme.textPrimary, fontSize = 14.sp)
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.HelpOutline,
+                        contentDescription = null,
+                        tint = scheme.textSecondary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                },
+                onClick = {
+                    menuOpen = false
+                    onOpenInfo()
+                }
+            )
+            DropdownMenuItem(
+                text = {
+                    Text(text = strings.selectChats, color = scheme.textPrimary, fontSize = 14.sp)
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Outlined.SelectAll,
                         contentDescription = null,
                         tint = scheme.textSecondary,
-                        modifier = Modifier.size(17.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                 },
                 onClick = {

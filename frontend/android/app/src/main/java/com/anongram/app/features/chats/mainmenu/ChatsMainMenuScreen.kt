@@ -24,8 +24,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -54,11 +57,13 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.archive.i18n.ArchiveI18n
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.timeLabel
 import com.anongram.app.features.chats.mainmenu.components.ArchivePill
@@ -116,9 +121,18 @@ fun ChatsMainMenuScreen(
     val pillTravelPx = with(density) { (64 + 10).dp.toPx() }
     val archiveHideProgress = remember { Animatable(if (state.isArchiveCollapsed) 1f else 0f) }
 
-    // Поиск как в Telegram: скрыт по умолчанию, раскрывается при потягивании шапки/списка вниз.
+    // Поиск как в Telegram: скрыт по умолчанию, раскрывается ТОЛЬКО при осознанном потягивании вниз с верха.
     val searchTravelPx = with(density) { 52.dp.toPx() }
+    val searchDeadzonePx = with(density) { 12.dp.toPx() }
+    var accumulatedDownPx by remember { mutableStateOf(0f) }
     val searchRevealProgress = remember { Animatable(0f) }
+
+    // Баннер «Отпустите для вывода архива» (как на скриншоте Telegram, только если есть архивные чаты).
+    val archivePullTravelPx = with(density) { 84.dp.toPx() }
+    val archivePullProgress = remember { Animatable(0f) }
+    var archiveHapticFired by remember { mutableStateOf(false) }
+
+    val archiveStrings = ArchiveI18n.current
 
     // Коммиты из ViewModel дожимают прогресс анимацией (после жеста или архивации).
     LaunchedEffect(state.isArchiveCollapsed, state.hasArchived) {
@@ -131,12 +145,16 @@ fun ChatsMainMenuScreen(
     }
 
     // Жесты архива и поиска через nestedScroll (как в Telegram):
-    // потягивание вниз с самого верха раскрывает Архив (если скрыт) и затем Поиск;
-    // тяга вверх — сначала прячет Поиск, затем сворачивает Архив.
-    val archiveScrollConnection = remember(state.hasArchived, pillTravelPx, searchTravelPx) {
+    // - Инерция скролла (SideEffect / Fling) ИГНОРИРУЕТСЯ, чтобы быстрый скролл вверх не открывал поиск.
+    // - Потягивание вниз с самого верха: после мёртвой зоны (12.dp) раскрывает Поиск, а при дальнейшей
+    //   глубокой тяге вниз (если есть архивные чаты) — выводит баннер «Отпустите для вывода архива».
+    // - Любая тяга вверх мгновенно сворачивает баннер, Поиск и затем Архив.
+    val archiveScrollConnection = remember(state.hasArchived, pillTravelPx, searchTravelPx, archivePullTravelPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (available.y >= 0f) return Offset.Zero
+                accumulatedDownPx = 0f
+
                 val atTop = listState.firstVisibleItemIndex == 0 &&
                     listState.firstVisibleItemScrollOffset == 0
                 if (!atTop) return Offset.Zero
@@ -144,7 +162,22 @@ fun ChatsMainMenuScreen(
                 var remainingUp = -available.y
                 var totalConsumed = 0f
 
-                if (searchRevealProgress.value > 0f) {
+                if (archivePullProgress.value > 0f) {
+                    val neededPullPx = archivePullProgress.value * archivePullTravelPx
+                    val consumePull = minOf(neededPullPx, remainingUp)
+                    if (consumePull > 0f) {
+                        scope.launch {
+                            archivePullProgress.snapTo(
+                                (archivePullProgress.value - consumePull / archivePullTravelPx).coerceIn(0f, 1f)
+                            )
+                        }
+                        if (archivePullProgress.value < 0.75f) archiveHapticFired = false
+                        remainingUp -= consumePull
+                        totalConsumed += consumePull
+                    }
+                }
+
+                if (searchRevealProgress.value > 0f && remainingUp > 0f) {
                     val neededSearchPx = searchRevealProgress.value * searchTravelPx
                     val consumeSearch = minOf(neededSearchPx, remainingUp)
                     if (consumeSearch > 0f) {
@@ -179,7 +212,8 @@ fun ChatsMainMenuScreen(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                if (available.y <= 0f) return Offset.Zero
+                // Строго только прямой палец пользователя (никакой инерции/флинга!)
+                if (source != NestedScrollSource.UserInput || available.y <= 0f) return Offset.Zero
                 val atTop = listState.firstVisibleItemIndex == 0 &&
                     listState.firstVisibleItemScrollOffset == 0
                 if (!atTop) return Offset.Zero
@@ -187,18 +221,13 @@ fun ChatsMainMenuScreen(
                 var remainingDown = available.y
                 var totalConsumed = 0f
 
-                if (state.hasArchived && archiveHideProgress.value > 0f) {
-                    val neededArchivePx = archiveHideProgress.value * pillTravelPx
-                    val consumeArchive = minOf(neededArchivePx, remainingDown)
-                    if (consumeArchive > 0f) {
-                        scope.launch {
-                            archiveHideProgress.snapTo(
-                                (archiveHideProgress.value - consumeArchive / pillTravelPx).coerceIn(0f, 1f)
-                            )
-                        }
-                        remainingDown -= consumeArchive
-                        totalConsumed += consumeArchive
-                    }
+                // Мёртвая зона сопротивления перед раскрытием поиска, чтобы резкий свайп не открывал случайно
+                if (searchRevealProgress.value == 0f && accumulatedDownPx < searchDeadzonePx) {
+                    val absorb = minOf(searchDeadzonePx - accumulatedDownPx, remainingDown)
+                    accumulatedDownPx += absorb
+                    remainingDown -= absorb
+                    totalConsumed += absorb
+                    if (remainingDown <= 0f) return Offset(0f, totalConsumed)
                 }
 
                 if (remainingDown > 0f && searchRevealProgress.value < 1f) {
@@ -210,7 +239,24 @@ fun ChatsMainMenuScreen(
                                 (searchRevealProgress.value + consumeSearch / searchTravelPx).coerceIn(0f, 1f)
                             )
                         }
+                        remainingDown -= consumeSearch
                         totalConsumed += consumeSearch
+                    }
+                }
+
+                if (state.hasArchived && searchRevealProgress.value >= 0.98f && remainingDown > 0f && archivePullProgress.value < 1f) {
+                    val neededPullPx = (1f - archivePullProgress.value) * archivePullTravelPx
+                    val consumePull = minOf(neededPullPx, remainingDown)
+                    if (consumePull > 0f) {
+                        val nextProgress = (archivePullProgress.value + consumePull / archivePullTravelPx).coerceIn(0f, 1f)
+                        scope.launch {
+                            archivePullProgress.snapTo(nextProgress)
+                        }
+                        if (nextProgress >= 0.78f && !archiveHapticFired) {
+                            archiveHapticFired = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        }
+                        totalConsumed += consumePull
                     }
                 }
 
@@ -218,10 +264,27 @@ fun ChatsMainMenuScreen(
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                accumulatedDownPx = 0f
+                val shouldOpenArchive = state.hasArchived && archivePullProgress.value >= 0.78f
+                archiveHapticFired = false
+
+                scope.launch {
+                    archivePullProgress.animateTo(0f, PhysicsSprings.screenSpringSpec())
+                }
+
+                if (shouldOpenArchive) {
+                    scope.launch { searchRevealProgress.snapTo(0f) }
+                    onOpenArchive()
+                    return Velocity.Zero
+                }
+
                 if (state.hasArchived) {
                     requestArchiveCollapse(archiveHideProgress.value > 0.5f)
                 }
-                val targetSearch = if (searchRevealProgress.value > 0.42f) 1f else 0f
+
+                // Резкий быстрый свайп вниз (высокая скорость) не фиксирует поиск, если он не дотянут почти полностью
+                val isFastFlickDown = available.y > 1600f && searchRevealProgress.value < 0.85f
+                val targetSearch = if (!isFastFlickDown && searchRevealProgress.value > 0.50f) 1f else 0f
                 scope.launch {
                     searchRevealProgress.animateTo(targetSearch, PhysicsSprings.screenSpringSpec())
                 }
@@ -361,6 +424,63 @@ fun ChatsMainMenuScreen(
                                                 fontSize = 15.sp
                                             )
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Баннер «Потяните вниз для архива» -> «Отпустите для вывода архива» (как на 2-м скриншоте)
+                        if (state.hasArchived) {
+                            item(key = "archive_pull_banner") {
+                                val pull = archivePullProgress.value
+                                if (pull > 0.01f) {
+                                    val isReady = pull >= 0.78f
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(68.dp * pull)
+                                            .clipToBounds()
+                                            .padding(bottom = 8.dp)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .background(
+                                                scheme.accent.copy(alpha = if (isReady) 0.85f else 0.32f + 0.30f * pull)
+                                            )
+                                            .padding(horizontal = 16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        // Вертикальная капсула-индикатор слева (как в Telegram)
+                                        Box(
+                                            modifier = Modifier
+                                                .align(Alignment.CenterStart)
+                                                .width(24.dp)
+                                                .height(48.dp)
+                                                .clip(CircleShape)
+                                                .background(Color.White.copy(alpha = 0.24f)),
+                                            contentAlignment = Alignment.BottomCenter
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .padding(bottom = 2.dp)
+                                                    .size(20.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.White),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (isReady) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                                                    contentDescription = null,
+                                                    tint = scheme.accent,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Text(
+                                            text = if (isReady) archiveStrings.releaseToOpenArchive else archiveStrings.pullDownForArchive,
+                                            color = if (isReady) scheme.onAccent else scheme.textPrimary,
+                                            fontSize = 14.5.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
                             }
