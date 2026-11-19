@@ -195,7 +195,7 @@ fun ModulesSettingsScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Outlined.TextFields,
+                            imageVector = androidx.compose.material.icons.Icons.Default.TextFields,
                             contentDescription = null,
                             tint = scheme.accent,
                             modifier = Modifier.size(24.dp)
