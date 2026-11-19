@@ -62,17 +62,12 @@ object OpenAiCompatibleClient {
                     val item = data.optJSONObject(i) ?: continue
                     val id = item.optString("id").takeIf { it.isNotBlank() } ?: continue
                     val name = item.optString("name").takeIf { it.isNotBlank() } ?: id
-                    val lower = id.lowercase()
-                    val likelyVision = lower.contains("gpt-4o") || lower.contains("gpt-5") ||
-                        lower.contains("gpt-6") || lower.contains("gemini") ||
-                        lower.contains("vision") || lower.contains("vl") ||
-                        lower.contains("claude-3") || lower.contains("claude-4") ||
-                        lower.contains("grok") || lower.contains("qwen")
                     list.add(
                         CloudModelInfo(
                             id = id,
                             displayName = name,
-                            supportsVision = likelyVision,
+                            supportsVision = true,
+                            supportsImageOutput = true,
                             supportsTools = true
                         )
                     )
@@ -82,6 +77,40 @@ object OpenAiCompatibleClient {
                 conn.disconnect()
             }
         }
+    }
+
+    suspend fun testModel(baseUrl: String, apiKey: String, modelId: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val cleanBase = baseUrl.trimEnd('/')
+            val url = URL("$cleanBase/chat/completions")
+            val payload = JSONObject().apply {
+                put("model", modelId)
+                put("messages", JSONArray().put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", "hi")
+                }))
+                put("max_tokens", 1)
+                put("stream", false)
+            }
+            val conn = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "POST"
+                doOutput = true
+                connectTimeout = 8_000
+                readTimeout = 12_000
+                setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                if (apiKey.isNotBlank()) {
+                    setRequestProperty("Authorization", "Bearer ${apiKey.trim()}")
+                }
+            }
+            try {
+                conn.outputStream.use { os ->
+                    os.write(payload.toString().toByteArray(Charsets.UTF_8))
+                }
+                conn.responseCode in 200..299
+            } finally {
+                conn.disconnect()
+            }
+        }.getOrDefault(false)
     }
 
     suspend fun streamChatCompletion(

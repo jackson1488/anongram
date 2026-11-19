@@ -66,31 +66,8 @@ fun CloudAiProvidersSection(
     onOpenAddProvider: () -> Unit = {},
     onOpenEditProvider: (CloudProviderProfile) -> Unit = {}
 ) {
-    val context = LocalContext.current
     val scheme = LocalAnonGramScheme.current
     val aiStrings = LocalAiI18n.current
-
-    var showImportJsonDialog by remember { mutableStateOf(false) }
-
-    val jsonFilePicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        if (uri != null) {
-            val raw = runCatching {
-                context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-            }.getOrNull().orEmpty()
-            if (raw.isNotBlank()) {
-                LocalAiStore.importCloudJsonConfig(context, raw)
-                    .onSuccess { list ->
-                        val msg = if (isRu) "Импортировано провайдеров: ${list.size}" else "Imported providers: ${list.size}"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                    }
-                    .onFailure { err ->
-                        Toast.makeText(context, err.message ?: "JSON error", Toast.LENGTH_LONG).show()
-                    }
-            }
-        }
-    }
 
     Column(
         modifier = Modifier
@@ -122,69 +99,38 @@ fun CloudAiProvidersSection(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(20.dp))
+                .background(scheme.accent)
+                .clickable { onOpenAddProvider() }
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
         ) {
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(scheme.accent)
-                    .clickable { showImportJsonDialog = true }
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.DataObject,
-                    contentDescription = null,
-                    tint = scheme.onAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = aiStrings.importOpenCodeJson,
-                    color = scheme.onAccent,
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(scheme.surface)
-                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
-                    .clickable { onOpenAddProvider() }
-                    .padding(horizontal = 12.dp, vertical = 9.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Add,
-                    contentDescription = null,
-                    tint = scheme.textPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(
-                    text = aiStrings.addCustomProvider,
-                    color = scheme.textPrimary,
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1
-                )
-            }
+            Icon(
+                imageVector = Icons.Outlined.Add,
+                contentDescription = null,
+                tint = scheme.onAccent,
+                modifier = Modifier.size(17.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = aiStrings.addCustomProvider,
+                color = scheme.onAccent,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1
+            )
         }
 
         val activeProviders = state.cloudProviders.filter { it.apiKey.isNotBlank() && it.baseUrl.isNotBlank() }
         if (activeProviders.isEmpty()) {
             Text(
                 text = if (isRu) {
-                    "Нет активных провайдеров. Нажмите «+ Добавить провайдера» или «Импорт OpenCode JSON»."
+                    "Нет активных провайдеров. Нажмите «+ Добавить провайдера»."
                 } else {
-                    "No active providers yet. Tap «+ Add provider» or «Import OpenCode JSON»."
+                    "No active providers yet. Tap «+ Add provider»."
                 },
                 color = scheme.textMuted,
                 fontSize = 12.5.sp
@@ -243,28 +189,6 @@ fun CloudAiProvidersSection(
                 }
             }
         }
-    }
-
-    if (showImportJsonDialog) {
-        ImportOpenCodeJsonDialog(
-            isRu = isRu,
-            onDismiss = { showImportJsonDialog = false },
-            onPickFile = {
-                showImportJsonDialog = false
-                jsonFilePicker.launch(arrayOf("application/json", "text/plain", "*/*"))
-            },
-            onImportText = { raw ->
-                LocalAiStore.importCloudJsonConfig(context, raw)
-                    .onSuccess { list ->
-                        showImportJsonDialog = false
-                        val msg = if (isRu) "Импортировано провайдеров: ${list.size}" else "Imported providers: ${list.size}"
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
-                    }
-                    .onFailure { err ->
-                        Toast.makeText(context, err.message ?: "Invalid JSON", Toast.LENGTH_LONG).show()
-                    }
-            }
-        )
     }
 }
 

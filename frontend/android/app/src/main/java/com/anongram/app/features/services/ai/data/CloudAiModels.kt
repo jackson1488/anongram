@@ -8,7 +8,8 @@ enum class AiEngineMode {
 data class CloudModelInfo(
     val id: String,
     val displayName: String,
-    val supportsVision: Boolean = false,
+    val supportsVision: Boolean = true,
+    val supportsImageOutput: Boolean = true,
     val supportsTools: Boolean = true
 )
 

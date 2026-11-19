@@ -76,6 +76,9 @@ fun CloudProviderEditorScreen(
     var selectedPreset by remember(initialProvider?.id) {
         mutableStateOf(if (isNew) presets.firstOrNull() else initialProvider)
     }
+    var providerId by remember(initialProvider?.id) {
+        mutableStateOf(initialProvider?.id ?: presets.firstOrNull()?.id ?: "")
+    }
     var name by remember(initialProvider?.id) {
         mutableStateOf(initialProvider?.name ?: presets.firstOrNull()?.name ?: "")
     }
@@ -90,6 +93,8 @@ fun CloudProviderEditorScreen(
     }
     var newModelId by remember { mutableStateOf("") }
     var isFetching by remember { mutableStateOf(false) }
+    var isTestingModels by remember { mutableStateOf(false) }
+    var modelHealth by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var fetchError by remember { mutableStateOf<String?>(null) }
 
     val activeCloudModelId = if (
@@ -101,23 +106,21 @@ fun CloudProviderEditorScreen(
     } else null
 
     fun buildSavedProfile(): CloudProviderProfile {
-        val cleanId = initialProvider?.id
-            ?: selectedPreset?.id
-            ?: name.lowercase().replace(Regex("[^a-z0-9_-]"), "_").ifBlank {
-                "custom_${System.currentTimeMillis()}"
-            }
+        val cleanId = providerId.trim()
+            .ifBlank { initialProvider?.id ?: selectedPreset?.id ?: name.lowercase().replace(Regex("[^a-z0-9_-]"), "_") }
+            .ifBlank { "custom_${System.currentTimeMillis()}" }
         val finalModels = if (models.isNotEmpty()) {
-            models
+            models.map { it.copy(supportsVision = true, supportsImageOutput = true) }
         } else {
-            listOf(CloudModelInfo("gpt-4o-mini", "gpt-4o-mini", supportsVision = true))
+            listOf(CloudModelInfo("gpt-4o-mini", "gpt-4o-mini", supportsVision = true, supportsImageOutput = true))
         }
         return CloudProviderProfile(
             id = cleanId,
-            name = name.trim().ifBlank { selectedPreset?.name ?: "Custom API" },
+            name = name.trim().ifBlank { cleanId },
             baseUrl = baseUrl.trim().trimEnd('/'),
             apiKey = apiKey.trim(),
             models = finalModels,
-            isPreset = initialProvider?.isPreset ?: (selectedPreset != null)
+            isPreset = initialProvider?.isPreset ?: (selectedPreset != null && cleanId == selectedPreset?.id)
         )
     }
 
@@ -156,9 +159,11 @@ fun CloudProviderEditorScreen(
                                     .border(1.dp, if (active) scheme.accent else scheme.islandBorder, RoundedCornerShape(20.dp))
                                     .clickable {
                                         selectedPreset = preset
+                                        providerId = preset.id
                                         name = preset.name
                                         baseUrl = preset.baseUrl
                                         models = preset.models
+                                        modelHealth = emptyMap()
                                     }
                                     .padding(horizontal = 12.dp, vertical = 7.dp)
                             ) {
@@ -178,9 +183,11 @@ fun CloudProviderEditorScreen(
                                 .border(1.dp, if (isCustom) scheme.accent else scheme.islandBorder, RoundedCornerShape(20.dp))
                                 .clickable {
                                     selectedPreset = null
+                                    providerId = ""
                                     name = ""
                                     baseUrl = "https://"
                                     models = emptyList()
+                                    modelHealth = emptyMap()
                                 }
                                 .padding(horizontal = 12.dp, vertical = 7.dp)
                         ) {
@@ -204,6 +211,12 @@ fun CloudProviderEditorScreen(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                EditorInputField(
+                    label = if (isRu) "ID провайдера" else "Provider ID",
+                    value = providerId,
+                    placeholder = "iishko / my_router",
+                    onValueChange = { providerId = it }
+                )
                 EditorInputField(
                     label = if (isRu) "Название" else "Name",
                     value = name,
@@ -279,6 +292,39 @@ fun CloudProviderEditorScreen(
                             fontWeight = FontWeight.Medium
                         )
                     }
+
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(scheme.surface)
+                            .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+                            .clickable(enabled = !isTestingModels && baseUrl.isNotBlank() && apiKey.isNotBlank() && models.isNotEmpty()) {
+                                isTestingModels = true
+                                val currentModels = models
+                                scope.launch {
+                                    val results = mutableMapOf<String, Boolean>()
+                                    currentModels.forEach { m ->
+                                        val ok = OpenAiCompatibleClient.testModel(baseUrl.trim(), apiKey.trim(), m.id)
+                                        results[m.id] = ok
+                                        modelHealth = results.toMap()
+                                    }
+                                    isTestingModels = false
+                                }
+                            }
+                            .padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (isTestingModels) {
+                                if (isRu) "Проверка..." else "Testing..."
+                            } else {
+                                if (isRu) "Проверить" else "Test models"
+                            },
+                            color = scheme.accent,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
                 if (!fetchError.isNullOrBlank()) {
@@ -295,12 +341,36 @@ fun CloudProviderEditorScreen(
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Text(
-                    text = if (isRu) "Модели (${models.size})" else "Models (${models.size})",
-                    color = scheme.textPrimary,
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (isRu) "Модели (${models.size}) · text + image" else "Models (${models.size}) · text + image",
+                        color = scheme.textPrimary,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (modelHealth.values.any { !it }) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(scheme.accent)
+                                .clickable {
+                                    models = models.filter { modelHealth[it.id] == true }
+                                }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = if (isRu) "Оставить рабочие" else "Keep working",
+                                color = scheme.onAccent,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                    }
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -321,7 +391,7 @@ fun CloudProviderEditorScreen(
                             .background(if (newModelId.isNotBlank()) scheme.accent else scheme.surface)
                             .clickable(enabled = newModelId.isNotBlank()) {
                                 val id = newModelId.trim()
-                                models = (models + CloudModelInfo(id, id, supportsVision = true)).distinctBy { it.id }
+                                models = (models + CloudModelInfo(id, id, supportsVision = true, supportsImageOutput = true)).distinctBy { it.id }
                                 newModelId = ""
                             }
                             .padding(horizontal = 16.dp, vertical = 11.dp)
@@ -337,6 +407,7 @@ fun CloudProviderEditorScreen(
 
                 models.forEach { m ->
                     val isActiveModel = activeCloudModelId == m.id
+                    val health = modelHealth[m.id]
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -373,6 +444,15 @@ fun CloudProviderEditorScreen(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
+                        if (health != null) {
+                            Text(
+                                text = if (health) "OK" else "ERR",
+                                color = if (health) scheme.accent else scheme.textMuted,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                        }
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(14.dp))
@@ -385,9 +465,9 @@ fun CloudProviderEditorScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
                             Text(
-                                text = "Vision",
+                                text = "Text+Img",
                                 color = if (m.supportsVision) scheme.accent else scheme.textMuted,
-                                fontSize = 11.sp,
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
