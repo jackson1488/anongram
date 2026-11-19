@@ -18,8 +18,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.FormatSize
 import androidx.compose.material.icons.outlined.GraphicEq
-import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -196,7 +196,7 @@ fun ModulesSettingsScreen(
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(
-                            imageVector = Icons.Outlined.TextFields,
+                            imageVector = Icons.Outlined.FormatSize,
                             contentDescription = null,
                             tint = scheme.accent,
                             modifier = Modifier.size(24.dp)
