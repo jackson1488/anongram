@@ -165,23 +165,20 @@ fun FontsModuleSettingsScreen(
                     .background(scheme.background)
                     .hazeSource(state = hazeState),
                 contentPadding = PaddingValues(
-                    top = headerTotalHeight + 6.dp,
+                    top = headerTotalHeight + 4.dp,
                     bottom = navBottom + 24.dp,
-                    start = 16.dp,
-                    end = 16.dp
+                    start = 0.dp,
+                    end = 0.dp
                 ),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(0.dp)
             ) {
-                // 1. Где применять шрифт
+                // 1. Компактная настройка «Где применять»
                 item(key = "scope_card") {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(scheme.card)
-                            .border(1.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
-                            .padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -189,21 +186,21 @@ fun FontsModuleSettingsScreen(
                         ) {
                             Text(
                                 text = if (isRu) "Где применять" else "Apply to",
-                                color = scheme.textPrimary,
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.SemiBold,
+                                color = scheme.textSecondary,
+                                fontSize = 12.5.sp,
+                                fontWeight = FontWeight.Medium,
                                 modifier = Modifier.weight(1f)
                             )
                             if (state.activeFontId != null) {
                                 Text(
                                     text = if (isRu) "Сбросить" else "Reset",
                                     color = scheme.accent,
-                                    fontSize = 12.5.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(14.dp))
                                         .clickable { FontModuleStore.selectFont(context, null) }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
                                 )
                             }
                         }
@@ -221,11 +218,10 @@ fun FontsModuleSettingsScreen(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(if (active) scheme.accent else scheme.surface)
-                                        .border(1.dp, if (active) scheme.accent else scheme.islandBorder, RoundedCornerShape(20.dp))
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(if (active) scheme.accent else scheme.card)
                                         .clickable { FontModuleStore.setApplyScope(context, sc) }
-                                        .padding(vertical = 8.dp),
+                                        .padding(vertical = 6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
@@ -239,61 +235,66 @@ fun FontsModuleSettingsScreen(
                             }
                         }
                     }
+                    androidx.compose.material3.HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
                 }
 
-                // 2. Установленные / импортированные шрифты
-                if (state.installedFonts.isNotEmpty()) {
-                    item(key = "installed_header") {
-                        Text(
-                            text = if (isRu) "Установленные (${state.installedFonts.size})" else "Installed (${state.installedFonts.size})",
-                            color = scheme.textSecondary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                    items(state.installedFonts, key = { "inst_${it.id}" }) { font ->
-                        val isActive = state.activeFontId == font.id
-                        val previewFamily = remember(font.id, font.fileName) {
-                            FontModuleStore.resolveFontFamily(context, font.id) ?: FontFamily.Default
-                        }
+                // 2. Закреплённый шрифт Minecraft (по дефолту сверху)
+                item(key = "pinned_header") {
+                    Text(
+                        text = if (isRu) "Закреплённые" else "Pinned",
+                        color = scheme.accent,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp)
+                    )
+                }
+                val pinnedMinecraft = listOf(
+                    com.anongram.app.core.theme.FontCatalogItem("pixelify-sans", "Minecraft (Pixelify Sans)", "display", true),
+                    com.anongram.app.core.theme.FontCatalogItem("press-start-2p", "Minecraft Classic (Press Start 2P)", "display", true)
+                )
+                items(pinnedMinecraft, key = { "pin_${it.id}" }) { item ->
+                    val isInstalled = item.id in installedIds
+                    val isDownloading = state.downloadingFontId == item.id
+                    val isActive = state.activeFontId == item.id
+                    Column(modifier = Modifier.fillMaxWidth()) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(scheme.card)
-                                .border(
-                                    width = if (isActive) 1.3.dp else 0.8.dp,
-                                    color = if (isActive) scheme.accent else scheme.islandBorder,
-                                    shape = RoundedCornerShape(18.dp)
-                                )
-                                .clickable { FontModuleStore.selectFont(context, font.id) }
-                                .padding(horizontal = 14.dp, vertical = 11.dp),
+                                .clickable(enabled = !isDownloading) {
+                                    if (isInstalled) {
+                                        FontModuleStore.selectFont(context, item.id)
+                                    } else {
+                                        FontModuleStore.downloadFont(context, item)
+                                    }
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
-                                    text = font.displayName,
+                                    text = item.family,
                                     color = scheme.textPrimary,
                                     fontSize = 15.sp,
-                                    fontFamily = previewFamily,
-                                    fontWeight = FontWeight.SemiBold,
+                                    fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    text = if (isRu) {
-                                        "Аа Бб Привет! Hello 123 · ${formatMb(font.sizeBytes)}"
-                                    } else {
-                                        "Aa Bb Hello World 123 · ${formatMb(font.sizeBytes)}"
-                                    },
+                                    text = if (isRu) "Пиксельный · Кириллица + Латиница" else "Pixel · Cyrillic + Latin",
                                     color = scheme.textSecondary,
-                                    fontSize = 12.5.sp,
-                                    fontFamily = previewFamily,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                                    fontSize = 12.sp
                                 )
+                                if (isDownloading) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LinearProgressIndicator(
+                                        progress = { state.downloadProgress },
+                                        color = scheme.accent,
+                                        trackColor = scheme.surface,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.width(10.dp))
                             if (isActive) {
                                 Icon(
                                     imageVector = Icons.Default.Check,
@@ -301,25 +302,109 @@ fun FontsModuleSettingsScreen(
                                     tint = scheme.accent,
                                     modifier = Modifier.size(18.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                            } else if (isInstalled) {
+                                Text(
+                                    text = if (isRu) "Выбрать" else "Use",
+                                    color = scheme.accent,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.Download,
+                                    contentDescription = null,
+                                    tint = scheme.accent,
+                                    modifier = Modifier.size(20.dp)
+                                )
                             }
-                            Icon(
-                                imageVector = Icons.Outlined.DeleteOutline,
-                                contentDescription = null,
-                                tint = scheme.textMuted,
+                        }
+                        androidx.compose.material3.HorizontalDivider(
+                            color = scheme.divider,
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
+                    }
+                }
+
+                // 3. Установленные / импортированные шрифты (плоский список без баблов)
+                if (state.installedFonts.isNotEmpty()) {
+                    item(key = "installed_header") {
+                        Text(
+                            text = if (isRu) "Установленные (${state.installedFonts.size})" else "Installed (${state.installedFonts.size})",
+                            color = scheme.textSecondary,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 14.dp, bottom = 4.dp)
+                        )
+                    }
+                    items(state.installedFonts, key = { "inst_${it.id}" }) { font ->
+                        val isActive = state.activeFontId == font.id
+                        val previewFamily = remember(font.id, font.fileName) {
+                            FontModuleStore.resolveFontFamily(context, font.id) ?: FontFamily.Default
+                        }
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
                                 modifier = Modifier
-                                    .size(19.dp)
-                                    .clickable { FontModuleStore.deleteFont(context, font) }
+                                    .fillMaxWidth()
+                                    .clickable { FontModuleStore.selectFont(context, font.id) }
+                                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = font.displayName,
+                                        color = if (isActive) scheme.accent else scheme.textPrimary,
+                                        fontSize = 15.sp,
+                                        fontFamily = previewFamily,
+                                        fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Text(
+                                        text = if (isRu) {
+                                            "Аа Бб Привет! Hello 123 · ${formatFontSize(font.sizeBytes, true)}"
+                                        } else {
+                                            "Aa Bb Hello World 123 · ${formatFontSize(font.sizeBytes, false)}"
+                                        },
+                                        color = scheme.textSecondary,
+                                        fontSize = 12.5.sp,
+                                        fontFamily = previewFamily,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                if (isActive) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = scheme.accent,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                }
+                                Icon(
+                                    imageVector = Icons.Outlined.DeleteOutline,
+                                    contentDescription = null,
+                                    tint = scheme.textMuted,
+                                    modifier = Modifier
+                                        .size(19.dp)
+                                        .clickable { FontModuleStore.deleteFont(context, font) }
+                                )
+                            }
+                            androidx.compose.material3.HorizontalDivider(
+                                color = scheme.divider,
+                                thickness = 0.5.dp,
+                                modifier = Modifier.padding(start = 16.dp)
                             )
                         }
                     }
                 }
 
-                // 3. Категории каталога
+                // 4. Категории каталога
                 item(key = "categories") {
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(top = 4.dp)
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         items(FontFilterCategory.entries) { cat ->
                             val active = selectedCategory == cat
@@ -336,7 +421,6 @@ fun FontsModuleSettingsScreen(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(20.dp))
                                     .background(if (active) scheme.accent else scheme.card)
-                                    .border(1.dp, if (active) scheme.accent else scheme.islandBorder, RoundedCornerShape(20.dp))
                                     .clickable { selectedCategory = cat }
                                     .padding(horizontal = 14.dp, vertical = 7.dp)
                             ) {
@@ -351,10 +435,12 @@ fun FontsModuleSettingsScreen(
                     }
                 }
 
-                // 4. Заголовок внешнего каталога
+                // 5. Заголовок внешнего каталога
                 item(key = "catalog_header") {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
@@ -364,7 +450,7 @@ fun FontsModuleSettingsScreen(
                                 "Fontsource Catalog (${filteredCatalog.size})"
                             },
                             color = scheme.textSecondary,
-                            fontSize = 13.sp,
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f)
                         )
@@ -383,74 +469,79 @@ fun FontsModuleSettingsScreen(
                         Text(
                             text = state.catalogError.orEmpty(),
                             color = scheme.textMuted,
-                            fontSize = 12.5.sp
+                            fontSize = 12.5.sp,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
                         )
                     }
                 }
 
-                // 5. Список шрифтов из внешнего каталога
+                // 6. Плоский список шрифтов из внешнего каталога (без баблов)
                 items(filteredCatalog.take(200), key = { "cat_${it.id}" }) { item ->
                     val isInstalled = item.id in installedIds
                     val isDownloading = state.downloadingFontId == item.id
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(scheme.card)
-                            .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
-                            .clickable(enabled = !isDownloading) {
-                                if (isInstalled) {
-                                    FontModuleStore.selectFont(context, item.id)
-                                } else {
-                                    FontModuleStore.downloadFont(context, item)
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !isDownloading) {
+                                    if (isInstalled) {
+                                        FontModuleStore.selectFont(context, item.id)
+                                    } else {
+                                        FontModuleStore.downloadFont(context, item)
+                                    }
+                                }
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.family,
+                                    color = scheme.textPrimary,
+                                    fontSize = 14.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    text = buildString {
+                                        append(item.category)
+                                        if (item.hasCyrillic) append(if (isRu) " · Кириллица" else " · Cyrillic")
+                                    },
+                                    color = scheme.textSecondary,
+                                    fontSize = 11.5.sp
+                                )
+                                if (isDownloading) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    LinearProgressIndicator(
+                                        progress = { state.downloadProgress },
+                                        color = scheme.accent,
+                                        trackColor = scheme.surface,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
-                            .padding(horizontal = 14.dp, vertical = 11.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = item.family,
-                                color = scheme.textPrimary,
-                                fontSize = 14.5.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = buildString {
-                                    append(item.category)
-                                    if (item.hasCyrillic) append(if (isRu) " · Кириллица" else " · Cyrillic")
-                                },
-                                color = scheme.textSecondary,
-                                fontSize = 11.5.sp
-                            )
-                            if (isDownloading) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                LinearProgressIndicator(
-                                    progress = { state.downloadProgress },
-                                    color = scheme.accent,
-                                    trackColor = scheme.surface,
-                                    modifier = Modifier.fillMaxWidth()
+                            Spacer(modifier = Modifier.width(10.dp))
+                            if (isInstalled) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = scheme.accent,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = Icons.Outlined.Download,
+                                    contentDescription = null,
+                                    tint = scheme.accent,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        if (isInstalled) {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = null,
-                                tint = scheme.accent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Outlined.Download,
-                                contentDescription = null,
-                                tint = scheme.accent,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
+                        androidx.compose.material3.HorizontalDivider(
+                            color = scheme.divider,
+                            thickness = 0.5.dp,
+                            modifier = Modifier.padding(start = 16.dp)
+                        )
                     }
                 }
             }
@@ -671,4 +762,13 @@ fun FontsModuleSettingsScreen(
             }
         }
     }
+}
+
+private fun formatFontSize(bytes: Long, isRu: Boolean): String {
+    if (bytes <= 0L) return if (isRu) "0 КБ" else "0 KB"
+    if (bytes < 1024L * 1024L) {
+        val kb = (bytes / 1024L).coerceAtLeast(1L)
+        return if (isRu) "$kb КБ" else "$kb KB"
+    }
+    return formatMb(bytes)
 }

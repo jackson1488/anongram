@@ -210,8 +210,14 @@ fun ModulesSettingsScreen(
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(2.dp))
+                            val fontsSizeLabel = if (fontsBytes > 0L && fontsBytes < 1024L * 1024L) {
+                                val kb = (fontsBytes / 1024L).coerceAtLeast(1L)
+                                if (strings.isRussian) "$kb КБ" else "$kb KB"
+                            } else {
+                                formatMb(fontsBytes)
+                            }
                             Text(
-                                text = "$activeFontLabel • ${strings.moduleMemoryLabel(formatMb(fontsBytes))}",
+                                text = "$activeFontLabel • ${strings.moduleMemoryLabel(fontsSizeLabel)}",
                                 color = scheme.textSecondary,
                                 fontSize = 13.sp
                             )
