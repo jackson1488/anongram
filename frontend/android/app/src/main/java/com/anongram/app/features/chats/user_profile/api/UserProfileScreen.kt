@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.navigation.swipeBackGesture
+import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import com.anongram.app.core.i18n.AppLanguage
@@ -83,6 +84,9 @@ fun UserProfileScreen(
     onSetSelfDestruct: (SelfDestruct) -> Unit,
     onOpenKeyVerification: () -> Unit,
     onOpenMediaMessage: (ChatMessage) -> Unit,
+    onShowInChat: (ChatMessage) -> Unit = {},
+    onForwardMessages: (List<String>) -> Unit = {},
+    onDeleteMessages: (List<String>) -> Unit = {},
     onAddContact: (() -> Unit)? = null,
     onDeleteChat: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -93,12 +97,16 @@ fun UserProfileScreen(
     val strings = remember(lang) { UserProfileI18n.forLanguage(lang) }
 
     var isExpandedHero by remember(session.id) { mutableStateOf(false) }
+    var isAvatarFullscreenOpen by remember(session.id) { mutableStateOf(false) }
     var isOverflowOpen by remember { mutableStateOf(false) }
     var isCustomAutoDeleteOpen by remember { mutableStateOf(false) }
     var isQrOverlayOpen by remember { mutableStateOf(false) }
     var isQrScannerOpen by remember { mutableStateOf(false) }
     var addedToContactsLocal by remember(session.id) { mutableStateOf(isContact) }
     var predictiveBackProgress by remember { mutableFloatStateOf(0f) }
+    var gridColumns by remember { androidx.compose.runtime.mutableIntStateOf(3) }
+    var selectedIds by remember(session.id) { mutableStateOf(emptySet<String>()) }
+    val hazeState = remember { dev.chrisbanes.haze.HazeState() }
 
     val buckets = remember(messages) { extractProfileBuckets(messages) }
     val availableTabs = remember(buckets) { buckets.availableTabs() }
@@ -121,9 +129,11 @@ fun UserProfileScreen(
             ?: session.title.lowercase().replace(Regex("[^a-z0-9_а-яё]"), "_").take(20)
     }
 
-    val hasInnerOverlay = isQrScannerOpen || isQrOverlayOpen || isCustomAutoDeleteOpen
+    val hasInnerOverlay = isAvatarFullscreenOpen || isQrScannerOpen || isQrOverlayOpen || isCustomAutoDeleteOpen || selectedIds.isNotEmpty()
     BackHandler(enabled = hasInnerOverlay) {
         when {
+            isAvatarFullscreenOpen -> isAvatarFullscreenOpen = false
+            selectedIds.isNotEmpty() -> selectedIds = emptySet()
             isQrScannerOpen -> isQrScannerOpen = false
             isQrOverlayOpen -> isQrOverlayOpen = false
             isCustomAutoDeleteOpen -> isCustomAutoDeleteOpen = false
@@ -201,6 +211,7 @@ fun UserProfileScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .hazeSource(state = hazeState)
                     .nestedScroll(pullDownNestedScroll)
                     .navigationBarsPadding()
             ) {
@@ -209,7 +220,15 @@ fun UserProfileScreen(
                         session = session,
                         isExpandedHero = isExpandedHero,
                         strings = strings,
-                        onToggleExpand = { isExpandedHero = !isExpandedHero }
+                        onToggleExpand = {
+                            if (hasRealAvatar) {
+                                if (isExpandedHero) {
+                                    isAvatarFullscreenOpen = true
+                                } else {
+                                    isAvatarFullscreenOpen = true
+                                }
+                            }
+                        }
                     )
                 }
 
@@ -271,21 +290,47 @@ fun UserProfileScreen(
 
                     when (selectedTab) {
                         UserProfileTab.MEDIA -> {
-                            val chunked = buckets.media.chunked(3)
+                            val chunked = buckets.media.chunked(gridColumns)
                             items(chunked) { rowItems ->
                                 UserProfileMediaGridRow(
                                     rowItems = rowItems,
-                                    onMediaClick = onOpenMediaMessage
+                                    columns = gridColumns,
+                                    selectedIds = selectedIds,
+                                    onMediaClick = { item ->
+                                        if (selectedIds.isNotEmpty()) {
+                                            val id = item.message.id
+                                            selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+                                        } else {
+                                            onOpenMediaMessage(item.message)
+                                        }
+                                    },
+                                    onMediaLongClick = { item ->
+                                        val id = item.message.id
+                                        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+                                    }
                                 )
                             }
                         }
 
                         UserProfileTab.GIF -> {
-                            val chunked = buckets.gifs.chunked(3)
+                            val chunked = buckets.gifs.chunked(gridColumns)
                             items(chunked) { rowItems ->
                                 UserProfileMediaGridRow(
                                     rowItems = rowItems,
-                                    onMediaClick = onOpenMediaMessage
+                                    columns = gridColumns,
+                                    selectedIds = selectedIds,
+                                    onMediaClick = { item ->
+                                        if (selectedIds.isNotEmpty()) {
+                                            val id = item.message.id
+                                            selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+                                        } else {
+                                            onOpenMediaMessage(item.message)
+                                        }
+                                    },
+                                    onMediaLongClick = { item ->
+                                        val id = item.message.id
+                                        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+                                    }
                                 )
                             }
                         }
@@ -320,22 +365,53 @@ fun UserProfileScreen(
 
             UserProfileTopOverlayBar(
                 session = session,
+                hazeState = hazeState,
                 isCollapsed = isCollapsed,
                 collapsedSubtitle = if (availableTabs.isNotEmpty()) {
                     tabSummaryText(selectedTab, buckets, strings)
                 } else {
                     ""
                 },
+                selectionCount = selectedIds.size,
                 strings = strings,
                 onBack = onBack,
+                onClearSelection = { selectedIds = emptySet() },
+                onShowInChat = {
+                    val targetId = selectedIds.firstOrNull()
+                    selectedIds = emptySet()
+                    val targetMsg = targetId?.let { id -> messages.firstOrNull { it.id == id } }
+                    if (targetMsg != null) {
+                        onShowInChat(targetMsg)
+                    }
+                },
+                onForwardSelected = {
+                    val ids = selectedIds.toList()
+                    selectedIds = emptySet()
+                    if (ids.isNotEmpty()) {
+                        onForwardMessages(ids)
+                    }
+                },
+                onDeleteSelected = {
+                    val ids = selectedIds.toList()
+                    selectedIds = emptySet()
+                    if (ids.isNotEmpty()) {
+                        onDeleteMessages(ids)
+                    }
+                },
                 onOpenOverflow = { isOverflowOpen = true },
                 overflowMenu = {
+                    val isMediaGridTab = isCollapsed && (selectedTab == UserProfileTab.MEDIA || selectedTab == UserProfileTab.GIF)
                     UserProfileOverflowMenu(
                         expanded = isOverflowOpen,
                         selfDestruct = selfDestruct,
                         isContact = addedToContactsLocal,
+                        showGridZoomOptions = isMediaGridTab,
+                        canZoomIn = gridColumns > 2,
+                        canZoomOut = gridColumns < 5,
                         strings = strings,
                         onDismiss = { isOverflowOpen = false },
+                        onZoomIn = { gridColumns = (gridColumns - 1).coerceAtLeast(2) },
+                        onZoomOut = { gridColumns = (gridColumns + 1).coerceAtMost(5) },
                         onSetSelfDestruct = onSetSelfDestruct,
                         onOpenCustomAutoDelete = { isCustomAutoDeleteOpen = true },
                         onShareContact = {
@@ -363,6 +439,14 @@ fun UserProfileScreen(
                 },
                 modifier = Modifier.align(Alignment.TopCenter)
             )
+
+            if (isAvatarFullscreenOpen && session.avatarResId != null) {
+                UserProfileAvatarFullscreenOverlay(
+                    avatarResId = session.avatarResId!!,
+                    title = session.title,
+                    onClose = { isAvatarFullscreenOpen = false }
+                )
+            }
 
             if (isCustomAutoDeleteOpen) {
                 AutoDeleteCustomSheet(

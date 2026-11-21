@@ -2,10 +2,12 @@ package com.anongram.app.features.chats.user_profile.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Link
@@ -71,17 +74,20 @@ internal fun UserProfileTabBar(
     if (tabs.isEmpty()) return
     val scheme = LocalAnonGramScheme.current
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(scheme.background)
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(scheme.card.copy(alpha = 0.78f))
+                .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
                 .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 14.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
             verticalAlignment = Alignment.CenterVertically
         ) {
             tabs.forEach { tab ->
@@ -96,14 +102,9 @@ internal fun UserProfileTabBar(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(20.dp))
-                        .background(if (isSelected) scheme.accentSoft else scheme.card)
-                        .border(
-                            width = 0.6.dp,
-                            color = if (isSelected) scheme.accent.copy(alpha = 0.45f) else scheme.islandBorder,
-                            shape = RoundedCornerShape(20.dp)
-                        )
+                        .background(if (isSelected) scheme.accentSoft else Color.Transparent)
                         .clickable { onSelectTab(tab) }
-                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                        .padding(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = label,
@@ -114,14 +115,17 @@ internal fun UserProfileTabBar(
                 }
             }
         }
-        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun UserProfileMediaGridRow(
     rowItems: List<UserProfileMediaItem>,
-    onMediaClick: (ChatMessage) -> Unit
+    columns: Int,
+    selectedIds: Set<String>,
+    onMediaClick: (UserProfileMediaItem) -> Unit,
+    onMediaLongClick: (UserProfileMediaItem) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
@@ -129,9 +133,10 @@ internal fun UserProfileMediaGridRow(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        for (col in 0 until 3) {
+        for (col in 0 until columns) {
             val item = rowItems.getOrNull(col)
             if (item != null) {
+                val isSelected = item.message.id in selectedIds
                 val thumb by produceState<ImageBitmap?>(initialValue = null, item.uri) {
                     value = withContext(Dispatchers.IO) {
                         runCatching { loadMediaThumbnail(context, Uri.parse(item.uri))?.asImageBitmap() }.getOrNull()
@@ -142,7 +147,10 @@ internal fun UserProfileMediaGridRow(
                         .weight(1f)
                         .aspectRatio(1f)
                         .background(scheme.card)
-                        .clickable { onMediaClick(item.message) }
+                        .combinedClickable(
+                            onClick = { onMediaClick(item) },
+                            onLongClick = { onMediaLongClick(item) }
+                        )
                 ) {
                     if (thumb != null) {
                         Image(
@@ -163,6 +171,30 @@ internal fun UserProfileMediaGridRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.28f))
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(6.dp)
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF22C55E))
+                                .border(1.5.dp, Color.White, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Check,
                                 contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(14.dp)

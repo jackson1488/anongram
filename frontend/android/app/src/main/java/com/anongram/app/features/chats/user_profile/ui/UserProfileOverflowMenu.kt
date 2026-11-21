@@ -25,6 +25,8 @@ import androidx.compose.material.icons.outlined.Report
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.ZoomIn
+import androidx.compose.material.icons.outlined.ZoomOut
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -52,8 +54,13 @@ internal fun UserProfileOverflowMenu(
     expanded: Boolean,
     selfDestruct: SelfDestruct,
     isContact: Boolean,
+    showGridZoomOptions: Boolean = false,
+    canZoomIn: Boolean = false,
+    canZoomOut: Boolean = false,
     strings: UserProfileStrings,
     onDismiss: () -> Unit,
+    onZoomIn: () -> Unit = {},
+    onZoomOut: () -> Unit = {},
     onSetSelfDestruct: (SelfDestruct) -> Unit,
     onOpenCustomAutoDelete: () -> Unit,
     onShareContact: () -> Unit,
@@ -76,6 +83,31 @@ internal fun UserProfileOverflowMenu(
             .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
     ) {
         if (!inAutoDeleteSubmenu) {
+            if (showGridZoomOptions) {
+                if (canZoomIn) {
+                    MenuRowItem(
+                        icon = Icons.Outlined.ZoomIn,
+                        label = strings.menuZoomIn,
+                        onClick = {
+                            onDismiss()
+                            onZoomIn()
+                        }
+                    )
+                }
+                if (canZoomOut) {
+                    MenuRowItem(
+                        icon = Icons.Outlined.ZoomOut,
+                        label = strings.menuZoomOut,
+                        onClick = {
+                            onDismiss()
+                            onZoomOut()
+                        }
+                    )
+                }
+                if (canZoomIn || canZoomOut) {
+                    HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                }
+            }
             MenuRowItem(
                 icon = Icons.Outlined.Timer,
                 label = strings.menuAutoDelete,

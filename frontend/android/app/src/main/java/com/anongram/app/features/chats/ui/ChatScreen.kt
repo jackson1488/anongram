@@ -443,6 +443,23 @@ fun ChatScreen(
                         viewingMediaInitialIndex = 0
                         viewingOverrideSingleUri = null
                     },
+                    onShowInChat = { msg ->
+                        isUserProfileOpen = false
+                        viewModel.highlightMessage(msg.id)
+                        val matchIndex = state.messages.asReversed().indexOfFirst { it.id == msg.id }
+                        if (matchIndex >= 0) {
+                            coroutineScope.launch {
+                                runCatching { listState.animateScrollAndCenterItem(matchIndex) }
+                            }
+                        }
+                    },
+                    onForwardMessages = { ids ->
+                        isUserProfileOpen = false
+                        forwardingMessageIds = ids
+                    },
+                    onDeleteMessages = { ids ->
+                        viewModel.requestDelete(ids)
+                    },
                     onDeleteChat = {
                         isUserProfileOpen = false
                         viewModel.clearHistory()
