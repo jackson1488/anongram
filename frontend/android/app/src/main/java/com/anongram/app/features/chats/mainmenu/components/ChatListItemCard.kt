@@ -36,7 +36,6 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PushPin
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -328,13 +327,5 @@ internal fun ChatListItemCard(
                 }
             }
         }
-
-        HorizontalDivider(
-            thickness = 0.5.dp,
-            color = scheme.divider.copy(alpha = 0.55f),
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(start = 79.dp, end = 16.dp)
-        )
     }
 }
