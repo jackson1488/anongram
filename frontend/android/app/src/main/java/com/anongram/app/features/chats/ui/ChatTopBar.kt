@@ -120,7 +120,11 @@ internal fun ChatTopBar(
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                PeerAvatar(title = session.title, accent = scheme.accent)
+                PeerAvatar(
+                    title = session.title,
+                    accent = scheme.accent,
+                    avatarResId = session.avatarResId
+                )
                 Spacer(modifier = Modifier.width(8.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -654,7 +658,12 @@ private fun CompactIconButton(
 }
 
 @Composable
-private fun PeerAvatar(title: String, accent: Color, size: Dp = 34.dp) {
+private fun PeerAvatar(
+    title: String,
+    accent: Color,
+    size: Dp = 34.dp,
+    avatarResId: Int? = null
+) {
     val scheme = LocalAnonGramScheme.current
     val monogram = title.split(" ")
         .filter { it.isNotBlank() }
@@ -667,11 +676,20 @@ private fun PeerAvatar(title: String, accent: Color, size: Dp = 34.dp) {
             .background(accent.copy(alpha = 0.18f)),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = monogram,
-            color = scheme.textPrimary,
-            fontSize = if (size > 40.dp) 16.sp else 12.sp,
-            fontWeight = FontWeight.Bold
-        )
+        if (avatarResId != null) {
+            androidx.compose.foundation.Image(
+                painter = painterResource(id = avatarResId),
+                contentDescription = title,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier.size(size)
+            )
+        } else {
+            Text(
+                text = monogram,
+                color = scheme.textPrimary,
+                fontSize = if (size > 40.dp) 16.sp else 12.sp,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }

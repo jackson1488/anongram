@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
@@ -18,14 +19,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import kotlin.coroutines.cancellation.CancellationException
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.ui.AnonGramScreenSurface
@@ -82,12 +90,13 @@ fun UserProfileScreen(
     val isRu = lang == AppLanguage.RU
     val strings = remember(lang) { UserProfileI18n.forLanguage(lang) }
 
-    var isExpandedHero by remember { mutableStateOf(false) }
+    var isExpandedHero by remember(session.id) { mutableStateOf(false) }
     var isOverflowOpen by remember { mutableStateOf(false) }
     var isCustomAutoDeleteOpen by remember { mutableStateOf(false) }
     var isQrOverlayOpen by remember { mutableStateOf(false) }
     var isQrScannerOpen by remember { mutableStateOf(false) }
     var addedToContactsLocal by remember(session.id) { mutableStateOf(isContact) }
+    var predictiveBackProgress by remember { mutableFloatStateOf(0f) }
 
     val buckets = remember(messages) { extractProfileBuckets(messages) }
     val availableTabs = remember(buckets) { buckets.availableTabs() }
@@ -110,21 +119,70 @@ fun UserProfileScreen(
             ?: session.title.lowercase().replace(Regex("[^a-z0-9_а-яё]"), "_").take(20)
     }
 
-    BackHandler {
+    val hasInnerOverlay = isQrScannerOpen || isQrOverlayOpen || isCustomAutoDeleteOpen
+    BackHandler(enabled = hasInnerOverlay) {
         when {
             isQrScannerOpen -> isQrScannerOpen = false
             isQrOverlayOpen -> isQrOverlayOpen = false
             isCustomAutoDeleteOpen -> isCustomAutoDeleteOpen = false
-            else -> onBack()
         }
     }
 
-    AnonGramScreenSurface(modifier = modifier.fillMaxSize()) {
+    PredictiveBackHandler(enabled = !hasInnerOverlay) { progressFlow ->
+        try {
+            progressFlow.collect { backEvent ->
+                predictiveBackProgress = backEvent.progress.coerceIn(0f, 1f)
+            }
+            predictiveBackProgress = 0f
+            onBack()
+        } catch (_: CancellationException) {
+            predictiveBackProgress = 0f
+        }
+    }
+
+    val hasRealAvatar = session.avatarResId != null
+    val pullDownNestedScroll = remember(hasRealAvatar) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (hasRealAvatar && isExpandedHero && available.y < -18f) {
+                    isExpandedHero = false
+                }
+                return Offset.Zero
+            }
+
+            override fun onPostScroll(
+                consumed: Offset,
+                available: Offset,
+                source: NestedScrollSource
+            ): Offset {
+                if (
+                    hasRealAvatar &&
+                    !isExpandedHero &&
+                    available.y > 26f &&
+                    listState.firstVisibleItemIndex == 0 &&
+                    listState.firstVisibleItemScrollOffset == 0
+                ) {
+                    isExpandedHero = true
+                }
+                return Offset.Zero
+            }
+        }
+    }
+
+    AnonGramScreenSurface(
+        modifier = modifier
+            .fillMaxSize()
+            .graphicsLayer {
+                translationX = predictiveBackProgress * size.width * 0.85f
+                alpha = (1f - predictiveBackProgress * 0.25f).coerceIn(0.6f, 1f)
+            }
+    ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
+                    .nestedScroll(pullDownNestedScroll)
                     .navigationBarsPadding()
             ) {
                 item(key = "hero_header") {

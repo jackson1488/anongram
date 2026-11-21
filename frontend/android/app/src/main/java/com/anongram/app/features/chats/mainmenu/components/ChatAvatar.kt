@@ -55,7 +55,15 @@ internal fun ChatAvatar(
                 .border(1.dp, accent.copy(alpha = 0.75f), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            when (session.avatarGlyph) {
+            val resId = session.avatarResId
+            if (resId != null) {
+                androidx.compose.foundation.Image(
+                    painter = painterResource(id = resId),
+                    contentDescription = session.title,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.size(46.dp)
+                )
+            } else when (session.avatarGlyph) {
                 SessionGlyph.MONOGRAM -> Text(
                     text = session.avatarMonogram ?: "··",
                     fontWeight = FontWeight.Bold,

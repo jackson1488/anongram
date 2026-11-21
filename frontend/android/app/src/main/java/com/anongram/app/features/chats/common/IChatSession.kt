@@ -36,6 +36,9 @@ interface IChatSession {
     /** Монограмма для глифа MONOGRAM; null для иконных глифов. */
     val avatarMonogram: String? get() = null
 
+    /** Реальное фото аватара (локальный ресурс), если установлено у собеседника. */
+    val avatarResId: Int? get() = null
+
     /** true — удаление необратимо (физический OTP-пад). */
     val burnsWithEmbers: Boolean get() = false
 

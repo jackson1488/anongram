@@ -410,7 +410,11 @@ fun ChatScreen(
                 .fillMaxSize()
                 .zIndex(10f)
         ) {
-            if (isUserProfileOpen) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isUserProfileOpen,
+                enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.slideOutHorizontally { it } + androidx.compose.animation.fadeOut()
+            ) {
                 com.anongram.app.features.chats.user_profile.api.UserProfileScreen(
                     session = session,
                     messages = state.messages,

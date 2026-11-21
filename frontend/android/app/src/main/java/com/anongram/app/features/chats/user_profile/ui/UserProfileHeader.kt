@@ -129,6 +129,9 @@ internal fun UserProfileHeroHeader(
     val scheme = LocalAnonGramScheme.current
     val initials = (session.avatarMonogram ?: session.title.take(2)).uppercase()
     val statusText = if (session.isOnline) strings.online else strings.lastSeenRecently
+    val avatarResId = session.avatarResId
+    val canExpandHero = avatarResId != null
+    val effectiveExpanded = canExpandHero && isExpandedHero
 
     Column(
         modifier = modifier
@@ -136,28 +139,18 @@ internal fun UserProfileHeroHeader(
             .animateContentSize(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (isExpandedHero) {
+        if (effectiveExpanded && avatarResId != null) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(310.dp)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                scheme.accent.copy(alpha = 0.85f),
-                                scheme.accentSoft,
-                                scheme.background
-                            )
-                        )
-                    )
+                    .height(340.dp)
                     .clickable(onClick = onToggleExpand)
             ) {
-                Text(
-                    text = initials,
-                    color = scheme.onAccent.copy(alpha = 0.25f),
-                    fontSize = 96.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.align(Alignment.Center)
+                androidx.compose.foundation.Image(
+                    painter = androidx.compose.ui.res.painterResource(id = avatarResId),
+                    contentDescription = session.title,
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                    modifier = Modifier.fillMaxWidth().height(340.dp)
                 )
                 Column(
                     modifier = Modifier
@@ -165,7 +158,7 @@ internal fun UserProfileHeroHeader(
                         .fillMaxWidth()
                         .background(
                             Brush.verticalGradient(
-                                colors = listOf(Color.Transparent, scheme.background.copy(alpha = 0.92f))
+                                colors = listOf(Color.Transparent, scheme.background.copy(alpha = 0.94f))
                             )
                         )
                         .padding(horizontal = 18.dp, vertical = 14.dp)
@@ -217,15 +210,27 @@ internal fun UserProfileHeroHeader(
                             colors = listOf(scheme.accent, scheme.accent.copy(alpha = 0.72f))
                         )
                     )
-                    .clickable(onClick = onToggleExpand),
+                    .then(
+                        if (canExpandHero) Modifier.clickable(onClick = onToggleExpand)
+                        else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = initials,
-                    color = scheme.onAccent,
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (avatarResId != null) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = avatarResId),
+                        contentDescription = session.title,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.size(92.dp)
+                    )
+                } else {
+                    Text(
+                        text = initials,
+                        color = scheme.onAccent,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(

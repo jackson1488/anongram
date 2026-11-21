@@ -62,7 +62,8 @@ class InMemoryChatListRepository(
                 isPinned = true,
                 isOnline = true,
                 unreadCount = 2,
-                lastMessageAttachment = null
+                lastMessageAttachment = null,
+                avatarResId = com.anongram.app.R.drawable.avatar_alice
             ),
             DirectChatSession(
                 id = "3",
@@ -95,7 +96,8 @@ class InMemoryChatListRepository(
                 lastMessagePreview = "Передала открытый ключ по защищённому каналу",
                 lastMessageEpochMs = now - 6 * h,
                 isOnline = true,
-                unreadCount = 1
+                unreadCount = 1,
+                avatarResId = com.anongram.app.R.drawable.avatar_vera
             ),
             GroupChatSession(
                 id = "7",
@@ -111,7 +113,8 @@ class InMemoryChatListRepository(
                 fingerprint = "0x5C90…41D3",
                 lastMessagePreview = "Ноутбук настроен, жду команды на выезд",
                 lastMessageEpochMs = now - 14 * h,
-                unreadCount = 0
+                unreadCount = 0,
+                avatarResId = com.anongram.app.R.drawable.avatar_arthur
             ),
             GroupChatSession(
                 id = "9",
