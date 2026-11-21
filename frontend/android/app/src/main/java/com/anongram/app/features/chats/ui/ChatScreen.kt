@@ -412,7 +412,7 @@ fun ChatScreen(
                 .fillMaxSize()
                 .zIndex(10f)
         ) {
-            val jumpScope = rememberCoroutineScope()
+            val jumpScope = androidx.compose.runtime.rememberCoroutineScope()
             androidx.compose.animation.AnimatedVisibility(
                 visible = isUserProfileOpen,
                 enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
