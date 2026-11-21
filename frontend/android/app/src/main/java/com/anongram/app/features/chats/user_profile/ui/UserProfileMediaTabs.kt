@@ -2,6 +2,7 @@ package com.anongram.app.features.chats.user_profile.ui
 
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,18 +32,22 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.ui.components.bubble.openFileInSystemViewer
 import com.anongram.app.features.chats.user_profile.i18n.UserProfileStrings
@@ -52,6 +57,8 @@ import com.anongram.app.features.chats.user_profile.model.UserProfileFileItem
 import com.anongram.app.features.chats.user_profile.model.UserProfileLinkItem
 import com.anongram.app.features.chats.user_profile.model.UserProfileMediaItem
 import com.anongram.app.features.chats.user_profile.model.UserProfileTab
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun UserProfileTabBar(
@@ -117,6 +124,7 @@ internal fun UserProfileMediaGridRow(
     onMediaClick: (ChatMessage) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val context = LocalContext.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(2.dp)
@@ -124,6 +132,11 @@ internal fun UserProfileMediaGridRow(
         for (col in 0 until 3) {
             val item = rowItems.getOrNull(col)
             if (item != null) {
+                val thumb by produceState<ImageBitmap?>(initialValue = null, item.uri) {
+                    value = withContext(Dispatchers.IO) {
+                        runCatching { loadMediaThumbnail(context, Uri.parse(item.uri))?.asImageBitmap() }.getOrNull()
+                    }
+                }
                 Box(
                     modifier = Modifier
                         .weight(1f)
@@ -131,12 +144,14 @@ internal fun UserProfileMediaGridRow(
                         .background(scheme.card)
                         .clickable { onMediaClick(item.message) }
                 ) {
-                    AsyncImage(
-                        model = item.uri,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    if (thumb != null) {
+                        Image(
+                            bitmap = thumb!!,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                     if (item.isVideo) {
                         Box(
                             modifier = Modifier
