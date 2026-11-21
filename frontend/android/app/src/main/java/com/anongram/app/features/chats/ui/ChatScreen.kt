@@ -54,6 +54,7 @@ import com.anongram.app.features.chats.input.rememberChatImeMetrics
 import com.anongram.app.features.wallpapers.ui.WallpaperBackground
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Экран активного чата (тонкий оркестратор состояния и композиции):
