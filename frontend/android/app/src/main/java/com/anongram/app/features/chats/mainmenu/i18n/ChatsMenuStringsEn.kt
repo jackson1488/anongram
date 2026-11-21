@@ -1,0 +1,24 @@
+package com.anongram.app.features.chats.mainmenu.i18n
+
+object ChatsMenuStringsEn : ChatsMenuI18nStrings {
+    override val searchPlaceholder: String = "Search"
+    override val selectChats: String = "Select chats"
+    override val menu: String = "Menu"
+    override val back: String = "Back"
+    override val exitSelection: String = "Exit selection mode"
+    override val selectionActions: String = "Selection actions"
+    override val pin: String = "Pin"
+    override val unpin: String = "Unpin"
+    override val mute: String = "Mute"
+    override val unmute: String = "Unmute"
+    override val delete: String = "Delete"
+    override val toArchive: String = "Archive"
+    override val fromArchive: String = "Unarchive"
+    override val markRead: String = "Mark as read"
+    override val clearHistory: String = "Clear history"
+    override val selected: String = "Selected"
+    override val archiveTitle: String = "Archive"
+    override val emptyChatsTitle: String = "No active sessions"
+    override val emptyChatsSubtitle: String = "Add a contact via the pencil button or QR shield"
+    override val newMessage: String = "New message"
+}

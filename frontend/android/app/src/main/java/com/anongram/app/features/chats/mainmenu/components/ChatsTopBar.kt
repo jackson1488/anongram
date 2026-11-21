@@ -152,21 +152,29 @@ internal fun ChatsTopBar(
                 }
             }
 
+            val menuStrings = com.anongram.app.features.chats.mainmenu.i18n.ChatsMenuI18n.current
             DropdownMenu(
                 expanded = menuOpen,
                 onDismissRequest = { menuOpen = false },
-                containerColor = scheme.card
+                shape = RoundedCornerShape(18.dp),
+                containerColor = scheme.card,
+                modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
             ) {
                 DropdownMenuItem(
                     text = {
-                        Text(text = "Выбрать чаты", color = scheme.textPrimary, fontSize = 13.sp)
+                        Text(
+                            text = menuStrings.selectChats,
+                            color = scheme.textPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
                     },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.SelectAll,
                             contentDescription = null,
                             tint = scheme.textSecondary,
-                            modifier = Modifier.size(17.dp)
+                            modifier = Modifier.size(19.dp)
                         )
                     },
                     onClick = {

@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Inventory2
@@ -231,6 +233,8 @@ fun ArchiveScreen(
                             },
                             selectionMode = state.isSelection,
                             isSelected = session.id in state.selectedIds,
+                            isArchiveMode = true,
+                            onSwipeArchive = { viewModel.archiveSession(session.id, archived = false) },
                             onClick = {
                                 if (state.isSelection) {
                                     viewModel.toggleSelection(session.id)
@@ -271,7 +275,9 @@ fun ArchiveScreen(
                     onMute = viewModel::onMuteAction,
                     onArchive = { viewModel.archiveSelected(false) },
                     onMarkRead = viewModel::onMarkReadAction,
-                    onClearHistory = viewModel::onClearHistoryAction
+                    onClearHistory = viewModel::onClearHistoryAction,
+                    hazeState = hazeState,
+                    glassBlurEnabled = animState.glassBlurEnabled
                 )
             } else {
                 Row(
@@ -369,7 +375,9 @@ private fun ArchiveMenu(
         DropdownMenu(
             expanded = menuOpen,
             onDismissRequest = { menuOpen = false },
-            containerColor = scheme.card
+            containerColor = scheme.card,
+            shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
         ) {
             DropdownMenuItem(
                 text = {

@@ -535,6 +535,8 @@ fun ChatsMainMenuScreen(
                                 selectionMode = state.isSelection,
                                 isSelected = session.id in state.selectedIds,
                                 draftText = draftDisplay,
+                                isArchiveMode = false,
+                                onSwipeArchive = { viewModel.archiveSession(session.id, archived = true) },
                                 onClick = {
                                     if (state.isSelection) {
                                         viewModel.toggleSelection(session.id)
@@ -576,7 +578,9 @@ fun ChatsMainMenuScreen(
                     onMute = viewModel::onMuteAction,
                     onArchive = { viewModel.archiveSelected(true) },
                     onMarkRead = viewModel::onMarkReadAction,
-                    onClearHistory = viewModel::onClearHistoryAction
+                    onClearHistory = viewModel::onClearHistoryAction,
+                    hazeState = hazeState,
+                    glassBlurEnabled = animState.glassBlurEnabled
                 )
             } else {
                 ChatsTopBar(

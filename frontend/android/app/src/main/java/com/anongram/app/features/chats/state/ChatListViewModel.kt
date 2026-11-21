@@ -151,6 +151,13 @@ class ChatListViewModel(private val repository: ChatListRepository) : ViewModel(
         }
     }
 
+    /** Архивация или разархивация одной сессии по свайпу влево. */
+    fun archiveSession(sessionId: String, archived: Boolean) {
+        viewModelScope.launch {
+            publish(repository.setArchived(listOf(sessionId), archived))
+        }
+    }
+
     fun onMarkReadAction() {
         val targets = _uiState.value.selectedIds
         if (targets.isEmpty()) return
