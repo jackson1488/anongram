@@ -21,4 +21,5 @@ object ChatsMenuStringsEn : ChatsMenuI18nStrings {
     override val emptyChatsTitle: String = "No active sessions"
     override val emptyChatsSubtitle: String = "Add a contact via the pencil button or QR shield"
     override val newMessage: String = "New message"
+    override val draftPrefix: String = "Draft: "
 }

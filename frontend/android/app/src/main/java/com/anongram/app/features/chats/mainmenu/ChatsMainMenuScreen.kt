@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.chats.archive.i18n.ArchiveI18n
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.timeLabel
@@ -343,10 +344,9 @@ fun ChatsMainMenuScreen(
         )
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.background)
+    AnonGramScreenSurface(
+        modifier = modifier,
+        applySystemBarsPadding = false
     ) {
         // 1. Основной скроллируемый список на весь экран (проходит под парящей шапкой)
         Box(
@@ -376,8 +376,8 @@ fun ChatsMainMenuScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
+                        start = 0.dp,
+                        end = 0.dp,
                         top = statusBarTop + 62.dp,
                         bottom = 112.dp
                     ),
@@ -397,7 +397,7 @@ fun ChatsMainMenuScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(bottom = 10.dp)
+                                            .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
                                             .height(42.dp)
                                             .graphicsLayer {
                                                 alpha = reveal
@@ -440,7 +440,7 @@ fun ChatsMainMenuScreen(
                                             .fillMaxWidth()
                                             .height(68.dp * pull)
                                             .clipToBounds()
-                                            .padding(bottom = 8.dp)
+                                            .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
                                             .clip(RoundedCornerShape(16.dp))
                                             .background(
                                                 scheme.accent.copy(alpha = if (isReady) 0.85f else 0.32f + 0.30f * pull)
@@ -500,7 +500,7 @@ fun ChatsMainMenuScreen(
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(bottom = 10.dp)
+                                            .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
                                             .graphicsLayer {
                                                 alpha = archiveReveal
                                                 translationY = -18.dp.toPx() * (1f - archiveReveal)
@@ -585,7 +585,6 @@ fun ChatsMainMenuScreen(
             } else {
                 ChatsTopBar(
                     onOpenSearch = onOpenSearch,
-                    onEnterSelection = { viewModel.selectAllSessions(archived = false) },
                     hazeState = hazeState,
                     glassBlurEnabled = animState.glassBlurEnabled
                 )

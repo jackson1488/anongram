@@ -24,4 +24,5 @@ interface ChatsMenuI18nStrings {
     val emptyChatsTitle: String
     val emptyChatsSubtitle: String
     val newMessage: String
+    val draftPrefix: String
 }

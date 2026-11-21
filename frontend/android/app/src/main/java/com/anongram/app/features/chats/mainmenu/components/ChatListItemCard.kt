@@ -36,6 +36,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.PushPin
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -105,9 +106,9 @@ internal fun ChatListItemCard(
 
     val rowBg by animateColorAsState(
         targetValue = if (isSelected) {
-            scheme.accent.copy(alpha = 0.16f)
+            scheme.accent.copy(alpha = 0.14f)
         } else {
-            scheme.card.copy(alpha = 0.78f)
+            scheme.background
         },
         animationSpec = tween(160),
         label = "chatRowBg"
@@ -116,9 +117,7 @@ internal fun ChatListItemCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 3.dp)
             .height(IntrinsicSize.Min)
-            .clip(RoundedCornerShape(16.dp))
     ) {
         // Фоновая плашка «В архив» / «Из архива» при свайпе влево
         if (!selectionMode && onSwipeArchive != null && offsetX.value < -4f) {
@@ -157,13 +156,7 @@ internal fun ChatListItemCard(
             modifier = Modifier
                 .fillMaxWidth()
                 .offset { IntOffset(offsetX.value.roundToInt(), 0) }
-                .clip(RoundedCornerShape(16.dp))
                 .background(rowBg)
-                .border(
-                    width = 0.6.dp,
-                    color = if (isSelected) scheme.accent.copy(alpha = 0.45f) else scheme.cardBorder,
-                    shape = RoundedCornerShape(16.dp)
-                )
                 .then(
                     if (!selectionMode && onSwipeArchive != null) {
                         Modifier.pointerInput(session.id, selectionMode) {
@@ -202,12 +195,12 @@ internal fun ChatListItemCard(
                     }
                 )
                 .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Кружок выбора РЯДОМ с аватаром (у всех чатов, как только выбран хотя бы один)
+            // Галка выбора РЯДОМ с аватаром — появляется ТОЛЬКО у выбранных чатов (без пустых кружков)
             AnimatedVisibility(
-                visible = selectionMode,
+                visible = isSelected,
                 enter = expandHorizontally(expandFrom = Alignment.Start, animationSpec = tween(180)) + fadeIn(tween(150)),
                 exit = shrinkHorizontally(shrinkTowards = Alignment.Start, animationSpec = tween(160)) + fadeOut(tween(120))
             ) {
@@ -216,28 +209,15 @@ internal fun ChatListItemCard(
                         modifier = Modifier
                             .size(22.dp)
                             .clip(CircleShape)
-                            .background(
-                                if (isSelected) scheme.accent else scheme.surface.copy(alpha = 0.5f)
-                            )
-                            .border(
-                                width = if (isSelected) 0.dp else 1.5.dp,
-                                color = if (isSelected) Color.Transparent else scheme.textMuted.copy(alpha = 0.65f),
-                                shape = CircleShape
-                            ),
+                            .background(scheme.accent),
                         contentAlignment = Alignment.Center
                     ) {
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = isSelected,
-                            enter = scaleIn(tween(140)) + fadeIn(tween(120)),
-                            exit = scaleOut(tween(100)) + fadeOut(tween(100))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Check,
-                                contentDescription = strings.selected,
-                                tint = scheme.onAccent,
-                                modifier = Modifier.size(14.dp)
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = strings.selected,
+                            tint = scheme.onAccent,
+                            modifier = Modifier.size(14.dp)
+                        )
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                 }
@@ -292,11 +272,10 @@ internal fun ChatListItemCard(
 
                 Spacer(modifier = Modifier.height(3.dp))
 
-                val draftRed = Color(0xFFE53935)
                 val preview = when {
                     !draftText.isNullOrBlank() -> buildAnnotatedString {
-                        withStyle(SpanStyle(color = draftRed, fontWeight = FontWeight.SemiBold)) {
-                            append("Черновик: ")
+                        withStyle(SpanStyle(color = scheme.accent, fontWeight = FontWeight.SemiBold)) {
+                            append(strings.draftPrefix)
                         }
                         withStyle(SpanStyle(color = scheme.textSecondary)) {
                             append(draftText)
@@ -349,5 +328,13 @@ internal fun ChatListItemCard(
                 }
             }
         }
+
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = scheme.divider.copy(alpha = 0.55f),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(start = 79.dp, end = 16.dp)
+        )
     }
 }

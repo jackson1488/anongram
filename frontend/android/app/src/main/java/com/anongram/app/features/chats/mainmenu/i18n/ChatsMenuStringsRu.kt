@@ -21,4 +21,5 @@ object ChatsMenuStringsRu : ChatsMenuI18nStrings {
     override val emptyChatsTitle: String = "Нет активных сессий"
     override val emptyChatsSubtitle: String = "Добавьте контакт: карандаш снизу или QR-щит в центре"
     override val newMessage: String = "Новое сообщение"
+    override val draftPrefix: String = "Черновик: "
 }

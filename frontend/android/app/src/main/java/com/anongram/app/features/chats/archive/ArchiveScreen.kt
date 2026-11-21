@@ -56,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.archive.i18n.ArchiveI18n
 import com.anongram.app.features.chats.common.IChatSession
@@ -167,10 +168,9 @@ fun ArchiveScreen(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.background)
+    AnonGramScreenSurface(
+        modifier = modifier,
+        applySystemBarsPadding = false
     ) {
         // 1. Основной скроллируемый контент (проезжает под прозрачной блюр-шапкой)
         Box(
@@ -207,8 +207,8 @@ fun ArchiveScreen(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
+                        start = 0.dp,
+                        end = 0.dp,
                         top = statusBarTop + 62.dp,
                         bottom = 112.dp
                     ),
@@ -220,7 +220,7 @@ fun ArchiveScreen(
                                 query = query,
                                 onQueryChange = { query = it },
                                 placeholder = strings.searchChatsPlaceholder,
-                                modifier = Modifier.padding(bottom = 6.dp)
+                                modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 6.dp)
                             )
                         }
                     }

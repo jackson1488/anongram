@@ -12,20 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.SelectAll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,37 +28,37 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.R
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.chats.mainmenu.i18n.ChatsMenuI18n
 import com.anongram.app.features.settings.common.ui.settingsGlassPill
 import dev.chrisbanes.haze.HazeState
 
 /**
  * Топбар главного меню чатов (Telegram Liquid Glass):
- * название, тематический onion-статус и стеклянный островок «Поиск + Меню».
+ * название, тематический onion-статус и отдельная стеклянная кнопка поиска.
  */
 @Composable
 internal fun ChatsTopBar(
     onOpenSearch: () -> Unit,
-    onEnterSelection: () -> Unit,
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null,
     glassBlurEnabled: Boolean = true
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ChatsMenuI18n.current
     val onionBg = scheme.accentSoft
     val onionTint = scheme.accent
-    var menuOpen by remember { mutableStateOf(false) }
 
-    val islandModifier = if (hazeState != null) {
+    val searchPillModifier = if (hazeState != null) {
         Modifier.settingsGlassPill(
             hazeState = hazeState,
-            shape = RoundedCornerShape(22.dp),
+            shape = CircleShape,
             glassBlurEnabled = glassBlurEnabled
         )
     } else {
         Modifier
-            .clip(RoundedCornerShape(22.dp))
+            .clip(CircleShape)
             .background(scheme.islandBg.copy(alpha = 0.90f))
-            .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
+            .border(0.8.dp, scheme.islandBorder, CircleShape)
     }
 
     Row(
@@ -113,76 +104,19 @@ internal fun ChatsTopBar(
             }
         }
 
-        // Стеклянный островок Поиск + Меню 3 точки (как в шапке Настроек)
-        Box {
-            Row(
-                modifier = islandModifier.padding(horizontal = 4.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onOpenSearch),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Search,
-                        contentDescription = "Поиск",
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(2.dp))
-
-                Box(
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .clickable { menuOpen = true },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = "Меню",
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(19.dp)
-                    )
-                }
-            }
-
-            val menuStrings = com.anongram.app.features.chats.mainmenu.i18n.ChatsMenuI18n.current
-            DropdownMenu(
-                expanded = menuOpen,
-                onDismissRequest = { menuOpen = false },
-                shape = RoundedCornerShape(18.dp),
-                containerColor = scheme.card,
-                modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
-            ) {
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = menuStrings.selectChats,
-                            color = scheme.textPrimary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.SelectAll,
-                            contentDescription = null,
-                            tint = scheme.textSecondary,
-                            modifier = Modifier.size(19.dp)
-                        )
-                    },
-                    onClick = {
-                        menuOpen = false
-                        onEnterSelection()
-                    }
-                )
-            }
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .then(searchPillModifier)
+                .clickable(onClick = onOpenSearch),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Search,
+                contentDescription = strings.searchPlaceholder,
+                tint = scheme.textPrimary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
