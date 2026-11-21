@@ -303,11 +303,6 @@ internal fun ChatListItemCard(
                         }
                     }
                     session.lastMessagePreview.isNotEmpty() -> buildAnnotatedString {
-                        if (session.lastMessageIsOwn) {
-                            withStyle(SpanStyle(color = scheme.accent, fontWeight = FontWeight.SemiBold)) {
-                                append("Вы: ")
-                            }
-                        }
                         append(session.lastMessagePreview)
                     }
                     else -> null
