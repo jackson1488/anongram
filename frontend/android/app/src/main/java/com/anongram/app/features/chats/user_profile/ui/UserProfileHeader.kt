@@ -47,14 +47,16 @@ internal fun UserProfileTopOverlayBar(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val collapseAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (isCollapsed) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 200),
+        label = "profileHeaderCollapse"
+    )
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .then(
-                if (isCollapsed) Modifier.background(scheme.surface.copy(alpha = 0.94f))
-                else Modifier
-            )
+            .background(scheme.surface.copy(alpha = 0.94f * collapseAlpha))
             .safeStatusBarPadding()
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -72,16 +74,16 @@ internal fun UserProfileTopOverlayBar(
             }
         )
 
-        if (isCollapsed) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (collapseAlpha > 0.02f) {
                 Text(
                     text = session.title,
-                    color = scheme.textPrimary,
+                    color = scheme.textPrimary.copy(alpha = collapseAlpha),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -90,15 +92,13 @@ internal fun UserProfileTopOverlayBar(
                 if (collapsedSubtitle.isNotBlank()) {
                     Text(
                         text = collapsedSubtitle,
-                        color = scheme.textSecondary,
+                        color = scheme.textSecondary.copy(alpha = collapseAlpha),
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
         }
 
         Box {

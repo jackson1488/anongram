@@ -60,7 +60,6 @@ internal fun UserProfileOverflowMenu(
     onBlockUser: () -> Unit,
     onEditContact: () -> Unit,
     onDeleteContact: () -> Unit,
-    onOpenKeyVerification: () -> Unit,
     onRestrictCopying: () -> Unit,
     onReport: () -> Unit
 ) {
@@ -118,14 +117,6 @@ internal fun UserProfileOverflowMenu(
                     }
                 )
             }
-            MenuRowItem(
-                icon = Icons.Outlined.Lock,
-                label = strings.menuKeyVerification,
-                onClick = {
-                    onDismiss()
-                    onOpenKeyVerification()
-                }
-            )
             MenuRowItem(
                 icon = Icons.Outlined.ContentCopy,
                 label = strings.menuRestrictCopy,

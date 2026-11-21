@@ -178,6 +178,7 @@ fun ChatScreen(
         state.deleteDialogFor != null ||
         forwardingMessageIds != null ||
         viewingMediaMessage != null ||
+        isUserProfileOpen ||
         isWallpaperOpen ||
         isReplyPreviewOpen ||
         isSearchListMode ||
@@ -196,6 +197,7 @@ fun ChatScreen(
         when {
             fullTextMessageModal != null -> fullTextMessageModal = null
             isFullEditorOpen -> isFullEditorOpen = false
+            isUserProfileOpen -> isUserProfileOpen = false
             state.videoReviewDraft != null -> viewModel.discardVideoReview()
             state.voiceReviewDraft != null -> viewModel.discardVoiceReview()
             state.expandedVideoCircle != null -> viewModel.closeExpandedVideoCircle()
@@ -415,10 +417,23 @@ fun ChatScreen(
                 enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
                 exit = androidx.compose.animation.slideOutHorizontally { it } + androidx.compose.animation.fadeOut()
             ) {
+                val demoBio = when (session.id) {
+                    "2" -> "Криптография, Tor и приватность"
+                    "6" -> "Сетевая безопасность и P2P-узлы"
+                    "8" -> "В пути • связь только по E2EE"
+                    else -> null
+                }
+                val demoBirthday = when (session.id) {
+                    "2" -> "14 мая 2002 (24 года)"
+                    "6" -> "22 нояб. 1999 (26 лет)"
+                    else -> null
+                }
                 com.anongram.app.features.chats.user_profile.api.UserProfileScreen(
                     session = session,
                     messages = state.messages,
                     selfDestruct = state.selfDestruct,
+                    bio = demoBio,
+                    birthday = demoBirthday,
                     onBack = { isUserProfileOpen = false },
                     onToggleMute = viewModel::openNotifications,
                     onSetSelfDestruct = viewModel::setSelfDestruct,

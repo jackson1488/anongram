@@ -33,6 +33,8 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.anongram.app.core.navigation.swipeBackGesture
+import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
@@ -169,12 +171,29 @@ fun UserProfileScreen(
         }
     }
 
+    val swipeScope = androidx.compose.runtime.rememberCoroutineScope()
+    val swipeDragAnim = remember { androidx.compose.animation.core.Animatable(0f) }
+    val combinedDismissProgress = maxOf(predictiveBackProgress, swipeDragAnim.value)
+
     AnonGramScreenSurface(
+        applySystemBarsPadding = false,
         modifier = modifier
             .fillMaxSize()
+            .swipeBackGesture(
+                enabled = !hasInnerOverlay,
+                onDragStart = {},
+                onDragProgress = { p -> swipeScope.launch { swipeDragAnim.snapTo(p) } },
+                onDragEnd = { shouldClose ->
+                    if (shouldClose) {
+                        onBack()
+                    } else {
+                        swipeScope.launch { swipeDragAnim.animateTo(0f) }
+                    }
+                }
+            )
             .graphicsLayer {
-                translationX = predictiveBackProgress * size.width * 0.85f
-                alpha = (1f - predictiveBackProgress * 0.25f).coerceIn(0.6f, 1f)
+                translationX = combinedDismissProgress * size.width * 0.92f
+                alpha = (1f - combinedDismissProgress * 0.25f).coerceIn(0.65f, 1f)
             }
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
@@ -334,7 +353,6 @@ fun UserProfileScreen(
                             addedToContactsLocal = false
                             onDeleteChat?.invoke()
                         },
-                        onOpenKeyVerification = onOpenKeyVerification,
                         onRestrictCopying = {
                             Toast.makeText(context, strings.restrictCopyToast, Toast.LENGTH_SHORT).show()
                         },
