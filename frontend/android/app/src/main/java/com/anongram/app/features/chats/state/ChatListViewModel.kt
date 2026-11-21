@@ -139,15 +139,13 @@ class ChatListViewModel(private val repository: ChatListRepository) : ViewModel(
         _uiState.update { it.copy(deleteDialogFor = null) }
     }
 
-    /** Архивация всегда раскрывает пилюлю архива, чтобы результат был виден. */
+    /** Архивация выбранных чатов (архив остаётся скрытым и открывается потягиванием вниз). */
     fun archiveSelected(archived: Boolean) {
         val targets = _uiState.value.selectedIds
         if (targets.isEmpty()) return
         viewModelScope.launch {
             publish(repository.setArchived(targets, archived))
-            _uiState.update {
-                it.copy(selectedIds = emptySet(), isArchiveCollapsed = if (archived) false else it.isArchiveCollapsed)
-            }
+            _uiState.update { it.copy(selectedIds = emptySet()) }
         }
     }
 
