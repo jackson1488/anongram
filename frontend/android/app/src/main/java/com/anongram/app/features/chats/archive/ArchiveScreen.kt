@@ -129,9 +129,9 @@ fun ArchiveScreen(
         label = "archiveHeaderAlpha"
     )
     val glassTintAlpha = if (scheme.isDark) {
-        0.30f + 0.14f * animatedHeaderAlpha
+        0.06f + 0.10f * animatedHeaderAlpha
     } else {
-        0.40f + 0.16f * animatedHeaderAlpha
+        0.16f + 0.14f * animatedHeaderAlpha
     }
 
     val headerBackgroundModifier = if (animState.glassBlurEnabled) {
@@ -140,7 +140,7 @@ fun ArchiveScreen(
             style = HazeStyle(
                 backgroundColor = scheme.background,
                 tint = HazeTint(color = scheme.surface.copy(alpha = glassTintAlpha)),
-                blurRadius = 22.dp,
+                blurRadius = 24.dp,
                 noiseFactor = 0.02f
             )
         ) {
