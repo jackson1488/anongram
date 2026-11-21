@@ -55,6 +55,7 @@ import com.anongram.app.features.chats.user_profile.ui.AddToContactsCard
 import com.anongram.app.features.chats.user_profile.ui.AutoDeleteCustomSheet
 import com.anongram.app.features.chats.user_profile.ui.UserProfileActionsRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileAudioRow
+import com.anongram.app.features.chats.user_profile.ui.UserProfileAvatarFullscreenOverlay
 import com.anongram.app.features.chats.user_profile.ui.UserProfileFileRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileHeroHeader
 import com.anongram.app.features.chats.user_profile.ui.UserProfileInfoCard

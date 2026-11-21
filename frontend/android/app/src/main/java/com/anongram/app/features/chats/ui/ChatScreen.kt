@@ -412,6 +412,7 @@ fun ChatScreen(
                 .fillMaxSize()
                 .zIndex(10f)
         ) {
+            val jumpScope = rememberCoroutineScope()
             androidx.compose.animation.AnimatedVisibility(
                 visible = isUserProfileOpen,
                 enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
@@ -448,7 +449,7 @@ fun ChatScreen(
                         viewModel.highlightMessage(msg.id)
                         val matchIndex = state.messages.asReversed().indexOfFirst { it.id == msg.id }
                         if (matchIndex >= 0) {
-                            coroutineScope.launch {
+                            jumpScope.launch {
                                 runCatching { listState.animateScrollAndCenterItem(matchIndex) }
                             }
                         }
