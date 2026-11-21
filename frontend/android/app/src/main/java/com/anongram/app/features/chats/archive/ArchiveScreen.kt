@@ -129,19 +129,24 @@ fun ArchiveScreen(
         label = "archiveHeaderAlpha"
     )
     val glassTintAlpha = if (scheme.isDark) {
-        0.06f + 0.10f * animatedHeaderAlpha
+        0.34f + 0.14f * animatedHeaderAlpha
     } else {
-        0.16f + 0.14f * animatedHeaderAlpha
+        0.42f + 0.16f * animatedHeaderAlpha
     }
+    val themedHeaderTint = androidx.compose.ui.graphics.lerp(
+        scheme.surface,
+        scheme.accent,
+        if (scheme.isDark) 0.18f + 0.08f * animatedHeaderAlpha else 0.10f + 0.06f * animatedHeaderAlpha
+    )
 
     val headerBackgroundModifier = if (animState.glassBlurEnabled) {
         Modifier.hazeEffect(
             state = hazeState,
             style = HazeStyle(
                 backgroundColor = scheme.background,
-                tint = HazeTint(color = scheme.surface.copy(alpha = glassTintAlpha)),
+                tint = HazeTint(color = themedHeaderTint.copy(alpha = glassTintAlpha)),
                 blurRadius = 24.dp,
-                noiseFactor = 0.02f
+                noiseFactor = 0.03f
             )
         ) {
             progressive = HazeProgressive.verticalGradient(
@@ -153,8 +158,8 @@ fun ArchiveScreen(
         Modifier.background(
             Brush.verticalGradient(
                 colors = listOf(
-                    scheme.surface.copy(alpha = 0.90f + 0.08f * animatedHeaderAlpha),
-                    scheme.background.copy(alpha = 0.60f + 0.25f * animatedHeaderAlpha),
+                    themedHeaderTint.copy(alpha = 0.88f + 0.08f * animatedHeaderAlpha),
+                    scheme.background.copy(alpha = 0.55f + 0.25f * animatedHeaderAlpha),
                     Color.Transparent
                 )
             )
