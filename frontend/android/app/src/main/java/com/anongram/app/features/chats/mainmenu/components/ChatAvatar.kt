@@ -1,5 +1,11 @@
 package com.anongram.app.features.chats.mainmenu.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -7,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,18 +30,21 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.NeonEmerald
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.SessionGlyph
+import com.anongram.app.features.chats.mainmenu.i18n.ChatsMenuI18n
 
 /**
- * Аватар сессии. В режиме выбора остаётся чистым и незатемнённым,
- * так как кружок выбора плавно выезжает рядом слева от аватара.
+ * Аватар сессии. При выборе чата (`isSelected == true`) в правом нижнем
+ * углу появляется маленькая точка-галочка (без пустых кружков у невыбранных).
  */
 @Composable
 internal fun ChatAvatar(
     session: IChatSession,
     accent: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isSelected: Boolean = false
 ) {
     val scheme = LocalAnonGramScheme.current
+    val strings = ChatsMenuI18n.current
 
     Box(modifier = modifier) {
         Box(
@@ -69,15 +79,38 @@ internal fun ChatAvatar(
             }
         }
 
-        if (session.isOnline && session.avatarGlyph == SessionGlyph.MONOGRAM) {
+        if (session.isOnline && session.avatarGlyph == SessionGlyph.MONOGRAM && !isSelected) {
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .size(11.dp)
                     .clip(CircleShape)
                     .background(if (scheme.isDark) NeonEmerald else Color(0xFF059669))
-                    .border(2.dp, scheme.surface, CircleShape)
+                    .border(2.dp, scheme.background, CircleShape)
             )
+        }
+
+        AnimatedVisibility(
+            visible = isSelected,
+            enter = scaleIn(tween(150)) + fadeIn(tween(120)),
+            exit = scaleOut(tween(120)) + fadeOut(tween(100)),
+            modifier = Modifier.align(Alignment.BottomEnd)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(scheme.accent)
+                    .border(2.dp, scheme.background, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = strings.selected,
+                    tint = scheme.onAccent,
+                    modifier = Modifier.size(11.dp)
+                )
+            }
         }
     }
 }

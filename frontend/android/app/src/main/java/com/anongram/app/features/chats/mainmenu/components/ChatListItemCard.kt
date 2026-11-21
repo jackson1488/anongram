@@ -197,34 +197,10 @@ internal fun ChatListItemCard(
                 .padding(horizontal = 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Галка выбора РЯДОМ с аватаром — появляется ТОЛЬКО у выбранных чатов (без пустых кружков)
-            AnimatedVisibility(
-                visible = isSelected,
-                enter = expandHorizontally(expandFrom = Alignment.Start, animationSpec = tween(180)) + fadeIn(tween(150)),
-                exit = shrinkHorizontally(shrinkTowards = Alignment.Start, animationSpec = tween(160)) + fadeOut(tween(120))
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(22.dp)
-                            .clip(CircleShape)
-                            .background(scheme.accent),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Check,
-                            contentDescription = strings.selected,
-                            tint = scheme.onAccent,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                }
-            }
-
             ChatAvatar(
                 session = session,
-                accent = accent
+                accent = accent,
+                isSelected = isSelected
             )
 
             Spacer(modifier = Modifier.width(13.dp))
