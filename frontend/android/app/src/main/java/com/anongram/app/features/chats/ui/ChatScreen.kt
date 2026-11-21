@@ -90,6 +90,7 @@ fun ChatScreen(
     var replaceInitialTab by remember { mutableStateOf(AttachTab.GALLERY) }
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     var isFullEditorOpen by remember { mutableStateOf(false) }
+    var isUserProfileOpen by remember { mutableStateOf(false) }
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
     var actionMenuAnchorTopY by remember { mutableFloatStateOf(0f) }
     var actionMenuAnchorBottomY by remember { mutableFloatStateOf(0f) }
@@ -396,6 +397,7 @@ fun ChatScreen(
                 isMusicSheetOpen = true
                 audioController.openSheet()
             },
+            onOpenProfile = { isUserProfileOpen = true },
             modifier = Modifier
                 .zIndex(1f)
                 .align(Alignment.TopCenter)
@@ -408,6 +410,28 @@ fun ChatScreen(
                 .fillMaxSize()
                 .zIndex(10f)
         ) {
+            if (isUserProfileOpen) {
+                com.anongram.app.features.chats.user_profile.api.UserProfileScreen(
+                    session = session,
+                    messages = state.messages,
+                    selfDestruct = state.selfDestruct,
+                    onBack = { isUserProfileOpen = false },
+                    onToggleMute = viewModel::openNotifications,
+                    onSetSelfDestruct = viewModel::setSelfDestruct,
+                    onOpenKeyVerification = viewModel::openKeyCheck,
+                    onOpenMediaMessage = { msg ->
+                        viewingMediaMessage = msg
+                        viewingMediaInitialIndex = 0
+                        viewingOverrideSingleUri = null
+                    },
+                    onDeleteChat = {
+                        isUserProfileOpen = false
+                        viewModel.clearHistory()
+                        onBack()
+                    }
+                )
+            }
+
             ChatOverlaysHost(
                 session = session,
                 state = state,

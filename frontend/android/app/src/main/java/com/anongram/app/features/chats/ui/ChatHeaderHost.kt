@@ -64,6 +64,7 @@ internal fun ChatFloatingTopHeader(
     onCycleWallpaper: () -> Unit,
     onStartForward: (List<String>) -> Unit,
     onOpenMusicSheet: () -> Unit,
+    onOpenProfile: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scope = rememberCoroutineScope()
@@ -194,7 +195,8 @@ internal fun ChatFloatingTopHeader(
                         viewModel.clearHistory()
                         onBack()
                     },
-                    onOpenNotifications = viewModel::openNotifications
+                    onOpenNotifications = viewModel::openNotifications,
+                    onOpenProfile = onOpenProfile
                 )
             }
         }

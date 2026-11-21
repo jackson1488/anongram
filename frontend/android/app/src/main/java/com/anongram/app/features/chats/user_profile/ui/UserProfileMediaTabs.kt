@@ -1,0 +1,342 @@
+package com.anongram.app.features.chats.user_profile.ui
+
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.ui.components.bubble.openFileInSystemViewer
+import com.anongram.app.features.chats.user_profile.i18n.UserProfileStrings
+import com.anongram.app.features.chats.user_profile.model.UserProfileAudioItem
+import com.anongram.app.features.chats.user_profile.model.UserProfileBuckets
+import com.anongram.app.features.chats.user_profile.model.UserProfileFileItem
+import com.anongram.app.features.chats.user_profile.model.UserProfileLinkItem
+import com.anongram.app.features.chats.user_profile.model.UserProfileMediaItem
+import com.anongram.app.features.chats.user_profile.model.UserProfileTab
+
+@Composable
+internal fun UserProfileTabBar(
+    tabs: List<UserProfileTab>,
+    selectedTab: UserProfileTab,
+    strings: UserProfileStrings,
+    onSelectTab: (UserProfileTab) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (tabs.isEmpty()) return
+    val scheme = LocalAnonGramScheme.current
+
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(scheme.background)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            tabs.forEach { tab ->
+                val isSelected = tab == selectedTab
+                val label = when (tab) {
+                    UserProfileTab.MEDIA -> strings.tabMedia
+                    UserProfileTab.FILES -> strings.tabFiles
+                    UserProfileTab.LINKS -> strings.tabLinks
+                    UserProfileTab.GIF -> strings.tabGif
+                    UserProfileTab.AUDIO -> strings.tabAudio
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(if (isSelected) scheme.accentSoft else scheme.card)
+                        .border(
+                            width = 0.6.dp,
+                            color = if (isSelected) scheme.accent.copy(alpha = 0.45f) else scheme.islandBorder,
+                            shape = RoundedCornerShape(20.dp)
+                        )
+                        .clickable { onSelectTab(tab) }
+                        .padding(horizontal = 14.dp, vertical = 7.dp)
+                ) {
+                    Text(
+                        text = label,
+                        color = if (isSelected) scheme.accent else scheme.textSecondary,
+                        fontSize = 13.sp,
+                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Medium
+                    )
+                }
+            }
+        }
+        HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+    }
+}
+
+@Composable
+internal fun UserProfileMediaGridRow(
+    rowItems: List<UserProfileMediaItem>,
+    onMediaClick: (ChatMessage) -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        for (col in 0 until 3) {
+            val item = rowItems.getOrNull(col)
+            if (item != null) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f)
+                        .background(scheme.card)
+                        .clickable { onMediaClick(item.message) }
+                ) {
+                    AsyncImage(
+                        model = item.uri,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                    if (item.isVideo) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(6.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.55f))
+                                .padding(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
+        }
+    }
+    Spacer(modifier = Modifier.height(2.dp))
+}
+
+@Composable
+internal fun UserProfileFileRow(
+    item: UserProfileFileItem
+) {
+    val scheme = LocalAnonGramScheme.current
+    val context = LocalContext.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { openFileInSystemViewer(context, item.file) }
+                .padding(horizontal = 16.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.accentSoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Description,
+                    contentDescription = null,
+                    tint = scheme.accent,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.file.name,
+                    color = scheme.textPrimary,
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (item.file.sizeLabel.isNotBlank()) {
+                    Text(
+                        text = item.file.sizeLabel,
+                        color = scheme.textSecondary,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        }
+        HorizontalDivider(
+            color = scheme.divider,
+            thickness = 0.5.dp,
+            modifier = Modifier.padding(start = 70.dp, end = 16.dp)
+        )
+    }
+}
+
+@Composable
+internal fun UserProfileLinkRow(
+    item: UserProfileLinkItem
+) {
+    val scheme = LocalAnonGramScheme.current
+    val context = LocalContext.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    runCatching {
+                        context.startActivity(
+                            Intent(Intent.ACTION_VIEW, Uri.parse(item.url))
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.card)
+                    .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Link,
+                    contentDescription = null,
+                    tint = scheme.accent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = item.url,
+                color = scheme.accent,
+                fontSize = 14.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        HorizontalDivider(
+            color = scheme.divider,
+            thickness = 0.5.dp,
+            modifier = Modifier.padding(start = 70.dp, end = 16.dp)
+        )
+    }
+}
+
+@Composable
+internal fun UserProfileAudioRow(
+    item: UserProfileAudioItem,
+    onAudioClick: (UserProfileAudioItem) -> Unit
+) {
+    val scheme = LocalAnonGramScheme.current
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onAudioClick(item) }
+                .padding(horizontal = 16.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(scheme.accentSoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (item.isVoice) Icons.Outlined.GraphicEq else Icons.Outlined.MusicNote,
+                    contentDescription = null,
+                    tint = scheme.accent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    color = scheme.textPrimary,
+                    fontSize = 14.5.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                if (item.subtitle.isNotBlank()) {
+                    Text(
+                        text = item.subtitle,
+                        color = scheme.textSecondary,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+        HorizontalDivider(
+            color = scheme.divider,
+            thickness = 0.5.dp,
+            modifier = Modifier.padding(start = 70.dp, end = 16.dp)
+        )
+    }
+}
+
+internal fun tabSummaryText(
+    tab: UserProfileTab,
+    buckets: UserProfileBuckets,
+    strings: UserProfileStrings
+): String = when (tab) {
+    UserProfileTab.MEDIA -> strings.mediaCountFormat(buckets.media.size)
+    UserProfileTab.FILES -> strings.filesCountFormat(buckets.files.size)
+    UserProfileTab.LINKS -> strings.linksCountFormat(buckets.links.size)
+    UserProfileTab.GIF -> strings.gifCountFormat(buckets.gifs.size)
+    UserProfileTab.AUDIO -> strings.audioCountFormat(buckets.audio.size)
+}

@@ -85,6 +85,7 @@ internal fun ChatTopBar(
     onClearHistory: () -> Unit,
     onDeleteChat: () -> Unit,
     onOpenNotifications: () -> Unit,
+    onOpenProfile: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -115,6 +116,7 @@ internal fun ChatTopBar(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clickable(onClick = onOpenProfile)
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
