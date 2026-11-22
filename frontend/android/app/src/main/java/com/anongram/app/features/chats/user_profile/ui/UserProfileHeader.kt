@@ -286,16 +286,21 @@ internal fun UserProfileHeroHeader(
     val avatarResIds = session.avatarResIds
     val primaryAvatar = avatarResIds.firstOrNull() ?: session.avatarResId
     val canExpandHero = primaryAvatar != null
-    val effectiveExpanded = canExpandHero && (isExpandedHero || expandProgress > 0.02f)
+    val effectiveExpanded = canExpandHero && isExpandedHero
 
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = 0.85f,
+                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
+                )
+            ),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (effectiveExpanded && primaryAvatar != null) {
-            val p = expandProgress.coerceIn(0f, 1f)
-            val targetMaxHeight = if (overlayActions != null) 420.dp else 340.dp
-            val heroHeight = androidx.compose.ui.unit.lerp(180.dp, targetMaxHeight, p)
+            val heroHeight = if (overlayActions != null) 420.dp else 340.dp
             val safeIndex = currentAvatarIndex.coerceIn(0, (avatarResIds.size - 1).coerceAtLeast(0))
             val displayedAvatar = avatarResIds.getOrElse(safeIndex) { primaryAvatar }
             val heroHaze = remember { HazeState() }
@@ -357,7 +362,6 @@ internal fun UserProfileHeroHeader(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .graphicsLayer { alpha = (p * 1.35f).coerceIn(0f, 1f) }
                         .hazeEffect(
                             state = heroHaze,
                             style = HazeStyle(
@@ -427,9 +431,14 @@ internal fun UserProfileHeroHeader(
         } else {
             Spacer(modifier = Modifier.safeStatusBarPadding())
             Spacer(modifier = Modifier.height(16.dp))
+            val pullScale = 1f + (expandProgress.coerceIn(0f, 1f) * 0.25f)
             Box(
                 modifier = Modifier
-                    .size(92.dp)
+                    .size(108.dp)
+                    .graphicsLayer {
+                        scaleX = pullScale
+                        scaleY = pullScale
+                    }
                     .clip(CircleShape)
                     .background(
                         Brush.linearGradient(
@@ -447,7 +456,7 @@ internal fun UserProfileHeroHeader(
                         painter = androidx.compose.ui.res.painterResource(id = primaryAvatar),
                         contentDescription = session.title,
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier.size(92.dp)
+                        modifier = Modifier.size(108.dp)
                     )
                 } else {
                     Text(
@@ -631,7 +640,7 @@ internal fun UserProfileAvatarFullscreenOverlay(
                     contentDescription = title,
                     contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .transformable(
                             state = transformState,
                             canPan = { scale > 1.02f }

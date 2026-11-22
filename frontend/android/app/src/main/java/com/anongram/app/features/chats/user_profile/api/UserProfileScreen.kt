@@ -126,8 +126,8 @@ fun UserProfileScreen(
     val blockedIds by com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.blockedIds.collectAsState()
     val isBlocked = session.id in blockedIds
 
-    val heroExpandProgress = remember(session.id) { Animatable(0f) }
-    val isExpandedHero by remember { derivedStateOf { heroExpandProgress.value >= 0.45f } }
+    var isExpandedHero by remember(session.id) { mutableStateOf(false) }
+    val pullProgress = remember(session.id) { Animatable(0f) }
     var currentAvatarIndex by remember(session.id) { mutableIntStateOf(0) }
     var isAvatarFullscreenOpen by remember(session.id) { mutableStateOf(false) }
     var isOverflowOpen by remember { mutableStateOf(false) }
@@ -174,16 +174,14 @@ fun UserProfileScreen(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }.coerceAtLeast(1f)
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }.coerceAtLeast(600f)
-    val expandThresholdPx = (screenHeightPx * 0.45f).coerceAtLeast(260f)
+    val pullThresholdPx = with(density) { 140.dp.toPx() }.coerceAtLeast(120f)
 
-    val pullDownNestedScroll = remember(hasRealAvatar, expandThresholdPx) {
+    val pullDownNestedScroll = remember(hasRealAvatar, pullThresholdPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (hasRealAvatar && heroExpandProgress.value > 0f && available.y < 0f && source == NestedScrollSource.UserInput) {
-                    val next = (heroExpandProgress.value + available.y / expandThresholdPx).coerceIn(0f, 1.35f)
-                    scope.launch { heroExpandProgress.snapTo(next) }
-                    return if (next > 0.01f) Offset(0f, available.y) else Offset.Zero
+                if (hasRealAvatar && isExpandedHero && available.y < -14f && source == NestedScrollSource.UserInput) {
+                    isExpandedHero = false
+                    scope.launch { pullProgress.snapTo(0f) }
                 }
                 return Offset.Zero
             }
@@ -200,11 +198,14 @@ fun UserProfileScreen(
                     listState.firstVisibleItemIndex == 0 &&
                     listState.firstVisibleItemScrollOffset == 0
                 ) {
-                    val next = (heroExpandProgress.value + available.y / expandThresholdPx).coerceIn(0f, 1.35f)
-                    scope.launch { heroExpandProgress.snapTo(next) }
-                    if (next >= 1.24f) {
+                    val next = (pullProgress.value + available.y / pullThresholdPx).coerceIn(0f, 1.3f)
+                    scope.launch { pullProgress.snapTo(next) }
+                    if (!isExpandedHero && next >= 0.45f) {
+                        isExpandedHero = true
+                        scope.launch { pullProgress.snapTo(0f) }
+                    } else if (isExpandedHero && next >= 0.65f) {
                         isAvatarFullscreenOpen = true
-                        scope.launch { heroExpandProgress.snapTo(1f) }
+                        scope.launch { pullProgress.snapTo(0f) }
                     }
                     return Offset(0f, available.y)
                 }
@@ -212,26 +213,24 @@ fun UserProfileScreen(
             }
 
             override suspend fun onPreFling(available: Velocity): Velocity {
-                if (hasRealAvatar && heroExpandProgress.value > 0f) {
-                    if (available.y > 1200f) {
-                        if (heroExpandProgress.value >= 0.92f) {
+                if (hasRealAvatar && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
+                    if (available.y > 750f) {
+                        if (!isExpandedHero) {
+                            isExpandedHero = true
+                        } else {
                             isAvatarFullscreenOpen = true
                         }
-                        scope.launch { heroExpandProgress.animateTo(1f, spring()) }
-                    } else if (available.y < -900f) {
-                        scope.launch { heroExpandProgress.animateTo(0f, spring()) }
-                    } else {
-                        val target = if (heroExpandProgress.value >= 0.45f) 1f else 0f
-                        scope.launch { heroExpandProgress.animateTo(target, spring()) }
+                        scope.launch { pullProgress.snapTo(0f) }
+                    } else if (pullProgress.value > 0f) {
+                        scope.launch { pullProgress.animateTo(0f, spring()) }
                     }
                 }
                 return Velocity.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-                if (hasRealAvatar && (heroExpandProgress.value in 0.001f..0.999f || heroExpandProgress.value > 1.001f)) {
-                    val target = if (heroExpandProgress.value >= 0.45f || available.y > 1200f) 1f else 0f
-                    scope.launch { heroExpandProgress.animateTo(target, spring()) }
+                if (pullProgress.value > 0f) {
+                    scope.launch { pullProgress.animateTo(0f, spring()) }
                 }
                 return Velocity.Zero
             }
@@ -272,7 +271,7 @@ fun UserProfileScreen(
                         session = session,
                         isExpandedHero = isExpandedHero,
                         strings = strings,
-                        expandProgress = heroExpandProgress.value,
+                        expandProgress = pullProgress.value,
                         currentAvatarIndex = currentAvatarIndex,
                         onSelectAvatarIndex = { currentAvatarIndex = it },
                         onOpenFullscreen = {
