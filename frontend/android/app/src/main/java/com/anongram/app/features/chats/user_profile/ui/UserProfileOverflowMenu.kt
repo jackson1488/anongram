@@ -104,11 +104,8 @@ internal fun UserProfileOverflowMenu(
                         }
                     )
                 }
-                if (canZoomIn || canZoomOut) {
-                    HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-                }
-            }
-            MenuRowItem(
+            } else {
+                MenuRowItem(
                 icon = Icons.Outlined.Timer,
                 label = strings.menuAutoDelete,
                 trailingIcon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
@@ -157,15 +154,16 @@ internal fun UserProfileOverflowMenu(
                     onRestrictCopying()
                 }
             )
-            MenuRowItem(
-                icon = Icons.Outlined.Report,
-                label = strings.menuReport,
-                tint = Color(0xFFEF5350),
-                onClick = {
-                    onDismiss()
-                    onReport()
-                }
-            )
+                MenuRowItem(
+                    icon = Icons.Outlined.Report,
+                    label = strings.menuReport,
+                    tint = Color(0xFFEF5350),
+                    onClick = {
+                        onDismiss()
+                        onReport()
+                    }
+                )
+            }
         } else {
             MenuRowItem(
                 icon = Icons.AutoMirrored.Outlined.ArrowBack,

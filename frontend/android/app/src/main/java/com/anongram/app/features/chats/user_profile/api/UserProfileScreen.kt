@@ -305,11 +305,43 @@ fun UserProfileScreen(
                     }
 
                     item(key = "pager_content") {
+                        val stickyTabsIndex = if (addedToContactsLocal) 4 else 5
+                        val pagerToOuterNestedScroll = remember(listState, stickyTabsIndex) {
+                            object : NestedScrollConnection {
+                                override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                                    // Если скроллим вниз по контенту (available.y < 0), сначала сворачиваем профиль до sticky-таблеток
+                                    if (available.y < 0f && listState.firstVisibleItemIndex < stickyTabsIndex) {
+                                        val consumed = listState.dispatchRawDelta(-available.y)
+                                        if (consumed != 0f) {
+                                            return Offset(0f, -consumed)
+                                        }
+                                    }
+                                    return Offset.Zero
+                                }
+
+                                override fun onPostScroll(
+                                    consumed: Offset,
+                                    available: Offset,
+                                    source: NestedScrollSource
+                                ): Offset {
+                                    // Если внутренний список дошёл до верха и тянем дальше вниз (available.y > 0) — раскрываем профиль обратно
+                                    if (available.y > 0f) {
+                                        val outerConsumed = listState.dispatchRawDelta(-available.y)
+                                        if (outerConsumed != 0f) {
+                                            return Offset(0f, -outerConsumed)
+                                        }
+                                    }
+                                    return Offset.Zero
+                                }
+                            }
+                        }
+
                         HorizontalPager(
                             state = pagerState,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .fillParentMaxHeight(0.84f)
+                                .fillParentMaxHeight(0.88f)
+                                .nestedScroll(pagerToOuterNestedScroll)
                         ) { pageIdx ->
                             val pageTab = availableTabs[pageIdx]
                             when (pageTab) {
