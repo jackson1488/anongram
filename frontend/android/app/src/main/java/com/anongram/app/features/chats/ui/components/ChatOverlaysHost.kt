@@ -453,9 +453,7 @@ private fun ChatMessageActionAndSettingsOverlays(
     }
 
     forwardingMessageIds?.let { idsToForward ->
-        val itemsToForward = remember(idsToForward, state.messages) {
-            state.messages.filter { it.id in idsToForward }
-        }
+        val itemsToForward = state.messages.filter { it.id in idsToForward }
         com.anongram.app.features.chats.tools.ForwardTargetPickerScreen(
             activeSessions = activeSessions,
             onClose = onCloseForward,
