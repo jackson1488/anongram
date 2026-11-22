@@ -19,7 +19,8 @@ data class DirectChatSession(
     override val tier: ChatSecurityTier = ChatSecurityTier.STANDARD,
     override val mutedUntil: Long? = null,
     override val lastMessageAttachment: MessageAttachment? = null,
-    override val avatarResId: Int? = null
+    override val avatarResId: Int? = null,
+    override val avatarResIds: List<Int> = listOfNotNull(avatarResId)
 ) : IChatSession {
 
     override val avatarGlyph: SessionGlyph = SessionGlyph.MONOGRAM

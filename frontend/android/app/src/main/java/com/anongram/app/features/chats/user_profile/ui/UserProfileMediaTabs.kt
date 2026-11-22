@@ -45,6 +45,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.geometry.Rect
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -138,6 +141,7 @@ internal fun UserProfileMediaGridRow(
     rowItems: List<UserProfileMediaItem>,
     columns: Int,
     selectedKeys: Set<String>,
+    onTilePositioned: (String, Rect) -> Unit = { _, _ -> },
     onMediaClick: (UserProfileMediaItem) -> Unit,
     onMediaLongClick: (UserProfileMediaItem) -> Unit
 ) {
@@ -166,6 +170,9 @@ internal fun UserProfileMediaGridRow(
                         .weight(1f)
                         .aspectRatio(1f)
                         .background(scheme.background)
+                        .onGloballyPositioned { coords ->
+                            onTilePositioned(item.itemKey, coords.boundsInRoot())
+                        }
                         .combinedClickable(
                             onClick = { onMediaClick(item) },
                             onLongClick = { onMediaLongClick(item) }

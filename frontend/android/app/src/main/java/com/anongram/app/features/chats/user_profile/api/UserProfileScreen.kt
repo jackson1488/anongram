@@ -10,6 +10,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -28,6 +29,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -35,11 +37,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -238,24 +243,42 @@ fun UserProfileScreen(
                             if (hasRealAvatar) {
                                 isAvatarFullscreenOpen = true
                             }
-                        }
+                        },
+                        overlayActions = if (hasRealAvatar && isExpandedHero) {
+                            {
+                                UserProfileActionsRow(
+                                    isMuted = session.isMuted,
+                                    strings = strings,
+                                    onChatClick = onBack,
+                                    onMuteToggle = onToggleMute,
+                                    onCallClick = {
+                                        Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                                    },
+                                    onVideoClick = {
+                                        Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                                    }
+                                )
+                            }
+                        } else null
                     )
                 }
 
-                item(key = "actions_row") {
-                    UserProfileActionsRow(
-                        isMuted = session.isMuted,
-                        strings = strings,
-                        onChatClick = onBack,
-                        onMuteToggle = onToggleMute,
-                        onCallClick = {
-                            Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
-                        },
-                        onVideoClick = {
-                            Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                    Spacer(modifier = Modifier.height(14.dp))
+                if (!(hasRealAvatar && isExpandedHero)) {
+                    item(key = "actions_row") {
+                        UserProfileActionsRow(
+                            isMuted = session.isMuted,
+                            strings = strings,
+                            onChatClick = onBack,
+                            onMuteToggle = onToggleMute,
+                            onCallClick = {
+                                Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                            },
+                            onVideoClick = {
+                                Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                        Spacer(modifier = Modifier.height(14.dp))
+                    }
                 }
 
                 item(key = "info_card") {
@@ -286,30 +309,19 @@ fun UserProfileScreen(
 
                 if (availableTabs.isNotEmpty()) {
                     item(key = "tabs_spacer") {
-                        Spacer(modifier = Modifier.height(10.dp))
-                    }
-
-                    stickyHeader(key = "sticky_tabs") {
-                        UserProfileTabBar(
-                            tabs = availableTabs,
-                            selectedTab = selectedTab,
-                            hazeState = hazeState,
-                            strings = strings,
-                            onSelectTab = { tab ->
-                                val idx = availableTabs.indexOf(tab)
-                                if (idx >= 0) {
-                                    scope.launch { pagerState.animateScrollToPage(idx) }
-                                }
-                            }
-                        )
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
 
                     item(key = "pager_content") {
-                        val stickyTabsIndex = if (addedToContactsLocal) 4 else 5
+                        val stickyTabsIndex = when {
+                            hasRealAvatar && isExpandedHero && addedToContactsLocal -> 3
+                            hasRealAvatar && isExpandedHero -> 4
+                            addedToContactsLocal -> 4
+                            else -> 5
+                        }
                         val pagerToOuterNestedScroll = remember(listState, stickyTabsIndex) {
                             object : NestedScrollConnection {
                                 override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                                    // Если скроллим вниз по контенту (available.y < 0), сначала сворачиваем профиль до sticky-таблеток
                                     if (available.y < 0f && listState.firstVisibleItemIndex < stickyTabsIndex) {
                                         val consumed = listState.dispatchRawDelta(-available.y)
                                         if (consumed != 0f) {
@@ -324,7 +336,6 @@ fun UserProfileScreen(
                                     available: Offset,
                                     source: NestedScrollSource
                                 ): Offset {
-                                    // Если внутренний список дошёл до верха и тянем дальше вниз (available.y > 0) — раскрываем профиль обратно
                                     if (available.y > 0f) {
                                         val outerConsumed = listState.dispatchRawDelta(-available.y)
                                         if (outerConsumed != 0f) {
@@ -336,104 +347,159 @@ fun UserProfileScreen(
                             }
                         }
 
-                        HorizontalPager(
-                            state = pagerState,
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .fillParentMaxHeight(0.88f)
-                                .nestedScroll(pagerToOuterNestedScroll)
-                        ) { pageIdx ->
-                            val pageTab = availableTabs[pageIdx]
-                            when (pageTab) {
-                                UserProfileTab.MEDIA, UserProfileTab.GIF -> {
-                                    val itemsList = if (pageTab == UserProfileTab.MEDIA) buckets.media else buckets.gifs
-                                    val chunked = remember(itemsList, gridColumns) { itemsList.chunked(gridColumns) }
-                                    var pinchAccum by remember { mutableFloatStateOf(1f) }
-                                    LazyColumn(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .pointerInput(pageTab) {
-                                                awaitEachGesture {
-                                                    awaitFirstDown(requireUnconsumed = false)
-                                                    pinchAccum = 1f
-                                                    do {
-                                                        val event = awaitPointerEvent()
-                                                        val pressedCount = event.changes.count { it.pressed }
-                                                        if (pressedCount >= 2) {
-                                                            val zoom = event.calculateZoom()
-                                                            pinchAccum *= zoom
-                                                            if (pinchAccum >= 1.24f) {
-                                                                gridColumns = (gridColumns - 1).coerceAtLeast(2)
-                                                                pinchAccum = 1f
-                                                            } else if (pinchAccum <= 0.80f) {
-                                                                gridColumns = (gridColumns + 1).coerceAtMost(6)
-                                                                pinchAccum = 1f
-                                                            }
-                                                            event.changes.forEach { it.consume() }
-                                                        }
-                                                    } while (event.changes.any { it.pressed })
+                                .fillParentMaxHeight(0.92f)
+                        ) {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .nestedScroll(pagerToOuterNestedScroll)
+                            ) { pageIdx ->
+                                val pageTab = availableTabs[pageIdx]
+                                when (pageTab) {
+                                    UserProfileTab.MEDIA, UserProfileTab.GIF -> {
+                                        val itemsList = if (pageTab == UserProfileTab.MEDIA) buckets.media else buckets.gifs
+                                        val chunked = remember(itemsList, gridColumns) { itemsList.chunked(gridColumns) }
+                                        var pinchAccum by remember { mutableFloatStateOf(1f) }
+                                        val tileBounds = remember { mutableStateMapOf<String, Rect>() }
+                                        var gridOriginInRoot by remember { mutableStateOf(Offset.Zero) }
+                                        var dragVisitedKeys by remember { mutableStateOf(emptySet<String>()) }
+
+                                        LazyColumn(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .onGloballyPositioned { coords ->
+                                                    gridOriginInRoot = coords.positionInRoot()
                                                 }
-                                            },
-                                        contentPadding = PaddingValues(bottom = 28.dp)
-                                    ) {
-                                        items(chunked) { rowItems ->
-                                            UserProfileMediaGridRow(
-                                                rowItems = rowItems,
-                                                columns = gridColumns,
-                                                selectedKeys = selectedKeys,
-                                                onMediaClick = { item ->
-                                                    if (selectedKeys.isNotEmpty()) {
+                                                .pointerInput(pageTab) {
+                                                    awaitEachGesture {
+                                                        awaitFirstDown(requireUnconsumed = false)
+                                                        pinchAccum = 1f
+                                                        do {
+                                                            val event = awaitPointerEvent()
+                                                            val pressedCount = event.changes.count { it.pressed }
+                                                            if (pressedCount >= 2) {
+                                                                val zoom = event.calculateZoom()
+                                                                pinchAccum *= zoom
+                                                                if (pinchAccum >= 1.24f) {
+                                                                    gridColumns = (gridColumns - 1).coerceAtLeast(2)
+                                                                    pinchAccum = 1f
+                                                                } else if (pinchAccum <= 0.80f) {
+                                                                    gridColumns = (gridColumns + 1).coerceAtMost(6)
+                                                                    pinchAccum = 1f
+                                                                }
+                                                                event.changes.forEach { it.consume() }
+                                                            }
+                                                        } while (event.changes.any { it.pressed })
+                                                    }
+                                                }
+                                                .pointerInput(pageTab, gridColumns) {
+                                                    detectDragGesturesAfterLongPress(
+                                                        onDragStart = { startOffset ->
+                                                            val rootPt = gridOriginInRoot + startOffset
+                                                            val hitKey = tileBounds.entries.firstOrNull { it.value.contains(rootPt) }?.key
+                                                            if (hitKey != null) {
+                                                                dragVisitedKeys = setOf(hitKey)
+                                                                selectedKeys = selectedKeys + hitKey
+                                                            } else {
+                                                                dragVisitedKeys = emptySet()
+                                                            }
+                                                        },
+                                                        onDragEnd = { dragVisitedKeys = emptySet() },
+                                                        onDragCancel = { dragVisitedKeys = emptySet() },
+                                                        onDrag = { change, _ ->
+                                                            change.consume()
+                                                            val rootPt = gridOriginInRoot + change.position
+                                                            val hitKey = tileBounds.entries.firstOrNull { it.value.contains(rootPt) }?.key
+                                                            if (hitKey != null && hitKey !in dragVisitedKeys) {
+                                                                dragVisitedKeys = dragVisitedKeys + hitKey
+                                                                selectedKeys = selectedKeys + hitKey
+                                                            }
+                                                        }
+                                                    )
+                                                },
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                        ) {
+                                            items(chunked) { rowItems ->
+                                                UserProfileMediaGridRow(
+                                                    rowItems = rowItems,
+                                                    columns = gridColumns,
+                                                    selectedKeys = selectedKeys,
+                                                    onTilePositioned = { key, rect ->
+                                                        tileBounds[key] = rect
+                                                    },
+                                                    onMediaClick = { item ->
+                                                        if (selectedKeys.isNotEmpty()) {
+                                                            val k = item.itemKey
+                                                            selectedKeys = if (k in selectedKeys) selectedKeys - k else selectedKeys + k
+                                                        } else {
+                                                            onOpenMediaMessage(item.message)
+                                                        }
+                                                    },
+                                                    onMediaLongClick = { item ->
                                                         val k = item.itemKey
                                                         selectedKeys = if (k in selectedKeys) selectedKeys - k else selectedKeys + k
-                                                    } else {
-                                                        onOpenMediaMessage(item.message)
                                                     }
-                                                },
-                                                onMediaLongClick = { item ->
-                                                    val k = item.itemKey
-                                                    selectedKeys = if (k in selectedKeys) selectedKeys - k else selectedKeys + k
-                                                }
-                                            )
+                                                )
+                                            }
                                         }
                                     }
-                                }
 
-                                UserProfileTab.FILES -> {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = 28.dp)
-                                    ) {
-                                        items(buckets.files) { fileItem ->
-                                            UserProfileFileRow(item = fileItem)
+                                    UserProfileTab.FILES -> {
+                                        LazyColumn(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                        ) {
+                                            items(buckets.files) { fileItem ->
+                                                UserProfileFileRow(item = fileItem)
+                                            }
                                         }
                                     }
-                                }
 
-                                UserProfileTab.LINKS -> {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = 28.dp)
-                                    ) {
-                                        items(buckets.links) { linkItem ->
-                                            UserProfileLinkRow(item = linkItem)
+                                    UserProfileTab.LINKS -> {
+                                        LazyColumn(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                        ) {
+                                            items(buckets.links) { linkItem ->
+                                                UserProfileLinkRow(item = linkItem)
+                                            }
                                         }
                                     }
-                                }
 
-                                UserProfileTab.AUDIO -> {
-                                    LazyColumn(
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentPadding = PaddingValues(bottom = 28.dp)
-                                    ) {
-                                        items(buckets.audio) { audioItem ->
-                                            UserProfileAudioRow(
-                                                item = audioItem,
-                                                onAudioClick = { onBack() }
-                                            )
+                                    UserProfileTab.AUDIO -> {
+                                        LazyColumn(
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                        ) {
+                                            items(buckets.audio) { audioItem ->
+                                                UserProfileAudioRow(
+                                                    item = audioItem,
+                                                    onAudioClick = { onBack() }
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
+
+                            // Плавающие Liquid Glass таблетки вкладок поверх скроллящегося контента
+                            UserProfileTabBar(
+                                tabs = availableTabs,
+                                selectedTab = selectedTab,
+                                hazeState = hazeState,
+                                strings = strings,
+                                onSelectTab = { tab ->
+                                    val idx = availableTabs.indexOf(tab)
+                                    if (idx >= 0) {
+                                        scope.launch { pagerState.animateScrollToPage(idx) }
+                                    }
+                                },
+                                modifier = Modifier.align(Alignment.TopCenter)
+                            )
                         }
                     }
                 } else {
@@ -520,10 +586,11 @@ fun UserProfileScreen(
                 modifier = Modifier.align(Alignment.TopCenter)
             )
 
-            if (isAvatarFullscreenOpen && session.avatarResId != null) {
+            if (isAvatarFullscreenOpen && session.avatarResIds.isNotEmpty()) {
                 UserProfileAvatarFullscreenOverlay(
-                    avatarResId = session.avatarResId!!,
+                    avatarResIds = session.avatarResIds,
                     title = session.title,
+                    strings = strings,
                     onClose = { isAvatarFullscreenOpen = false }
                 )
             }

@@ -39,6 +39,9 @@ interface IChatSession {
     /** Реальное фото аватара (локальный ресурс), если установлено у собеседника. */
     val avatarResId: Int? get() = null
 
+    /** Альбом аватаров собеседника (для перелистывания в профиле и полноэкранном просмотре). */
+    val avatarResIds: List<Int> get() = listOfNotNull(avatarResId)
+
     /** true — удаление необратимо (физический OTP-пад). */
     val burnsWithEmbers: Boolean get() = false
 

@@ -63,7 +63,12 @@ class InMemoryChatListRepository(
                 isOnline = true,
                 unreadCount = 2,
                 lastMessageAttachment = null,
-                avatarResId = com.anongram.app.R.drawable.avatar_alice
+                avatarResId = com.anongram.app.R.drawable.avatar_alice,
+                avatarResIds = listOf(
+                    com.anongram.app.R.drawable.avatar_alice,
+                    com.anongram.app.R.drawable.avatar_vera,
+                    com.anongram.app.R.drawable.avatar_arthur
+                )
             ),
             DirectChatSession(
                 id = "3",
