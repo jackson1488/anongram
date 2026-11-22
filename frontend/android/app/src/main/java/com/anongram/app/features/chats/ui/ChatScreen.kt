@@ -386,55 +386,9 @@ fun ChatScreen(
                 }
             }
         } else {
-            val pendingForward by com.anongram.app.features.chats.tools.PendingForwardStore.state.collectAsState()
+            val pendingForward by com.anongram.app.features.chats.tools.forward.PendingForwardStore.state.collectAsState()
             val activePending = pendingForward?.takeIf { it.targetSessionId == session.id }
             var isPendingForwardPreviewOpen by remember(session.id) { mutableStateOf(false) }
-
-            if (activePending != null) {
-                com.anongram.app.features.chats.tools.PendingForwardDockBar(
-                    pending = activePending,
-                    onTapPreview = { isPendingForwardPreviewOpen = true },
-                    onCancelAll = {
-                        val backSource = com.anongram.app.features.chats.tools.PendingForwardStore.cancelAll()
-                        if (backSource != null && backSource.id != session.id) {
-                            onOpenTargetSession(backSource)
-                        }
-                    },
-                    onSendNow = {
-                        val ids = activePending.items.map { it.id }
-                        com.anongram.app.features.chats.tools.PendingForwardStore.clear()
-                        viewModel.forwardMessagesToTargetChat(session.id, ids, session.title) {}
-                    },
-                    modifier = Modifier
-                        .zIndex(4f)
-                        .align(Alignment.BottomCenter)
-                        .safeNavigationBarPadding()
-                        .padding(bottom = 78.dp)
-                )
-            }
-
-            if (isPendingForwardPreviewOpen && activePending != null) {
-                com.anongram.app.features.chats.tools.PendingForwardPreviewDialog(
-                    pending = activePending,
-                    onRemoveItem = { msgId ->
-                        val backSource = com.anongram.app.features.chats.tools.PendingForwardStore.removeItem(msgId)
-                        if (backSource != null) {
-                            isPendingForwardPreviewOpen = false
-                            if (backSource.id != session.id) {
-                                onOpenTargetSession(backSource)
-                            }
-                        }
-                    },
-                    onCancelAll = {
-                        isPendingForwardPreviewOpen = false
-                        val backSource = com.anongram.app.features.chats.tools.PendingForwardStore.cancelAll()
-                        if (backSource != null && backSource.id != session.id) {
-                            onOpenTargetSession(backSource)
-                        }
-                    },
-                    onDismiss = { isPendingForwardPreviewOpen = false }
-                )
-            }
 
             ChatInputDock(
                 state = state,
@@ -471,10 +425,53 @@ fun ChatScreen(
                     pendingRecordMode = mode
                     recordPermissionLauncher.launch(perms)
                 },
+                pendingForward = activePending,
+                onPendingForwardClick = { isPendingForwardPreviewOpen = true },
+                onCancelPendingForward = {
+                    val backSource = com.anongram.app.features.chats.tools.forward.PendingForwardStore.cancelAll()
+                    if (backSource != null && backSource.id != session.id) {
+                        onOpenTargetSession(backSource)
+                    }
+                },
+                onSendPendingForward = {
+                    val currentPending = activePending ?: return@ChatInputDock
+                    val ids = currentPending.activeItems.map { it.id }
+                    com.anongram.app.features.chats.tools.forward.PendingForwardStore.clear()
+                    if (ids.isNotEmpty()) {
+                        viewModel.forwardMessagesToTargetChat(session.id, ids, session.title) {}
+                    }
+                },
                 modifier = Modifier
                     .zIndex(3f)
                     .align(Alignment.BottomCenter)
             )
+
+            if (isPendingForwardPreviewOpen && activePending != null) {
+                Box(modifier = Modifier.fillMaxSize().zIndex(12f)) {
+                    com.anongram.app.features.chats.tools.forward.ForwardPreviewOverlay(
+                        chatId = session.id,
+                        pending = activePending,
+                        peerName = session.title,
+                        onToggleItem = { msgId ->
+                            val backSource = com.anongram.app.features.chats.tools.forward.PendingForwardStore.toggleInclude(msgId)
+                            if (backSource != null) {
+                                isPendingForwardPreviewOpen = false
+                                if (backSource.id != session.id) {
+                                    onOpenTargetSession(backSource)
+                                }
+                            }
+                        },
+                        onCancelAll = {
+                            isPendingForwardPreviewOpen = false
+                            val backSource = com.anongram.app.features.chats.tools.forward.PendingForwardStore.cancelAll()
+                            if (backSource != null && backSource.id != session.id) {
+                                onOpenTargetSession(backSource)
+                            }
+                        },
+                        onDismiss = { isPendingForwardPreviewOpen = false }
+                    )
+                }
+            }
         }
 
         val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) {
@@ -607,6 +604,14 @@ fun ChatScreen(
                             onBack()
                         },
                         activeSessions = activeSessions,
+                        onShareContactToChats = { targets, comment ->
+                            viewModel.sendContactToChats(
+                                targetSessionIds = targets.map { it.id },
+                                name = session.title,
+                                fingerprint = session.fingerprint,
+                                comment = comment
+                            )
+                        },
                         onInnerModalOpenChange = { isProfileInnerModalOpen = it }
                     )
                 }

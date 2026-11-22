@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SentimentSatisfied
 import androidx.compose.material.icons.outlined.SmartToy
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -100,6 +101,8 @@ fun ForwardTargetPickerScreen(
     onSelectGlobalItem: (name: String, handle: String) -> Unit,
     titleOverride: String? = null,
     multiSelectMode: Boolean = false,
+    sharedPreviewText: String? = null,
+    sharedPreviewUris: List<String> = emptyList(),
     onConfirmMultiSelect: ((selectedSessions: List<IChatSession>, comment: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -108,6 +111,7 @@ fun ForwardTargetPickerScreen(
     var query by remember { mutableStateOf("") }
     var selectedSessionIds by remember { mutableStateOf(emptySet<String>()) }
     var commentText by remember { mutableStateOf("") }
+    var isEmojiStripOpen by remember { mutableStateOf(false) }
 
     BackHandler { onClose() }
 
@@ -396,61 +400,152 @@ fun ForwardTargetPickerScreen(
             }
         }
 
-        if (multiSelectMode && selectedSessionIds.isNotEmpty()) {
-            Row(
+        if (multiSelectMode) {
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(scheme.surface)
                     .border(0.5.dp, scheme.divider)
                     .imePadding()
                     .safeNavigationBarPadding()
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
+                if (sharedPreviewUris.isNotEmpty() || !sharedPreviewText.isNullOrBlank()) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        sharedPreviewUris.take(4).forEach { uriStr ->
+                            coil.compose.AsyncImage(
+                                model = uriStr,
+                                contentDescription = null,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(10.dp))
+                            )
+                        }
+                        if (sharedPreviewUris.size > 4) {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(scheme.card),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "+${sharedPreviewUris.size - 4}",
+                                    color = scheme.accent,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                        }
+                        if (!sharedPreviewText.isNullOrBlank()) {
+                            Text(
+                                text = sharedPreviewText,
+                                color = scheme.textSecondary,
+                                fontSize = 13.sp,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+                    HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                }
+
+                if (isEmojiStripOpen) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        listOf("👍", "❤️", "🔥", "😂", "🙏", "👌", "🎉").forEach { emoji ->
+                            Text(
+                                text = emoji,
+                                fontSize = 22.sp,
+                                modifier = Modifier
+                                    .clip(CircleShape)
+                                    .clickable { commentText += emoji }
+                                    .padding(6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .height(44.dp)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(scheme.inputBg)
-                        .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(22.dp))
-                        .padding(horizontal = 16.dp),
-                    contentAlignment = Alignment.CenterStart
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (commentText.isEmpty()) {
-                        Text(
-                            text = strings.addCommentPlaceholder,
-                            color = scheme.textMuted,
-                            fontSize = 15.sp
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(scheme.inputBg)
+                            .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(22.dp))
+                            .padding(start = 6.dp, end = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { isEmojiStripOpen = !isEmojiStripOpen },
+                            modifier = Modifier.size(34.dp)
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Outlined.SentimentSatisfied,
+                                contentDescription = null,
+                                tint = if (isEmojiStripOpen) scheme.accent else scheme.textMuted,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            if (commentText.isEmpty()) {
+                                Text(
+                                    text = strings.addCommentPlaceholder,
+                                    color = scheme.textMuted,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            BasicTextField(
+                                value = commentText,
+                                onValueChange = { commentText = it },
+                                singleLine = true,
+                                textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
+                                cursorBrush = SolidColor(scheme.accent),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    val canSendMulti = selectedSessionIds.isNotEmpty()
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(if (canSendMulti) scheme.accent else scheme.accent.copy(alpha = 0.35f))
+                            .clickable(enabled = canSendMulti) {
+                                val targets = activeSessions.filter { it.id in selectedSessionIds }
+                                onConfirmMultiSelect?.invoke(targets, commentText.trim())
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.Send,
+                            contentDescription = null,
+                            tint = scheme.onAccent,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    BasicTextField(
-                        value = commentText,
-                        onValueChange = { commentText = it },
-                        singleLine = true,
-                        textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
-                        cursorBrush = SolidColor(scheme.accent),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(scheme.accent)
-                        .clickable {
-                            val targets = activeSessions.filter { it.id in selectedSessionIds }
-                            onConfirmMultiSelect?.invoke(targets, commentText.trim())
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Send,
-                        contentDescription = null,
-                        tint = scheme.onAccent,
-                        modifier = Modifier.size(20.dp)
-                    )
                 }
             }
         }
@@ -507,7 +602,24 @@ private fun ForwardActiveSessionRow(
                     }
                 }
             }
-            if (session.isOnline) {
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .align(Alignment.BottomEnd)
+                        .clip(CircleShape)
+                        .background(scheme.accent)
+                        .border(2.dp, scheme.background, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Check,
+                        contentDescription = null,
+                        tint = scheme.onAccent,
+                        modifier = Modifier.size(12.dp)
+                    )
+                }
+            } else if (session.isOnline) {
                 Box(
                     modifier = Modifier
                         .size(12.dp)
@@ -541,23 +653,6 @@ private fun ForwardActiveSessionRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-        }
-        if (isSelected) {
-            Spacer(modifier = Modifier.width(10.dp))
-            Box(
-                modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(scheme.accent),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.Check,
-                    contentDescription = null,
-                    tint = scheme.onAccent,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
         }
     }
 }

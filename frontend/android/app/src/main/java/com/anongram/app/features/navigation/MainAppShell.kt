@@ -615,20 +615,88 @@ fun MainAppShell(
                 activeSessions = chatsState.sessions,
                 titleOverride = toolsStrings.selectChatTitle,
                 multiSelectMode = true,
+                sharedPreviewText = sharePayload.text,
+                sharedPreviewUris = sharePayload.uris,
                 onClose = { com.anongram.app.features.chats.tools.IncomingShareBus.clear() },
                 onConfirmMultiSelect = { targets, comment ->
-                    val summary = listOfNotNull(sharePayload.text, comment.takeIf { it.isNotBlank() }).joinToString("\n")
-                    android.widget.Toast.makeText(
-                        context,
-                        if (summary.isNotBlank()) "Отправлено (${targets.size})" else "Отправлено (${targets.size})",
-                        android.widget.Toast.LENGTH_SHORT
-                    ).show()
-                    com.anongram.app.features.chats.tools.IncomingShareBus.clear()
-                    targets.firstOrNull()?.let { openSession(it) }
+                    val combinedText = listOfNotNull(
+                        sharePayload.text?.takeIf { it.isNotBlank() },
+                        comment.takeIf { it.isNotBlank() }
+                    ).joinToString("\n")
+                    val uris = sharePayload.uris
+                    val attachment: com.anongram.app.features.chats.messages.domain.MessageAttachment? = when {
+                        uris.size == 1 -> com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo(
+                            label = "Photo",
+                            colorSeed = 1,
+                            uri = uris.first()
+                        )
+                        uris.size > 1 -> com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum(
+                            items = uris.take(10).map {
+                                com.anongram.app.features.chats.messages.domain.MessageAttachment.AlbumMediaItem(uri = it)
+                            }
+                        )
+                        else -> null
+                    }
+                    scope.launch {
+                        val now = System.currentTimeMillis()
+                        targets.forEach { target ->
+                            messagesRepository.addMessage(
+                                target.id,
+                                com.anongram.app.features.chats.messages.domain.ChatMessage(
+                                    id = "share_${System.nanoTime()}_${target.id}",
+                                    direction = com.anongram.app.features.chats.messages.domain.MessageDirection.OUTGOING,
+                                    text = combinedText,
+                                    epochMs = now,
+                                    status = com.anongram.app.features.chats.messages.domain.MessageStatus.SENT,
+                                    attachment = attachment
+                                )
+                            )
+                        }
+                        com.anongram.app.features.chats.tools.IncomingShareBus.clear()
+                        android.widget.Toast.makeText(
+                            context,
+                            "Отправлено (${targets.size})",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                        targets.firstOrNull()?.let { openSession(it) }
+                    }
                 },
                 onSelectSavedMessages = {
-                    com.anongram.app.features.chats.tools.IncomingShareBus.clear()
-                    chatsState.sessions.firstOrNull { it.id == "0" }?.let { openSession(it) }
+                    val saved = chatsState.sessions.firstOrNull { it.id == "0" }
+                    if (saved != null) {
+                        val combinedText = sharePayload.text.orEmpty()
+                        val uris = sharePayload.uris
+                        val attachment: com.anongram.app.features.chats.messages.domain.MessageAttachment? = when {
+                            uris.size == 1 -> com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo(
+                                label = "Photo",
+                                colorSeed = 1,
+                                uri = uris.first()
+                            )
+                            uris.size > 1 -> com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum(
+                                items = uris.take(10).map {
+                                    com.anongram.app.features.chats.messages.domain.MessageAttachment.AlbumMediaItem(uri = it)
+                                }
+                            )
+                            else -> null
+                        }
+                        scope.launch {
+                            messagesRepository.addMessage(
+                                saved.id,
+                                com.anongram.app.features.chats.messages.domain.ChatMessage(
+                                    id = "share_${System.nanoTime()}_0",
+                                    direction = com.anongram.app.features.chats.messages.domain.MessageDirection.OUTGOING,
+                                    text = combinedText,
+                                    epochMs = System.currentTimeMillis(),
+                                    status = com.anongram.app.features.chats.messages.domain.MessageStatus.SENT,
+                                    attachment = attachment
+                                )
+                            )
+                            com.anongram.app.features.chats.tools.IncomingShareBus.clear()
+                            openSession(saved)
+                        }
+                    } else {
+                        com.anongram.app.features.chats.tools.IncomingShareBus.clear()
+                    }
                 },
                 onSelectSession = { target ->
                     com.anongram.app.features.chats.tools.IncomingShareBus.clear()

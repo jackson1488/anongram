@@ -734,6 +734,35 @@ class ChatMessagesViewModel(
 
     // --- Пересылка (в выбранный чат или «Избранное») ---
 
+    fun sendContactToChats(
+        targetSessionIds: List<String>,
+        name: String,
+        fingerprint: String,
+        comment: String = ""
+    ) {
+        if (targetSessionIds.isEmpty()) return
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val contactMsg = ChatMessage(
+                id = "contact_${System.nanoTime()}",
+                direction = MessageDirection.OUTGOING,
+                text = comment,
+                epochMs = now,
+                status = MessageStatus.SENT,
+                attachment = MessageAttachment.Contact(
+                    name = name,
+                    fingerprint = fingerprint
+                )
+            )
+            targetSessionIds.forEach { targetId ->
+                repository.addMessage(targetId, contactMsg.copy(id = "contact_${System.nanoTime()}_$targetId"))
+                if (targetId == sessionId) {
+                    _uiState.update { it.copy(messages = it.messages + contactMsg) }
+                }
+            }
+        }
+    }
+
     fun forwardMessages(messageIds: Collection<String>, authorName: String) {
         forwardMessagesToTargetChat(sessionId, messageIds, authorName)
     }

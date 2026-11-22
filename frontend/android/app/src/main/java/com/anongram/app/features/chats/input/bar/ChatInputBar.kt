@@ -104,6 +104,9 @@ fun ChatInputBar(
     onOpenFullEditor: () -> Unit = {},
     onFocusInput: () -> Unit = {},
     focusRequester: FocusRequester? = null,
+    pendingForward: com.anongram.app.features.chats.tools.forward.PendingForwardState? = null,
+    onPendingForwardClick: () -> Unit = {},
+    onCancelPendingForward: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -189,6 +192,12 @@ fun ChatInputBar(
                         onClose = onCancelEdit,
                         onReplaceAttachment = onReplaceAttachment,
                         onEditAttachment = onEditAttachment
+                    )
+                } else if (!isRecording && !isHiddenByTrim && pendingForward != null) {
+                    com.anongram.app.features.chats.tools.forward.FusedForwardBar(
+                        pending = pendingForward,
+                        onClick = onPendingForwardClick,
+                        onClose = onCancelPendingForward
                     )
                 }
 
@@ -339,7 +348,7 @@ fun ChatInputBar(
                     Spacer(modifier = Modifier.width(2.dp))
 
                     ActionButton(
-                        canSend = canSend,
+                        canSend = canSend || pendingForward != null,
                         isEditing = editing != null,
                         isRecording = isRecording,
                         isLockedRecording = recording.isLocked,
@@ -357,7 +366,7 @@ fun ChatInputBar(
             }
 
             if (isMultiline) {
-                val hasTopBar = (replyTo != null || editing != null)
+                val hasTopBar = (replyTo != null || editing != null || pendingForward != null)
                 IconButton(
                     onClick = onOpenFullEditor,
                     modifier = Modifier

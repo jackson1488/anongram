@@ -202,6 +202,10 @@ internal fun BoxScope.ChatInputDock(
     onOpenReplyPreview: () -> Unit,
     onOpenReplaceAttach: (AttachTab) -> Unit,
     onRequestRecordPermissions: (RecordMode, Array<String>) -> Unit,
+    pendingForward: com.anongram.app.features.chats.tools.forward.PendingForwardState? = null,
+    onPendingForwardClick: () -> Unit = {},
+    onCancelPendingForward: () -> Unit = {},
+    onSendPendingForward: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -292,9 +296,17 @@ internal fun BoxScope.ChatInputDock(
                             },
                             isEmojiOpen = state.isEmojiOpen,
                             isHiddenByTrim = hasTrimOverlay,
+                            pendingForward = pendingForward,
+                            onPendingForwardClick = onPendingForwardClick,
+                            onCancelPendingForward = onCancelPendingForward,
                             onInputChange = viewModel::onInputChange,
                             onSend = {
-                                viewModel.send()
+                                if (pendingForward != null) {
+                                    onSendPendingForward()
+                                }
+                                if (state.canSend) {
+                                    viewModel.send()
+                                }
                                 scope.launch { listState.animateScrollToItem(0) }
                             },
                             onCancelReply = viewModel::cancelReply,

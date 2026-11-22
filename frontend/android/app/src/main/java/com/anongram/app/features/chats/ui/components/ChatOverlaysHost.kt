@@ -463,24 +463,24 @@ private fun ChatMessageActionAndSettingsOverlays(
                     it.id == "0" || it.title.equals("Избранное", ignoreCase = true)
                 }
                 if (savedExisting != null) {
-                    com.anongram.app.features.chats.tools.PendingForwardStore.start(session, savedExisting.id, itemsToForward)
+                    com.anongram.app.features.chats.tools.forward.PendingForwardStore.start(session, savedExisting.id, itemsToForward)
                     onOpenTargetSession(savedExisting)
                 } else {
                     onOpenDirectPeer("Избранное", "saved_messages") { createdSaved ->
-                        com.anongram.app.features.chats.tools.PendingForwardStore.start(session, createdSaved.id, itemsToForward)
+                        com.anongram.app.features.chats.tools.forward.PendingForwardStore.start(session, createdSaved.id, itemsToForward)
                         onOpenTargetSession(createdSaved)
                     }
                 }
             },
             onSelectSession = { targetSession ->
                 onCloseForward()
-                com.anongram.app.features.chats.tools.PendingForwardStore.start(session, targetSession.id, itemsToForward)
+                com.anongram.app.features.chats.tools.forward.PendingForwardStore.start(session, targetSession.id, itemsToForward)
                 onOpenTargetSession(targetSession)
             },
             onSelectGlobalItem = { name, handle ->
                 onCloseForward()
                 onOpenDirectPeer(name, handle) { createdSession ->
-                    com.anongram.app.features.chats.tools.PendingForwardStore.start(session, createdSession.id, itemsToForward)
+                    com.anongram.app.features.chats.tools.forward.PendingForwardStore.start(session, createdSession.id, itemsToForward)
                     onOpenTargetSession(createdSession)
                 }
             }

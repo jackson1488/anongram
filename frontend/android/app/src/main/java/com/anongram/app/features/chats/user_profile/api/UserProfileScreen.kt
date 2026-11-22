@@ -111,7 +111,7 @@ fun UserProfileScreen(
     onAddContact: (() -> Unit)? = null,
     onDeleteChat: (() -> Unit)? = null,
     activeSessions: List<IChatSession> = emptyList(),
-    onShareContactToChat: (IChatSession) -> Unit = {},
+    onShareContactToChats: (List<IChatSession>, String) -> Unit = { _, _ -> },
     onInnerModalOpenChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -744,14 +744,25 @@ fun UserProfileScreen(
                     com.anongram.app.features.chats.tools.ForwardTargetPickerScreen(
                         activeSessions = activeSessions,
                         titleOverride = toolsStrings.selectChatTitle,
+                        multiSelectMode = true,
+                        sharedPreviewText = "${session.title} (${session.fingerprint})",
                         onClose = { isShareContactPickerOpen = false },
+                        onConfirmMultiSelect = { targets, comment ->
+                            isShareContactPickerOpen = false
+                            onShareContactToChats(targets, comment)
+                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                        },
                         onSelectSession = { target ->
                             isShareContactPickerOpen = false
-                            onShareContactToChat(target)
+                            onShareContactToChats(listOf(target), "")
                             Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
                         },
                         onSelectSavedMessages = {
+                            val saved = activeSessions.firstOrNull { it.id == "0" }
                             isShareContactPickerOpen = false
+                            if (saved != null) {
+                                onShareContactToChats(listOf(saved), "")
+                            }
                             Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
                         },
                         onSelectGlobalItem = { _, _ ->
