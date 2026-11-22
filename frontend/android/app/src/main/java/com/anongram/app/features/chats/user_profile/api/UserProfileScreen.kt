@@ -56,9 +56,6 @@ import androidx.compose.animation.core.spring
 import androidx.compose.runtime.LaunchedEffect
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
-import com.anongram.app.core.navigation.AnonGramTransitionScreen
-import com.anongram.app.core.navigation.TransitionType
-import com.anongram.app.core.navigation.swipeBackGesture
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.domain.ChatMessage
@@ -73,7 +70,6 @@ import com.anongram.app.features.chats.user_profile.model.UserProfileMediaItem
 import com.anongram.app.features.chats.user_profile.model.UserProfileTab
 import com.anongram.app.features.chats.user_profile.ui.AddToContactsCard
 import com.anongram.app.features.chats.user_profile.ui.AutoDeleteCustomSheet
-import com.anongram.app.features.chats.user_profile.ui.MuteDrumPickerDialog
 import com.anongram.app.features.chats.user_profile.ui.UserProfileActionsRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileAudioRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileAvatarFullscreenOverlay
@@ -82,17 +78,14 @@ import com.anongram.app.features.chats.user_profile.ui.UserProfileHeroHeader
 import com.anongram.app.features.chats.user_profile.ui.UserProfileInfoCard
 import com.anongram.app.features.chats.user_profile.ui.UserProfileLinkRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileMediaGridRow
-import com.anongram.app.features.chats.user_profile.ui.UserProfileMuteMenuDialog
 import com.anongram.app.features.chats.user_profile.ui.UserProfileOverflowMenu
 import com.anongram.app.features.chats.user_profile.ui.UserProfileTabBar
 import com.anongram.app.features.chats.user_profile.ui.UserProfileTopOverlayBar
 import com.anongram.app.features.chats.user_profile.ui.tabSummaryText
-import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import com.anongram.app.features.settings.qr.ui.QrCameraScannerScreen
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.launch
 
 private val URL_REGEX = Regex("""https?://[^\s<>"')]+""", RegexOption.IGNORE_CASE)
