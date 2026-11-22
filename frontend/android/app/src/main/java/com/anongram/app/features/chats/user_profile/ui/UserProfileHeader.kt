@@ -409,9 +409,9 @@ internal fun UserProfileHeroHeader(
                     ),
                 contentAlignment = Alignment.Center
             ) {
-                if (avatarResId != null) {
+                if (primaryAvatar != null) {
                     androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(id = avatarResId),
+                        painter = androidx.compose.ui.res.painterResource(id = primaryAvatar),
                         contentDescription = session.title,
                         contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                         modifier = Modifier.size(92.dp)
@@ -493,6 +493,7 @@ private fun CircleHeaderButton(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 internal fun UserProfileAvatarFullscreenOverlay(
     avatarResIds: List<Int>,
