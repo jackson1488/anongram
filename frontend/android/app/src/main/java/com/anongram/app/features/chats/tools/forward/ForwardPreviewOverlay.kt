@@ -141,12 +141,12 @@ fun ForwardPreviewOverlay(
                             .padding(horizontal = 12.dp, vertical = 10.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        itemsIndexed(pending.items, key = { _, m -> m.id }) { _, msg ->
-                            val isIncluded = msg.id !in pending.excludedIds
+                        itemsIndexed(pending.items, key = { _, item -> item.key }) { _, item ->
+                            val isIncluded = item.key !in pending.excludedKeys
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { onToggleItem(msg.id) }
+                                    .clickable { onToggleItem(item.key) }
                                     .alpha(if (isIncluded) 1f else 0.45f),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -170,9 +170,9 @@ fun ForwardPreviewOverlay(
                                 }
                                 Box(modifier = Modifier.weight(1f)) {
                                     InteractiveReplyBubble(
-                                        message = msg,
+                                        message = item.resolvedMessage,
                                         peerName = peerName,
-                                        onJumpToMessage = { onToggleItem(msg.id) }
+                                        onJumpToMessage = { onToggleItem(item.key) }
                                     )
                                 }
                             }

@@ -292,26 +292,61 @@ fun ForwardTargetPickerScreen(
             // 1. Строка «Избранное» (Сохранить на память)
             if (showSavedMessagesRow) {
                 item(key = "saved_messages_row") {
+                    val isSavedSelected = multiSelectMode && "0" in selectedSessionIds
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable(onClick = onSelectSavedMessages)
+                            .background(if (isSavedSelected) scheme.accentSoft.copy(alpha = 0.28f) else Color.Transparent)
+                            .clickable {
+                                if (multiSelectMode) {
+                                    selectedSessionIds = if (isSavedSelected) {
+                                        selectedSessionIds - "0"
+                                    } else {
+                                        selectedSessionIds + "0"
+                                    }
+                                } else {
+                                    onSelectSavedMessages()
+                                }
+                            }
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
-                            modifier = Modifier
-                                .size(50.dp)
-                                .clip(CircleShape)
-                                .background(scheme.accent),
+                            modifier = Modifier.size(50.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Outlined.BookmarkBorder,
-                                contentDescription = strings.savedMessagesTitle,
-                                tint = scheme.onAccent,
-                                modifier = Modifier.size(26.dp)
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                                    .background(scheme.accent),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.BookmarkBorder,
+                                    contentDescription = strings.savedMessagesTitle,
+                                    tint = scheme.onAccent,
+                                    modifier = Modifier.size(26.dp)
+                                )
+                            }
+                            if (isSavedSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .align(Alignment.BottomEnd)
+                                        .clip(CircleShape)
+                                        .background(scheme.accent)
+                                        .border(2.dp, scheme.background, CircleShape),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Check,
+                                        contentDescription = null,
+                                        tint = scheme.onAccent,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
                         }
                         Spacer(modifier = Modifier.width(14.dp))
                         Column(modifier = Modifier.weight(1f)) {
@@ -404,8 +439,7 @@ fun ForwardTargetPickerScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(scheme.surface)
-                    .border(0.5.dp, scheme.divider)
+                    .padding(horizontal = 12.dp, vertical = 8.dp)
                     .imePadding()
                     .safeNavigationBarPadding()
             ) {
@@ -413,7 +447,7 @@ fun ForwardTargetPickerScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -460,14 +494,13 @@ fun ForwardTargetPickerScreen(
                             )
                         }
                     }
-                    HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
                 }
 
                 if (isEmojiStripOpen) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         listOf("👍", "❤️", "🔥", "😂", "🙏", "👌", "🎉").forEach { emoji ->
@@ -483,63 +516,87 @@ fun ForwardTargetPickerScreen(
                     }
                 }
 
+                val canSendMulti = selectedSessionIds.isNotEmpty()
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                        .height(48.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(scheme.inputBg)
+                        .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(24.dp))
+                        .padding(start = 6.dp, end = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(scheme.inputBg)
-                            .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(22.dp))
-                            .padding(start = 6.dp, end = 14.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    IconButton(
+                        onClick = { isEmojiStripOpen = !isEmojiStripOpen },
+                        modifier = Modifier.size(36.dp)
                     ) {
-                        IconButton(
-                            onClick = { isEmojiStripOpen = !isEmojiStripOpen },
-                            modifier = Modifier.size(34.dp)
-                        ) {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Outlined.SentimentSatisfied,
-                                contentDescription = null,
-                                tint = if (isEmojiStripOpen) scheme.accent else scheme.textMuted,
-                                modifier = Modifier.size(21.dp)
-                            )
-                        }
-                        Box(
-                            modifier = Modifier.weight(1f),
-                            contentAlignment = Alignment.CenterStart
-                        ) {
-                            if (commentText.isEmpty()) {
-                                Text(
-                                    text = strings.addCommentPlaceholder,
-                                    color = scheme.textMuted,
-                                    fontSize = 15.sp
-                                )
-                            }
-                            BasicTextField(
-                                value = commentText,
-                                onValueChange = { commentText = it },
-                                singleLine = true,
-                                textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
-                                cursorBrush = SolidColor(scheme.accent),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        Icon(
+                            imageVector = androidx.compose.material.icons.Icons.Outlined.SentimentSatisfied,
+                            contentDescription = null,
+                            tint = if (isEmojiStripOpen) scheme.accent else scheme.textMuted,
+                            modifier = Modifier.size(21.dp)
+                        )
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    val canSendMulti = selectedSessionIds.isNotEmpty()
                     Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .weight(1f)
+                            .padding(horizontal = 4.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        if (commentText.isEmpty()) {
+                            Text(
+                                text = strings.addCommentPlaceholder,
+                                color = scheme.textMuted,
+                                fontSize = 15.sp
+                            )
+                        }
+                        BasicTextField(
+                            value = commentText,
+                            onValueChange = { commentText = it },
+                            singleLine = true,
+                            textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
+                            cursorBrush = SolidColor(scheme.accent),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
                             .clip(CircleShape)
                             .background(if (canSendMulti) scheme.accent else scheme.accent.copy(alpha = 0.35f))
                             .clickable(enabled = canSendMulti) {
-                                val targets = activeSessions.filter { it.id in selectedSessionIds }
+                                val selectedFromList = activeSessions.filter { it.id in selectedSessionIds }
+                                val targets = if ("0" in selectedSessionIds && selectedFromList.none { it.id == "0" }) {
+                                    val savedPlaceholder = object : IChatSession {
+                                        override val id = "0"
+                                        override val title = strings.savedMessagesTitle
+                                        override val fingerprint = "SAVED"
+                                        override val lastMessagePreview = ""
+                                        override val lastMessageEpochMs = 0L
+                                        override val unreadCount = 0
+                                        override val isPinned = false
+                                        override val isOnline = false
+                                        override val isArchived = false
+                                        override val tier = activeSessions.firstOrNull()?.tier
+                                            ?: com.anongram.app.features.chats.common.ChatSecurityTier.entries.first()
+                                        override val avatarGlyph = SessionGlyph.SAVED
+                                        override val mutedUntil: Long? = null
+                                        override fun withPinned(pinned: Boolean) = this
+                                        override fun withArchived(archived: Boolean) = this
+                                        override fun withMutedUntil(untilEpochMs: Long?) = this
+                                        override fun withHistoryCleared() = this
+                                        override fun withLastMessage(
+                                            preview: String,
+                                            epochMs: Long,
+                                            attachment: com.anongram.app.features.chats.messages.domain.MessageAttachment?
+                                        ) = this
+                                    }
+                                    listOf(savedPlaceholder) + selectedFromList
+                                } else {
+                                    selectedFromList
+                                }
                                 onConfirmMultiSelect?.invoke(targets, commentText.trim())
                             },
                         contentAlignment = Alignment.Center
@@ -548,7 +605,7 @@ fun ForwardTargetPickerScreen(
                             imageVector = Icons.AutoMirrored.Filled.Send,
                             contentDescription = null,
                             tint = scheme.onAccent,
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(18.dp)
                         )
                     }
                 }
@@ -652,7 +709,7 @@ private fun ForwardActiveSessionRow(
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = session.lastMessagePreview.ifBlank { session.securityLabel },
+                text = session.lastMessagePreview.ifBlank { session.title },
                 color = scheme.textSecondary,
                 fontSize = 14.sp,
                 maxLines = 1,

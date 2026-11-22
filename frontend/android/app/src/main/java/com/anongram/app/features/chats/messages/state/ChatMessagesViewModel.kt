@@ -734,6 +734,29 @@ class ChatMessagesViewModel(
 
     // --- Пересылка (в выбранный чат или «Избранное») ---
 
+    fun sendForwardedMessages(messages: List<ChatMessage>) {
+        if (messages.isEmpty()) return
+        viewModelScope.launch {
+            val now = System.currentTimeMillis()
+            val copies = messages.map { original ->
+                original.copy(
+                    id = "fwd_${System.nanoTime()}_${original.id}",
+                    direction = MessageDirection.OUTGOING,
+                    epochMs = now,
+                    status = MessageStatus.SENT,
+                    forwardedFrom = null,
+                    reactions = emptyMap(),
+                    myReaction = null,
+                    isUnread = false,
+                    replyToId = null,
+                    replyToSubIndex = null
+                )
+            }
+            copies.forEach { repository.addMessage(sessionId, it) }
+            _uiState.update { it.copy(messages = it.messages + copies) }
+        }
+    }
+
     fun sendContactToChats(
         targetSessionIds: List<String>,
         name: String,

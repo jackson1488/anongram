@@ -428,17 +428,14 @@ fun ChatScreen(
                 pendingForward = activePending,
                 onPendingForwardClick = { isPendingForwardPreviewOpen = true },
                 onCancelPendingForward = {
-                    val backSource = com.anongram.app.features.chats.tools.forward.PendingForwardStore.cancelAll()
-                    if (backSource != null && backSource.id != session.id) {
-                        onOpenTargetSession(backSource)
-                    }
+                    com.anongram.app.features.chats.tools.forward.PendingForwardStore.clear()
                 },
                 onSendPendingForward = {
                     val currentPending = activePending ?: return@ChatInputDock
-                    val ids = currentPending.activeItems.map { it.id }
+                    val msgs = currentPending.activeItems.map { it.resolvedMessage }
                     com.anongram.app.features.chats.tools.forward.PendingForwardStore.clear()
-                    if (ids.isNotEmpty()) {
-                        viewModel.forwardMessagesToTargetChat(session.id, ids, session.title) {}
+                    if (msgs.isNotEmpty()) {
+                        viewModel.sendForwardedMessages(msgs)
                     }
                 },
                 modifier = Modifier
@@ -452,21 +449,15 @@ fun ChatScreen(
                         chatId = session.id,
                         pending = activePending,
                         peerName = session.title,
-                        onToggleItem = { msgId ->
-                            val backSource = com.anongram.app.features.chats.tools.forward.PendingForwardStore.toggleInclude(msgId)
-                            if (backSource != null) {
+                        onToggleItem = { key ->
+                            val emptied = com.anongram.app.features.chats.tools.forward.PendingForwardStore.toggleInclude(key)
+                            if (emptied) {
                                 isPendingForwardPreviewOpen = false
-                                if (backSource.id != session.id) {
-                                    onOpenTargetSession(backSource)
-                                }
                             }
                         },
                         onCancelAll = {
                             isPendingForwardPreviewOpen = false
-                            val backSource = com.anongram.app.features.chats.tools.forward.PendingForwardStore.cancelAll()
-                            if (backSource != null && backSource.id != session.id) {
-                                onOpenTargetSession(backSource)
-                            }
+                            com.anongram.app.features.chats.tools.forward.PendingForwardStore.clear()
                         },
                         onDismiss = { isPendingForwardPreviewOpen = false }
                     )

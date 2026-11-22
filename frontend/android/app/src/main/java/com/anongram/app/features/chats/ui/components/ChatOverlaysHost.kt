@@ -453,11 +453,30 @@ private fun ChatMessageActionAndSettingsOverlays(
     }
 
     forwardingMessageIds?.let { idsToForward ->
-        val itemsToForward = state.messages.filter { it.id in idsToForward }
+        val itemsToForward = idsToForward.mapNotNull { key ->
+            val msgId = when {
+                "#photo_" in key -> key.substringBefore("#photo_")
+                "#file_" in key -> key.substringBefore("#file_")
+                "#music_" in key -> key.substringBefore("#music_")
+                else -> key
+            }
+            val subIdx = when {
+                "#photo_" in key -> key.substringAfter("#photo_").toIntOrNull()
+                "#file_" in key -> key.substringAfter("#file_").toIntOrNull()
+                "#music_" in key -> key.substringAfter("#music_").toIntOrNull()
+                else -> null
+            }
+            val msg = state.messages.firstOrNull { it.id == msgId } ?: return@mapNotNull null
+            com.anongram.app.features.chats.tools.forward.PendingForwardItem(
+                key = key,
+                resolvedMessage = com.anongram.app.features.chats.messages.domain.run { msg.resolveSubItem(subIdx) }
+            )
+        }
         com.anongram.app.features.chats.tools.ForwardTargetPickerScreen(
             activeSessions = activeSessions,
             onClose = onCloseForward,
             onSelectSavedMessages = {
+                viewModel.clearSelection()
                 onCloseForward()
                 val savedExisting = activeSessions.firstOrNull {
                     it.id == "0" || it.title.equals("Избранное", ignoreCase = true)
@@ -473,11 +492,13 @@ private fun ChatMessageActionAndSettingsOverlays(
                 }
             },
             onSelectSession = { targetSession ->
+                viewModel.clearSelection()
                 onCloseForward()
                 com.anongram.app.features.chats.tools.forward.PendingForwardStore.start(session, targetSession.id, itemsToForward)
                 onOpenTargetSession(targetSession)
             },
             onSelectGlobalItem = { name, handle ->
+                viewModel.clearSelection()
                 onCloseForward()
                 onOpenDirectPeer(name, handle) { createdSession ->
                     com.anongram.app.features.chats.tools.forward.PendingForwardStore.start(session, createdSession.id, itemsToForward)

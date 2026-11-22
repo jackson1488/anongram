@@ -45,7 +45,7 @@ fun FusedForwardBar(
     val scheme = LocalAnonGramScheme.current
     val strings = ToolsI18n.current
     val active = pending.activeItems
-    val first = active.firstOrNull() ?: return
+    val first = active.firstOrNull()?.resolvedMessage ?: return
     val title = if (active.size == 1) {
         strings.pendingForwardSingle
     } else {

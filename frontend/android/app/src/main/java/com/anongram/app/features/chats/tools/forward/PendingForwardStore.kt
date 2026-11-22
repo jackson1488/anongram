@@ -6,14 +6,19 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
+data class PendingForwardItem(
+    val key: String,
+    val resolvedMessage: ChatMessage
+)
+
 data class PendingForwardState(
     val sourceSession: IChatSession,
     val targetSessionId: String,
-    val items: List<ChatMessage>,
-    val excludedIds: Set<String> = emptySet()
+    val items: List<PendingForwardItem>,
+    val excludedKeys: Set<String> = emptySet()
 ) {
-    val activeItems: List<ChatMessage>
-        get() = items.filterNot { it.id in excludedIds }
+    val activeItems: List<PendingForwardItem>
+        get() = items.filterNot { it.key in excludedKeys }
 }
 
 /**
@@ -26,7 +31,7 @@ object PendingForwardStore {
     fun start(
         sourceSession: IChatSession,
         targetSessionId: String,
-        items: List<ChatMessage>
+        items: List<PendingForwardItem>
     ) {
         if (items.isEmpty()) return
         _state.value = PendingForwardState(
@@ -36,29 +41,22 @@ object PendingForwardStore {
         )
     }
 
-    /** Переключает галочку включения отдельного сообщения/фото; если сняты все — отменяет и возвращает исходный чат. */
-    fun toggleInclude(messageId: String): IChatSession? {
-        val current = _state.value ?: return null
-        val nextExcluded = if (messageId in current.excludedIds) {
-            current.excludedIds - messageId
+    /** Переключает галочку включения отдельного сообщения/фото; если сняты все — отменяет. */
+    fun toggleInclude(key: String): Boolean {
+        val current = _state.value ?: return false
+        val nextExcluded = if (key in current.excludedKeys) {
+            current.excludedKeys - key
         } else {
-            current.excludedIds + messageId
+            current.excludedKeys + key
         }
-        val remaining = current.items.filterNot { it.id in nextExcluded }
+        val remaining = current.items.filterNot { it.key in nextExcluded }
         return if (remaining.isEmpty()) {
             _state.value = null
-            current.sourceSession
+            true
         } else {
-            _state.value = current.copy(excludedIds = nextExcluded)
-            null
+            _state.value = current.copy(excludedKeys = nextExcluded)
+            false
         }
-    }
-
-    /** Отменяет всю пересылку и возвращает исходный чат. */
-    fun cancelAll(): IChatSession? {
-        val current = _state.value ?: return null
-        _state.value = null
-        return current.sourceSession
     }
 
     fun clear() {
