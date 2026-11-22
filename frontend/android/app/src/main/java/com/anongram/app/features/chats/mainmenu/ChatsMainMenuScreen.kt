@@ -312,15 +312,10 @@ fun ChatsMainMenuScreen(
         label = "chatsHeaderAlpha"
     )
     val glassTintAlpha = if (scheme.isDark) {
-        0.34f + 0.14f * animatedHeaderAlpha
+        0.24f * animatedHeaderAlpha
     } else {
-        0.42f + 0.16f * animatedHeaderAlpha
+        0.32f * animatedHeaderAlpha
     }
-    val themedHeaderTint = androidx.compose.ui.graphics.lerp(
-        scheme.surface,
-        scheme.accent,
-        if (scheme.isDark) 0.18f + 0.08f * animatedHeaderAlpha else 0.10f + 0.06f * animatedHeaderAlpha
-    )
 
     val headerBackgroundModifier = when {
         animatedHeaderAlpha <= 0.01f -> Modifier
@@ -328,9 +323,9 @@ fun ChatsMainMenuScreen(
             state = hazeState,
             style = HazeStyle(
                 backgroundColor = Color.Transparent,
-                tint = HazeTint(color = themedHeaderTint.copy(alpha = glassTintAlpha * animatedHeaderAlpha)),
+                tint = HazeTint(color = scheme.background.copy(alpha = glassTintAlpha)),
                 blurRadius = 24.dp,
-                noiseFactor = 0.03f
+                noiseFactor = 0.02f
             )
         ) {
             progressive = HazeProgressive.verticalGradient(
@@ -341,8 +336,8 @@ fun ChatsMainMenuScreen(
         else -> Modifier.background(
             Brush.verticalGradient(
                 colors = listOf(
-                    themedHeaderTint.copy(alpha = 0.88f * animatedHeaderAlpha),
-                    scheme.background.copy(alpha = 0.55f * animatedHeaderAlpha),
+                    scheme.background.copy(alpha = 0.88f * animatedHeaderAlpha),
+                    scheme.background.copy(alpha = 0.50f * animatedHeaderAlpha),
                     Color.Transparent
                 )
             )
@@ -608,7 +603,7 @@ fun ChatsMainMenuScreen(
             if (!state.onionCircuitOnline) OnionOfflineBanner()
 
             // Плавный хвост прогрессивного блюра — растворяется без границы
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(24.dp))
         }
 
         // 3. Плавающая кнопка «Новое сообщение»
