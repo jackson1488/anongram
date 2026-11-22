@@ -14,6 +14,7 @@ import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -73,6 +74,7 @@ import com.anongram.app.features.chats.user_profile.ui.AutoDeleteCustomSheet
 import com.anongram.app.features.chats.user_profile.ui.UserProfileActionsRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileAudioRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileAvatarFullscreenOverlay
+import com.anongram.app.features.chats.user_profile.ui.UserProfileFastScrollBar
 import com.anongram.app.features.chats.user_profile.ui.UserProfileFileRow
 import com.anongram.app.features.chats.user_profile.ui.UserProfileHeroHeader
 import com.anongram.app.features.chats.user_profile.ui.UserProfileInfoCard
@@ -544,7 +546,10 @@ fun UserProfileScreen(
                                     }
 
                                     UserProfileTab.VOICE, UserProfileTab.AUDIO -> {
-                                        val audioState by com.anongram.app.features.chats.media.player.ChatAudioController.state.collectAsState()
+                                        val audioController = remember(context) {
+                                            com.anongram.app.features.chats.media.player.ChatAudioController.getInstance(context)
+                                        }
+                                        val audioState by audioController.state.collectAsState()
                                         val listForTab = if (pageTab == UserProfileTab.VOICE) buckets.voice else buckets.audio
                                         val trackQueue = remember(listForTab, session.id, session.title) {
                                             listForTab.mapIndexed { idx, it ->
@@ -582,14 +587,14 @@ fun UserProfileScreen(
                                                     progress = progress,
                                                     onAudioClick = {
                                                         if (isActive) {
-                                                            com.anongram.app.features.chats.media.player.ChatAudioController.togglePlayPause()
+                                                            audioController.togglePlayPause()
                                                         } else if (audioItem.isVoice) {
-                                                            com.anongram.app.features.chats.media.player.ChatAudioController.playVoiceSequence(
+                                                            audioController.playVoiceSequence(
                                                                 queue = trackQueue,
                                                                 startTrack = track
                                                             )
                                                         } else {
-                                                            com.anongram.app.features.chats.media.player.ChatAudioController.play(
+                                                            audioController.play(
                                                                 queue = trackQueue,
                                                                 track = track,
                                                                 autoStart = true
