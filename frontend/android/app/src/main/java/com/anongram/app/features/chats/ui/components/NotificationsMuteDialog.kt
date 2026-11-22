@@ -38,7 +38,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
  * - Настроить (открывает полноэкранные «Особые уведомления»)
  */
 @Composable
-internal fun NotificationsMuteDialog(
+fun NotificationsMuteDialog(
     peerName: String,
     onMuteFor: (hours: Int) -> Unit,
     onOpenCustomSettings: () -> Unit,

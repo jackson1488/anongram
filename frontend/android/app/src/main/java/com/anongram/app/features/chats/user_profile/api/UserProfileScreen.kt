@@ -117,6 +117,7 @@ fun UserProfileScreen(
     onDeleteMessages: (List<String>) -> Unit = {},
     onAddContact: (() -> Unit)? = null,
     onDeleteChat: (() -> Unit)? = null,
+    onInnerModalOpenChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -125,7 +126,7 @@ fun UserProfileScreen(
     val strings = remember(lang) { UserProfileI18n.forLanguage(lang) }
     val scope = rememberCoroutineScope()
 
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.ensureInitialized(context)
     }
     val blockedIds by com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.blockedIds.collectAsState()
@@ -138,7 +139,6 @@ fun UserProfileScreen(
     var isOverflowOpen by remember { mutableStateOf(false) }
     var isCustomAutoDeleteOpen by remember { mutableStateOf(false) }
     var isMuteMenuOpen by remember { mutableStateOf(false) }
-    var isMuteDrumOpen by remember { mutableStateOf(false) }
     var isMutedLocal by remember(session.id, session.isMuted) { mutableStateOf(session.isMuted) }
     var isQrOverlayOpen by remember { mutableStateOf(false) }
     var isQrScannerOpen by remember { mutableStateOf(false) }
@@ -146,30 +146,6 @@ fun UserProfileScreen(
     var gridColumns by remember { mutableIntStateOf(3) }
     var selectedKeys by remember(session.id) { mutableStateOf(emptySet<String>()) }
     val hazeState = remember { HazeState() }
-
-    val animState by AnimationsSettingsStore.state.collectAsState()
-    LaunchedEffect(Unit) {
-        AnimationsSettingsStore.ensureInitialized(context)
-    }
-    var predictiveSwipeEdge by remember { mutableStateOf(0) }
-    var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
-    var isPredictiveHolding by remember { mutableStateOf(false) }
-    var isSystemGestureActive by remember { mutableStateOf(false) }
-    var isBackExiting by remember { mutableStateOf(false) }
-    val backProgress = remember { Animatable(0f) }
-    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, isSystemGestureActive) {
-        animState.toNavigationTransitionConfig().copy(
-            swipeEdge = predictiveSwipeEdge,
-            touchYFraction = predictiveTouchYFraction,
-            isPredictiveHolding = isPredictiveHolding,
-            isSystemGestureActive = isSystemGestureActive
-        )
-    }
-    val isPureSwipeOrParallax = (navConfig.transitionType == TransitionType.SPRING_SWIPE ||
-        navConfig.transitionType == TransitionType.CUPERTINO_PARALLAX) &&
-        !navConfig.enableMiniCardCombo &&
-        !navConfig.enablePredictiveBackCombo
-    val usePredictiveBack = navConfig.transitionType != TransitionType.INSTANT && !isPureSwipeOrParallax
 
     val buckets = remember(messages) { extractProfileBuckets(messages) }
     val availableTabs = remember(buckets) { buckets.availableTabs() }
@@ -192,45 +168,20 @@ fun UserProfileScreen(
     }
 
     val hasInnerModal = isAvatarFullscreenOpen || selectedKeys.isNotEmpty() || isQrScannerOpen ||
-        isQrOverlayOpen || isCustomAutoDeleteOpen || isMuteMenuOpen || isMuteDrumOpen
+        isQrOverlayOpen || isCustomAutoDeleteOpen || isMuteMenuOpen
 
-    BackHandler(enabled = hasInnerModal || !usePredictiveBack) {
+    LaunchedEffect(hasInnerModal) {
+        onInnerModalOpenChange(hasInnerModal)
+    }
+
+    BackHandler(enabled = hasInnerModal) {
         when {
             isAvatarFullscreenOpen -> isAvatarFullscreenOpen = false
             selectedKeys.isNotEmpty() -> selectedKeys = emptySet()
-            isMuteDrumOpen -> isMuteDrumOpen = false
             isMuteMenuOpen -> isMuteMenuOpen = false
             isQrScannerOpen -> isQrScannerOpen = false
             isQrOverlayOpen -> isQrOverlayOpen = false
             isCustomAutoDeleteOpen -> isCustomAutoDeleteOpen = false
-            else -> onBack()
-        }
-    }
-
-    PredictiveBackHandler(enabled = !hasInnerModal && usePredictiveBack) { backEvents ->
-        val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
-        isBackExiting = true
-        isPredictiveHolding = true
-        isSystemGestureActive = true
-        try {
-            backEvents.collect { event ->
-                predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
-                predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
-                backProgress.snapTo(event.progress.coerceIn(0f, 1f))
-            }
-            isPredictiveHolding = false
-            isSystemGestureActive = false
-            backProgress.animateTo(1f, androidx.compose.animation.core.tween(140))
-            onBack()
-            predictiveSwipeEdge = 0
-            predictiveTouchYFraction = 0.5f
-        } catch (_: CancellationException) {
-            isPredictiveHolding = false
-            isBackExiting = false
-            isSystemGestureActive = false
-            predictiveSwipeEdge = 0
-            predictiveTouchYFraction = 0.5f
-            backProgress.animateTo(0f, spring())
         }
     }
 
@@ -267,8 +218,7 @@ fun UserProfileScreen(
                     scope.launch { pullProgress.snapTo(next) }
                     if (!isExpandedHero && next >= heroTriggerFraction) {
                         isExpandedHero = true
-                    }
-                    if (next >= 1.0f) {
+                    } else if (isExpandedHero && next >= 0.50f) {
                         isAvatarFullscreenOpen = true
                         scope.launch { pullProgress.snapTo(0f) }
                     }
@@ -279,7 +229,7 @@ fun UserProfileScreen(
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (hasRealAvatar && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
-                    if (available.y > 900f) {
+                    if (available.y > 850f) {
                         if (!isExpandedHero) {
                             isExpandedHero = true
                         } else {
@@ -302,34 +252,9 @@ fun UserProfileScreen(
         }
     }
 
-    AnonGramTransitionScreen(
-        progress = backProgress.value,
-        isExit = isBackExiting,
-        config = navConfig,
-        modifier = modifier
-            .fillMaxSize()
-            .swipeBackGesture(
-                enabled = !hasInnerModal && navConfig.allowFullWidthSwipe,
-                onDragStart = { isBackExiting = true },
-                onDragProgress = { p -> scope.launch { backProgress.snapTo(p) } },
-                onDragEnd = { shouldClose ->
-                    if (shouldClose) {
-                        scope.launch {
-                            backProgress.animateTo(1f, androidx.compose.animation.core.tween(140))
-                            onBack()
-                        }
-                    } else {
-                        scope.launch {
-                            backProgress.animateTo(0f, spring())
-                            isBackExiting = false
-                        }
-                    }
-                }
-            )
-    ) {
     AnonGramScreenSurface(
         applySystemBarsPadding = false,
-        modifier = Modifier.fillMaxSize()
+        modifier = modifier.fillMaxSize()
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -337,8 +262,8 @@ fun UserProfileScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        if (!isExpandedHero && pullProgress.value > 0f) {
-                            translationY = pullProgress.value * (screenHeightPx * 0.34f)
+                        if (pullProgress.value > 0f) {
+                            translationY = pullProgress.value * (screenHeightPx * if (isExpandedHero) 0.22f else 0.34f)
                         }
                     }
                     .hazeSource(state = hazeState)
@@ -740,40 +665,24 @@ fun UserProfileScreen(
             }
 
             if (isMuteMenuOpen) {
-                UserProfileMuteMenuDialog(
-                    isMuted = isMutedLocal,
-                    strings = strings,
-                    onDismiss = { isMuteMenuOpen = false },
-                    onUnmute = {
-                        isMutedLocal = false
-                        Toast.makeText(context, strings.unmutedSoundToast, Toast.LENGTH_SHORT).show()
-                    },
-                    onMutePreset = { label ->
+                com.anongram.app.features.chats.ui.components.NotificationsMuteDialog(
+                    peerName = session.title,
+                    onMuteFor = { hours ->
                         isMutedLocal = true
-                        Toast.makeText(context, label, Toast.LENGTH_SHORT).show()
+                        val msg = when (hours) {
+                            -1 -> strings.mutedForeverToast
+                            1 -> strings.mute1Hour
+                            8 -> strings.mute8Hours
+                            48 -> strings.mute2Days
+                            else -> strings.mutedForeverToast
+                        }
+                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
                     },
-                    onOpenCustomDrum = { isMuteDrumOpen = true },
-                    onOpenFullSettings = onToggleMute
-                )
-            }
-
-            if (isMuteDrumOpen) {
-                MuteDrumPickerDialog(
-                    strings = strings,
-                    onDismiss = { isMuteDrumOpen = false },
-                    onConfirm = { days, hours, minutes ->
-                        isMutedLocal = true
-                        val summary = buildString {
-                            if (days > 0) append("${days}${if (isRu) "д " else "d "}")
-                            if (hours > 0) append("${hours}${if (isRu) "ч " else "h "}")
-                            if (minutes > 0 || (days == 0 && hours == 0)) append("${minutes}${if (isRu) "м" else "m"}")
-                        }.trim()
-                        Toast.makeText(
-                            context,
-                            if (isRu) "Звук выключен на $summary" else "Muted for $summary",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
+                    onOpenCustomSettings = {
+                        isMuteMenuOpen = false
+                        onToggleMute()
+                    },
+                    onDismiss = { isMuteMenuOpen = false }
                 )
             }
 
@@ -804,7 +713,6 @@ fun UserProfileScreen(
                 }
             }
         }
-    }
     }
 }
 
