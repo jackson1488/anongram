@@ -9,6 +9,7 @@ enum class UserProfileTab {
     FILES,
     LINKS,
     GIF,
+    VOICE,
     AUDIO
 }
 
@@ -16,6 +17,8 @@ data class UserProfileMediaItem(
     val message: ChatMessage,
     val uri: String,
     val isVideo: Boolean,
+    val isVideoCircle: Boolean = false,
+    val colorSeed: Int = 0,
     val durationSec: Int = 0,
     val itemKey: String = message.id
 )
@@ -43,6 +46,7 @@ data class UserProfileBuckets(
     val files: List<UserProfileFileItem> = emptyList(),
     val links: List<UserProfileLinkItem> = emptyList(),
     val gifs: List<UserProfileMediaItem> = emptyList(),
+    val voice: List<UserProfileAudioItem> = emptyList(),
     val audio: List<UserProfileAudioItem> = emptyList()
 ) {
     fun availableTabs(): List<UserProfileTab> = buildList {
@@ -50,6 +54,7 @@ data class UserProfileBuckets(
         if (files.isNotEmpty()) add(UserProfileTab.FILES)
         if (links.isNotEmpty()) add(UserProfileTab.LINKS)
         if (gifs.isNotEmpty()) add(UserProfileTab.GIF)
+        if (voice.isNotEmpty()) add(UserProfileTab.VOICE)
         if (audio.isNotEmpty()) add(UserProfileTab.AUDIO)
     }
 }

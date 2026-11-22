@@ -27,6 +27,7 @@ data class UserProfileStrings(
     val tabFiles: String,
     val tabLinks: String,
     val tabGif: String,
+    val tabVoice: String,
     val tabAudio: String,
     val menuAutoDelete: String,
     val menuShareContact: String,
@@ -83,6 +84,7 @@ data class UserProfileStrings(
     val filesCountFormat: (Int) -> String,
     val linksCountFormat: (Int) -> String,
     val gifCountFormat: (Int) -> String,
+    val voiceCountFormat: (Int) -> String,
     val audioCountFormat: (Int) -> String
 )
 
@@ -110,6 +112,7 @@ object UserProfileI18n {
         tabFiles = "Файлы",
         tabLinks = "Ссылки",
         tabGif = "GIF",
+        tabVoice = "Голосовые",
         tabAudio = "Аудио",
         menuAutoDelete = "Автоудаление",
         menuShareContact = "Поделиться контактом",
@@ -166,6 +169,7 @@ object UserProfileI18n {
         filesCountFormat = { "$it файл." },
         linksCountFormat = { "$it ссыл." },
         gifCountFormat = { "$it GIF" },
+        voiceCountFormat = { "$it голос." },
         audioCountFormat = { "$it аудио" }
     )
 
@@ -192,6 +196,7 @@ object UserProfileI18n {
         tabFiles = "Files",
         tabLinks = "Links",
         tabGif = "GIF",
+        tabVoice = "Voice",
         tabAudio = "Audio",
         menuAutoDelete = "Auto-Delete",
         menuShareContact = "Share Contact",
@@ -248,6 +253,7 @@ object UserProfileI18n {
         filesCountFormat = { "$it files" },
         linksCountFormat = { "$it links" },
         gifCountFormat = { "$it GIFs" },
+        voiceCountFormat = { "$it voice" },
         audioCountFormat = { "$it audio" }
     )
 

@@ -405,6 +405,30 @@ fun UserProfileScreen(
                                     .nestedScroll(pagerToOuterNestedScroll)
                             ) { pageIdx ->
                                 val pageTab = availableTabs[pageIdx]
+                                val tabListState = rememberLazyListState()
+                                var isFastDragging by remember { mutableStateOf(false) }
+                                var showFastBar by remember { mutableStateOf(false) }
+                                LaunchedEffect(tabListState.isScrollInProgress, isFastDragging) {
+                                    if (tabListState.isScrollInProgress || isFastDragging) {
+                                        showFastBar = true
+                                    } else if (showFastBar) {
+                                        kotlinx.coroutines.delay(1200)
+                                        showFastBar = false
+                                    }
+                                }
+
+                                val tabEpochs: List<Long> = remember(pageTab, buckets, gridColumns) {
+                                    when (pageTab) {
+                                        UserProfileTab.MEDIA -> buckets.media.chunked(gridColumns).map { it.firstOrNull()?.message?.epochMs ?: 0L }
+                                        UserProfileTab.GIF -> buckets.gifs.chunked(gridColumns).map { it.firstOrNull()?.message?.epochMs ?: 0L }
+                                        UserProfileTab.FILES -> buckets.files.map { it.message.epochMs }
+                                        UserProfileTab.LINKS -> buckets.links.map { it.message.epochMs }
+                                        UserProfileTab.VOICE -> buckets.voice.map { it.message.epochMs }
+                                        UserProfileTab.AUDIO -> buckets.audio.map { it.message.epochMs }
+                                    }
+                                }
+
+                                Box(modifier = Modifier.fillMaxSize()) {
                                 when (pageTab) {
                                     UserProfileTab.MEDIA, UserProfileTab.GIF -> {
                                         val itemsList = if (pageTab == UserProfileTab.MEDIA) buckets.media else buckets.gifs
@@ -415,6 +439,7 @@ fun UserProfileScreen(
                                         var dragVisitedKeys by remember { mutableStateOf(emptySet<String>()) }
 
                                         LazyColumn(
+                                            state = tabListState,
                                             modifier = Modifier
                                                 .fillMaxSize()
                                                 .onGloballyPositioned { coords ->
@@ -496,6 +521,7 @@ fun UserProfileScreen(
 
                                     UserProfileTab.FILES -> {
                                         LazyColumn(
+                                            state = tabListState,
                                             modifier = Modifier.fillMaxSize(),
                                             contentPadding = PaddingValues(top = 56.dp, bottom = 72.dp)
                                         ) {
@@ -507,6 +533,7 @@ fun UserProfileScreen(
 
                                     UserProfileTab.LINKS -> {
                                         LazyColumn(
+                                            state = tabListState,
                                             modifier = Modifier.fillMaxSize(),
                                             contentPadding = PaddingValues(top = 56.dp, bottom = 72.dp)
                                         ) {
@@ -516,19 +543,79 @@ fun UserProfileScreen(
                                         }
                                     }
 
-                                    UserProfileTab.AUDIO -> {
+                                    UserProfileTab.VOICE, UserProfileTab.AUDIO -> {
+                                        val audioState by com.anongram.app.features.chats.media.player.ChatAudioController.state.collectAsState()
+                                        val listForTab = if (pageTab == UserProfileTab.VOICE) buckets.voice else buckets.audio
+                                        val trackQueue = remember(listForTab, session.id, session.title) {
+                                            listForTab.mapIndexed { idx, it ->
+                                                com.anongram.app.features.chats.media.player.ChatTrack(
+                                                    id = it.message.id + "_$idx",
+                                                    messageId = it.message.id,
+                                                    chatId = session.id,
+                                                    uri = it.uri?.let { u -> android.net.Uri.parse(u) } ?: android.net.Uri.EMPTY,
+                                                    title = it.title,
+                                                    artist = it.subtitle,
+                                                    durationLabel = it.subtitle.ifBlank { "0:00" },
+                                                    isVoice = it.isVoice,
+                                                    chatTitle = session.title
+                                                )
+                                            }
+                                        }
                                         LazyColumn(
+                                            state = tabListState,
                                             modifier = Modifier.fillMaxSize(),
                                             contentPadding = PaddingValues(top = 56.dp, bottom = 72.dp)
                                         ) {
-                                            items(buckets.audio) { audioItem ->
+                                            items(listForTab.size) { idx ->
+                                                val audioItem = listForTab[idx]
+                                                val track = trackQueue[idx]
+                                                val isActive = audioState.currentTrack?.messageId == audioItem.message.id
+                                                val progress = if (isActive && audioState.durationMs > 0L) {
+                                                    audioState.positionMs.toFloat() / audioState.durationMs.toFloat()
+                                                } else {
+                                                    0f
+                                                }
                                                 UserProfileAudioRow(
                                                     item = audioItem,
-                                                    onAudioClick = { onBack() }
+                                                    isActive = isActive,
+                                                    isPlaying = isActive && audioState.isPlaying,
+                                                    progress = progress,
+                                                    onAudioClick = {
+                                                        if (isActive) {
+                                                            com.anongram.app.features.chats.media.player.ChatAudioController.togglePlayPause()
+                                                        } else if (audioItem.isVoice) {
+                                                            com.anongram.app.features.chats.media.player.ChatAudioController.playVoiceSequence(
+                                                                queue = trackQueue,
+                                                                startTrack = track
+                                                            )
+                                                        } else {
+                                                            com.anongram.app.features.chats.media.player.ChatAudioController.play(
+                                                                queue = trackQueue,
+                                                                track = track,
+                                                                autoStart = true
+                                                            )
+                                                        }
+                                                    }
                                                 )
                                             }
                                         }
                                     }
+                                }
+
+                                UserProfileFastScrollBar(
+                                    listState = tabListState,
+                                    itemEpochs = tabEpochs,
+                                    visible = showFastBar && tabEpochs.size > 3,
+                                    isDragging = isFastDragging,
+                                    onDraggingChange = { isFastDragging = it },
+                                    onScrollToIndex = { target ->
+                                        scope.launch { tabListState.scrollToItem(target) }
+                                    },
+                                    modifier = Modifier
+                                        .align(Alignment.CenterEnd)
+                                        .fillMaxHeight()
+                                        .padding(top = 56.dp, bottom = 72.dp, end = 4.dp)
+                                )
                                 }
                             }
 
@@ -781,6 +868,7 @@ private fun extractProfileBuckets(messages: List<ChatMessage>): UserProfileBucke
     val files = mutableListOf<UserProfileFileItem>()
     val links = mutableListOf<UserProfileLinkItem>()
     val gifs = mutableListOf<UserProfileMediaItem>()
+    val voice = mutableListOf<UserProfileAudioItem>()
     val audio = mutableListOf<UserProfileAudioItem>()
 
     messages.asReversed().forEach { msg ->
@@ -804,6 +892,19 @@ private fun extractProfileBuckets(messages: List<ChatMessage>): UserProfileBucke
                         media.add(UserProfileMediaItem(msg, item.uri, isVideo = item.isVideo, itemKey = "${msg.id}#$idx"))
                     }
                 }
+            }
+
+            is MessageAttachment.VideoCircle -> {
+                media.add(
+                    UserProfileMediaItem(
+                        message = msg,
+                        uri = att.uri.orEmpty(),
+                        isVideo = true,
+                        isVideoCircle = true,
+                        colorSeed = att.colorSeed,
+                        itemKey = "${msg.id}#vcircle"
+                    )
+                )
             }
 
             is MessageAttachment.File -> {
@@ -848,7 +949,7 @@ private fun extractProfileBuckets(messages: List<ChatMessage>): UserProfileBucke
             }
 
             is MessageAttachment.Voice -> {
-                audio.add(
+                voice.add(
                     UserProfileAudioItem(
                         message = msg,
                         title = "Голосовое сообщение",
@@ -874,6 +975,7 @@ private fun extractProfileBuckets(messages: List<ChatMessage>): UserProfileBucke
         files = files,
         links = links,
         gifs = gifs,
+        voice = voice,
         audio = audio
     )
 }

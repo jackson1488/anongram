@@ -54,6 +54,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
+import dev.chrisbanes.haze.hazeSource
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
@@ -279,15 +284,24 @@ fun ForwardTargetPickerScreen(
 
         HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
 
-        LazyColumn(
+        val listHazeState = remember { HazeState() }
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
+        ) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(state = listHazeState)
                 .then(
-                    if (multiSelectMode && selectedSessionIds.isNotEmpty()) Modifier
+                    if (multiSelectMode) Modifier
                     else Modifier.safeNavigationBarPadding()
                 ),
-            contentPadding = PaddingValues(vertical = 6.dp)
+            contentPadding = PaddingValues(
+                top = 6.dp,
+                bottom = if (multiSelectMode) 128.dp else 16.dp
+            )
         ) {
             // 1. Строка «Избранное» (Сохранить на память)
             if (showSavedMessagesRow) {
@@ -438,8 +452,9 @@ fun ForwardTargetPickerScreen(
         if (multiSelectMode) {
             Column(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
                     .imePadding()
                     .safeNavigationBarPadding()
             ) {
@@ -464,15 +479,15 @@ fun ForwardTargetPickerScreen(
                                     )
                                 ),
                                 accent = scheme.accent,
-                                size = 44.dp
+                                size = 46.dp
                             )
                         }
                         if (sharedPreviewUris.size > 4) {
                             Box(
                                 modifier = Modifier
-                                    .size(44.dp)
+                                    .size(46.dp)
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(scheme.card),
+                                    .background(scheme.card.copy(alpha = 0.85f)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Text(
@@ -522,8 +537,16 @@ fun ForwardTargetPickerScreen(
                         .fillMaxWidth()
                         .height(48.dp)
                         .clip(RoundedCornerShape(24.dp))
-                        .background(scheme.inputBg)
-                        .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(24.dp))
+                        .hazeEffect(
+                            state = listHazeState,
+                            style = HazeStyle(
+                                backgroundColor = scheme.card.copy(alpha = 0.50f),
+                                tint = HazeTint(color = scheme.surface.copy(alpha = 0.45f)),
+                                blurRadius = 20.dp,
+                                noiseFactor = 0.02f
+                            )
+                        )
+                        .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
                         .padding(start = 6.dp, end = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -610,6 +633,7 @@ fun ForwardTargetPickerScreen(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -708,8 +732,31 @@ private fun ForwardActiveSessionRow(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
+            val att = session.lastMessageAttachment
+            val cleanPreview = session.lastMessagePreview.trim()
+            val looksLikeProtocol = cleanPreview.equals(session.securityLabel, ignoreCase = true) ||
+                cleanPreview.contains("ML-KEM", ignoreCase = true) ||
+                cleanPreview.contains("Kyber", ignoreCase = true)
+            val subtitleText = when {
+                att is com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo ->
+                    if (cleanPreview.isNotBlank() && !looksLikeProtocol) cleanPreview else if (att.isVideo) "Видео" else "Фото"
+                att is com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum ->
+                    if (cleanPreview.isNotBlank() && !looksLikeProtocol) cleanPreview else "Альбом"
+                att is com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle ->
+                    "Видеосообщение"
+                att is com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice ->
+                    "Голосовое сообщение"
+                att is com.anongram.app.features.chats.messages.domain.MessageAttachment.File ||
+                    att is com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup ->
+                    if (cleanPreview.isNotBlank() && !looksLikeProtocol) cleanPreview else "Файл"
+                att is com.anongram.app.features.chats.messages.domain.MessageAttachment.Music ||
+                    att is com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup ->
+                    if (cleanPreview.isNotBlank() && !looksLikeProtocol) cleanPreview else "Музыка"
+                cleanPreview.isNotBlank() && !looksLikeProtocol -> cleanPreview
+                else -> session.title
+            }
             Text(
-                text = session.lastMessagePreview.ifBlank { session.title },
+                text = subtitleText,
                 color = scheme.textSecondary,
                 fontSize = 14.sp,
                 maxLines = 1,

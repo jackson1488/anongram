@@ -108,17 +108,60 @@ class MainActivity : ComponentActivity() {
     @Suppress("DEPRECATION")
     private fun handleShareIntent(intent: android.content.Intent?) {
         val action = intent?.action ?: return
+        if (action != android.content.Intent.ACTION_SEND && action != android.content.Intent.ACTION_SEND_MULTIPLE) return
+
+        val sharedText = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+        val rawUris = mutableListOf<android.net.Uri>()
         if (action == android.content.Intent.ACTION_SEND) {
-            val sharedText = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
-            val streamUri = intent.getParcelableExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
-            val uris = listOfNotNull(streamUri?.toString())
-            com.anongram.app.features.chats.tools.IncomingShareBus.emit(sharedText, uris)
-        } else if (action == android.content.Intent.ACTION_SEND_MULTIPLE) {
-            val sharedText = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
-            val streamUris = intent.getParcelableArrayListExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
-                ?.mapNotNull { it?.toString() }
-                ?: emptyList()
-            com.anongram.app.features.chats.tools.IncomingShareBus.emit(sharedText, streamUris)
+            intent.getParcelableExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)?.let { rawUris.add(it) }
+        } else {
+            intent.getParcelableArrayListExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
+                ?.filterNotNull()
+                ?.let { rawUris.addAll(it) }
         }
+        if (rawUris.isEmpty() && intent.clipData != null) {
+            val clip = intent.clipData!!
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i)?.uri?.let { rawUris.add(it) }
+            }
+        }
+
+        if (rawUris.isEmpty()) {
+            if (!sharedText.isNullOrBlank()) {
+                com.anongram.app.features.chats.tools.IncomingShareBus.emit(sharedText, emptyList())
+            }
+            return
+        }
+
+        val appCtx = applicationContext
+        Thread {
+            val shareDir = java.io.File(appCtx.cacheDir, "shared_media").apply { mkdirs() }
+            val resolved = rawUris.mapNotNull { uri ->
+                if (uri.scheme == "file") {
+                    uri.toString()
+                } else {
+                    runCatching {
+                        val mime = appCtx.contentResolver.getType(uri).orEmpty()
+                        val ext = when {
+                            mime.contains("png") -> ".png"
+                            mime.contains("webp") -> ".webp"
+                            mime.contains("gif") -> ".gif"
+                            mime.contains("mp4") || mime.contains("video") -> ".mp4"
+                            else -> ".jpg"
+                        }
+                        val dest = java.io.File(shareDir, "share_${System.nanoTime()}$ext")
+                        appCtx.contentResolver.openInputStream(uri)?.use { input ->
+                            dest.outputStream().use { output -> input.copyTo(output) }
+                        }
+                        if (dest.exists() && dest.length() > 0L) {
+                            android.net.Uri.fromFile(dest).toString()
+                        } else {
+                            uri.toString()
+                        }
+                    }.getOrElse { uri.toString() }
+                }
+            }
+            com.anongram.app.features.chats.tools.IncomingShareBus.emit(sharedText, resolved)
+        }.start()
     }
 }

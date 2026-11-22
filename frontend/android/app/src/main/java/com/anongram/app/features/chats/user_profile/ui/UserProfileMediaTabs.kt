@@ -21,22 +21,34 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.GraphicEq
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MusicNote
+import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,10 +56,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
@@ -60,6 +76,7 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
 import com.anongram.app.features.chats.messages.domain.ChatMessage
+import com.anongram.app.features.chats.messages.domain.attachmentColor
 import com.anongram.app.features.chats.ui.components.bubble.openFileInSystemViewer
 import com.anongram.app.features.chats.user_profile.i18n.UserProfileStrings
 import com.anongram.app.features.chats.user_profile.model.UserProfileAudioItem
@@ -70,6 +87,10 @@ import com.anongram.app.features.chats.user_profile.model.UserProfileMediaItem
 import com.anongram.app.features.chats.user_profile.model.UserProfileTab
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlin.math.roundToInt
 
 @Composable
 internal fun UserProfileTabBar(
@@ -114,6 +135,7 @@ internal fun UserProfileTabBar(
                     UserProfileTab.FILES -> strings.tabFiles
                     UserProfileTab.LINKS -> strings.tabLinks
                     UserProfileTab.GIF -> strings.tabGif
+                    UserProfileTab.VOICE -> strings.tabVoice
                     UserProfileTab.AUDIO -> strings.tabAudio
                 }
                 Box(
@@ -161,7 +183,7 @@ internal fun UserProfileMediaGridRow(
                     label = "mediaTileScale"
                 )
                 val thumb by produceState<ImageBitmap?>(initialValue = null, item.uri) {
-                    value = withContext(Dispatchers.IO) {
+                    value = if (item.uri.isBlank()) null else withContext(Dispatchers.IO) {
                         runCatching { loadMediaThumbnail(context, Uri.parse(item.uri))?.asImageBitmap() }.getOrNull()
                     }
                 }
@@ -186,31 +208,66 @@ internal fun UserProfileMediaGridRow(
                                 scaleY = tileScale
                             }
                             .clip(RoundedCornerShape(if (isSelected) 10.dp else 0.dp))
-                            .background(scheme.card)
+                            .background(scheme.card),
+                        contentAlignment = Alignment.Center
                     ) {
-                        if (thumb != null) {
-                            Image(
-                                bitmap = thumb!!,
-                                contentDescription = null,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                        if (item.isVideo) {
+                        if (item.isVideoCircle) {
                             Box(
                                 modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .padding(6.dp)
+                                    .fillMaxSize(0.76f)
                                     .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.55f))
-                                    .padding(4.dp)
+                                    .background(attachmentColor(item.colorSeed))
+                                    .border(1.dp, scheme.islandBorder, CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.PlayArrow,
+                                if (thumb != null) {
+                                    Image(
+                                        bitmap = thumb!!,
+                                        contentDescription = null,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.50f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.PlayArrow,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            if (thumb != null) {
+                                Image(
+                                    bitmap = thumb!!,
                                     contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
                                 )
+                            }
+                            if (item.isVideo) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(6.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.55f))
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.PlayArrow,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -354,9 +411,19 @@ internal fun UserProfileLinkRow(
 @Composable
 internal fun UserProfileAudioRow(
     item: UserProfileAudioItem,
+    isActive: Boolean = false,
+    isPlaying: Boolean = false,
+    progress: Float = 0f,
     onAudioClick: (UserProfileAudioItem) -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val dateLabel = remember(item.message.epochMs) {
+        if (item.message.epochMs > 0L) {
+            SimpleDateFormat("d MMM", Locale.getDefault()).format(Date(item.message.epochMs))
+        } else {
+            ""
+        }
+    }
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -369,26 +436,45 @@ internal fun UserProfileAudioRow(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(scheme.accentSoft),
+                    .background(if (isActive) scheme.accent else scheme.accentSoft)
+                    .clickable { onAudioClick(item) },
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (item.isVoice) Icons.Outlined.GraphicEq else Icons.Outlined.MusicNote,
+                    imageVector = when {
+                        isActive && isPlaying -> Icons.Outlined.Pause
+                        item.isVoice -> Icons.Outlined.PlayArrow
+                        else -> if (isActive) Icons.Outlined.PlayArrow else Icons.Outlined.MusicNote
+                    },
                     contentDescription = null,
-                    tint = scheme.accent,
-                    modifier = Modifier.size(20.dp)
+                    tint = if (isActive) scheme.onAccent else scheme.accent,
+                    modifier = Modifier.size(21.dp)
                 )
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.title,
-                    color = scheme.textPrimary,
-                    fontSize = 14.5.sp,
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = item.title,
+                        color = if (isActive) scheme.accent else scheme.textPrimary,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    if (dateLabel.isNotBlank()) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = dateLabel,
+                            color = scheme.textMuted,
+                            fontSize = 11.5.sp
+                        )
+                    }
+                }
                 if (item.subtitle.isNotBlank()) {
                     Text(
                         text = item.subtitle,
@@ -396,6 +482,18 @@ internal fun UserProfileAudioRow(
                         fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (isActive) {
+                    Spacer(modifier = Modifier.height(5.dp))
+                    LinearProgressIndicator(
+                        progress = { progress.coerceIn(0f, 1f) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(3.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = scheme.accent,
+                        trackColor = scheme.accentSoft
                     )
                 }
             }
@@ -408,6 +506,122 @@ internal fun UserProfileAudioRow(
     }
 }
 
+@Composable
+internal fun UserProfileFastScrollBar(
+    listState: LazyListState,
+    itemEpochs: List<Long>,
+    visible: Boolean,
+    isDragging: Boolean,
+    onDraggingChange: (Boolean) -> Unit,
+    onScrollToIndex: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (itemEpochs.isEmpty()) return
+    val scheme = LocalAnonGramScheme.current
+    val density = LocalDensity.current
+    var trackHeightPx by remember { mutableStateOf(1f) }
+    val thumbHeightDp = 48.dp
+    val thumbHeightPx = with(density) { thumbHeightDp.toPx() }
+    val usableHeightPx = (trackHeightPx - thumbHeightPx).coerceAtLeast(1f)
+
+    val totalItems = itemEpochs.size
+    val firstIdx = listState.firstVisibleItemIndex.coerceIn(0, (totalItems - 1).coerceAtLeast(0))
+    val autoFraction = (firstIdx.toFloat() / (totalItems - 1).coerceAtLeast(1)).coerceIn(0f, 1f)
+    var dragFraction by remember { mutableStateOf(0f) }
+
+    val activeFraction = if (isDragging) dragFraction else autoFraction
+    val thumbOffsetY = (activeFraction * usableHeightPx).roundToInt()
+
+    val currentEpoch = itemEpochs.getOrNull(firstIdx) ?: 0L
+    val dateLabel = remember(currentEpoch) {
+        if (currentEpoch > 0L) {
+            SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(currentEpoch))
+        } else {
+            ""
+        }
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(150)),
+        exit = fadeOut(tween(250)),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier
+                .width(180.dp)
+                .onSizeChanged { trackHeightPx = it.height.toFloat().coerceAtLeast(1f) }
+        ) {
+            if (dateLabel.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset {
+                            IntOffset(
+                                x = -with(density) { 40.dp.roundToPx() },
+                                y = thumbOffsetY + with(density) { 8.dp.roundToPx() }
+                            )
+                        }
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(scheme.islandBg.copy(alpha = 0.96f))
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = dateLabel,
+                        color = scheme.textPrimary,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset { IntOffset(x = 0, y = thumbOffsetY) }
+                    .width(34.dp)
+                    .height(thumbHeightDp)
+                    .pointerInput(totalItems, usableHeightPx) {
+                        detectVerticalDragGestures(
+                            onDragStart = {
+                                dragFraction = autoFraction
+                                onDraggingChange(true)
+                            },
+                            onDragEnd = { onDraggingChange(false) },
+                            onDragCancel = { onDraggingChange(false) },
+                            onVerticalDrag = { change, dragAmount ->
+                                change.consume()
+                                dragFraction = (dragFraction + dragAmount / usableHeightPx).coerceIn(0f, 1f)
+                                val target = (dragFraction * (totalItems - 1)).roundToInt().coerceIn(0, totalItems - 1)
+                                onScrollToIndex(target)
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(26.dp)
+                        .height(42.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(if (isDragging) scheme.accent else scheme.islandBg.copy(alpha = 0.94f))
+                        .border(1.dp, if (isDragging) scheme.accent else scheme.islandBorder, RoundedCornerShape(13.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.UnfoldMore,
+                        contentDescription = null,
+                        tint = if (isDragging) scheme.onAccent else scheme.textPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
 internal fun tabSummaryText(
     tab: UserProfileTab,
     buckets: UserProfileBuckets,
@@ -417,5 +631,6 @@ internal fun tabSummaryText(
     UserProfileTab.FILES -> strings.filesCountFormat(buckets.files.size)
     UserProfileTab.LINKS -> strings.linksCountFormat(buckets.links.size)
     UserProfileTab.GIF -> strings.gifCountFormat(buckets.gifs.size)
+    UserProfileTab.VOICE -> strings.voiceCountFormat(buckets.voice.size)
     UserProfileTab.AUDIO -> strings.audioCountFormat(buckets.audio.size)
 }
