@@ -80,7 +80,7 @@ internal fun UserProfileOverflowMenu(
         onDismissRequest = onDismiss,
         offset = DpOffset(x = (-8).dp, y = 6.dp),
         modifier = Modifier
-            .width(224.dp)
+            .width(if (showGridZoomOptions && !inAutoDeleteSubmenu) 164.dp else 224.dp)
             .background(scheme.card, RoundedCornerShape(18.dp))
             .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
     ) {
