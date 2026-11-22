@@ -608,10 +608,46 @@ fun MainAppShell(
             )
         }
 
+        val incomingShare by com.anongram.app.features.chats.tools.IncomingShareBus.payload.collectAsState()
+        incomingShare?.let { sharePayload ->
+            val toolsStrings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
+            com.anongram.app.features.chats.tools.ForwardTargetPickerScreen(
+                activeSessions = chatsState.sessions,
+                titleOverride = toolsStrings.selectChatTitle,
+                multiSelectMode = true,
+                onClose = { com.anongram.app.features.chats.tools.IncomingShareBus.clear() },
+                onConfirmMultiSelect = { targets, comment ->
+                    val summary = listOfNotNull(sharePayload.text, comment.takeIf { it.isNotBlank() }).joinToString("\n")
+                    android.widget.Toast.makeText(
+                        context,
+                        if (summary.isNotBlank()) "Отправлено (${targets.size})" else "Отправлено (${targets.size})",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    com.anongram.app.features.chats.tools.IncomingShareBus.clear()
+                    targets.firstOrNull()?.let { openSession(it) }
+                },
+                onSelectSavedMessages = {
+                    com.anongram.app.features.chats.tools.IncomingShareBus.clear()
+                    chatsState.sessions.firstOrNull { it.id == "0" }?.let { openSession(it) }
+                },
+                onSelectSession = { target ->
+                    com.anongram.app.features.chats.tools.IncomingShareBus.clear()
+                    openSession(target)
+                },
+                onSelectGlobalItem = { name, handle ->
+                    com.anongram.app.features.chats.tools.IncomingShareBus.clear()
+                    scope.launch {
+                        val target = chatsViewModel.findOrCreateDirectChat(name, handle)
+                        openSession(target)
+                    }
+                }
+            )
+        }
+
         // Остров виден только на корневых экранах: любой дочерний экран
         // (чат, поиск, контакты, архив, QR, язык, AI) его скрывает.
         val isRootScreen = selectedSession == null && !isSearchOpen && !isContactsOpen &&
-            !isArchiveOpen && !isQrOpen && !isLanguageOpen &&
+            !isArchiveOpen && !isQrOpen && !isLanguageOpen && incomingShare == null &&
             !isLocalAiOpen && !isLocalAiModulesOpen &&
             !(currentTab == 2 && isSettingsSubScreenOpen)
 

@@ -25,4 +25,17 @@ class ContactsViewModel(private val repository: ContactRepository) : ViewModel()
             _contacts.update { repository.loadContacts() }
         }
     }
+
+    fun addContact(name: String) {
+        val clean = name.trim()
+        if (clean.isEmpty()) return
+        val newContact = Contact(
+            id = "c_${System.currentTimeMillis()}",
+            name = clean,
+            fingerprint = "0x" + clean.hashCode().toUInt().toString(16).uppercase().padStart(8, '0'),
+            isOnline = false,
+            isSasVerified = false
+        )
+        _contacts.update { listOf(newContact) + it }
+    }
 }

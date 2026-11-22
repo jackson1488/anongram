@@ -45,6 +45,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        handleShareIntent(intent)
 
         setContent {
             val windowSizeClass = calculateWindowSizeClass(this)
@@ -95,6 +96,29 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleShareIntent(intent)
+    }
+
+    @Suppress("DEPRECATION")
+    private fun handleShareIntent(intent: android.content.Intent?) {
+        val action = intent?.action ?: return
+        if (action == android.content.Intent.ACTION_SEND) {
+            val sharedText = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+            val streamUri = intent.getParcelableExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
+            val uris = listOfNotNull(streamUri?.toString())
+            com.anongram.app.features.chats.tools.IncomingShareBus.emit(sharedText, uris)
+        } else if (action == android.content.Intent.ACTION_SEND_MULTIPLE) {
+            val sharedText = intent.getStringExtra(android.content.Intent.EXTRA_TEXT)
+            val streamUris = intent.getParcelableArrayListExtra<android.net.Uri>(android.content.Intent.EXTRA_STREAM)
+                ?.mapNotNull { it?.toString() }
+                ?: emptyList()
+            com.anongram.app.features.chats.tools.IncomingShareBus.emit(sharedText, streamUris)
         }
     }
 }

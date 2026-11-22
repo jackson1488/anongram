@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,7 +24,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Group
 import androidx.compose.material.icons.outlined.Public
@@ -89,17 +92,22 @@ private val DEFAULT_GLOBAL_SERVER_DIRECTORY = listOf(
  * - При вводе текста в поиск: найденные актуальные чаты + секция «Глобальный поиск по серверу»
  */
 @Composable
-internal fun ForwardTargetPickerScreen(
+fun ForwardTargetPickerScreen(
     activeSessions: List<IChatSession>,
     onClose: () -> Unit,
     onSelectSession: (IChatSession) -> Unit,
     onSelectSavedMessages: () -> Unit,
     onSelectGlobalItem: (name: String, handle: String) -> Unit,
+    titleOverride: String? = null,
+    multiSelectMode: Boolean = false,
+    onConfirmMultiSelect: ((selectedSessions: List<IChatSession>, comment: String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = ToolsI18n.current
     var query by remember { mutableStateOf("") }
+    var selectedSessionIds by remember { mutableStateOf(emptySet<String>()) }
+    var commentText by remember { mutableStateOf("") }
 
     BackHandler { onClose() }
 
@@ -191,7 +199,11 @@ internal fun ForwardTargetPickerScreen(
             }
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = strings.forwardTitle,
+                text = if (multiSelectMode && selectedSessionIds.isNotEmpty()) {
+                    selectedSessionIds.size.toString()
+                } else {
+                    titleOverride ?: strings.forwardTitle
+                },
                 color = scheme.textPrimary,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold
@@ -265,8 +277,12 @@ internal fun ForwardTargetPickerScreen(
 
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
-                .safeNavigationBarPadding(),
+                .weight(1f)
+                .fillMaxWidth()
+                .then(
+                    if (multiSelectMode && selectedSessionIds.isNotEmpty()) Modifier
+                    else Modifier.safeNavigationBarPadding()
+                ),
             contentPadding = PaddingValues(vertical = 6.dp)
         ) {
             // 1. Строка «Избранное» (Сохранить на память)
@@ -321,9 +337,21 @@ internal fun ForwardTargetPickerScreen(
                 items = filteredActiveSessions,
                 key = { "active_${it.id}" }
             ) { session ->
+                val isSelected = multiSelectMode && session.id in selectedSessionIds
                 ForwardActiveSessionRow(
                     session = session,
-                    onClick = { onSelectSession(session) }
+                    isSelected = isSelected,
+                    onClick = {
+                        if (multiSelectMode) {
+                            selectedSessionIds = if (isSelected) {
+                                selectedSessionIds - session.id
+                            } else {
+                                selectedSessionIds + session.id
+                            }
+                        } else {
+                            onSelectSession(session)
+                        }
+                    }
                 )
             }
 
@@ -367,12 +395,72 @@ internal fun ForwardTargetPickerScreen(
                 }
             }
         }
+
+        if (multiSelectMode && selectedSessionIds.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(scheme.surface)
+                    .border(0.5.dp, scheme.divider)
+                    .imePadding()
+                    .safeNavigationBarPadding()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(44.dp)
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(scheme.inputBg)
+                        .border(0.8.dp, scheme.inputBorder, RoundedCornerShape(22.dp))
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    if (commentText.isEmpty()) {
+                        Text(
+                            text = strings.addCommentPlaceholder,
+                            color = scheme.textMuted,
+                            fontSize = 15.sp
+                        )
+                    }
+                    BasicTextField(
+                        value = commentText,
+                        onValueChange = { commentText = it },
+                        singleLine = true,
+                        textStyle = TextStyle(color = scheme.textPrimary, fontSize = 15.sp),
+                        cursorBrush = SolidColor(scheme.accent),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(scheme.accent)
+                        .clickable {
+                            val targets = activeSessions.filter { it.id in selectedSessionIds }
+                            onConfirmMultiSelect?.invoke(targets, commentText.trim())
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Send,
+                        contentDescription = null,
+                        tint = scheme.onAccent,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
 private fun ForwardActiveSessionRow(
     session: IChatSession,
+    isSelected: Boolean = false,
     onClick: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -383,6 +471,7 @@ private fun ForwardActiveSessionRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .background(if (isSelected) scheme.accentSoft.copy(alpha = 0.28f) else Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -452,6 +541,23 @@ private fun ForwardActiveSessionRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+        }
+        if (isSelected) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(scheme.accent),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Check,
+                    contentDescription = null,
+                    tint = scheme.onAccent,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
         }
     }
 }

@@ -37,6 +37,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 internal fun AddContactCard(
     onOpenQr: () -> Unit,
     onOpenSearch: () -> Unit,
+    onAddNewContact: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -50,6 +51,15 @@ internal fun AddContactCard(
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
+        if (onAddNewContact != null) {
+            AddContactRow(
+                icon = androidx.compose.material.icons.Icons.Outlined.PersonAdd,
+                title = "Добавить контакт",
+                subtitle = "Создать контакт вручную",
+                accent = scheme.accent,
+                onClick = onAddNewContact
+            )
+        }
         AddContactRow(
             icon = Icons.Outlined.QrCode2,
             title = "Добавить по QR-коду",

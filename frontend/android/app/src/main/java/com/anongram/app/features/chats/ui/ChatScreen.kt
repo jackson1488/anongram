@@ -2,13 +2,10 @@ package com.anongram.app.features.chats.ui
 
 import android.Manifest
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import com.anongram.app.core.navigation.AnonGramTransitionScreen
-import com.anongram.app.core.navigation.TransitionType
+import androidx.compose.ui.graphics.graphicsLayer
 import com.anongram.app.core.navigation.swipeBackGesture
-import kotlin.coroutines.cancellation.CancellationException
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -389,6 +386,56 @@ fun ChatScreen(
                 }
             }
         } else {
+            val pendingForward by com.anongram.app.features.chats.tools.PendingForwardStore.state.collectAsState()
+            val activePending = pendingForward?.takeIf { it.targetSessionId == session.id }
+            var isPendingForwardPreviewOpen by remember(session.id) { mutableStateOf(false) }
+
+            if (activePending != null) {
+                com.anongram.app.features.chats.tools.PendingForwardDockBar(
+                    pending = activePending,
+                    onTapPreview = { isPendingForwardPreviewOpen = true },
+                    onCancelAll = {
+                        val backSource = com.anongram.app.features.chats.tools.PendingForwardStore.cancelAll()
+                        if (backSource != null && backSource.id != session.id) {
+                            onOpenTargetSession(backSource)
+                        }
+                    },
+                    onSendNow = {
+                        val ids = activePending.items.map { it.id }
+                        com.anongram.app.features.chats.tools.PendingForwardStore.clear()
+                        viewModel.forwardMessagesToTargetChat(session.id, ids, session.title) {}
+                    },
+                    modifier = Modifier
+                        .zIndex(4f)
+                        .align(Alignment.BottomCenter)
+                        .safeNavigationBarPadding()
+                        .padding(bottom = 78.dp)
+                )
+            }
+
+            if (isPendingForwardPreviewOpen && activePending != null) {
+                com.anongram.app.features.chats.tools.PendingForwardPreviewDialog(
+                    pending = activePending,
+                    onRemoveItem = { msgId ->
+                        val backSource = com.anongram.app.features.chats.tools.PendingForwardStore.removeItem(msgId)
+                        if (backSource != null) {
+                            isPendingForwardPreviewOpen = false
+                            if (backSource.id != session.id) {
+                                onOpenTargetSession(backSource)
+                            }
+                        }
+                    },
+                    onCancelAll = {
+                        isPendingForwardPreviewOpen = false
+                        val backSource = com.anongram.app.features.chats.tools.PendingForwardStore.cancelAll()
+                        if (backSource != null && backSource.id != session.id) {
+                            onOpenTargetSession(backSource)
+                        }
+                    },
+                    onDismiss = { isPendingForwardPreviewOpen = false }
+                )
+            }
+
             ChatInputDock(
                 state = state,
                 peerName = session.title,
@@ -473,90 +520,18 @@ fun ChatScreen(
                 .zIndex(10f)
         ) {
             val jumpScope = androidx.compose.runtime.rememberCoroutineScope()
-            val animState by com.anongram.app.features.settings.animations.data.AnimationsSettingsStore.state.collectAsState()
-            LaunchedEffect(Unit) {
-                com.anongram.app.features.settings.animations.data.AnimationsSettingsStore.ensureInitialized(context)
-            }
             var isProfileInnerModalOpen by remember { mutableStateOf(false) }
-            val profileProgress = remember { androidx.compose.animation.core.Animatable(1f) }
-            var isProfileExiting by remember { mutableStateOf(false) }
-            var predictiveSwipeEdge by remember { mutableIntStateOf(0) }
-            var predictiveTouchYFraction by remember { mutableFloatStateOf(0.5f) }
-            var isPredictiveHolding by remember { mutableStateOf(false) }
-            var isSystemGestureActive by remember { mutableStateOf(false) }
-            val profileNavConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, isSystemGestureActive) {
-                animState.toNavigationTransitionConfig().copy(
-                    swipeEdge = predictiveSwipeEdge,
-                    touchYFraction = predictiveTouchYFraction,
-                    isPredictiveHolding = isPredictiveHolding,
-                    isSystemGestureActive = isSystemGestureActive
-                )
-            }
-            val isPureSwipeOrParallax = (profileNavConfig.transitionType == TransitionType.SPRING_SWIPE ||
-                profileNavConfig.transitionType == TransitionType.CUPERTINO_PARALLAX) &&
-                !profileNavConfig.enableMiniCardCombo &&
-                !profileNavConfig.enablePredictiveBackCombo
-            val useProfilePredictiveBack = profileNavConfig.transitionType != TransitionType.INSTANT && !isPureSwipeOrParallax
+            val profileSwipeOffset = remember { androidx.compose.animation.core.Animatable(0f) }
 
-            LaunchedEffect(isUserProfileOpen) {
-                if (isUserProfileOpen) {
-                    isProfileExiting = false
-                    isSystemGestureActive = false
-                    isPredictiveHolding = false
-                    profileProgress.snapTo(1f)
-                    if (profileNavConfig.transitionType == TransitionType.INSTANT) {
-                        profileProgress.snapTo(0f)
-                    } else {
-                        profileProgress.animateTo(0f, androidx.compose.animation.core.tween(profileNavConfig.effectiveDurationMs))
-                    }
-                }
+            BackHandler(enabled = isUserProfileOpen && !isProfileInnerModalOpen) {
+                isUserProfileOpen = false
             }
 
-            fun closeUserProfile() {
-                jumpScope.launch {
-                    isProfileExiting = true
-                    if (profileNavConfig.transitionType == TransitionType.INSTANT) {
-                        profileProgress.snapTo(1f)
-                    } else {
-                        profileProgress.animateTo(1f, androidx.compose.animation.core.tween(profileNavConfig.effectiveDurationMs))
-                    }
-                    isUserProfileOpen = false
-                    isProfileExiting = false
-                    isSystemGestureActive = false
-                    isPredictiveHolding = false
-                }
-            }
-
-            BackHandler(enabled = isUserProfileOpen && !isProfileInnerModalOpen && !useProfilePredictiveBack) {
-                closeUserProfile()
-            }
-
-            PredictiveBackHandler(enabled = isUserProfileOpen && !isProfileInnerModalOpen && useProfilePredictiveBack) { backEvents ->
-                val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
-                isProfileExiting = true
-                isPredictiveHolding = true
-                isSystemGestureActive = true
-                try {
-                    backEvents.collect { event ->
-                        predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
-                        predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
-                        profileProgress.snapTo(event.progress.coerceIn(0f, 1f))
-                    }
-                    isPredictiveHolding = false
-                    closeUserProfile()
-                    predictiveSwipeEdge = 0
-                    predictiveTouchYFraction = 0.5f
-                } catch (_: CancellationException) {
-                    isPredictiveHolding = false
-                    isSystemGestureActive = false
-                    predictiveSwipeEdge = 0
-                    predictiveTouchYFraction = 0.5f
-                    profileProgress.animateTo(0f, androidx.compose.animation.core.spring())
-                    isProfileExiting = false
-                }
-            }
-
-            if (isUserProfileOpen) {
+            androidx.compose.animation.AnimatedVisibility(
+                visible = isUserProfileOpen,
+                enter = androidx.compose.animation.slideInHorizontally { it } + androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.slideOutHorizontally { it } + androidx.compose.animation.fadeOut()
+            ) {
                 val demoBio = when (session.id) {
                     "2" -> "Криптография, Tor и приватность"
                     "6" -> "Сетевая безопасность и P2P-узлы"
@@ -568,25 +543,31 @@ fun ChatScreen(
                     "6" -> "22 нояб. 1999 (26 лет)"
                     else -> null
                 }
-                AnonGramTransitionScreen(
-                    progress = profileProgress.value,
-                    isExit = isProfileExiting,
-                    config = profileNavConfig,
-                    modifier = Modifier.swipeBackGesture(
-                        enabled = !isProfileInnerModalOpen && profileNavConfig.allowFullWidthSwipe,
-                        onDragStart = { isProfileExiting = true },
-                        onDragProgress = { p -> jumpScope.launch { profileProgress.snapTo(p) } },
-                        onDragEnd = { shouldClose ->
-                            if (shouldClose) {
-                                closeUserProfile()
-                            } else {
-                                jumpScope.launch {
-                                    profileProgress.animateTo(0f, androidx.compose.animation.core.spring())
-                                    isProfileExiting = false
+                val screenWidthPx = with(density) {
+                    androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp.toPx()
+                }.coerceAtLeast(1f)
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            translationX = profileSwipeOffset.value * screenWidthPx
+                        }
+                        .swipeBackGesture(
+                            enabled = !isProfileInnerModalOpen,
+                            onDragStart = {},
+                            onDragProgress = { p -> jumpScope.launch { profileSwipeOffset.snapTo(p) } },
+                            onDragEnd = { shouldClose ->
+                                if (shouldClose) {
+                                    isUserProfileOpen = false
+                                    jumpScope.launch { profileSwipeOffset.snapTo(0f) }
+                                } else {
+                                    jumpScope.launch {
+                                        profileSwipeOffset.animateTo(0f, androidx.compose.animation.core.spring())
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
                 ) {
                     com.anongram.app.features.chats.user_profile.api.UserProfileScreen(
                         session = session,
@@ -594,7 +575,7 @@ fun ChatScreen(
                         selfDestruct = state.selfDestruct,
                         bio = demoBio,
                         birthday = demoBirthday,
-                        onBack = { closeUserProfile() },
+                        onBack = { isUserProfileOpen = false },
                         onToggleMute = viewModel::openNotifications,
                         onSetSelfDestruct = viewModel::setSelfDestruct,
                         onOpenKeyVerification = viewModel::openKeyCheck,
@@ -625,6 +606,7 @@ fun ChatScreen(
                             viewModel.clearHistory()
                             onBack()
                         },
+                        activeSessions = activeSessions,
                         onInnerModalOpenChange = { isProfileInnerModalOpen = it }
                     )
                 }

@@ -110,6 +110,8 @@ fun UserProfileScreen(
     onDeleteMessages: (List<String>) -> Unit = {},
     onAddContact: (() -> Unit)? = null,
     onDeleteChat: (() -> Unit)? = null,
+    activeSessions: List<IChatSession> = emptyList(),
+    onShareContactToChat: (IChatSession) -> Unit = {},
     onInnerModalOpenChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
@@ -132,9 +134,12 @@ fun UserProfileScreen(
     var isOverflowOpen by remember { mutableStateOf(false) }
     var isCustomAutoDeleteOpen by remember { mutableStateOf(false) }
     var isMuteMenuOpen by remember { mutableStateOf(false) }
-    var isMutedLocal by remember(session.id, session.isMuted) { mutableStateOf(session.isMuted) }
+    var isNewContactSheetOpen by remember { mutableStateOf(false) }
+    var isEditContactMode by remember { mutableStateOf(false) }
+    var isShareContactPickerOpen by remember { mutableStateOf(false) }
     var isQrOverlayOpen by remember { mutableStateOf(false) }
     var isQrScannerOpen by remember { mutableStateOf(false) }
+    var isMutedLocal by remember(session.id, session.isMuted) { mutableStateOf(session.isMuted) }
     var addedToContactsLocal by remember(session.id) { mutableStateOf(isContact) }
     var gridColumns by remember { mutableIntStateOf(3) }
     var selectedKeys by remember(session.id) { mutableStateOf(emptySet<String>()) }
@@ -161,7 +166,8 @@ fun UserProfileScreen(
     }
 
     val hasInnerModal = isAvatarFullscreenOpen || selectedKeys.isNotEmpty() || isQrScannerOpen ||
-        isQrOverlayOpen || isCustomAutoDeleteOpen || isMuteMenuOpen
+        isQrOverlayOpen || isCustomAutoDeleteOpen || isMuteMenuOpen ||
+        isNewContactSheetOpen || isShareContactPickerOpen
 
     LaunchedEffect(hasInnerModal) {
         onInnerModalOpenChange(hasInnerModal)
@@ -171,6 +177,8 @@ fun UserProfileScreen(
         when {
             isAvatarFullscreenOpen -> isAvatarFullscreenOpen = false
             selectedKeys.isNotEmpty() -> selectedKeys = emptySet()
+            isShareContactPickerOpen -> isShareContactPickerOpen = false
+            isNewContactSheetOpen -> isNewContactSheetOpen = false
             isMuteMenuOpen -> isMuteMenuOpen = false
             isQrScannerOpen -> isQrScannerOpen = false
             isQrOverlayOpen -> isQrOverlayOpen = false
@@ -338,9 +346,8 @@ fun UserProfileScreen(
                         AddToContactsCard(
                             strings = strings,
                             onClick = {
-                                addedToContactsLocal = true
-                                onAddContact?.invoke()
-                                Toast.makeText(context, strings.addedToContactsToast, Toast.LENGTH_SHORT).show()
+                                isEditContactMode = false
+                                isNewContactSheetOpen = true
                             }
                         )
                     }
@@ -607,9 +614,7 @@ fun UserProfileScreen(
                         onSetSelfDestruct = onSetSelfDestruct,
                         onOpenCustomAutoDelete = { isCustomAutoDeleteOpen = true },
                         onShareContact = {
-                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                            cm.setPrimaryClip(ClipData.newPlainText(session.title, "${session.title} (${session.fingerprint})"))
-                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                            isShareContactPickerOpen = true
                         },
                         onBlockUser = {
                             val nowBlocked = com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.toggle(context, session.id)
@@ -620,7 +625,8 @@ fun UserProfileScreen(
                             ).show()
                         },
                         onEditContact = {
-                            Toast.makeText(context, session.title, Toast.LENGTH_SHORT).show()
+                            isEditContactMode = true
+                            isNewContactSheetOpen = true
                         },
                         onDeleteContact = {
                             addedToContactsLocal = false
@@ -702,6 +708,56 @@ fun UserProfileScreen(
                 ) {
                     QrCameraScannerScreen(
                         onBack = { isQrScannerOpen = false }
+                    )
+                }
+            }
+
+            if (isNewContactSheetOpen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(50f)
+                ) {
+                    com.anongram.app.features.contacts.ui.NewContactScreen(
+                        initialFirstName = session.title,
+                        avatarResId = session.avatarResId,
+                        statusText = if (session.isOnline) strings.online else strings.lastSeenRecently,
+                        isEditMode = isEditContactMode,
+                        onBack = { isNewContactSheetOpen = false },
+                        onCreate = { _, _, _, _ ->
+                            isNewContactSheetOpen = false
+                            addedToContactsLocal = true
+                            onAddContact?.invoke()
+                            Toast.makeText(context, strings.addedToContactsToast, Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                }
+            }
+
+            if (isShareContactPickerOpen) {
+                val toolsStrings = com.anongram.app.features.chats.tools.i18n.ToolsI18n.current
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(50f)
+                ) {
+                    com.anongram.app.features.chats.tools.ForwardTargetPickerScreen(
+                        activeSessions = activeSessions,
+                        titleOverride = toolsStrings.selectChatTitle,
+                        onClose = { isShareContactPickerOpen = false },
+                        onSelectSession = { target ->
+                            isShareContactPickerOpen = false
+                            onShareContactToChat(target)
+                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                        },
+                        onSelectSavedMessages = {
+                            isShareContactPickerOpen = false
+                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                        },
+                        onSelectGlobalItem = { _, _ ->
+                            isShareContactPickerOpen = false
+                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                        }
                     )
                 }
             }

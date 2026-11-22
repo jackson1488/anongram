@@ -49,51 +49,69 @@ fun ContactsScreen(
 ) {
     val scheme = LocalAnonGramScheme.current
     val contacts by viewModel.contacts.collectAsState()
+    var isNewContactOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(scheme.background)
-            .safeStatusBarPadding()
-    ) {
-        Row(
+    androidx.compose.foundation.layout.Box(modifier = modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(scheme.background)
+                .safeStatusBarPadding()
         ) {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Назад",
-                tint = scheme.textSecondary,
+            Row(
                 modifier = Modifier
-                    .size(24.dp)
-                    .clickable(onClick = onBack)
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Text(
-                text = "Контакты",
-                fontWeight = FontWeight.Bold,
-                color = scheme.textPrimary,
-                fontSize = 16.sp
-            )
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 112.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            item(key = "add_contact") {
-                AddContactCard(onOpenQr = onOpenQr, onOpenSearch = onOpenSearch)
-            }
-
-            items(contacts, key = { it.id }) { contact ->
-                ContactListItem(
-                    contact = contact,
-                    onClick = { onContactClick(contact) }
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Назад",
+                    tint = scheme.textSecondary,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable(onClick = onBack)
+                )
+                Spacer(modifier = Modifier.width(16.dp))
+                Text(
+                    text = "Контакты",
+                    fontWeight = FontWeight.Bold,
+                    color = scheme.textPrimary,
+                    fontSize = 16.sp
                 )
             }
+
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 112.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item(key = "add_contact") {
+                    AddContactCard(
+                        onOpenQr = onOpenQr,
+                        onOpenSearch = onOpenSearch,
+                        onAddNewContact = { isNewContactOpen = true }
+                    )
+                }
+
+                items(contacts, key = { it.id }) { contact ->
+                    ContactListItem(
+                        contact = contact,
+                        onClick = { onContactClick(contact) }
+                    )
+                }
+            }
+        }
+
+        if (isNewContactOpen) {
+            NewContactScreen(
+                onBack = { isNewContactOpen = false },
+                onCreate = { first, last, _, _ ->
+                    val fullName = listOf(first, last).filter { it.isNotBlank() }.joinToString(" ")
+                    viewModel.addContact(fullName)
+                    isNewContactOpen = false
+                }
+            )
         }
     }
 }
