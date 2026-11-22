@@ -289,10 +289,10 @@ fun PendingForwardPreviewDialog(
 private fun attachmentSummary(attachment: MessageAttachment?): String = when (attachment) {
     is MessageAttachment.Photo -> if (attachment.isVideo) "Video" else "Photo"
     is MessageAttachment.MediaAlbum -> "Album (${attachment.items.size})"
-    is MessageAttachment.File -> attachment.fileName
-    is MessageAttachment.FileGroup -> "Files (${attachment.files.size})"
+    is MessageAttachment.File -> attachment.name
+    is MessageAttachment.FileGroup -> "Files"
     is MessageAttachment.Music -> attachment.title
-    is MessageAttachment.MusicGroup -> "Music (${attachment.tracks.size})"
+    is MessageAttachment.MusicGroup -> "Music"
     is MessageAttachment.Voice -> "Voice"
     is MessageAttachment.VideoCircle -> "Video message"
     is MessageAttachment.Sticker -> "Sticker"
