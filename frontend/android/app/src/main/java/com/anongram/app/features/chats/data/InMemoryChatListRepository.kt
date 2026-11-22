@@ -102,7 +102,12 @@ class InMemoryChatListRepository(
                 lastMessageEpochMs = now - 6 * h,
                 isOnline = true,
                 unreadCount = 1,
-                avatarResId = com.anongram.app.R.drawable.avatar_vera
+                avatarResId = com.anongram.app.R.drawable.avatar_vera,
+                avatarResIds = listOf(
+                    com.anongram.app.R.drawable.avatar_vera,
+                    com.anongram.app.R.drawable.avatar_alice,
+                    com.anongram.app.R.drawable.avatar_arthur
+                )
             ),
             GroupChatSession(
                 id = "7",
@@ -119,7 +124,12 @@ class InMemoryChatListRepository(
                 lastMessagePreview = "Ноутбук настроен, жду команды на выезд",
                 lastMessageEpochMs = now - 14 * h,
                 unreadCount = 0,
-                avatarResId = com.anongram.app.R.drawable.avatar_arthur
+                avatarResId = com.anongram.app.R.drawable.avatar_arthur,
+                avatarResIds = listOf(
+                    com.anongram.app.R.drawable.avatar_arthur,
+                    com.anongram.app.R.drawable.avatar_vera,
+                    com.anongram.app.R.drawable.avatar_alice
+                )
             ),
             GroupChatSession(
                 id = "9",

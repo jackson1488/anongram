@@ -80,6 +80,7 @@ fun ChatScreen(
     activeSessions: List<IChatSession> = emptyList(),
     onOpenTargetSession: (IChatSession) -> Unit = {},
     onOpenDirectPeer: (name: String, handleOrPhone: String, onSessionReady: (IChatSession) -> Unit) -> Unit = { _, _, _ -> },
+    onChildOverlayOpenChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -103,6 +104,9 @@ fun ChatScreen(
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var isUserProfileOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(isUserProfileOpen, viewingMediaMessage) {
+        onChildOverlayOpenChange(isUserProfileOpen || viewingMediaMessage != null)
+    }
     var fullTextMessageModal by remember { mutableStateOf<ChatMessage?>(null) }
     var actionMenuAnchorTopY by remember { mutableFloatStateOf(0f) }
     var actionMenuAnchorBottomY by remember { mutableFloatStateOf(0f) }

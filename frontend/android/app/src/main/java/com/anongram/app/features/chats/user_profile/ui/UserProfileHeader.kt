@@ -4,8 +4,16 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.ui.input.pointer.pointerInput
+import kotlin.math.abs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -265,6 +273,10 @@ internal fun UserProfileHeroHeader(
     isExpandedHero: Boolean,
     strings: UserProfileStrings,
     onToggleExpand: () -> Unit,
+    expandProgress: Float = if (isExpandedHero) 1f else 0f,
+    currentAvatarIndex: Int = 0,
+    onSelectAvatarIndex: (Int) -> Unit = {},
+    onOpenFullscreen: () -> Unit = onToggleExpand,
     overlayActions: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -274,25 +286,43 @@ internal fun UserProfileHeroHeader(
     val avatarResIds = session.avatarResIds
     val primaryAvatar = avatarResIds.firstOrNull() ?: session.avatarResId
     val canExpandHero = primaryAvatar != null
-    val effectiveExpanded = canExpandHero && isExpandedHero
+    val effectiveExpanded = canExpandHero && (isExpandedHero || expandProgress > 0.02f)
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize(),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         if (effectiveExpanded && primaryAvatar != null) {
-            val heroHeight = if (overlayActions != null) 420.dp else 340.dp
+            val p = expandProgress.coerceIn(0f, 1f)
+            val targetMaxHeight = if (overlayActions != null) 420.dp else 340.dp
+            val heroHeight = androidx.compose.ui.unit.lerp(180.dp, targetMaxHeight, p)
+            val safeIndex = currentAvatarIndex.coerceIn(0, (avatarResIds.size - 1).coerceAtLeast(0))
+            val displayedAvatar = avatarResIds.getOrElse(safeIndex) { primaryAvatar }
             val heroHaze = remember { HazeState() }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(heroHeight)
-                    .clickable(onClick = onToggleExpand)
+                    .pointerInput(avatarResIds.size, safeIndex) {
+                        detectTapGestures { offset ->
+                            if (avatarResIds.size > 1) {
+                                when {
+                                    offset.x < size.width * 0.30f -> {
+                                        onSelectAvatarIndex((safeIndex - 1 + avatarResIds.size) % avatarResIds.size)
+                                    }
+                                    offset.x > size.width * 0.70f -> {
+                                        onSelectAvatarIndex((safeIndex + 1) % avatarResIds.size)
+                                    }
+                                    else -> onOpenFullscreen()
+                                }
+                            } else {
+                                onOpenFullscreen()
+                            }
+                        }
+                    }
             ) {
                 androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = primaryAvatar),
+                    painter = androidx.compose.ui.res.painterResource(id = displayedAvatar),
                     contentDescription = session.title,
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop,
                     modifier = Modifier
@@ -316,7 +346,7 @@ internal fun UserProfileHeroHeader(
                                     .height(2.5.dp)
                                     .clip(RoundedCornerShape(2.dp))
                                     .background(
-                                        if (idx == 0) Color.White else Color.White.copy(alpha = 0.35f)
+                                        if (idx == safeIndex) Color.White else Color.White.copy(alpha = 0.35f)
                                     )
                             )
                         }
@@ -327,6 +357,7 @@ internal fun UserProfileHeroHeader(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
+                        .graphicsLayer { alpha = (p * 1.35f).coerceIn(0f, 1f) }
                         .hazeEffect(
                             state = heroHaze,
                             style = HazeStyle(
@@ -501,23 +532,56 @@ internal fun UserProfileAvatarFullscreenOverlay(
     avatarResIds: List<Int>,
     title: String,
     strings: UserProfileStrings,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    initialPage: Int = 0
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val safeList = if (avatarResIds.isNotEmpty()) avatarResIds else return
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { safeList.size })
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(
+        initialPage = initialPage.coerceIn(0, (safeList.size - 1).coerceAtLeast(0)),
+        pageCount = { safeList.size }
+    )
     var isMenuOpen by remember { mutableStateOf(false) }
     var isHudVisible by remember { mutableStateOf(true) }
+    val dismissOffsetY = remember { Animatable(0f) }
+    var activePageScale by remember { mutableFloatStateOf(1f) }
+    val dismissProgress = (abs(dismissOffsetY.value) / 560f).coerceIn(0f, 1f)
+    val bgAlpha = (1f - dismissProgress * 0.78f).coerceIn(0.2f, 1f)
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color.Black.copy(alpha = bgAlpha))
+            .draggable(
+                orientation = Orientation.Vertical,
+                enabled = activePageScale <= 1.02f,
+                state = rememberDraggableState { delta ->
+                    scope.launch {
+                        dismissOffsetY.snapTo(dismissOffsetY.value + delta)
+                    }
+                },
+                onDragStopped = { velocity ->
+                    if (abs(dismissOffsetY.value) > 200f || abs(velocity) > 1100f) {
+                        onClose()
+                    } else {
+                        scope.launch {
+                            dismissOffsetY.animateTo(0f, spring())
+                        }
+                    }
+                }
+            )
     ) {
         androidx.compose.foundation.pager.HorizontalPager(
             state = pagerState,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    translationY = dismissOffsetY.value
+                    val s = 1f - dismissProgress * 0.12f
+                    scaleX = s
+                    scaleY = s
+                }
         ) { pageIdx ->
             var scale by remember(pageIdx) { mutableFloatStateOf(1f) }
             var offsetX by remember(pageIdx) { mutableFloatStateOf(0f) }
@@ -525,6 +589,9 @@ internal fun UserProfileAvatarFullscreenOverlay(
             val transformState = rememberTransformableState { zoomChange, panChange, _ ->
                 val next = (scale * zoomChange).coerceIn(1f, 4f)
                 scale = next
+                if (pageIdx == pagerState.currentPage) {
+                    activePageScale = next
+                }
                 if (next > 1.02f) {
                     offsetX = (offsetX + panChange.x).coerceIn(-600f * next, 600f * next)
                     offsetY = (offsetY + panChange.y).coerceIn(-600f * next, 600f * next)
@@ -536,11 +603,27 @@ internal fun UserProfileAvatarFullscreenOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clickable(
-                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                        indication = null,
-                        onClick = { isHudVisible = !isHudVisible }
-                    ),
+                    .pointerInput(pageIdx, safeList.size, scale) {
+                        detectTapGestures { offset ->
+                            if (safeList.size > 1 && scale <= 1.02f) {
+                                when {
+                                    offset.x < size.width * 0.24f -> {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage((pageIdx - 1).coerceAtLeast(0))
+                                        }
+                                    }
+                                    offset.x > size.width * 0.76f -> {
+                                        scope.launch {
+                                            pagerState.animateScrollToPage((pageIdx + 1).coerceAtMost(safeList.lastIndex))
+                                        }
+                                    }
+                                    else -> isHudVisible = !isHudVisible
+                                }
+                            } else {
+                                isHudVisible = !isHudVisible
+                            }
+                        }
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 androidx.compose.foundation.Image(

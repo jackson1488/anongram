@@ -408,6 +408,7 @@ fun MainAppShell(
         val chatsState by chatsViewModel.uiState.collectAsState()
         if (showDetailOverlay) {
             selectedSession?.let { session ->
+                var isChatChildOverlayOpen by remember(session.id) { mutableStateOf(false) }
                 val chatMessagesViewModel: ChatMessagesViewModel = viewModel(
                     key = "chat_msgs_${session.id}",
                     factory = viewModelFactory {
@@ -419,7 +420,7 @@ fun MainAppShell(
                     isExit = isDetailExiting,
                     config = navConfig,
                     modifier = Modifier.swipeBackGesture(
-                        enabled = navConfig.allowFullWidthSwipe,
+                        enabled = navConfig.allowFullWidthSwipe && !isChatChildOverlayOpen,
                         onDragStart = { isDetailExiting = true },
                         onDragProgress = { p -> scope.launch { detailProgress.snapTo(p) } },
                         onDragEnd = { shouldClose ->
@@ -439,7 +440,8 @@ fun MainAppShell(
                                 val target = chatsViewModel.findOrCreateDirectChat(name, handleOrPhone)
                                 onReady(target)
                             }
-                        }
+                        },
+                        onChildOverlayOpenChange = { isChatChildOverlayOpen = it }
                     )
                 }
             }
