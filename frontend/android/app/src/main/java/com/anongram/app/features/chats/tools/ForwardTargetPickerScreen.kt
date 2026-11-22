@@ -417,15 +417,20 @@ fun ForwardTargetPickerScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        sharedPreviewUris.take(4).forEach { uriStr ->
-                            coil.compose.AsyncImage(
-                                model = uriStr,
-                                contentDescription = null,
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                modifier = Modifier
-                                    .size(44.dp)
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(10.dp))
+                        sharedPreviewUris.take(4).forEachIndexed { idx, uriStr ->
+                            com.anongram.app.features.chats.input.reply.ReplyAttachmentMiniThumb(
+                                message = com.anongram.app.features.chats.messages.domain.ChatMessage(
+                                    id = "preview_$idx",
+                                    direction = com.anongram.app.features.chats.messages.domain.MessageDirection.OUTGOING,
+                                    epochMs = 0L,
+                                    attachment = com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo(
+                                        label = "Photo",
+                                        colorSeed = idx,
+                                        uri = uriStr
+                                    )
+                                ),
+                                accent = scheme.accent,
+                                size = 44.dp
                             )
                         }
                         if (sharedPreviewUris.size > 4) {

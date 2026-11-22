@@ -77,9 +77,11 @@ fun FusedForwardBar(
         Spacer(modifier = Modifier.width(8.dp))
         if (first.attachment != null) {
             ReplyAttachmentMiniThumb(
-                attachment = first.attachment,
-                modifier = Modifier.padding(end = 8.dp)
+                message = first,
+                accent = scheme.accent,
+                size = 32.dp
             )
+            Spacer(modifier = Modifier.width(8.dp))
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
