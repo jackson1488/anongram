@@ -311,37 +311,32 @@ fun ChatsMainMenuScreen(
         targetValue = if (isScrolled) 1f else 0f,
         label = "chatsHeaderAlpha"
     )
-    val glassTintAlpha = if (scheme.isDark) {
-        0.22f * animatedHeaderAlpha
-    } else {
-        0.28f * animatedHeaderAlpha
-    }
     val themedHeaderTint = androidx.compose.ui.graphics.lerp(
-        scheme.surface,
+        scheme.card,
         scheme.accent,
-        if (scheme.isDark) 0.14f else 0.08f
+        if (scheme.isDark) 0.22f else 0.14f
     )
 
     val headerBackgroundModifier = when {
-        animatedHeaderAlpha <= 0.01f -> Modifier
+        animatedHeaderAlpha <= 0.05f -> Modifier
         animState.glassBlurEnabled -> Modifier.hazeEffect(
             state = hazeState,
             style = HazeStyle(
-                backgroundColor = Color.Transparent,
-                tint = HazeTint(color = themedHeaderTint.copy(alpha = glassTintAlpha)),
-                blurRadius = 24.dp,
+                backgroundColor = scheme.background.copy(alpha = 0.35f * animatedHeaderAlpha),
+                tint = HazeTint(color = themedHeaderTint.copy(alpha = 0.52f * animatedHeaderAlpha)),
+                blurRadius = 22.dp,
                 noiseFactor = 0.02f
             )
         ) {
             progressive = HazeProgressive.verticalGradient(
-                startIntensity = animatedHeaderAlpha,
+                startIntensity = 1f,
                 endIntensity = 0f
             )
         }
         else -> Modifier.background(
             Brush.verticalGradient(
                 colors = listOf(
-                    themedHeaderTint.copy(alpha = 0.85f * animatedHeaderAlpha),
+                    themedHeaderTint.copy(alpha = 0.88f * animatedHeaderAlpha),
                     scheme.background.copy(alpha = 0.45f * animatedHeaderAlpha),
                     Color.Transparent
                 )
