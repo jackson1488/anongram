@@ -126,7 +126,6 @@ fun UserProfileScreen(
     val blockedIds by com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.blockedIds.collectAsState()
     val isBlocked = session.id in blockedIds
 
-    val scope = rememberCoroutineScope()
     val heroExpandProgress = remember(session.id) { Animatable(0f) }
     val isExpandedHero by remember { derivedStateOf { heroExpandProgress.value >= 0.45f } }
     var currentAvatarIndex by remember(session.id) { mutableIntStateOf(0) }
