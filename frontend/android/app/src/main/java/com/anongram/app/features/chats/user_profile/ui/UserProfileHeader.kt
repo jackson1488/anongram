@@ -506,6 +506,7 @@ internal fun UserProfileAvatarFullscreenOverlay(
     val safeList = if (avatarResIds.isNotEmpty()) avatarResIds else return
     val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { safeList.size })
     var isMenuOpen by remember { mutableStateOf(false) }
+    var isHudVisible by remember { mutableStateOf(true) }
 
     Box(
         modifier = Modifier
@@ -536,7 +537,7 @@ internal fun UserProfileAvatarFullscreenOverlay(
                     .clickable(
                         interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
                         indication = null,
-                        onClick = onClose
+                        onClick = { isHudVisible = !isHudVisible }
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -560,96 +561,122 @@ internal fun UserProfileAvatarFullscreenOverlay(
             }
         }
 
-        // Верхняя панель: простая стрелка назад (без кружка), имя, 3 точки (Сохранить / Поделиться)
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)
-                    )
-                )
-                .safeStatusBarPadding()
-                .padding(horizontal = 8.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // Верхняя панель: простая стрелка назад (без кружка), имя, 3 точки (Сохранить / Поделиться с иконками)
+        androidx.compose.animation.AnimatedVisibility(
+            visible = isHudVisible,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            androidx.compose.material3.IconButton(onClick = onClose) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = strings.back,
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            Column(
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 6.dp)
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)
+                        )
+                    )
+                    .safeStatusBarPadding()
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (safeList.size > 1) {
-                    Text(
-                        text = "${pagerState.currentPage + 1} / ${safeList.size}",
-                        color = Color.White.copy(alpha = 0.72f),
-                        fontSize = 12.sp
-                    )
-                }
-            }
-            Box {
-                androidx.compose.material3.IconButton(onClick = { isMenuOpen = true }) {
+                androidx.compose.material3.IconButton(onClick = onClose) {
                     Icon(
-                        imageVector = Icons.Outlined.MoreVert,
-                        contentDescription = strings.moreOptions,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = strings.back,
                         tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     )
                 }
-                val scheme = LocalAnonGramScheme.current
-                androidx.compose.material3.DropdownMenu(
-                    expanded = isMenuOpen,
-                    onDismissRequest = { isMenuOpen = false },
+                Column(
                     modifier = Modifier
-                        .background(scheme.card, RoundedCornerShape(16.dp))
-                        .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
+                        .weight(1f)
+                        .padding(horizontal = 6.dp)
                 ) {
-                    androidx.compose.material3.DropdownMenuItem(
-                        text = { Text(strings.saveToGallery, color = scheme.textPrimary, fontSize = 14.sp) },
-                        onClick = {
-                            isMenuOpen = false
-                            val resId = safeList[pagerState.currentPage]
-                            val ok = saveDrawableToGallery(context, resId, "${title}_${pagerState.currentPage + 1}")
-                            android.widget.Toast.makeText(
-                                context,
-                                if (ok) strings.savedToGalleryToast else "Error",
-                                android.widget.Toast.LENGTH_SHORT
-                            ).show()
-                        }
+                    Text(
+                        text = title,
+                        color = Color.White,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    androidx.compose.material3.DropdownMenuItem(
-                        text = { Text(strings.sharePhoto, color = scheme.textPrimary, fontSize = 14.sp) },
-                        onClick = {
-                            isMenuOpen = false
-                            val resId = safeList[pagerState.currentPage]
-                            shareDrawableSystem(context, resId, "${title}_${pagerState.currentPage + 1}")
-                        }
-                    )
+                    if (safeList.size > 1) {
+                        Text(
+                            text = "${pagerState.currentPage + 1} / ${safeList.size}",
+                            color = Color.White.copy(alpha = 0.72f),
+                            fontSize = 12.sp
+                        )
+                    }
+                }
+                Box {
+                    androidx.compose.material3.IconButton(onClick = { isMenuOpen = true }) {
+                        Icon(
+                            imageVector = Icons.Outlined.MoreVert,
+                            contentDescription = strings.moreOptions,
+                            tint = Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                    val scheme = LocalAnonGramScheme.current
+                    androidx.compose.material3.DropdownMenu(
+                        expanded = isMenuOpen,
+                        onDismissRequest = { isMenuOpen = false },
+                        modifier = Modifier
+                            .background(scheme.card, RoundedCornerShape(16.dp))
+                            .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
+                    ) {
+                        androidx.compose.material3.DropdownMenuItem(
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Outlined.Download,
+                                    contentDescription = null,
+                                    tint = scheme.textPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            text = { Text(strings.saveToGallery, color = scheme.textPrimary, fontSize = 14.sp) },
+                            onClick = {
+                                isMenuOpen = false
+                                val resId = safeList[pagerState.currentPage]
+                                val ok = saveDrawableToGallery(context, resId, "${title}_${pagerState.currentPage + 1}")
+                                android.widget.Toast.makeText(
+                                    context,
+                                    if (ok) strings.savedToGalleryToast else "Error",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        )
+                        androidx.compose.material3.DropdownMenuItem(
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Outlined.Share,
+                                    contentDescription = null,
+                                    tint = scheme.textPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            text = { Text(strings.sharePhoto, color = scheme.textPrimary, fontSize = 14.sp) },
+                            onClick = {
+                                isMenuOpen = false
+                                val resId = safeList[pagerState.currentPage]
+                                shareDrawableSystem(context, resId, "${title}_${pagerState.currentPage + 1}")
+                            }
+                        )
+                    }
                 }
             }
         }
 
         // Нижняя лента миниатюр альбома аватаров
-        if (safeList.size > 1) {
+        androidx.compose.animation.AnimatedVisibility(
+            visible = isHudVisible && safeList.size > 1,
+            enter = androidx.compose.animation.fadeIn(),
+            exit = androidx.compose.animation.fadeOut(),
+            modifier = Modifier.align(Alignment.BottomCenter)
+        ) {
             androidx.compose.foundation.lazy.LazyRow(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(

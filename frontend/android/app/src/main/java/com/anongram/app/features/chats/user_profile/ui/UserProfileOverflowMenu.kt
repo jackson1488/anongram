@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.LockOpen
 import androidx.compose.material.icons.outlined.Report
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Timer
@@ -54,6 +55,7 @@ internal fun UserProfileOverflowMenu(
     expanded: Boolean,
     selfDestruct: SelfDestruct,
     isContact: Boolean,
+    isBlocked: Boolean = false,
     showGridZoomOptions: Boolean = false,
     canZoomIn: Boolean = false,
     canZoomOut: Boolean = false,
@@ -78,7 +80,7 @@ internal fun UserProfileOverflowMenu(
         onDismissRequest = onDismiss,
         offset = DpOffset(x = (-8).dp, y = 6.dp),
         modifier = Modifier
-            .width(256.dp)
+            .width(224.dp)
             .background(scheme.card, RoundedCornerShape(18.dp))
             .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
     ) {
@@ -106,28 +108,29 @@ internal fun UserProfileOverflowMenu(
                 }
             } else {
                 MenuRowItem(
-                icon = Icons.Outlined.Timer,
-                label = strings.menuAutoDelete,
-                trailingIcon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                onClick = { inAutoDeleteSubmenu = true }
-            )
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-            MenuRowItem(
-                icon = Icons.Outlined.Share,
-                label = strings.menuShareContact,
-                onClick = {
-                    onDismiss()
-                    onShareContact()
-                }
-            )
-            MenuRowItem(
-                icon = Icons.Outlined.Block,
-                label = strings.menuBlock,
-                onClick = {
-                    onDismiss()
-                    onBlockUser()
-                }
-            )
+                    icon = Icons.Outlined.Timer,
+                    label = strings.menuAutoDelete,
+                    trailingIcon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    onClick = { inAutoDeleteSubmenu = true }
+                )
+                HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
+                MenuRowItem(
+                    icon = Icons.Outlined.Share,
+                    label = strings.menuShareContact,
+                    onClick = {
+                        onDismiss()
+                        onShareContact()
+                    }
+                )
+                MenuRowItem(
+                    icon = if (isBlocked) Icons.Outlined.LockOpen else Icons.Outlined.Block,
+                    label = if (isBlocked) strings.menuUnblock else strings.menuBlock,
+                    tint = if (isBlocked) scheme.accent else scheme.textPrimary,
+                    onClick = {
+                        onDismiss()
+                        onBlockUser()
+                    }
+                )
             if (isContact) {
                 MenuRowItem(
                     icon = Icons.Outlined.Edit,

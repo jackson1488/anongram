@@ -114,6 +114,12 @@ fun UserProfileScreen(
     val strings = remember(lang) { UserProfileI18n.forLanguage(lang) }
     val scope = rememberCoroutineScope()
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.ensureInitialized(context)
+    }
+    val blockedIds by com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.blockedIds.collectAsState()
+    val isBlocked = session.id in blockedIds
+
     var isExpandedHero by remember(session.id) { mutableStateOf(false) }
     var isAvatarFullscreenOpen by remember(session.id) { mutableStateOf(false) }
     var isOverflowOpen by remember { mutableStateOf(false) }
@@ -121,7 +127,6 @@ fun UserProfileScreen(
     var isQrOverlayOpen by remember { mutableStateOf(false) }
     var isQrScannerOpen by remember { mutableStateOf(false) }
     var addedToContactsLocal by remember(session.id) { mutableStateOf(isContact) }
-    var predictiveBackProgress by remember(session.id) { mutableFloatStateOf(0f) }
     var gridColumns by remember { mutableIntStateOf(3) }
     var selectedKeys by remember(session.id) { mutableStateOf(emptySet<String>()) }
     val hazeState = remember { HazeState() }
@@ -146,25 +151,14 @@ fun UserProfileScreen(
             ?: session.title.lowercase().replace(Regex("[^a-z0-9_а-яё]"), "_").take(20)
     }
 
-    val hasInnerOverlay = isAvatarFullscreenOpen || isQrScannerOpen || isQrOverlayOpen || isCustomAutoDeleteOpen || selectedKeys.isNotEmpty()
-    BackHandler(enabled = hasInnerOverlay) {
+    BackHandler {
         when {
             isAvatarFullscreenOpen -> isAvatarFullscreenOpen = false
             selectedKeys.isNotEmpty() -> selectedKeys = emptySet()
             isQrScannerOpen -> isQrScannerOpen = false
             isQrOverlayOpen -> isQrOverlayOpen = false
             isCustomAutoDeleteOpen -> isCustomAutoDeleteOpen = false
-        }
-    }
-
-    PredictiveBackHandler(enabled = !hasInnerOverlay) { progressFlow ->
-        try {
-            progressFlow.collect { backEvent ->
-                predictiveBackProgress = backEvent.progress.coerceIn(0f, 1f)
-            }
-            onBack()
-        } catch (_: CancellationException) {
-            predictiveBackProgress = 0f
+            else -> onBack()
         }
     }
 
@@ -197,33 +191,9 @@ fun UserProfileScreen(
         }
     }
 
-    val swipeDragAnim = remember { androidx.compose.animation.core.Animatable(0f) }
-    val combinedDismissProgress = maxOf(predictiveBackProgress, swipeDragAnim.value)
-
-    // На первом табе или в верхней части профиля свайп вправо возвращает в чат;
-    // на остальных табах горизонтальный свайп листает HorizontalPager без конфликта.
-    val allowSwipeBack = !hasInnerOverlay && (availableTabs.isEmpty() || !isCollapsed || pagerState.currentPage == 0)
-
     AnonGramScreenSurface(
         applySystemBarsPadding = false,
-        modifier = modifier
-            .fillMaxSize()
-            .swipeBackGesture(
-                enabled = allowSwipeBack,
-                onDragStart = {},
-                onDragProgress = { p -> scope.launch { swipeDragAnim.snapTo(p) } },
-                onDragEnd = { shouldClose ->
-                    if (shouldClose) {
-                        onBack()
-                    } else {
-                        scope.launch { swipeDragAnim.animateTo(0f) }
-                    }
-                }
-            )
-            .graphicsLayer {
-                translationX = combinedDismissProgress * size.width * 0.92f
-                alpha = (1f - combinedDismissProgress * 0.25f).coerceIn(0.65f, 1f)
-            }
+        modifier = modifier.fillMaxSize()
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
@@ -249,6 +219,7 @@ fun UserProfileScreen(
                                 UserProfileActionsRow(
                                     isMuted = session.isMuted,
                                     strings = strings,
+                                    hazeState = hazeState,
                                     onChatClick = onBack,
                                     onMuteToggle = onToggleMute,
                                     onCallClick = {
@@ -268,6 +239,7 @@ fun UserProfileScreen(
                         UserProfileActionsRow(
                             isMuted = session.isMuted,
                             strings = strings,
+                            hazeState = hazeState,
                             onChatClick = onBack,
                             onMuteToggle = onToggleMute,
                             onCallClick = {
@@ -421,7 +393,7 @@ fun UserProfileScreen(
                                                         }
                                                     )
                                                 },
-                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 72.dp)
                                         ) {
                                             items(chunked) { rowItems ->
                                                 UserProfileMediaGridRow(
@@ -451,7 +423,7 @@ fun UserProfileScreen(
                                     UserProfileTab.FILES -> {
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 72.dp)
                                         ) {
                                             items(buckets.files) { fileItem ->
                                                 UserProfileFileRow(item = fileItem)
@@ -462,7 +434,7 @@ fun UserProfileScreen(
                                     UserProfileTab.LINKS -> {
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 72.dp)
                                         ) {
                                             items(buckets.links) { linkItem ->
                                                 UserProfileLinkRow(item = linkItem)
@@ -473,7 +445,7 @@ fun UserProfileScreen(
                                     UserProfileTab.AUDIO -> {
                                         LazyColumn(
                                             modifier = Modifier.fillMaxSize(),
-                                            contentPadding = PaddingValues(top = 56.dp, bottom = 28.dp)
+                                            contentPadding = PaddingValues(top = 56.dp, bottom = 72.dp)
                                         ) {
                                             items(buckets.audio) { audioItem ->
                                                 UserProfileAudioRow(
@@ -546,11 +518,18 @@ fun UserProfileScreen(
                 },
                 onOpenOverflow = { isOverflowOpen = true },
                 overflowMenu = {
-                    val isMediaGridTab = isCollapsed && (selectedTab == UserProfileTab.MEDIA || selectedTab == UserProfileTab.GIF)
+                    val isInMediaSection by remember {
+                        derivedStateOf {
+                            val pagerItem = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == "pager_content" }
+                            listState.firstVisibleItemIndex >= 2 || (pagerItem != null && pagerItem.offset <= 500)
+                        }
+                    }
+                    val isMediaGridTab = isInMediaSection && (selectedTab == UserProfileTab.MEDIA || selectedTab == UserProfileTab.GIF)
                     UserProfileOverflowMenu(
                         expanded = isOverflowOpen,
                         selfDestruct = selfDestruct,
                         isContact = addedToContactsLocal,
+                        isBlocked = isBlocked,
                         showGridZoomOptions = isMediaGridTab,
                         canZoomIn = gridColumns > 2,
                         canZoomOut = gridColumns < 6,
@@ -566,7 +545,12 @@ fun UserProfileScreen(
                             Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
                         },
                         onBlockUser = {
-                            Toast.makeText(context, strings.blockedToast, Toast.LENGTH_SHORT).show()
+                            val nowBlocked = com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.toggle(context, session.id)
+                            Toast.makeText(
+                                context,
+                                if (nowBlocked) strings.blockedToast else strings.unblockedToast,
+                                Toast.LENGTH_SHORT
+                            ).show()
                         },
                         onEditContact = {
                             Toast.makeText(context, session.title, Toast.LENGTH_SHORT).show()

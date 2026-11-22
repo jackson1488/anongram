@@ -31,6 +31,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.user_profile.i18n.UserProfileStrings
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 
 @Composable
 internal fun UserProfileActionsRow(
@@ -40,6 +44,7 @@ internal fun UserProfileActionsRow(
     onMuteToggle: () -> Unit,
     onCallClick: () -> Unit,
     onVideoClick: () -> Unit,
+    hazeState: HazeState? = null,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -52,6 +57,7 @@ internal fun UserProfileActionsRow(
             icon = Icons.Outlined.ChatBubbleOutline,
             label = strings.actionChat,
             isActive = false,
+            hazeState = hazeState,
             onClick = onChatClick,
             modifier = Modifier.weight(1f)
         )
@@ -59,6 +65,7 @@ internal fun UserProfileActionsRow(
             icon = if (isMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.Notifications,
             label = if (isMuted) strings.actionMuted else strings.actionSound,
             isActive = isMuted,
+            hazeState = hazeState,
             onClick = onMuteToggle,
             modifier = Modifier.weight(1f)
         )
@@ -66,6 +73,7 @@ internal fun UserProfileActionsRow(
             icon = Icons.Outlined.Call,
             label = strings.actionCall,
             isActive = false,
+            hazeState = hazeState,
             onClick = onCallClick,
             modifier = Modifier.weight(1f)
         )
@@ -73,6 +81,7 @@ internal fun UserProfileActionsRow(
             icon = Icons.Outlined.Videocam,
             label = strings.actionVideo,
             isActive = false,
+            hazeState = hazeState,
             onClick = onVideoClick,
             modifier = Modifier.weight(1f)
         )
@@ -84,15 +93,29 @@ private fun ActionTile(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
+    hazeState: HazeState?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val shape = RoundedCornerShape(18.dp)
+    val bgModifier = when {
+        isActive -> Modifier.background(scheme.accentSoft)
+        hazeState != null -> Modifier.hazeEffect(
+            state = hazeState,
+            style = HazeStyle(
+                backgroundColor = scheme.card.copy(alpha = 0.45f),
+                tint = HazeTint(color = scheme.surface.copy(alpha = 0.45f)),
+                blurRadius = 20.dp,
+                noiseFactor = 0.02f
+            )
+        )
+        else -> Modifier.background(scheme.card.copy(alpha = 0.72f))
+    }
     Column(
         modifier = modifier
             .clip(shape)
-            .background(if (isActive) scheme.accentSoft else scheme.card)
+            .then(bgModifier)
             .border(0.6.dp, scheme.islandBorder, shape)
             .clickable(onClick = onClick)
             .padding(vertical = 11.dp, horizontal = 4.dp),

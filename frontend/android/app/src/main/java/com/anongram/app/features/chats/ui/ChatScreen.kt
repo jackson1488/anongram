@@ -5,9 +5,20 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Text
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.anongram.app.core.ui.safeNavigationBarPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.runtime.Composable
@@ -329,45 +340,86 @@ fun ChatScreen(
             )
         }
 
-        ChatInputDock(
-            state = state,
-            peerName = session.title,
-            viewModel = viewModel,
-            listState = listState,
-            imeMetrics = imeMetrics,
-            inputFocusRequester = inputFocusRequester,
-            isSearchListMode = isSearchListMode,
-            onToggleSearchListMode = { isSearchListMode = !isSearchListMode },
-            isVideoReviewPlaying = isVideoReviewPlaying,
-            videoReviewProgress = videoReviewProgress,
-            videoReviewDurationMs = videoReviewDurationMs,
-            videoReviewTrimStart = videoReviewTrimStart,
-            videoReviewTrimEnd = videoReviewTrimEnd,
-            onToggleVideoReviewPlay = { isVideoReviewPlaying = !isVideoReviewPlaying },
-            onSeekVideoReview = { frac ->
-                videoReviewProgress = frac
-                videoReviewSeekCount += 1
-                videoReviewSeekTrigger = videoReviewSeekCount to frac
-            },
-            onVideoTrimStartChange = { start -> videoReviewTrimStart = start },
-            onVideoTrimEndChange = { end -> videoReviewTrimEnd = end },
-            onFinishVideoReviewSend = {
-                viewModel.sendVideoReview(context, videoReviewTrimStart, videoReviewTrimEnd)
-            },
-            onOpenFullEditor = { isFullEditorOpen = true },
-            onOpenReplyPreview = { isReplyPreviewOpen = true },
-            onOpenReplaceAttach = { tab ->
-                replaceInitialTab = tab
-                isReplaceAttachSheetOpen = true
-            },
-            onRequestRecordPermissions = { mode, perms ->
-                pendingRecordMode = mode
-                recordPermissionLauncher.launch(perms)
-            },
-            modifier = Modifier
-                .zIndex(3f)
-                .align(Alignment.BottomCenter)
-        )
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.ensureInitialized(context)
+        }
+        val blockedIds by com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.blockedIds.collectAsState()
+        val isPeerBlocked = session.id in blockedIds
+
+        if (isPeerBlocked) {
+            val lang by com.anongram.app.core.i18n.LanguageSettingsStore.language.collectAsState()
+            val unblockLabel = remember(lang) {
+                com.anongram.app.features.chats.user_profile.i18n.UserProfileI18n.forLanguage(lang).unblockButton
+            }
+            Box(
+                modifier = Modifier
+                    .zIndex(3f)
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .safeNavigationBarPadding()
+                    .padding(horizontal = 12.dp, vertical = 10.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(scheme.card.copy(alpha = 0.78f))
+                        .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(26.dp))
+                        .clickable {
+                            com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.unblock(context, session.id)
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = unblockLabel,
+                        color = scheme.accent,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        } else {
+            ChatInputDock(
+                state = state,
+                peerName = session.title,
+                viewModel = viewModel,
+                listState = listState,
+                imeMetrics = imeMetrics,
+                inputFocusRequester = inputFocusRequester,
+                isSearchListMode = isSearchListMode,
+                onToggleSearchListMode = { isSearchListMode = !isSearchListMode },
+                isVideoReviewPlaying = isVideoReviewPlaying,
+                videoReviewProgress = videoReviewProgress,
+                videoReviewDurationMs = videoReviewDurationMs,
+                videoReviewTrimStart = videoReviewTrimStart,
+                videoReviewTrimEnd = videoReviewTrimEnd,
+                onToggleVideoReviewPlay = { isVideoReviewPlaying = !isVideoReviewPlaying },
+                onSeekVideoReview = { frac ->
+                    videoReviewProgress = frac
+                    videoReviewSeekCount += 1
+                    videoReviewSeekTrigger = videoReviewSeekCount to frac
+                },
+                onVideoTrimStartChange = { start -> videoReviewTrimStart = start },
+                onVideoTrimEndChange = { end -> videoReviewTrimEnd = end },
+                onFinishVideoReviewSend = {
+                    viewModel.sendVideoReview(context, videoReviewTrimStart, videoReviewTrimEnd)
+                },
+                onOpenFullEditor = { isFullEditorOpen = true },
+                onOpenReplyPreview = { isReplyPreviewOpen = true },
+                onOpenReplaceAttach = { tab ->
+                    replaceInitialTab = tab
+                    isReplaceAttachSheetOpen = true
+                },
+                onRequestRecordPermissions = { mode, perms ->
+                    pendingRecordMode = mode
+                    recordPermissionLauncher.launch(perms)
+                },
+                modifier = Modifier
+                    .zIndex(3f)
+                    .align(Alignment.BottomCenter)
+            )
+        }
 
         val scrimHeight = if (state.pinnedMessage != null && !state.isSearchOpen && !state.isSelectionMode) {
             144.dp
