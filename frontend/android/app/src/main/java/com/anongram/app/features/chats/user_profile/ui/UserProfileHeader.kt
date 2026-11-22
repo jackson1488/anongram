@@ -24,7 +24,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -629,7 +631,7 @@ internal fun UserProfileAvatarFullscreenOverlay(
                         androidx.compose.material3.DropdownMenuItem(
                             leadingIcon = {
                                 Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.Outlined.Download,
+                                    imageVector = Icons.Outlined.Download,
                                     contentDescription = null,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
@@ -650,7 +652,7 @@ internal fun UserProfileAvatarFullscreenOverlay(
                         androidx.compose.material3.DropdownMenuItem(
                             leadingIcon = {
                                 Icon(
-                                    imageVector = androidx.compose.material.icons.Icons.Outlined.Share,
+                                    imageVector = Icons.Outlined.Share,
                                     contentDescription = null,
                                     tint = scheme.textPrimary,
                                     modifier = Modifier.size(20.dp)
