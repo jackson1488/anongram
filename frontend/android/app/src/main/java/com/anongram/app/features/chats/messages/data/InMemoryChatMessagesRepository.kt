@@ -288,6 +288,27 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
         list.add(msg(MessageDirection.INCOMING, "До 10 000 сообщений в секунду без задержек.", t3 + 10 * h + 6 * m, reactions = mapOf("🔥" to 2)))
         list.add(msg(MessageDirection.OUTGOING, "Отличная скорость! Завтра подключим мобильных клиентов.", t3 + 10 * h + 10 * m))
         list.add(msg(MessageDirection.INCOMING, "Кстати, Боб спрашивал про архив документации.", t3 + 12 * h))
+
+        // --- 100 тестовых медиа для проверки сетки в профиле Алисы ---
+        val sampleUris = listOf(
+            "android.resource://com.anongram.app/drawable/avatar_alice",
+            "android.resource://com.anongram.app/drawable/avatar_vera",
+            "android.resource://com.anongram.app/drawable/avatar_arthur"
+        )
+        for (albumIdx in 0 until 10) {
+            val albumItems = List(10) { itemIdx ->
+                val uri = sampleUris[(albumIdx * 10 + itemIdx) % sampleUris.size]
+                MessageAttachment.AlbumMediaItem(uri = uri, isVideo = false)
+            }
+            list.add(
+                msg(
+                    direction = if (albumIdx % 2 == 0) MessageDirection.INCOMING else MessageDirection.OUTGOING,
+                    text = if (albumIdx == 0) "Подборка тестовых фото для галереи" else "",
+                    epochMs = t3 + 13 * h + albumIdx * m,
+                    attachment = MessageAttachment.MediaAlbum(items = albumItems)
+                )
+            )
+        }
         list.add(msg(MessageDirection.OUTGOING, "Архив выгружен на защищённый сервер.", t3 + 12 * h + 3 * m))
         list.add(msg(MessageDirection.INCOMING, "", t3 + 13 * h, attachment = MessageAttachment.Voice("0:28", listOf(4, 9, 7, 14, 6, 12, 5, 8, 11, 4, 10, 6, 13, 8, 5, 12, 7, 9, 14, 5, 8, 11, 6, 9))))
         list.add(msg(MessageDirection.OUTGOING, "Послушал голосовое. По созвону согласен, давай в 15:00.", t3 + 13 * h + 5 * m))

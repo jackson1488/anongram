@@ -7,21 +7,30 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,15 +39,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import com.anongram.app.core.navigation.swipeBackGesture
-import dev.chrisbanes.haze.hazeSource
-import kotlinx.coroutines.launch
-import kotlin.coroutines.cancellation.CancellationException
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.core.navigation.swipeBackGesture
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.domain.ChatMessage
@@ -67,6 +74,10 @@ import com.anongram.app.features.chats.user_profile.ui.UserProfileTopOverlayBar
 import com.anongram.app.features.chats.user_profile.ui.tabSummaryText
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import com.anongram.app.features.settings.qr.ui.QrCameraScannerScreen
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import kotlinx.coroutines.launch
+import kotlin.coroutines.cancellation.CancellationException
 
 private val URL_REGEX = Regex("""https?://[^\s<>"')]+""", RegexOption.IGNORE_CASE)
 
@@ -96,6 +107,7 @@ fun UserProfileScreen(
     val lang by LanguageSettingsStore.language.collectAsState()
     val isRu = lang == AppLanguage.RU
     val strings = remember(lang) { UserProfileI18n.forLanguage(lang) }
+    val scope = rememberCoroutineScope()
 
     var isExpandedHero by remember(session.id) { mutableStateOf(false) }
     var isAvatarFullscreenOpen by remember(session.id) { mutableStateOf(false) }
@@ -104,19 +116,18 @@ fun UserProfileScreen(
     var isQrOverlayOpen by remember { mutableStateOf(false) }
     var isQrScannerOpen by remember { mutableStateOf(false) }
     var addedToContactsLocal by remember(session.id) { mutableStateOf(isContact) }
-    var predictiveBackProgress by remember { mutableFloatStateOf(0f) }
-    var gridColumns by remember { androidx.compose.runtime.mutableIntStateOf(3) }
-    var selectedIds by remember(session.id) { mutableStateOf(emptySet<String>()) }
-    val hazeState = remember { dev.chrisbanes.haze.HazeState() }
+    var predictiveBackProgress by remember(session.id) { mutableFloatStateOf(0f) }
+    var gridColumns by remember { mutableIntStateOf(3) }
+    var selectedKeys by remember(session.id) { mutableStateOf(emptySet<String>()) }
+    val hazeState = remember { HazeState() }
 
     val buckets = remember(messages) { extractProfileBuckets(messages) }
     val availableTabs = remember(buckets) { buckets.availableTabs() }
-    var selectedTab by remember(availableTabs) {
-        mutableStateOf(availableTabs.firstOrNull() ?: UserProfileTab.MEDIA)
-    }
-    if (availableTabs.isNotEmpty() && selectedTab !in availableTabs) {
-        selectedTab = availableTabs.first()
-    }
+    val pagerState = rememberPagerState(
+        initialPage = 0,
+        pageCount = { availableTabs.size.coerceAtLeast(1) }
+    )
+    val selectedTab = availableTabs.getOrElse(pagerState.currentPage) { UserProfileTab.MEDIA }
 
     val listState = rememberLazyListState()
     val isCollapsed by remember {
@@ -130,11 +141,11 @@ fun UserProfileScreen(
             ?: session.title.lowercase().replace(Regex("[^a-z0-9_а-яё]"), "_").take(20)
     }
 
-    val hasInnerOverlay = isAvatarFullscreenOpen || isQrScannerOpen || isQrOverlayOpen || isCustomAutoDeleteOpen || selectedIds.isNotEmpty()
+    val hasInnerOverlay = isAvatarFullscreenOpen || isQrScannerOpen || isQrOverlayOpen || isCustomAutoDeleteOpen || selectedKeys.isNotEmpty()
     BackHandler(enabled = hasInnerOverlay) {
         when {
             isAvatarFullscreenOpen -> isAvatarFullscreenOpen = false
-            selectedIds.isNotEmpty() -> selectedIds = emptySet()
+            selectedKeys.isNotEmpty() -> selectedKeys = emptySet()
             isQrScannerOpen -> isQrScannerOpen = false
             isQrOverlayOpen -> isQrOverlayOpen = false
             isCustomAutoDeleteOpen -> isCustomAutoDeleteOpen = false
@@ -146,7 +157,6 @@ fun UserProfileScreen(
             progressFlow.collect { backEvent ->
                 predictiveBackProgress = backEvent.progress.coerceIn(0f, 1f)
             }
-            predictiveBackProgress = 0f
             onBack()
         } catch (_: CancellationException) {
             predictiveBackProgress = 0f
@@ -182,23 +192,26 @@ fun UserProfileScreen(
         }
     }
 
-    val swipeScope = androidx.compose.runtime.rememberCoroutineScope()
     val swipeDragAnim = remember { androidx.compose.animation.core.Animatable(0f) }
     val combinedDismissProgress = maxOf(predictiveBackProgress, swipeDragAnim.value)
+
+    // На первом табе или в верхней части профиля свайп вправо возвращает в чат;
+    // на остальных табах горизонтальный свайп листает HorizontalPager без конфликта.
+    val allowSwipeBack = !hasInnerOverlay && (availableTabs.isEmpty() || !isCollapsed || pagerState.currentPage == 0)
 
     AnonGramScreenSurface(
         applySystemBarsPadding = false,
         modifier = modifier
             .fillMaxSize()
             .swipeBackGesture(
-                enabled = !hasInnerOverlay,
+                enabled = allowSwipeBack,
                 onDragStart = {},
-                onDragProgress = { p -> swipeScope.launch { swipeDragAnim.snapTo(p) } },
+                onDragProgress = { p -> scope.launch { swipeDragAnim.snapTo(p) } },
                 onDragEnd = { shouldClose ->
                     if (shouldClose) {
                         onBack()
                     } else {
-                        swipeScope.launch { swipeDragAnim.animateTo(0f) }
+                        scope.launch { swipeDragAnim.animateTo(0f) }
                     }
                 }
             )
@@ -223,11 +236,7 @@ fun UserProfileScreen(
                         strings = strings,
                         onToggleExpand = {
                             if (hasRealAvatar) {
-                                if (isExpandedHero) {
-                                    isAvatarFullscreenOpen = true
-                                } else {
-                                    isAvatarFullscreenOpen = true
-                                }
+                                isAvatarFullscreenOpen = true
                             }
                         }
                     )
@@ -277,90 +286,128 @@ fun UserProfileScreen(
 
                 if (availableTabs.isNotEmpty()) {
                     item(key = "tabs_spacer") {
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
 
                     stickyHeader(key = "sticky_tabs") {
                         UserProfileTabBar(
                             tabs = availableTabs,
                             selectedTab = selectedTab,
+                            hazeState = hazeState,
                             strings = strings,
-                            onSelectTab = { selectedTab = it }
+                            onSelectTab = { tab ->
+                                val idx = availableTabs.indexOf(tab)
+                                if (idx >= 0) {
+                                    scope.launch { pagerState.animateScrollToPage(idx) }
+                                }
+                            }
                         )
                     }
 
-                    when (selectedTab) {
-                        UserProfileTab.MEDIA -> {
-                            val chunked = buckets.media.chunked(gridColumns)
-                            items(chunked) { rowItems ->
-                                UserProfileMediaGridRow(
-                                    rowItems = rowItems,
-                                    columns = gridColumns,
-                                    selectedIds = selectedIds,
-                                    onMediaClick = { item ->
-                                        if (selectedIds.isNotEmpty()) {
-                                            val id = item.message.id
-                                            selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
-                                        } else {
-                                            onOpenMediaMessage(item.message)
+                    item(key = "pager_content") {
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillParentMaxHeight(0.84f)
+                        ) { pageIdx ->
+                            val pageTab = availableTabs[pageIdx]
+                            when (pageTab) {
+                                UserProfileTab.MEDIA, UserProfileTab.GIF -> {
+                                    val itemsList = if (pageTab == UserProfileTab.MEDIA) buckets.media else buckets.gifs
+                                    val chunked = remember(itemsList, gridColumns) { itemsList.chunked(gridColumns) }
+                                    var pinchAccum by remember { mutableFloatStateOf(1f) }
+                                    LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .pointerInput(pageTab) {
+                                                awaitEachGesture {
+                                                    awaitFirstDown(requireUnconsumed = false)
+                                                    pinchAccum = 1f
+                                                    do {
+                                                        val event = awaitPointerEvent()
+                                                        val pressedCount = event.changes.count { it.pressed }
+                                                        if (pressedCount >= 2) {
+                                                            val zoom = event.calculateZoom()
+                                                            pinchAccum *= zoom
+                                                            if (pinchAccum >= 1.24f) {
+                                                                gridColumns = (gridColumns - 1).coerceAtLeast(2)
+                                                                pinchAccum = 1f
+                                                            } else if (pinchAccum <= 0.80f) {
+                                                                gridColumns = (gridColumns + 1).coerceAtMost(6)
+                                                                pinchAccum = 1f
+                                                            }
+                                                            event.changes.forEach { it.consume() }
+                                                        }
+                                                    } while (event.changes.any { it.pressed })
+                                                }
+                                            },
+                                        contentPadding = PaddingValues(bottom = 28.dp)
+                                    ) {
+                                        items(chunked) { rowItems ->
+                                            UserProfileMediaGridRow(
+                                                rowItems = rowItems,
+                                                columns = gridColumns,
+                                                selectedKeys = selectedKeys,
+                                                onMediaClick = { item ->
+                                                    if (selectedKeys.isNotEmpty()) {
+                                                        val k = item.itemKey
+                                                        selectedKeys = if (k in selectedKeys) selectedKeys - k else selectedKeys + k
+                                                    } else {
+                                                        onOpenMediaMessage(item.message)
+                                                    }
+                                                },
+                                                onMediaLongClick = { item ->
+                                                    val k = item.itemKey
+                                                    selectedKeys = if (k in selectedKeys) selectedKeys - k else selectedKeys + k
+                                                }
+                                            )
                                         }
-                                    },
-                                    onMediaLongClick = { item ->
-                                        val id = item.message.id
-                                        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
                                     }
-                                )
-                            }
-                        }
+                                }
 
-                        UserProfileTab.GIF -> {
-                            val chunked = buckets.gifs.chunked(gridColumns)
-                            items(chunked) { rowItems ->
-                                UserProfileMediaGridRow(
-                                    rowItems = rowItems,
-                                    columns = gridColumns,
-                                    selectedIds = selectedIds,
-                                    onMediaClick = { item ->
-                                        if (selectedIds.isNotEmpty()) {
-                                            val id = item.message.id
-                                            selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
-                                        } else {
-                                            onOpenMediaMessage(item.message)
+                                UserProfileTab.FILES -> {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(bottom = 28.dp)
+                                    ) {
+                                        items(buckets.files) { fileItem ->
+                                            UserProfileFileRow(item = fileItem)
                                         }
-                                    },
-                                    onMediaLongClick = { item ->
-                                        val id = item.message.id
-                                        selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
                                     }
-                                )
-                            }
-                        }
+                                }
 
-                        UserProfileTab.FILES -> {
-                            items(buckets.files) { fileItem ->
-                                UserProfileFileRow(item = fileItem)
-                            }
-                        }
+                                UserProfileTab.LINKS -> {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(bottom = 28.dp)
+                                    ) {
+                                        items(buckets.links) { linkItem ->
+                                            UserProfileLinkRow(item = linkItem)
+                                        }
+                                    }
+                                }
 
-                        UserProfileTab.LINKS -> {
-                            items(buckets.links) { linkItem ->
-                                UserProfileLinkRow(item = linkItem)
-                            }
-                        }
-
-                        UserProfileTab.AUDIO -> {
-                            items(buckets.audio) { audioItem ->
-                                UserProfileAudioRow(
-                                    item = audioItem,
-                                    onAudioClick = { onBack() }
-                                )
+                                UserProfileTab.AUDIO -> {
+                                    LazyColumn(
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentPadding = PaddingValues(bottom = 28.dp)
+                                    ) {
+                                        items(buckets.audio) { audioItem ->
+                                            UserProfileAudioRow(
+                                                item = audioItem,
+                                                onAudioClick = { onBack() }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
-
-                item(key = "bottom_spacer") {
-                    Spacer(modifier = Modifier.height(28.dp))
+                } else {
+                    item(key = "bottom_spacer") {
+                        Spacer(modifier = Modifier.height(28.dp))
+                    }
                 }
             }
 
@@ -373,28 +420,28 @@ fun UserProfileScreen(
                 } else {
                     ""
                 },
-                selectionCount = selectedIds.size,
+                selectionCount = selectedKeys.size,
                 strings = strings,
                 onBack = onBack,
-                onClearSelection = { selectedIds = emptySet() },
+                onClearSelection = { selectedKeys = emptySet() },
                 onShowInChat = {
-                    val targetId = selectedIds.firstOrNull()
-                    selectedIds = emptySet()
-                    val targetMsg = targetId?.let { id -> messages.firstOrNull { it.id == id } }
+                    val targetMsgId = selectedKeys.firstOrNull()?.substringBefore("#")
+                    selectedKeys = emptySet()
+                    val targetMsg = targetMsgId?.let { id -> messages.firstOrNull { it.id == id } }
                     if (targetMsg != null) {
                         onShowInChat(targetMsg)
                     }
                 },
                 onForwardSelected = {
-                    val ids = selectedIds.toList()
-                    selectedIds = emptySet()
+                    val ids = selectedKeys.map { it.substringBefore("#") }.distinct()
+                    selectedKeys = emptySet()
                     if (ids.isNotEmpty()) {
                         onForwardMessages(ids)
                     }
                 },
                 onDeleteSelected = {
-                    val ids = selectedIds.toList()
-                    selectedIds = emptySet()
+                    val ids = selectedKeys.map { it.substringBefore("#") }.distinct()
+                    selectedKeys = emptySet()
                     if (ids.isNotEmpty()) {
                         onDeleteMessages(ids)
                     }
@@ -408,11 +455,11 @@ fun UserProfileScreen(
                         isContact = addedToContactsLocal,
                         showGridZoomOptions = isMediaGridTab,
                         canZoomIn = gridColumns > 2,
-                        canZoomOut = gridColumns < 5,
+                        canZoomOut = gridColumns < 6,
                         strings = strings,
                         onDismiss = { isOverflowOpen = false },
                         onZoomIn = { gridColumns = (gridColumns - 1).coerceAtLeast(2) },
-                        onZoomOut = { gridColumns = (gridColumns + 1).coerceAtMost(5) },
+                        onZoomOut = { gridColumns = (gridColumns + 1).coerceAtMost(6) },
                         onSetSelfDestruct = onSetSelfDestruct,
                         onOpenCustomAutoDelete = { isCustomAutoDeleteOpen = true },
                         onShareContact = {
@@ -504,17 +551,17 @@ private fun extractProfileBuckets(messages: List<ChatMessage>): UserProfileBucke
                     val isGif = uri.endsWith(".gif", ignoreCase = true) ||
                         att.label.contains("gif", ignoreCase = true)
                     if (isGif) {
-                        gifs.add(UserProfileMediaItem(msg, uri, isVideo = false))
+                        gifs.add(UserProfileMediaItem(msg, uri, isVideo = false, itemKey = "${msg.id}#gif"))
                     } else {
-                        media.add(UserProfileMediaItem(msg, uri, isVideo = att.isVideo))
+                        media.add(UserProfileMediaItem(msg, uri, isVideo = att.isVideo, itemKey = "${msg.id}#photo"))
                     }
                 }
             }
 
             is MessageAttachment.MediaAlbum -> {
-                att.items.forEach { item ->
+                att.items.forEachIndexed { idx, item ->
                     if (item.uri.isNotBlank()) {
-                        media.add(UserProfileMediaItem(msg, item.uri, isVideo = item.isVideo))
+                        media.add(UserProfileMediaItem(msg, item.uri, isVideo = item.isVideo, itemKey = "${msg.id}#$idx"))
                     }
                 }
             }
@@ -522,7 +569,7 @@ private fun extractProfileBuckets(messages: List<ChatMessage>): UserProfileBucke
             is MessageAttachment.File -> {
                 val isGif = att.name.endsWith(".gif", ignoreCase = true) && !att.uri.isNullOrBlank()
                 if (isGif) {
-                    gifs.add(UserProfileMediaItem(msg, att.uri!!, isVideo = false))
+                    gifs.add(UserProfileMediaItem(msg, att.uri!!, isVideo = false, itemKey = "${msg.id}#fgif"))
                 } else {
                     files.add(UserProfileFileItem(msg, att))
                 }

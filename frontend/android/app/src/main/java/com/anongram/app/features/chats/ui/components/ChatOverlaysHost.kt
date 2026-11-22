@@ -89,7 +89,8 @@ internal fun ChatOverlaysHost(
     fullTextMessageModal: ChatMessage?,
     onCloseFullTextModal: () -> Unit,
     viewingGeoMessage: ChatMessage? = null,
-    onCloseGeoViewer: () -> Unit = {}
+    onCloseGeoViewer: () -> Unit = {},
+    onBeforeShowInChat: () -> Unit = {}
 ) {
     ChatInputAndMediaOverlays(
         session = session,
@@ -111,7 +112,8 @@ internal fun ChatOverlaysHost(
         wasKeyboardOpenBeforeViewer = wasKeyboardOpenBeforeViewer,
         onUpdateMediaViewer = onUpdateMediaViewer,
         onCloseMediaViewer = onCloseMediaViewer,
-        onStartForward = onStartForward
+        onStartForward = onStartForward,
+        onBeforeShowInChat = onBeforeShowInChat
     )
 
     ChatMessageActionAndSettingsOverlays(
@@ -178,7 +180,8 @@ private fun ChatInputAndMediaOverlays(
     wasKeyboardOpenBeforeViewer: Boolean,
     onUpdateMediaViewer: (ChatMessage?) -> Unit,
     onCloseMediaViewer: (restoreKeyboard: Boolean) -> Unit,
-    onStartForward: (List<String>) -> Unit
+    onStartForward: (List<String>) -> Unit,
+    onBeforeShowInChat: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -338,6 +341,7 @@ private fun ChatInputAndMediaOverlays(
             overrideSingleUri = viewingOverrideSingleUri,
             onClose = { closeViewerAndRestoreIme() },
             onShowInChat = { msg ->
+                onBeforeShowInChat()
                 closeViewerAndRestoreIme()
                 viewModel.highlightMessage(msg.id)
                 val index = state.messages.asReversed().indexOfFirst { it.id == msg.id }

@@ -179,7 +179,6 @@ fun ChatScreen(
         state.deleteDialogFor != null ||
         forwardingMessageIds != null ||
         viewingMediaMessage != null ||
-        isUserProfileOpen ||
         isWallpaperOpen ||
         isReplyPreviewOpen ||
         isSearchListMode ||
@@ -198,7 +197,6 @@ fun ChatScreen(
         when {
             fullTextMessageModal != null -> fullTextMessageModal = null
             isFullEditorOpen -> isFullEditorOpen = false
-            isUserProfileOpen -> isUserProfileOpen = false
             state.videoReviewDraft != null -> viewModel.discardVideoReview()
             state.voiceReviewDraft != null -> viewModel.discardVoiceReview()
             state.expandedVideoCircle != null -> viewModel.closeExpandedVideoCircle()
@@ -512,7 +510,8 @@ fun ChatScreen(
                 fullTextMessageModal = fullTextMessageModal,
                 onCloseFullTextModal = { fullTextMessageModal = null },
                 viewingGeoMessage = viewingGeoMessage,
-                onCloseGeoViewer = { viewingGeoMessage = null }
+                onCloseGeoViewer = { viewingGeoMessage = null },
+                onBeforeShowInChat = { isUserProfileOpen = false }
             )
         }
 

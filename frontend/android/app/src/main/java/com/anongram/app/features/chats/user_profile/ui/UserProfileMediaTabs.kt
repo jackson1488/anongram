@@ -43,7 +43,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,6 +72,7 @@ import kotlinx.coroutines.withContext
 internal fun UserProfileTabBar(
     tabs: List<UserProfileTab>,
     selectedTab: UserProfileTab,
+    hazeState: dev.chrisbanes.haze.HazeState,
     strings: UserProfileStrings,
     onSelectTab: (UserProfileTab) -> Unit,
     modifier: Modifier = Modifier
@@ -83,7 +89,15 @@ internal fun UserProfileTabBar(
         Row(
             modifier = Modifier
                 .clip(RoundedCornerShape(24.dp))
-                .background(scheme.card.copy(alpha = 0.78f))
+                .hazeEffect(
+                    state = hazeState,
+                    style = HazeStyle(
+                        backgroundColor = scheme.card.copy(alpha = 0.50f),
+                        tint = HazeTint(color = scheme.surface.copy(alpha = 0.45f)),
+                        blurRadius = 20.dp,
+                        noiseFactor = 0.02f
+                    )
+                )
                 .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
                 .horizontalScroll(rememberScrollState())
                 .padding(horizontal = 6.dp, vertical = 4.dp),
@@ -123,7 +137,7 @@ internal fun UserProfileTabBar(
 internal fun UserProfileMediaGridRow(
     rowItems: List<UserProfileMediaItem>,
     columns: Int,
-    selectedIds: Set<String>,
+    selectedKeys: Set<String>,
     onMediaClick: (UserProfileMediaItem) -> Unit,
     onMediaLongClick: (UserProfileMediaItem) -> Unit
 ) {
@@ -136,7 +150,12 @@ internal fun UserProfileMediaGridRow(
         for (col in 0 until columns) {
             val item = rowItems.getOrNull(col)
             if (item != null) {
-                val isSelected = item.message.id in selectedIds
+                val isSelected = item.itemKey in selectedKeys
+                val tileScale by androidx.compose.animation.core.animateFloatAsState(
+                    targetValue = if (isSelected) 0.84f else 1f,
+                    animationSpec = androidx.compose.animation.core.tween(160),
+                    label = "mediaTileScale"
+                )
                 val thumb by produceState<ImageBitmap?>(initialValue = null, item.uri) {
                     value = withContext(Dispatchers.IO) {
                         runCatching { loadMediaThumbnail(context, Uri.parse(item.uri))?.asImageBitmap() }.getOrNull()
@@ -146,43 +165,49 @@ internal fun UserProfileMediaGridRow(
                     modifier = Modifier
                         .weight(1f)
                         .aspectRatio(1f)
-                        .background(scheme.card)
+                        .background(scheme.background)
                         .combinedClickable(
                             onClick = { onMediaClick(item) },
                             onLongClick = { onMediaLongClick(item) }
                         )
                 ) {
-                    if (thumb != null) {
-                        Image(
-                            bitmap = thumb!!,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                    if (item.isVideo) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(6.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.55f))
-                                .padding(4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.PlayArrow,
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = tileScale
+                                scaleY = tileScale
+                            }
+                            .clip(RoundedCornerShape(if (isSelected) 10.dp else 0.dp))
+                            .background(scheme.card)
+                    ) {
+                        if (thumb != null) {
+                            Image(
+                                bitmap = thumb!!,
                                 contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
                             )
+                        }
+                        if (item.isVideo) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomStart)
+                                    .padding(6.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.Black.copy(alpha = 0.55f))
+                                    .padding(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
                     }
                     if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = 0.28f))
-                        )
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)

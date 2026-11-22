@@ -16,7 +16,8 @@ data class UserProfileMediaItem(
     val message: ChatMessage,
     val uri: String,
     val isVideo: Boolean,
-    val durationSec: Int = 0
+    val durationSec: Int = 0,
+    val itemKey: String = message.id
 )
 
 data class UserProfileFileItem(

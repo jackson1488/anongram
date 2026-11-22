@@ -110,6 +110,7 @@ internal fun UserProfileTopOverlayBar(
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 CircleHeaderButton(
+                    hazeState = hazeState,
                     onClick = onClearSelection,
                     content = {
                         Icon(
@@ -131,25 +132,35 @@ internal fun UserProfileTopOverlayBar(
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(22.dp))
-                    .background(scheme.card.copy(alpha = 0.88f))
+                    .hazeEffect(
+                        state = hazeState,
+                        style = HazeStyle(
+                            backgroundColor = scheme.card.copy(alpha = 0.52f),
+                            tint = HazeTint(color = scheme.surface.copy(alpha = 0.48f)),
+                            blurRadius = 20.dp,
+                            noiseFactor = 0.02f
+                        )
+                    )
                     .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
                     .padding(horizontal = 6.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onShowInChat),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Visibility,
-                        contentDescription = strings.showInChat,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                if (selectionCount == 1) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .clickable(onClick = onShowInChat),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Visibility,
+                            contentDescription = strings.showInChat,
+                            tint = scheme.textPrimary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
                 Box(
                     modifier = Modifier
@@ -182,6 +193,7 @@ internal fun UserProfileTopOverlayBar(
             }
         } else {
             CircleHeaderButton(
+                hazeState = hazeState,
                 onClick = onBack,
                 content = {
                     Icon(
@@ -222,6 +234,7 @@ internal fun UserProfileTopOverlayBar(
 
             Box {
                 CircleHeaderButton(
+                    hazeState = hazeState,
                     onClick = onOpenOverflow,
                     content = {
                         Icon(
@@ -394,6 +407,7 @@ internal fun UserProfileHeroHeader(
 
 @Composable
 private fun CircleHeaderButton(
+    hazeState: HazeState,
     onClick: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -402,7 +416,15 @@ private fun CircleHeaderButton(
         modifier = Modifier
             .size(40.dp)
             .clip(CircleShape)
-            .background(scheme.card.copy(alpha = 0.85f))
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = scheme.card.copy(alpha = 0.45f),
+                    tint = HazeTint(color = scheme.surface.copy(alpha = 0.45f)),
+                    blurRadius = 18.dp,
+                    noiseFactor = 0.02f
+                )
+            )
             .border(0.6.dp, scheme.islandBorder, CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
