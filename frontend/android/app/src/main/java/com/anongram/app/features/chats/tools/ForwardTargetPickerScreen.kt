@@ -581,7 +581,7 @@ fun ForwardTargetPickerScreen(
                                         override val isArchived = false
                                         override val tier = activeSessions.firstOrNull()?.tier
                                             ?: com.anongram.app.features.chats.common.ChatSecurityTier.entries.first()
-                                        override val avatarGlyph = SessionGlyph.SAVED
+                                        override val avatarGlyph = SessionGlyph.entries.first()
                                         override val mutedUntil: Long? = null
                                         override fun withPinned(pinned: Boolean) = this
                                         override fun withArchived(archived: Boolean) = this

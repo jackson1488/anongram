@@ -21,6 +21,7 @@ import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
+import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.chats.messages.state.ChatMessagesUiState
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
 import com.anongram.app.features.chats.tools.DeleteMessageDialog
@@ -469,7 +470,7 @@ private fun ChatMessageActionAndSettingsOverlays(
             val msg = state.messages.firstOrNull { it.id == msgId } ?: return@mapNotNull null
             com.anongram.app.features.chats.tools.forward.PendingForwardItem(
                 key = key,
-                resolvedMessage = com.anongram.app.features.chats.messages.domain.run { msg.resolveSubItem(subIdx) }
+                resolvedMessage = msg.resolveSubItem(subIdx)
             )
         }
         com.anongram.app.features.chats.tools.ForwardTargetPickerScreen(
