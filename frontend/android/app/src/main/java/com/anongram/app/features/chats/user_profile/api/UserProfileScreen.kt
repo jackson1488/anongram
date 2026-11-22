@@ -219,6 +219,8 @@ fun UserProfileScreen(
                 backProgress.snapTo(event.progress.coerceIn(0f, 1f))
             }
             isPredictiveHolding = false
+            isSystemGestureActive = false
+            backProgress.animateTo(1f, androidx.compose.animation.core.tween(140))
             onBack()
             predictiveSwipeEdge = 0
             predictiveTouchYFraction = 0.5f
@@ -236,9 +238,10 @@ fun UserProfileScreen(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }.coerceAtLeast(600f)
-    val pullThresholdPx = (screenHeightPx * 0.50f).coerceAtLeast(320f)
+    val heroTriggerFraction = (with(density) { 76.dp.toPx() } / (screenHeightPx * 0.50f)).coerceIn(0.14f, 0.30f)
+    val fullscreenThresholdPx = (screenHeightPx * 0.50f).coerceAtLeast(320f)
 
-    val pullDownNestedScroll = remember(hasRealAvatar, pullThresholdPx) {
+    val pullDownNestedScroll = remember(hasRealAvatar, fullscreenThresholdPx, heroTriggerFraction) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (hasRealAvatar && isExpandedHero && available.y < -14f && source == NestedScrollSource.UserInput) {
@@ -260,12 +263,12 @@ fun UserProfileScreen(
                     listState.firstVisibleItemIndex == 0 &&
                     listState.firstVisibleItemScrollOffset == 0
                 ) {
-                    val next = (pullProgress.value + available.y / pullThresholdPx).coerceIn(0f, 1.25f)
+                    val next = (pullProgress.value + available.y / fullscreenThresholdPx).coerceIn(0f, 1.15f)
                     scope.launch { pullProgress.snapTo(next) }
-                    if (!isExpandedHero && next >= 1.0f) {
+                    if (!isExpandedHero && next >= heroTriggerFraction) {
                         isExpandedHero = true
-                        scope.launch { pullProgress.snapTo(0f) }
-                    } else if (isExpandedHero && next >= 0.50f) {
+                    }
+                    if (next >= 1.0f) {
                         isAvatarFullscreenOpen = true
                         scope.launch { pullProgress.snapTo(0f) }
                     }
@@ -276,7 +279,7 @@ fun UserProfileScreen(
 
             override suspend fun onPreFling(available: Velocity): Velocity {
                 if (hasRealAvatar && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
-                    if (available.y > 850f) {
+                    if (available.y > 900f) {
                         if (!isExpandedHero) {
                             isExpandedHero = true
                         } else {
@@ -311,7 +314,10 @@ fun UserProfileScreen(
                 onDragProgress = { p -> scope.launch { backProgress.snapTo(p) } },
                 onDragEnd = { shouldClose ->
                     if (shouldClose) {
-                        onBack()
+                        scope.launch {
+                            backProgress.animateTo(1f, androidx.compose.animation.core.tween(140))
+                            onBack()
+                        }
                     } else {
                         scope.launch {
                             backProgress.animateTo(0f, spring())
