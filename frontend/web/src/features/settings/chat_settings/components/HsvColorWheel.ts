@@ -1,4 +1,4 @@
-import { el } from '../../../core/ui/dom';
+import { el } from '../../../../core/ui/dom';
 
 export interface HsvWheelOptions {
   hue: number;

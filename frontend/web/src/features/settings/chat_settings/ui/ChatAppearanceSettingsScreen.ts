@@ -1,5 +1,5 @@
-import { i18nStore } from '../../core/i18n/i18nStore';
-import { ANONGRAM_PRESETS } from '../../core/theme/presets';
+import { i18nStore } from '../../../../core/i18n/i18nStore';
+import { ANONGRAM_PRESETS } from '../../../../core/theme/presets';
 import {
   decodeThemeSpec,
   encodeThemeSpec,
@@ -7,14 +7,20 @@ import {
   type ThemePolarity,
   type ThemeSpec,
   type ThemeTintMode,
-} from '../../core/theme/themeSpec';
-import { themeStore } from '../../core/theme/themeStore';
-import { clear, copyToClipboard, el } from '../../core/ui/dom';
-import { icons } from '../../core/ui/icons';
-import { showToast } from '../../core/ui/toast';
-import { createHsvColorWheel } from './components/HsvColorWheel';
+} from '../../../../core/theme/themeSpec';
+import { themeStore } from '../../../../core/theme/themeStore';
+import { clear, copyToClipboard, el } from '../../../../core/ui/dom';
+import { icons } from '../../../../core/ui/icons';
+import { showToast } from '../../../../core/ui/toast';
+import { createHsvColorWheel } from '../components/HsvColorWheel';
+import { openWallpaperPicker, wallpaperStore } from '../../../wallpapers';
+import { PRESET_WALLPAPERS } from '../../../wallpapers/model/Wallpaper';
+import { SettingsI18n } from '../../i18n';
+import { settingsStore, type FontFamilyOption } from '../../settingsStore';
 
-export function createChatAppearanceView(): HTMLElement {
+const FONT_FAMILIES: FontFamilyOption[] = ['system', 'inter', 'mono', 'serif', 'rounded'];
+
+export function createChatAppearanceSettingsScreen(): HTMLElement {
   const root = el('div', { class: 'ag-settings-content' });
 
   const render = () => {
@@ -53,8 +59,73 @@ export function createChatAppearanceView(): HTMLElement {
           themeStore.setMessageTextSize(Number((e.target as HTMLInputElement).value));
         },
       }),
+      el('div', { class: 'ag-section-label' }, SettingsI18n.current.fontFamilyTitle),
+      el(
+        'div',
+        { class: 'ag-chips-wrap' },
+        ...FONT_FAMILIES.map((ff) =>
+          el(
+            'button',
+            {
+              class: `ag-chip ${settingsStore.all.fontFamily === ff ? 'is-active' : ''}`,
+              onClick: () => settingsStore.set('fontFamily', ff),
+            },
+            SettingsI18n.current.fontFamilies[ff],
+          ),
+        ),
+      ),
     );
     root.appendChild(previewCard);
+
+    // 1b. Chat Wallpaper Picker
+    const si = SettingsI18n.current;
+    const curWp = wallpaperStore.current;
+    const wpThumb = el('div', { class: 'ag-wp-thumb' });
+    if (curWp.kind === 'css') wpThumb.style.background = curWp.value;
+    else if (curWp.kind === 'image') wpThumb.style.backgroundImage = `url("${curWp.value}")`;
+    root.appendChild(
+      el(
+        'div',
+        { class: 'ag-card ag-settings-card' },
+        el('div', { class: 'ag-section-label' }, si.wallpaperTitle),
+        el(
+          'div',
+          { class: 'ag-wp-preview-row' },
+          wpThumb,
+          el(
+            'div',
+            { style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:8px' },
+            el(
+              'span',
+              { style: 'font-size:13px;color:var(--ag-text-secondary)' },
+              curWp.kind === 'none' ? si.wallpaperNone : si.wallpaperActive,
+            ),
+            el(
+              'div',
+              { class: 'ag-inline-row' },
+              el(
+                'button',
+                {
+                  class: 'ag-pill-btn ag-pill-btn--primary',
+                  onClick: () => openWallpaperPicker(),
+                },
+                si.wallpaperChoose,
+              ),
+              curWp.kind !== 'none'
+                ? el(
+                    'button',
+                    {
+                      class: 'ag-pill-btn ag-pill-btn--ghost',
+                      onClick: () => wallpaperStore.set(PRESET_WALLPAPERS[0]),
+                    },
+                    si.wallpaperReset,
+                  )
+                : null,
+            ),
+          ),
+        ),
+      ),
+    );
 
     // 2. Curated Presets
     root.appendChild(
@@ -269,11 +340,15 @@ export function createChatAppearanceView(): HTMLElement {
 
   const unsubTheme = themeStore.subscribe(render);
   const unsubI18n = i18nStore.subscribe(render);
+  const unsubWp = wallpaperStore.subscribe(render);
+  const unsubSettings = settingsStore.subscribe(render);
   render();
 
   (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
     unsubTheme();
     unsubI18n();
+    unsubWp();
+    unsubSettings();
   };
 
   return root;

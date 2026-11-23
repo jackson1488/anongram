@@ -1,19 +1,25 @@
 import './core/ui/base.css';
+import './core/ui/components.css';
+import './core/ui/menu.css';
 import { i18nStore } from './core/i18n/i18nStore';
 import { themeStore } from './core/theme/themeStore';
 import { clear } from './core/ui/dom';
 import { createAuthFlow, renderAuthShield } from './features/auth/AuthFlow';
 import { authStore } from './features/auth/authStore';
 import { createAppShell } from './features/navigation/AppShell';
+import { settingsStore } from './features/settings/settingsStore';
+import { applyWallpaper } from './features/wallpapers';
 
 const appEl = document.getElementById('app');
 if (!appEl) {
   throw new Error('#app mount element not found');
 }
 
-// Initialize theme CSS variables immediately
+// Initialize theme CSS variables, fonts/animations prefs, and chat wallpaper immediately
 void themeStore.scheme;
 void i18nStore.language;
+void settingsStore.all;
+applyWallpaper();
 
 let activeCleanup: (() => void) | null = null;
 let renderedStatus: string | null = null;

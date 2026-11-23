@@ -1,0 +1,325 @@
+/* ChatScreen styles — strictly uses --ag-* CSS variables (no hardcoded colors). */
+
+.ag-cs-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.ag-cs-wallpaper {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: var(--ag-chat-wallpaper, none);
+  background-size: cover;
+  background-position: center;
+  opacity: 0.45;
+}
+
+.ag-cs-stage > .ag-messages-scroll {
+  position: relative;
+  z-index: 1;
+}
+
+/* Selection TopBar */
+.ag-cs-selbar {
+  gap: 8px;
+}
+
+.ag-cs-selbar__count {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ag-text-primary);
+}
+
+.ag-icon-btn.is-danger {
+  color: var(--ag-danger);
+}
+
+.ag-icon-btn.is-danger:hover {
+  background: var(--ag-danger-soft);
+}
+
+/* DateChip */
+.ag-cs-datechip {
+  position: sticky;
+  top: 4px;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  padding: 6px 0;
+  pointer-events: none;
+}
+
+.ag-cs-datechip > span {
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: var(--ag-island-bg);
+  border: 1px solid var(--ag-island-border);
+  color: var(--ag-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Message Row: selection & swipe-to-reply */
+.ag-cs-row {
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 16px;
+  transition: background-color 0.14s ease;
+}
+
+.ag-cs-row.is-selecting {
+  cursor: pointer;
+}
+
+.ag-cs-row.is-selected {
+  background: var(--ag-selected-bg);
+  box-shadow: inset 0 0 0 1px var(--ag-selected-glow);
+}
+
+.ag-cs-check {
+  width: 0;
+  height: 22px;
+  opacity: 0;
+  overflow: hidden;
+  border-radius: 9999px;
+  border: 1.5px solid var(--ag-text-muted);
+  color: var(--ag-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: width 0.16s ease, opacity 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.ag-cs-row.is-selecting .ag-cs-check {
+  width: 22px;
+  opacity: 1;
+}
+
+.ag-cs-row.is-selected .ag-cs-check {
+  background: var(--ag-accent);
+  border-color: var(--ag-accent);
+}
+
+.ag-cs-bubble-wrap {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  transition: transform 0.12s ease-out;
+}
+
+.ag-msg-row.is-outgoing .ag-cs-bubble-wrap {
+  justify-content: flex-end;
+}
+
+.ag-msg-row.is-incoming .ag-cs-bubble-wrap {
+  justify-content: flex-start;
+}
+
+.ag-cs-swipe-icon {
+  position: absolute;
+  right: -34px;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 9999px;
+  background: var(--ag-island-bg);
+  border: 1px solid var(--ag-island-border);
+  color: var(--ag-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: var(--ag-swipe-p, 0);
+  transform: translateY(-50%) scale(calc(0.6 + 0.4 * var(--ag-swipe-p, 0)));
+}
+
+.ag-cs-row.is-flash .ag-bubble {
+  box-shadow: 0 0 0 2px var(--ag-accent);
+  transition: box-shadow 0.25s ease;
+}
+
+/* ReplyBar icon */
+.ag-cs-replybar-ico {
+  color: var(--ag-accent);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Scroll-to-bottom FAB */
+.ag-cs-scroll-down {
+  position: absolute;
+  right: 16px;
+  bottom: 14px;
+  z-index: 4;
+  width: 42px;
+  height: 42px;
+  border-radius: 9999px;
+  background: var(--ag-island-bg);
+  border: 1px solid var(--ag-island-border);
+  color: var(--ag-text-primary);
+  box-shadow: 0 4px 16px var(--ag-shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
+  transition: opacity 0.16s ease, transform 0.16s ease, background-color 0.14s ease;
+}
+
+.ag-cs-scroll-down:hover {
+  background: var(--ag-surface);
+}
+
+.ag-cs-scroll-down.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* Bottom Dock (ReplyBar + Composer + Drawers) */
+.ag-cs-dock {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 840px) {
+  .ag-cs-dock .ag-reply-bar,
+  .ag-cs-dock .ag-drawer-panel,
+  .ag-cs-dock .ag-tgpop-wrap {
+    max-width: 760px;
+    width: 100%;
+    margin: 0 auto;
+  }
+
+  .ag-cs-dock .ag-reply-bar {
+    border-radius: 16px 16px 0 0;
+    border-left: 1px solid var(--ag-divider);
+    border-right: 1px solid var(--ag-divider);
+  }
+
+  .ag-cs-dock .ag-drawer-panel {
+    border-radius: 18px;
+    margin-bottom: 8px;
+    border: 1px solid var(--ag-divider);
+  }
+
+  .ag-cs-dock .ag-tgpop {
+    bottom: 66px;
+  }
+}
+
+/* Message Context Menu (Desktop popup & Mobile bottom sheet) */
+.ag-cs-menu-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+}
+
+.ag-cs-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+}
+
+.ag-cs-menu {
+  position: fixed;
+  min-width: 220px;
+  padding: 6px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--ag-surface) 92%, transparent);
+  border: 1px solid var(--ag-card-border);
+  box-shadow: 0 12px 32px var(--ag-shadow);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+.ag-cs-menu.is-sheet {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  min-width: 0;
+  border-radius: 22px 22px 0 0;
+  padding: 12px 12px calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--ag-surface);
+}
+
+.ag-cs-menu__reactions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding: 4px 6px 8px;
+  border-bottom: 1px solid var(--ag-divider);
+  margin-bottom: 4px;
+}
+
+.ag-cs-menu__react {
+  width: 34px;
+  height: 34px;
+  border-radius: 9999px;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.12s ease, transform 0.12s ease;
+}
+
+.ag-cs-menu__react:hover {
+  background: var(--ag-accent-soft);
+}
+
+.ag-cs-menu__react:active {
+  transform: scale(0.92);
+}
+
+.ag-cs-menu__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ag-cs-menu__item {
+  width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ag-text-primary);
+  text-align: left;
+  transition: background-color 0.12s ease;
+}
+
+.ag-cs-menu__item:hover {
+  background: var(--ag-hover);
+}
+
+.ag-cs-menu__item.is-danger {
+  color: var(--ag-danger);
+}
+
+.ag-cs-menu__item.is-danger:hover {
+  background: var(--ag-danger-soft);
+}

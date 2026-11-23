@@ -33,6 +33,10 @@
   overflow: hidden;
 }
 
+.ag-settings-content .ag-settings-group {
+  margin: 0;
+}
+
 .ag-profile-card {
   margin: 4px 6px 12px;
   padding: 14px;
@@ -40,6 +44,11 @@
   align-items: center;
   gap: 12px;
   cursor: pointer;
+  transition: background-color 0.16s ease;
+}
+
+.ag-profile-card:hover {
+  background: var(--ag-hover);
 }
 
 .ag-profile-card__info {
@@ -67,7 +76,7 @@
   text-align: left;
   border-bottom: 1px solid var(--ag-divider);
   cursor: pointer;
-  transition: background-color 0.14s ease;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .ag-settings-row:last-child {
@@ -75,7 +84,7 @@
 }
 
 .ag-settings-row:hover {
-  background: var(--ag-surface);
+  background: var(--ag-hover);
 }
 
 .ag-settings-row.is-active {
@@ -85,6 +94,7 @@
 .ag-settings-row__icon {
   color: var(--ag-accent);
   display: inline-flex;
+  flex-shrink: 0;
 }
 
 .ag-settings-row__label {
@@ -101,7 +111,7 @@
 .ag-logout-btn {
   width: calc(100% - 12px);
   margin: 4px 6px 16px;
-  color: #ef4444;
+  color: var(--ag-danger);
 }
 
 .ag-section-label {
@@ -143,6 +153,11 @@
   border: 1px solid var(--ag-card-border);
   font-size: 12px;
   font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ag-preset-chip:hover {
+  background: var(--ag-hover);
 }
 
 .ag-preset-chip.is-active {
@@ -175,8 +190,8 @@
   width: 20px;
   height: 20px;
   border-radius: 9999px;
-  border: 3px solid #ffffff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  border: 3px solid var(--ag-on-accent);
+  box-shadow: 0 2px 8px var(--ag-shadow);
   transform: translate(-50%, -50%);
   pointer-events: none;
 }
@@ -222,6 +237,7 @@
   border-radius: 9999px;
   background: var(--ag-divider);
   padding: 3px;
+  flex-shrink: 0;
   transition: background-color 0.16s ease;
 }
 
@@ -233,7 +249,7 @@
   width: 20px;
   height: 20px;
   border-radius: 9999px;
-  background: #ffffff;
+  background: var(--ag-on-accent);
   transition: transform 0.16s ease;
 }
 
@@ -256,6 +272,190 @@
   height: 196px;
   padding: 14px;
   border-radius: 20px;
-  background: #ffffff;
-  color: #090b10;
+  background: var(--ag-text-primary);
+  color: var(--ag-bg);
+}
+
+/* Sub-screen controls: Storage, Sessions, Passcode, Wallpaper preview */
+.ag-storage-bar {
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--ag-surface);
+  border: 1px solid var(--ag-divider);
+  overflow: hidden;
+  display: flex;
+  gap: 2px;
+}
+
+.ag-storage-seg {
+  height: 100%;
+  transition: width 0.25s ease;
+}
+
+.ag-storage-seg--media { background: var(--ag-accent); }
+.ag-storage-seg--messages { background: var(--ag-success); }
+.ag-storage-seg--models { background: var(--ag-warning); }
+.ag-storage-seg--cache { background: var(--ag-text-muted); }
+
+.ag-storage-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ag-storage-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.ag-storage-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+}
+
+.ag-storage-item__label {
+  flex: 1;
+  color: var(--ag-text-secondary);
+}
+
+.ag-storage-item__val {
+  font-weight: 600;
+  color: var(--ag-text-primary);
+}
+
+.ag-session-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--ag-divider);
+}
+
+.ag-session-row:last-child {
+  border-bottom: none;
+}
+
+.ag-session-row__icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: var(--ag-accent-soft);
+  color: var(--ag-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ag-session-row__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ag-session-row__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ag-text-primary);
+}
+
+.ag-session-row__meta {
+  font-size: 12px;
+  color: var(--ag-text-secondary);
+}
+
+.ag-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--ag-success-soft);
+  color: var(--ag-success);
+}
+
+.ag-danger-btn {
+  color: var(--ag-danger);
+  border-color: var(--ag-danger-soft);
+}
+
+.ag-pin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.ag-wp-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ag-wp-thumb {
+  width: 56px;
+  height: 72px;
+  border-radius: 14px;
+  border: 1px solid var(--ag-card-border);
+  background-color: var(--ag-surface);
+  background-size: cover;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+.ag-reduce-motion *,
+.ag-reduce-motion *::before,
+.ag-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+/* Desktop (>=840px): Telegram Web A style grouped cards, smooth hover rows, sticky header */
+@media (min-width: 840px) {
+  .ag-settings-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--ag-surface);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border-bottom: 1px solid var(--ag-divider);
+    min-height: 58px;
+    padding: 0 20px;
+  }
+
+  .ag-settings-scroll {
+    padding: 24px 32px 48px;
+  }
+
+  .ag-settings-content {
+    max-width: 660px;
+    gap: 18px;
+  }
+
+  .ag-settings-card,
+  .ag-settings-group {
+    border-radius: 16px;
+    box-shadow: 0 2px 14px var(--ag-shadow);
+  }
+
+  .ag-settings-row {
+    padding: 14px 18px;
+  }
+
+  .ag-settings-row:hover {
+    background: var(--ag-hover);
+  }
+
+  .ag-settings-row.is-active {
+    background: var(--ag-accent-soft);
+    color: var(--ag-accent);
+  }
 }

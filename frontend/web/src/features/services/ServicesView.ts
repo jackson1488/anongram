@@ -1,169 +1,152 @@
+import { i18nStore } from '../../core/i18n/i18nStore';
 import { clear, el } from '../../core/ui/dom';
 import { icons } from '../../core/ui/icons';
-import { showToast } from '../../core/ui/toast';
 import { createCallsView } from '../calls/CallsView';
+import { createLocalAiChatScreen } from './ai/LocalAiChatScreen';
+import { localAiStore } from './ai/LocalAiStore';
+import { servicesT } from './i18n';
+import { createOnionView, onionStore } from './onion/OnionView';
+import { createOtpNotepadView, otpStore } from './otp/OtpNotepadView';
+import './services.css';
+
+type ServicesSubView = 'hub' | 'ai' | 'onion' | 'otp' | 'calls';
 
 export function createServicesView(): HTMLElement {
   const root = el('div', { class: 'ag-list-pane' });
-  let subView: 'hub' | 'calls' | 'ai' = 'hub';
-  const aiMessages: Array<{ isUser: boolean; text: string }> = [
-    {
-      isUser: false,
-      text: 'Привет! Я локальный AI-ассистент AnonGram. Все запросы обрабатываются приватно без отправки метаданных.',
-    },
-  ];
+  let subView: ServicesSubView = 'hub';
+  let childCleanup: (() => void) | null = null;
+
+  const mountSubView = (view: HTMLElement) => {
+    childCleanup?.();
+    childCleanup = (view as unknown as { __cleanup?: () => void }).__cleanup ?? null;
+    root.appendChild(view);
+  };
+
+  const goHub = () => {
+    subView = 'hub';
+    render();
+  };
 
   const render = () => {
+    childCleanup?.();
+    childCleanup = null;
     clear(root);
-
-    if (subView === 'calls') {
-      const callsPane = createCallsView();
-      root.appendChild(
-        el(
-          'div',
-          { class: 'ag-chat-header' },
-          el(
-            'button',
-            {
-              class: 'ag-icon-btn',
-              onClick: () => {
-                subView = 'hub';
-                render();
-              },
-            },
-            icons.back(20),
-          ),
-          el('div', { class: 'ag-chat-header__title' }, 'Звонки'),
-        ),
-      );
-      root.appendChild(callsPane);
-      return;
-    }
+    const s = servicesT();
 
     if (subView === 'ai') {
-      const aiInput = el('input', {
-        type: 'text',
-        class: 'ag-msg-input',
-        placeholder: 'Спросите локальный AI...',
-        onKeyDown: (e: Event) => {
-          if ((e as KeyboardEvent).key === 'Enter') sendAi();
-        },
-      }) as HTMLInputElement;
+      mountSubView(createLocalAiChatScreen({ onBack: goHub }));
+      return;
+    }
 
-      const sendAi = () => {
-        const text = aiInput.value.trim();
-        if (!text) return;
-        aiMessages.push({ isUser: true, text });
-        aiMessages.push({
-          isUser: false,
-          text: `Локальный узел принял запрос: «${text}». Ответ сформирован в изолированной песочнице без сети.`,
-        });
-        render();
-      };
+    if (subView === 'onion') {
+      mountSubView(createOnionView(goHub));
+      return;
+    }
 
+    if (subView === 'otp') {
+      mountSubView(createOtpNotepadView(goHub));
+      return;
+    }
+
+    if (subView === 'calls') {
       root.appendChild(
         el(
           'div',
           { class: 'ag-chat-header' },
-          el(
-            'button',
-            {
-              class: 'ag-icon-btn',
-              onClick: () => {
-                subView = 'hub';
-                render();
-              },
-            },
-            icons.back(20),
-          ),
-          el('div', { class: 'ag-chat-header__title' }, 'Local AI (Private)'),
+          el('button', { class: 'ag-icon-btn', onClick: goHub }, icons.back(20)),
+          el('div', { class: 'ag-chat-header__title' }, s.callsTitle),
         ),
       );
-
-      root.appendChild(
-        el(
-          'div',
-          { class: 'ag-messages-scroll' },
-          ...aiMessages.map((m) =>
-            el(
-              'div',
-              { class: `ag-msg-row ${m.isUser ? 'is-outgoing' : 'is-incoming'}` },
-              el(
-                'div',
-                { class: `ag-bubble ${m.isUser ? 'is-outgoing' : 'is-incoming'}` },
-                el('div', { class: 'ag-bubble__text' }, m.text),
-              ),
-            ),
-          ),
-        ),
-      );
-
-      root.appendChild(
-        el(
-          'div',
-          { class: 'ag-composer' },
-          el('div', { class: 'ag-composer__pill' }, aiInput),
-          el('button', { class: 'ag-send-fab', onClick: sendAi }, icons.send(18)),
-        ),
-      );
+      mountSubView(createCallsView());
       return;
     }
+
+    const aiState = localAiStore.getState();
+    const activeModel = localAiStore.activeModel;
+    const onionState = onionStore.getState();
+    const otpCount = otpStore.getPages().length;
 
     root.appendChild(
       el(
         'div',
         { class: 'ag-pane-header' },
-        el('h1', { class: 'ag-pane-title' }, 'Сервисы'),
+        el('h1', { class: 'ag-pane-title' }, s.title),
       ),
     );
 
-    const services = [
+    const cards = [
       {
         emoji: '🤖',
-        title: 'Local AI Assistant',
-        sub: 'Приватный ИИ без облачных логов и телеметрии',
+        badgeClass: '',
+        title: s.aiTitle,
+        sub: `${activeModel.displayName} • ${aiState.reasoningLevel.toUpperCase()}`,
+        detail: s.aiDetail,
         action: () => {
           subView = 'ai';
           render();
         },
       },
       {
-        emoji: '📞',
-        title: 'Анонимные звонки',
-        sub: 'Зашифрованные P2P-вызовы и журнал звонков',
+        emoji: '🧅',
+        badgeClass: 'is-success',
+        title: s.onionTitle,
+        sub: onionState.vpnEnabled ? s.onionActive : s.onionPaused,
+        detail: s.onionDetail,
         action: () => {
-          subView = 'calls';
+          subView = 'onion';
+          render();
+        },
+      },
+      {
+        emoji: '🛡️',
+        badgeClass: 'is-danger',
+        title: s.killSwitchTitle,
+        sub: onionState.killSwitchEnabled ? s.killSwitchArmed : s.killSwitchDisarmed,
+        detail: s.killSwitchDetail,
+        action: () => {
+          subView = 'onion';
           render();
         },
       },
       {
         emoji: '🔥',
-        title: 'OTP-комнаты (Сгораемые)',
-        sub: 'Одноразовые диалоги с автоуничтожением ключей',
-        action: () => showToast('OTP-комната готова к созданию'),
+        badgeClass: 'is-warning',
+        title: s.otpTitle,
+        sub: s.otpRemaining(otpCount),
+        detail: s.otpDetail,
+        action: () => {
+          subView = 'otp';
+          render();
+        },
       },
       {
-        emoji: '🧅',
-        title: 'Onion v3 Blind Relay',
-        sub: 'Активная цепочка: 3 хопа • Задержка ~42 мс',
-        action: () => showToast('Цепочка Onion v3 стабильна'),
+        emoji: '📞',
+        badgeClass: '',
+        title: s.callsTitle,
+        sub: s.callsSub,
+        detail: s.callsDetail,
+        action: () => {
+          subView = 'calls';
+          render();
+        },
       },
     ];
 
     root.appendChild(
       el(
         'div',
-        { class: 'ag-scroll-list' },
-        ...services.map((s) =>
+        { class: 'ag-scroll-list ag-services-scroll' },
+        ...cards.map((c) =>
           el(
             'div',
-            { class: 'ag-card ag-service-card', onClick: s.action },
-            el('div', { class: 'ag-service-card__icon' }, s.emoji),
+            { class: 'ag-service-card-v2', onClick: c.action },
+            el('div', { class: `ag-service-icon-badge ${c.badgeClass}` }, c.emoji),
             el(
               'div',
-              { class: 'ag-service-card__body' },
-              el('strong', null, s.title),
-              el('span', null, s.sub),
+              { class: 'ag-service-card-v2__body' },
+              el('div', { class: 'ag-service-card-v2__title' }, c.title),
+              el('div', { class: 'ag-service-card-v2__sub' }, c.sub),
+              el('div', { class: 'ag-service-card-v2__detail' }, c.detail),
             ),
             icons.chevronRight(18),
           ),
@@ -172,6 +155,26 @@ export function createServicesView(): HTMLElement {
     );
   };
 
+  const unsubAi = localAiStore.subscribe(() => {
+    if (subView === 'hub') render();
+  });
+  const unsubOnion = onionStore.subscribe(() => {
+    if (subView === 'hub') render();
+  });
+  const unsubOtp = otpStore.subscribe(() => {
+    if (subView === 'hub') render();
+  });
+  const unsubI18n = i18nStore.subscribe(render);
+
   render();
+
+  (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
+    childCleanup?.();
+    unsubAi();
+    unsubOnion();
+    unsubOtp();
+    unsubI18n();
+  };
+
   return root;
 }

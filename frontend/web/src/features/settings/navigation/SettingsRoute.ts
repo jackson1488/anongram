@@ -1,0 +1,15 @@
+export type SettingsRoute =
+  | 'main'
+  | 'search'
+  | 'myQr'
+  | 'account'
+  | 'chatAppearance'
+  | 'privacy'
+  | 'security'
+  | 'notifications'
+  | 'dataStorage'
+  | 'animations'
+  | 'devices'
+  | 'battery'
+  | 'language'
+  | 'modules';

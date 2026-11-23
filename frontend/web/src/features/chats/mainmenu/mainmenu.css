@@ -1,0 +1,21 @@
+.ag-mm-empty { display:flex; flex-direction:column; align-items:center; gap:6px; padding:40px 24px; }
+.ag-mm-empty__title { font-size:15px; font-weight:600; color:var(--ag-text-secondary); }
+.ag-mm-empty__hint { font-size:13px; color:var(--ag-text-muted); }
+.ag-mm-section { padding:10px 14px 4px; font-size:13px; font-weight:600; color:var(--ag-accent); }
+
+/* Desktop: Telegram Web A style rows */
+@media (min-width: 840px) {
+  .ag-mm .ag-scroll-list { padding: 4px 8px; }
+  .ag-mm .ag-chat-row { padding: 9px 10px; border-radius: 12px; gap: 12px; }
+  .ag-mm .ag-chat-row .ag-avatar { width: 54px; height: 54px; font-size: 26px; }
+  .ag-mm .ag-chat-row.is-selected { background: var(--ag-accent); }
+  .ag-mm .ag-chat-row.is-selected .ag-chat-row__title,
+  .ag-mm .ag-chat-row.is-selected .ag-chat-row__time,
+  .ag-mm .ag-chat-row.is-selected .ag-chat-row__preview,
+  .ag-mm .ag-chat-row.is-selected .ag-pin-icon { color: var(--ag-on-accent); }
+  .ag-mm .ag-chat-row.is-selected .ag-unread-badge { background: var(--ag-on-accent); color: var(--ag-accent); }
+  .ag-mm .ag-chat-row__title { font-size: 16px; font-weight: 600; }
+  .ag-mm .ag-chat-row__preview { font-size: 15px; }
+  .ag-mm .ag-chat-row__time { font-size: 12px; }
+  .ag-mm .ag-chips-row { padding: 4px 10px; border-bottom: 1px solid var(--ag-divider); }
+}

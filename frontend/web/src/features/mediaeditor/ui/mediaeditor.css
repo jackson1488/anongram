@@ -1,0 +1,7 @@
+.ag-me-overlay { position: fixed; inset: 0; z-index: 1400; background: var(--ag-bg); color: var(--ag-text-primary); display: flex; flex-direction: column; }
+.ag-me-bar { display: flex; gap: 8px; align-items: center; padding: 10px 14px; background: var(--ag-island-bg); border-bottom: 1px solid var(--ag-island-border); }
+.ag-me-bar .sp { flex: 1; }
+.ag-me-btn { border: 0; border-radius: 24px; padding: 8px 16px; background: var(--ag-card); color: var(--ag-text-primary); cursor: pointer; font: inherit; }
+.ag-me-btn.is-active, .ag-me-btn.primary { background: var(--ag-accent); color: var(--ag-on-accent); }
+.ag-me-stage { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 12px; }
+.ag-me-stage canvas { max-width: 100%; max-height: 100%; touch-action: none; border-radius: 16px; }

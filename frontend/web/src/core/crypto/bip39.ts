@@ -1,42 +1,24 @@
-const WORDS = [
-  'abandon', 'ability', 'able', 'about', 'above', 'absent', 'absorb', 'abstract',
-  'absurd', 'abuse', 'access', 'accident', 'account', 'accuse', 'achieve', 'acid',
-  'acoustic', 'acquire', 'across', 'act', 'action', 'actor', 'actress', 'actual',
-  'adapt', 'add', 'addict', 'address', 'adjust', 'admit', 'adult', 'advance',
-  'advice', 'aerobic', 'affair', 'afford', 'afraid', 'again', 'age', 'agent',
-  'agree', 'ahead', 'aim', 'air', 'airport', 'aisle', 'alarm', 'album',
-  'alcohol', 'alert', 'alien', 'all', 'alley', 'allow', 'almost', 'alone',
-  'alpha', 'already', 'also', 'alter', 'always', 'amateur', 'amazing', 'among',
-  'amount', 'amused', 'analyst', 'anchor', 'ancient', 'anger', 'angle', 'angry',
-  'animal', 'ankle', 'announce', 'annual', 'another', 'answer', 'antenna', 'antique',
-  'anxiety', 'any', 'apart', 'apology', 'appear', 'apple', 'approve', 'april',
-  'arch', 'arctic', 'area', 'arena', 'argue', 'arm', 'armed', 'armor',
-  'army', 'around', 'arrange', 'arrest', 'arrive', 'arrow', 'art', 'artefact',
-  'artist', 'artwork', 'ask', 'aspect', 'assault', 'asset', 'assist', 'assume',
-  'asthma', 'athlete', 'atom', 'attack', 'attend', 'attitude', 'attract', 'auction',
-  'audit', 'august', 'aunt', 'author', 'auto', 'autumn', 'average', 'avocado',
-  'avoid', 'awake', 'aware', 'away', 'awesome', 'awful', 'awkward', 'axis',
-  'baby', 'bachelor', 'bacon', 'badge', 'bag', 'balance', 'balcony', 'ball',
-  'bamboo', 'banana', 'banner', 'bar', 'barely', 'bargain', 'barrel', 'base',
-  'basic', 'basket', 'battle', 'beach', 'bean', 'beauty', 'because', 'become',
-  'beef', 'before', 'begin', 'behave', 'behind', 'believe', 'below', 'belt',
-  'bench', 'benefit', 'best', 'betray', 'better', 'between', 'beyond', 'bicycle',
-  'bid', 'bike', 'bind', 'biology', 'bird', 'birth', 'bitter', 'black',
-  'blade', 'blame', 'blanket', 'blast', 'bleak', 'bless', 'blind', 'blood',
-  'blossom', 'blouse', 'blue', 'blur', 'blush', 'board', 'boat', 'body',
-  'boil', 'bomb', 'bone', 'bonus', 'book', 'boost', 'border', 'boring',
-  'borrow', 'boss', 'bottom', 'bounce', 'box', 'boy', 'bracket', 'brain',
-  'brand', 'brass', 'brave', 'bread', 'breeze', 'brick', 'bridge', 'brief',
-  'bright', 'bring', 'brisk', 'broccoli', 'broken', 'bronze', 'broom', 'brother',
-  'brown', 'brush', 'bubble', 'buddy', 'budget', 'buffalo', 'build', 'bulb',
-  'bulk', 'bullet', 'bundle', 'bunker', 'burden', 'burger', 'burst', 'bus',
-  'business', 'busy', 'butter', 'buyer', 'buzz', 'cabbage', 'cabin', 'cable',
-];
+import { BIP39_WORDLIST } from './bip39Wordlist';
 
-export function generate12Words(): string[] {
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => WORDS[b % WORDS.length]);
+const WORDS = BIP39_WORDLIST;
+const WORD_INDEX = new Map<string, number>(WORDS.map((w, i) => [w, i]));
+
+async function sha256(bytes: Uint8Array): Promise<Uint8Array> {
+  const buf = new Uint8Array(bytes).buffer;
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', buf));
+}
+
+/** 128-bit entropy + 4-bit SHA-256 checksum -> 12 words (BIP-39). */
+export async function generate12Words(): Promise<string[]> {
+  const entropy = new Uint8Array(16);
+  crypto.getRandomValues(entropy);
+  const hash = await sha256(entropy);
+  let bits = '';
+  for (const b of entropy) bits += b.toString(2).padStart(8, '0');
+  bits += hash[0].toString(2).padStart(8, '0').slice(0, 4);
+  const out: string[] = [];
+  for (let i = 0; i < 12; i++) out.push(WORDS[parseInt(bits.slice(i * 11, i * 11 + 11), 2)]);
+  return out;
 }
 
 export function normalizeSeed(raw: string): string[] {
@@ -49,10 +31,25 @@ export function normalizeSeed(raw: string): string[] {
 
 export function findSuggestions(prefix: string, limit = 6): string[] {
   const clean = prefix.trim().toLowerCase();
-  if (clean.length < 2) return [];
+  if (clean.length < 1) return [];
   return WORDS.filter((w) => w.startsWith(clean)).slice(0, limit);
 }
 
 export function isValidWord(word: string): boolean {
-  return WORDS.includes(word.trim().toLowerCase());
+  return WORD_INDEX.has(word.trim().toLowerCase());
+}
+
+/** Validates 12 known words and the BIP-39 checksum. */
+export async function validateMnemonic(words: string[]): Promise<boolean> {
+  if (words.length !== 12) return false;
+  let bits = '';
+  for (const w of words) {
+    const idx = WORD_INDEX.get(w.trim().toLowerCase());
+    if (idx === undefined) return false;
+    bits += idx.toString(2).padStart(11, '0');
+  }
+  const entropy = new Uint8Array(16);
+  for (let i = 0; i < 16; i++) entropy[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+  const hash = await sha256(entropy);
+  return hash[0].toString(2).padStart(8, '0').slice(0, 4) === bits.slice(128, 132);
 }

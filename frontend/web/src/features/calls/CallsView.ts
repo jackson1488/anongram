@@ -1,168 +1,90 @@
 import { i18nStore } from '../../core/i18n/i18nStore';
 import { clear, el } from '../../core/ui/dom';
 import { icons } from '../../core/ui/icons';
+import { showToast } from '../../core/ui/toast';
+import { openActiveCallModal } from './ActiveCallOverlay';
+import { callsStore, formatDuration } from './CallsStore';
+import { callsT } from './i18n';
+import './calls.css';
 
-interface CallLogItem {
-  id: string;
-  peerName: string;
-  avatarEmoji: string;
-  avatarColor: string;
-  direction: 'incoming' | 'outgoing' | 'missed';
-  isVideo: boolean;
-  timeLabel: string;
-  durationLabel: string;
-}
+export { openActiveCallModal };
 
-const CALL_LOGS: CallLogItem[] = [
-  {
-    id: 'c1',
-    peerName: 'Ghost Node #42',
-    avatarEmoji: '🕶️',
-    avatarColor: '#8B5CF6',
-    direction: 'outgoing',
-    isVideo: false,
-    timeLabel: 'Сегодня, 17:40',
-    durationLabel: '04:12',
-  },
-  {
-    id: 'c2',
-    peerName: 'Maya Cipher',
-    avatarEmoji: '⚡',
-    avatarColor: '#EC4899',
-    direction: 'missed',
-    isVideo: true,
-    timeLabel: 'Вчера, 22:15',
-    durationLabel: '',
-  },
-  {
-    id: 'c3',
-    peerName: 'AnonGram Core',
-    avatarEmoji: '🛡️',
-    avatarColor: '#06B6D4',
-    direction: 'incoming',
-    isVideo: false,
-    timeLabel: '14 нояб.',
-    durationLabel: '11:05',
-  },
-];
-
-export function openActiveCallModal(peerName: string, avatarEmoji: string, isVideo: boolean): void {
-  const t = i18nStore.t;
-  let muted = false;
-  let speaker = true;
-  const overlay = el('div', { class: 'ag-modal-overlay' });
-
-  const render = () => {
-    clear(overlay);
-    const muteBtn = el(
-      'button',
-      {
-        class: `ag-pill-btn ${muted ? 'ag-pill-btn--primary' : 'ag-pill-btn--secondary'}`,
-        onClick: () => {
-          muted = !muted;
-          render();
-        },
-      },
-      t.calls.mute,
-    );
-    const speakerBtn = el(
-      'button',
-      {
-        class: `ag-pill-btn ${speaker ? 'ag-pill-btn--ghost' : 'ag-pill-btn--secondary'}`,
-        onClick: () => {
-          speaker = !speaker;
-          render();
-        },
-      },
-      t.calls.speaker,
-    );
-    const endBtn = el(
-      'button',
-      {
-        class: 'ag-pill-btn',
-        style: 'background:#ef4444;color:#fff;',
-        onClick: () => overlay.remove(),
-      },
-      t.calls.endCall,
-    );
-
-    overlay.appendChild(
-      el(
-        'div',
-        { class: 'ag-call-modal ag-card' },
-        el('div', { class: 'ag-call-modal__badge' }, t.calls.encryptedCall),
-        el('div', { class: 'ag-call-modal__avatar' }, avatarEmoji),
-        el('h2', { style: 'margin:0;font-size:22px;' }, peerName),
-        el('p', { style: 'margin:0;color:var(--ag-text-secondary);font-size:14px;' }, `${isVideo ? t.calls.startVideoCall : t.calls.startAudioCall} • ${t.calls.calling}`),
-        el('div', { class: 'ag-call-modal__actions' }, muteBtn, speakerBtn, endBtn),
-      ),
-    );
-  };
-
-  render();
-  document.body.appendChild(overlay);
+function formatCallTime(timestampMs: number): string {
+  const s = callsT();
+  const d = new Date(timestampMs);
+  const now = new Date();
+  const hhmm = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  if (d.toDateString() === now.toDateString()) {
+    return `${s.today}, ${hhmm}`;
+  }
+  const yest = new Date(now);
+  yest.setDate(now.getDate() - 1);
+  if (d.toDateString() === yest.toDateString()) {
+    return `${s.yesterday}, ${hhmm}`;
+  }
+  const locale = i18nStore.language === 'ru' ? 'ru-RU' : 'en-US';
+  return d.toLocaleDateString(locale, { day: 'numeric', month: 'short' });
 }
 
 export function createCallsView(): HTMLElement {
   const root = el('div', { class: 'ag-list-pane' });
   let filter: 'all' | 'missed' = 'all';
+  let query = '';
 
-  const render = () => {
-    clear(root);
-    const t = i18nStore.t;
+  const list = el('div', { class: 'ag-scroll-list' });
+  const headerWrap = el('div', { class: 'ag-pane-header ag-calls-header' });
+  const chipsRow = el('div', { class: 'ag-chips-row' });
 
-    root.appendChild(
-      el(
-        'div',
-        { class: 'ag-pane-header' },
-        el('h1', { class: 'ag-pane-title' }, t.calls.title),
-      ),
-    );
+  const searchInput = el('input', {
+    type: 'text',
+    placeholder: callsT().searchPlaceholder,
+    value: query,
+    onInput: (e: Event) => {
+      query = (e.target as HTMLInputElement).value;
+      renderList();
+    },
+  }) as HTMLInputElement;
 
-    root.appendChild(
-      el(
-        'div',
-        { class: 'ag-chips-row' },
+  const searchWrap = el(
+    'div',
+    { class: 'ag-calls-search-wrap' },
+    el('div', { class: 'ag-search-pill' }, icons.search(16), searchInput),
+  );
+
+  const renderList = () => {
+    clear(list);
+    const s = callsT();
+    const q = query.trim().toLowerCase();
+    const items = callsStore
+      .getLogs()
+      .filter((c) => (filter === 'missed' ? c.direction === 'missed' : true))
+      .filter((c) => !q || c.peerName.toLowerCase().includes(q));
+
+    if (items.length === 0) {
+      list.appendChild(
         el(
-          'button',
-          {
-            class: `ag-chip ${filter === 'all' ? 'is-active' : ''}`,
-            onClick: () => {
-              filter = 'all';
-              render();
-            },
-          },
-          t.calls.all,
+          'div',
+          { style: 'text-align:center;padding:36px 16px;color:var(--ag-text-muted);font-size:13px;' },
+          s.emptyCalls,
         ),
-        el(
-          'button',
-          {
-            class: `ag-chip ${filter === 'missed' ? 'is-active' : ''}`,
-            onClick: () => {
-              filter = 'missed';
-              render();
-            },
-          },
-          t.calls.missed,
-        ),
-      ),
-    );
+      );
+      return;
+    }
 
-    const list = el('div', { class: 'ag-scroll-list' });
-    const items = CALL_LOGS.filter((c) => (filter === 'missed' ? c.direction === 'missed' : true));
     for (const item of items) {
       const dirLabel =
         item.direction === 'missed'
-          ? t.calls.missedLabel
+          ? s.missedLabel
           : item.direction === 'incoming'
-            ? t.calls.incoming
-            : t.calls.outgoing;
+            ? s.incoming
+            : s.outgoing;
+      const dur = formatDuration(item.durationSec);
 
       list.appendChild(
         el(
           'div',
           { class: 'ag-chat-row' },
-          el('div', { class: 'ag-avatar', style: `background:${item.avatarColor}22;border-color:${item.avatarColor}55` }, item.avatarEmoji),
+          el('div', { class: 'ag-avatar' }, item.avatarEmoji),
           el(
             'div',
             { class: 'ag-chat-row__body' },
@@ -170,28 +92,99 @@ export function createCallsView(): HTMLElement {
             el(
               'div',
               {
-                class: 'ag-chat-row__preview',
-                style: item.direction === 'missed' ? 'color:#ef4444' : '',
+                class: `ag-chat-row__preview ${item.direction === 'missed' ? 'ag-calls-row-missed' : ''}`,
               },
-              `${dirLabel} • ${item.timeLabel}${item.durationLabel ? ` (${item.durationLabel})` : ''}`,
+              `${dirLabel} • ${formatCallTime(item.timestampMs)}${dur ? ` (${dur})` : ''}`,
             ),
           ),
           el(
             'button',
             {
               class: 'ag-icon-btn',
-              title: item.isVideo ? t.calls.startVideoCall : t.calls.startAudioCall,
+              title: item.isVideo ? s.startVideoCall : s.startAudioCall,
               onClick: () => openActiveCallModal(item.peerName, item.avatarEmoji, item.isVideo),
             },
             item.isVideo ? icons.video(18) : icons.phone(18),
           ),
+          el(
+            'button',
+            {
+              class: 'ag-icon-btn',
+              onClick: () => callsStore.deleteCall(item.id),
+            },
+            icons.trash(16),
+          ),
         ),
       );
     }
-    root.appendChild(list);
   };
 
-  i18nStore.subscribe(render);
-  render();
+  const renderChrome = () => {
+    const s = callsT();
+    searchInput.placeholder = s.searchPlaceholder;
+    clear(headerWrap);
+    headerWrap.append(
+      el('h1', { class: 'ag-pane-title' }, s.title),
+      callsStore.getLogs().length > 0
+        ? el(
+            'button',
+            {
+              class: 'ag-chip',
+              onClick: () => {
+                callsStore.clearAll();
+                showToast(s.clearedToast);
+              },
+            },
+            icons.trash(13),
+            s.clearHistory,
+          )
+        : el('span', null),
+    );
+
+    clear(chipsRow);
+    chipsRow.append(
+      el(
+        'button',
+        {
+          class: `ag-chip ${filter === 'all' ? 'is-active' : ''}`,
+          onClick: () => {
+            filter = 'all';
+            renderChrome();
+            renderList();
+          },
+        },
+        s.all,
+      ),
+      el(
+        'button',
+        {
+          class: `ag-chip ${filter === 'missed' ? 'is-active' : ''}`,
+          onClick: () => {
+            filter = 'missed';
+            renderChrome();
+            renderList();
+          },
+        },
+        s.missed,
+      ),
+    );
+  };
+
+  root.append(headerWrap, searchWrap, chipsRow, list);
+
+  const onUpdate = () => {
+    renderChrome();
+    renderList();
+  };
+
+  const unsubCalls = callsStore.subscribe(onUpdate);
+  const unsubI18n = i18nStore.subscribe(onUpdate);
+  onUpdate();
+
+  (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
+    unsubCalls();
+    unsubI18n();
+  };
+
   return root;
 }

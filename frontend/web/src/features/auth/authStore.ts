@@ -1,4 +1,4 @@
-import { generate12Words, normalizeSeed } from '../../core/crypto/bip39';
+import { generate12Words, normalizeSeed, validateMnemonic } from '../../core/crypto/bip39';
 import { deriveIdentity, type UserIdentity } from '../../core/crypto/identity';
 import { kvStore } from '../../core/storage/kvStore';
 
@@ -38,7 +38,7 @@ class AuthStore {
     displayName: string,
     avatarIndex = 0,
   ): Promise<UserIdentity> {
-    const seed = generate12Words();
+    const seed = await generate12Words();
     return deriveIdentity(seed, displayName, '', avatarIndex);
   }
 
@@ -51,7 +51,7 @@ class AuthStore {
 
   async restoreFromSeed(rawSeed: string): Promise<UserIdentity | null> {
     const words = normalizeSeed(rawSeed);
-    if (words.length < 12) return null;
+    if (words.length !== 12 || !(await validateMnemonic(words))) return null;
     const identity = await deriveIdentity(words.slice(0, 12), 'GhostWalker', '', 0);
     this.confirmIdentity(identity);
     return identity;

@@ -1,0 +1,237 @@
+/* Mini Audio Player */
+.ag-mini-player {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--ag-banner-bg);
+  border-bottom: 1px solid var(--ag-divider);
+  color: var(--ag-text-primary);
+}
+
+.ag-mini-player__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ag-mini-player__title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--ag-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ag-mini-player__sub {
+  font-size: 11px;
+  color: var(--ag-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ag-mini-player__progress {
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--ag-divider);
+  overflow: hidden;
+}
+
+.ag-mini-player__progress > div {
+  height: 100%;
+  background: var(--ag-accent);
+  transition: width 0.2s linear;
+}
+
+/* Fullscreen Player & Chat Music Queue Sheet */
+.ag-pl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: var(--ag-overlay-scrim);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+}
+
+.ag-pl-sheet {
+  width: 100%;
+  max-width: 480px;
+  max-height: 92vh;
+  overflow: auto;
+  background: var(--ag-surface);
+  color: var(--ag-text-primary);
+  border: 1px solid var(--ag-card-border);
+  border-radius: 24px 24px 0 0;
+  padding: 20px 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ag-pl-full {
+  align-items: stretch;
+  background: var(--ag-bg);
+}
+
+.ag-pl-full .ag-pl-sheet {
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  background: var(--ag-bg);
+  align-items: center;
+}
+
+.ag-pl-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  font-weight: 600;
+  color: var(--ag-text-primary);
+}
+
+.ag-pl-cover {
+  width: min(280px, 70vw);
+  aspect-ratio: 1;
+  border-radius: 24px;
+  background: var(--ag-card);
+  border: 1px solid var(--ag-card-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ag-accent);
+  background-size: cover;
+  background-position: center;
+}
+
+.ag-pl-title {
+  font-size: 20px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--ag-text-primary);
+}
+
+.ag-pl-sub {
+  color: var(--ag-text-secondary);
+  text-align: center;
+}
+
+.ag-pl-seek {
+  width: 100%;
+  max-width: 480px;
+  accent-color: var(--ag-accent);
+}
+
+.ag-pl-times {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 480px;
+  color: var(--ag-text-muted);
+  font-size: 12px;
+}
+
+.ag-pl-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.ag-pl-btn {
+  border: 1px solid var(--ag-card-border);
+  border-radius: 24px;
+  padding: 10px 14px;
+  background: var(--ag-card);
+  color: var(--ag-text-primary);
+  cursor: pointer;
+  font: inherit;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.ag-pl-btn:hover {
+  background: var(--ag-hover);
+}
+
+.ag-pl-btn.is-active {
+  background: var(--ag-accent);
+  color: var(--ag-on-accent);
+  border-color: var(--ag-accent);
+}
+
+.ag-pl-play {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--ag-accent);
+  color: var(--ag-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.15s ease;
+}
+
+.ag-pl-play:hover {
+  opacity: 0.92;
+}
+
+.ag-pl-play:active {
+  transform: scale(0.95);
+}
+
+.ag-pl-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ag-pl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  color: var(--ag-text-primary);
+  font: inherit;
+  text-align: left;
+  transition: background-color 0.14s ease;
+}
+
+.ag-pl-row:hover {
+  background: var(--ag-hover);
+}
+
+.ag-pl-row.is-current {
+  background: var(--ag-accent-soft);
+  color: var(--ag-accent);
+}
+
+.ag-pl-row small {
+  color: var(--ag-text-muted);
+}
+
+@media (min-width: 840px) {
+  .ag-pl-overlay {
+    align-items: center;
+  }
+
+  .ag-pl-sheet {
+    border-radius: 20px;
+    box-shadow: 0 16px 48px var(--ag-shadow);
+  }
+}

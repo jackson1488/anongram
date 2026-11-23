@@ -1,0 +1,24 @@
+.ag-menu-backdrop { position: fixed; inset: 0; z-index: 10000; background: transparent; }
+.ag-menu {
+  position: fixed; min-width: 190px; max-width: 280px; padding: 6px;
+  background: var(--ag-island-bg); border: 1px solid var(--ag-island-border);
+  border-radius: 16px; box-shadow: 0 10px 32px var(--ag-shadow);
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px);
+  opacity: 0; transform: scale(0.92); transform-origin: top right;
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+.ag-menu.is-open { opacity: 1; transform: scale(1); }
+.ag-menu-item {
+  display: flex; align-items: center; gap: 12px; width: 100%; height: 40px; padding: 0 12px;
+  border-radius: 10px; font-size: 14px; font-weight: 500; text-align: left;
+  color: var(--ag-text-primary); transition: background-color 0.12s ease;
+}
+.ag-menu--compact .ag-menu-item { height: 34px; font-size: 13.5px; gap: 10px; padding: 0 10px; }
+.ag-menu-item:hover:not(:disabled) { background: var(--ag-hover); }
+.ag-menu-item:disabled { opacity: 0.4; cursor: default; }
+.ag-menu-item.is-danger { color: var(--ag-danger); }
+.ag-menu-item.is-checked .ag-menu-label { color: var(--ag-accent); }
+.ag-menu-icon { display: inline-flex; color: var(--ag-text-secondary); }
+.ag-menu-item.is-danger .ag-menu-icon { color: var(--ag-danger); }
+.ag-menu-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ag-menu-sep { height: 1px; margin: 5px 6px; background: var(--ag-divider); }
