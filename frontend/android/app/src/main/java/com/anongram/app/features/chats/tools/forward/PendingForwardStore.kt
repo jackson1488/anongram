@@ -103,6 +103,38 @@ object PendingForwardStore {
         return false
     }
 
+    /** Удаляет один трек из MusicGroup при пересылке; если остаётся 1 — превращает в Music, если 0 — удаляет элемент. */
+    fun removeMusicGroupItem(key: String, trackIndex: Int): Boolean {
+        val current = _state.value ?: return false
+        val target = current.items.firstOrNull { it.key == key } ?: return false
+        val group = target.resolvedMessage.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup
+            ?: return removeItem(key)
+        val nextTracks = group.items.filterIndexed { idx, _ -> idx != trackIndex }
+        if (nextTracks.isEmpty()) return removeItem(key)
+        val nextAttachment = if (nextTracks.size == 1) nextTracks.first() else group.copy(items = nextTracks)
+        val updatedMsg = target.resolvedMessage.copy(attachment = nextAttachment)
+        _state.value = current.copy(items = current.items.map {
+            if (it.key == key) it.copy(resolvedMessage = updatedMsg) else it
+        })
+        return false
+    }
+
+    /** Удаляет один файл из FileGroup при пересылке; если остаётся 1 — превращает в File, если 0 — удаляет элемент. */
+    fun removeFileGroupItem(key: String, fileIndex: Int): Boolean {
+        val current = _state.value ?: return false
+        val target = current.items.firstOrNull { it.key == key } ?: return false
+        val group = target.resolvedMessage.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup
+            ?: return removeItem(key)
+        val nextFiles = group.items.filterIndexed { idx, _ -> idx != fileIndex }
+        if (nextFiles.isEmpty()) return removeItem(key)
+        val nextAttachment = if (nextFiles.size == 1) nextFiles.first() else group.copy(items = nextFiles)
+        val updatedMsg = target.resolvedMessage.copy(attachment = nextAttachment)
+        _state.value = current.copy(items = current.items.map {
+            if (it.key == key) it.copy(resolvedMessage = updatedMsg) else it
+        })
+        return false
+    }
+
     fun clear() {
         _state.value = null
     }

@@ -14,7 +14,9 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -290,7 +292,8 @@ internal fun ChatMediaFullscreenViewer(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(280.dp)
+                            .fillMaxWidth(0.92f)
+                            .aspectRatio(1f)
                             .clip(androidx.compose.foundation.shape.CircleShape)
                             .background(com.anongram.app.features.chats.messages.domain.attachmentColor(entry.colorSeed))
                             .border(2.dp, Color.White.copy(alpha = 0.28f), androidx.compose.foundation.shape.CircleShape),

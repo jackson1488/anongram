@@ -143,114 +143,248 @@ fun ForwardPreviewOverlay(
                     ) {
                         itemsIndexed(pending.items, key = { _, item -> item.key }) { _, item ->
                             val isIncluded = item.key !in pending.excludedKeys
-                            val album = item.resolvedMessage.attachment as? com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum
-                            Column(
+                            val att = item.resolvedMessage.attachment
+                            val album = att as? com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum
+                            val musicGroup = att as? com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup
+                            val fileGroup = att as? com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup
+
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .alpha(if (isIncluded) 1f else 0.45f),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Row(
+                                Box(
                                     modifier = Modifier
-                                        .fillMaxWidth()
+                                        .size(26.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isIncluded) scheme.accent else scheme.card.copy(alpha = 0.8f))
+                                        .border(1.dp, if (isIncluded) scheme.accent else scheme.islandBorder, CircleShape)
                                         .clickable { onToggleItem(item.key) },
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(26.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isIncluded) scheme.accent else scheme.card.copy(alpha = 0.8f))
-                                            .border(1.dp, if (isIncluded) scheme.accent else scheme.islandBorder, CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        if (isIncluded) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Check,
-                                                contentDescription = null,
-                                                tint = scheme.onAccent,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                    Box(modifier = Modifier.weight(1f)) {
-                                        InteractiveReplyBubble(
-                                            message = item.resolvedMessage,
-                                            peerName = peerName,
-                                            onJumpToMessage = { onToggleItem(item.key) }
+                                    if (isIncluded) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Check,
+                                            contentDescription = null,
+                                            tint = scheme.onAccent,
+                                            modifier = Modifier.size(16.dp)
                                         )
-                                        Box(
-                                            modifier = Modifier
-                                                .align(Alignment.TopEnd)
-                                                .padding(top = 4.dp, end = 4.dp)
-                                                .size(22.dp)
-                                                .clip(CircleShape)
-                                                .background(Color.Black.copy(alpha = 0.62f))
-                                                .border(0.8.dp, Color.White.copy(alpha = 0.35f), CircleShape)
-                                                .clickable {
-                                                    val cancelled = PendingForwardStore.removeItem(item.key)
-                                                    if (cancelled) {
-                                                        onDismiss()
-                                                        onCancelAll()
-                                                    }
-                                                },
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Outlined.Close,
-                                                contentDescription = null,
-                                                tint = Color.White,
-                                                modifier = Modifier.size(13.dp)
-                                            )
-                                        }
                                     }
                                 }
-                                if (album != null && album.items.size > 1) {
-                                    androidx.compose.foundation.lazy.LazyRow(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(start = 36.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        itemsIndexed(album.items) { photoIdx, mediaItem ->
-                                            Box(modifier = Modifier.size(58.dp)) {
-                                                com.anongram.app.features.chats.input.reply.ReplyAttachmentMiniThumb(
-                                                    message = item.resolvedMessage.copy(
-                                                        attachment = com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo(
-                                                            label = if (mediaItem.isVideo) "Video" else "Photo",
-                                                            colorSeed = photoIdx,
-                                                            uri = mediaItem.uri,
-                                                            isVideo = mediaItem.isVideo
-                                                        )
-                                                    ),
-                                                    accent = scheme.accent,
-                                                    size = 58.dp
-                                                )
-                                                Box(
-                                                    modifier = Modifier
-                                                        .align(Alignment.TopEnd)
-                                                        .padding(2.dp)
-                                                        .size(18.dp)
-                                                        .clip(CircleShape)
-                                                        .background(Color.Black.copy(alpha = 0.68f))
-                                                        .border(0.7.dp, Color.White.copy(alpha = 0.4f), CircleShape)
-                                                        .clickable {
-                                                            val cancelled = PendingForwardStore.removeAlbumPhoto(item.key, photoIdx)
-                                                            if (cancelled) {
-                                                                onDismiss()
-                                                                onCancelAll()
+
+                                Box(modifier = Modifier.weight(1f)) {
+                                    when {
+                                        album != null && album.items.size > 1 -> {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(scheme.card.copy(alpha = 0.92f))
+                                                    .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
+                                                    .padding(6.dp),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                val rows = album.items.mapIndexed { idx, media -> idx to media }.chunked(2)
+                                                rows.forEach { rowPairs ->
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                    ) {
+                                                        rowPairs.forEach { (photoIdx, mediaItem) ->
+                                                            Box(
+                                                                modifier = Modifier
+                                                                    .weight(1f)
+                                                                    .height(104.dp)
+                                                                    .clip(RoundedCornerShape(10.dp))
+                                                            ) {
+                                                                com.anongram.app.features.chats.input.reply.ReplyAttachmentMiniThumb(
+                                                                    message = item.resolvedMessage.copy(
+                                                                        attachment = com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo(
+                                                                            label = if (mediaItem.isVideo) "Video" else "Photo",
+                                                                            colorSeed = photoIdx,
+                                                                            uri = mediaItem.uri,
+                                                                            isVideo = mediaItem.isVideo
+                                                                        )
+                                                                    ),
+                                                                    accent = scheme.accent,
+                                                                    size = 104.dp,
+                                                                    modifier = Modifier.fillMaxSize()
+                                                                )
+                                                                Box(
+                                                                    modifier = Modifier
+                                                                        .align(Alignment.TopEnd)
+                                                                        .padding(5.dp)
+                                                                        .size(22.dp)
+                                                                        .clip(CircleShape)
+                                                                        .background(Color.Black.copy(alpha = 0.68f))
+                                                                        .border(0.8.dp, Color.White.copy(alpha = 0.45f), CircleShape)
+                                                                        .clickable {
+                                                                            val cancelled = PendingForwardStore.removeAlbumPhoto(item.key, photoIdx)
+                                                                            if (cancelled) {
+                                                                                onDismiss()
+                                                                                onCancelAll()
+                                                                            }
+                                                                        },
+                                                                    contentAlignment = Alignment.Center
+                                                                ) {
+                                                                    Icon(
+                                                                        imageVector = Icons.Outlined.Close,
+                                                                        contentDescription = null,
+                                                                        tint = Color.White,
+                                                                        modifier = Modifier.size(13.dp)
+                                                                    )
+                                                                }
                                                             }
-                                                        },
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = Icons.Outlined.Close,
-                                                        contentDescription = null,
-                                                        tint = Color.White,
-                                                        modifier = Modifier.size(11.dp)
+                                                        }
+                                                        if (rowPairs.size == 1) {
+                                                            Spacer(modifier = Modifier.weight(1f))
+                                                        }
+                                                    }
+                                                }
+                                                if (item.resolvedMessage.text.isNotBlank()) {
+                                                    Text(
+                                                        text = item.resolvedMessage.text,
+                                                        color = scheme.textPrimary,
+                                                        fontSize = 13.sp,
+                                                        maxLines = 2,
+                                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                                                     )
                                                 }
+                                            }
+                                        }
+
+                                        musicGroup != null && musicGroup.items.size > 1 -> {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(scheme.card.copy(alpha = 0.92f))
+                                                    .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                musicGroup.items.forEachIndexed { trackIdx, track ->
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "🎵 ${track.title}",
+                                                            color = scheme.textPrimary,
+                                                            fontSize = 13.5.sp,
+                                                            maxLines = 1,
+                                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                            modifier = Modifier.weight(1f)
+                                                        )
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(20.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color.Black.copy(alpha = 0.55f))
+                                                                .clickable {
+                                                                    val cancelled = PendingForwardStore.removeMusicGroupItem(item.key, trackIdx)
+                                                                    if (cancelled) {
+                                                                        onDismiss()
+                                                                        onCancelAll()
+                                                                    }
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.Close,
+                                                                contentDescription = null,
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(12.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        fileGroup != null && fileGroup.items.size > 1 -> {
+                                            Column(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(16.dp))
+                                                    .background(scheme.card.copy(alpha = 0.92f))
+                                                    .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
+                                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                                verticalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                fileGroup.items.forEachIndexed { fileIdx, fileItem ->
+                                                    Row(
+                                                        modifier = Modifier.fillMaxWidth(),
+                                                        verticalAlignment = Alignment.CenterVertically,
+                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "📄 ${fileItem.name}",
+                                                            color = scheme.textPrimary,
+                                                            fontSize = 13.5.sp,
+                                                            maxLines = 1,
+                                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                            modifier = Modifier.weight(1f)
+                                                        )
+                                                        Box(
+                                                            modifier = Modifier
+                                                                .size(20.dp)
+                                                                .clip(CircleShape)
+                                                                .background(Color.Black.copy(alpha = 0.55f))
+                                                                .clickable {
+                                                                    val cancelled = PendingForwardStore.removeFileGroupItem(item.key, fileIdx)
+                                                                    if (cancelled) {
+                                                                        onDismiss()
+                                                                        onCancelAll()
+                                                                    }
+                                                                },
+                                                            contentAlignment = Alignment.Center
+                                                        ) {
+                                                            Icon(
+                                                                imageVector = Icons.Outlined.Close,
+                                                                contentDescription = null,
+                                                                tint = Color.White,
+                                                                modifier = Modifier.size(12.dp)
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        else -> {
+                                            InteractiveReplyBubble(
+                                                message = item.resolvedMessage,
+                                                peerName = peerName,
+                                                onJumpToMessage = { onToggleItem(item.key) }
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .padding(top = 4.dp, end = 4.dp)
+                                                    .size(22.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.Black.copy(alpha = 0.62f))
+                                                    .border(0.8.dp, Color.White.copy(alpha = 0.35f), CircleShape)
+                                                    .clickable {
+                                                        val cancelled = PendingForwardStore.removeItem(item.key)
+                                                        if (cancelled) {
+                                                            onDismiss()
+                                                            onCancelAll()
+                                                        }
+                                                    },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Outlined.Close,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(13.dp)
+                                                )
                                             }
                                         }
                                     }

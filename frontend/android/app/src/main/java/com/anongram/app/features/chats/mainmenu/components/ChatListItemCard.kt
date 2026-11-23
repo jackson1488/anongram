@@ -247,6 +247,43 @@ internal fun ChatListItemCard(
 
                 Spacer(modifier = Modifier.height(3.dp))
 
+                val att = session.lastMessageAttachment
+                val cleanPreview = session.lastMessagePreview.trim()
+                val looksLikeProtocol = cleanPreview.equals(session.securityLabel, ignoreCase = true) ||
+                    cleanPreview.contains("ML-KEM", ignoreCase = true) ||
+                    cleanPreview.contains("Kyber", ignoreCase = true) ||
+                    cleanPreview.contains("Ratchet", ignoreCase = true) ||
+                    cleanPreview.contains("E2EE", ignoreCase = true) ||
+                    cleanPreview.contains("SHA-256", ignoreCase = true) ||
+                    cleanPreview.contains("zk-SNARK", ignoreCase = true) ||
+                    cleanPreview.contains("obfs4", ignoreCase = true) ||
+                    cleanPreview.contains("X3DH", ignoreCase = true) ||
+                    cleanPreview.contains("ChaCha20", ignoreCase = true) ||
+                    cleanPreview.contains("SAS", ignoreCase = false) ||
+                    cleanPreview.contains("0x", ignoreCase = true)
+
+                val attachmentFallbackLabel = when (att) {
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo ->
+                        if (att.isVideo) "Видео" else "Фото"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum -> "Альбом"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle -> "Видеосообщение"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.Voice -> "Голосовое сообщение"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.File,
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.FileGroup -> "Файл"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.Music,
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.MusicGroup -> "Музыка"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.Contact -> "Контакт"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.Geo -> "Геолокация"
+                    is com.anongram.app.features.chats.messages.domain.MessageAttachment.Sticker -> att.symbol
+                    null -> ""
+                }
+
+                val hasMediaThumb = draftText.isNullOrBlank() && (
+                    att is com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo ||
+                        att is com.anongram.app.features.chats.messages.domain.MessageAttachment.MediaAlbum ||
+                        att is com.anongram.app.features.chats.messages.domain.MessageAttachment.VideoCircle
+                    )
+
                 val preview = when {
                     !draftText.isNullOrBlank() -> buildAnnotatedString {
                         withStyle(SpanStyle(color = scheme.accent, fontWeight = FontWeight.SemiBold)) {
@@ -256,8 +293,13 @@ internal fun ChatListItemCard(
                             append(draftText)
                         }
                     }
-                    session.lastMessagePreview.isNotEmpty() -> buildAnnotatedString {
-                        append(session.lastMessagePreview)
+                    cleanPreview.isNotEmpty() && !looksLikeProtocol -> buildAnnotatedString {
+                        append(cleanPreview)
+                    }
+                    attachmentFallbackLabel.isNotEmpty() -> buildAnnotatedString {
+                        withStyle(SpanStyle(color = scheme.accent)) {
+                            append(attachmentFallbackLabel)
+                        }
                     }
                     else -> null
                 }
@@ -267,34 +309,37 @@ internal fun ChatListItemCard(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (preview != null) {
-                        Text(
-                            text = preview,
-                            color = scheme.textSecondary,
-                            fontSize = 12.5.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f).padding(end = 8.dp)
-                        )
-                    } else {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp),
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Outlined.Lock,
-                                contentDescription = null,
-                                tint = accent.copy(alpha = 0.7f),
-                                modifier = Modifier.size(11.dp)
+                    Row(
+                        modifier = Modifier.weight(1f).padding(end = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (hasMediaThumb && att != null) {
+                            com.anongram.app.features.chats.input.reply.ReplyAttachmentMiniThumb(
+                                message = com.anongram.app.features.chats.messages.domain.ChatMessage(
+                                    id = "list_thumb_${session.id}",
+                                    direction = com.anongram.app.features.chats.messages.domain.MessageDirection.OUTGOING,
+                                    epochMs = session.lastMessageEpochMs,
+                                    attachment = att
+                                ),
+                                accent = accent,
+                                size = 18.dp
                             )
+                        }
+                        if (preview != null) {
                             Text(
-                                text = "${session.securityLabel} · ${session.fingerprint}",
-                                color = scheme.textMuted,
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
+                                text = preview,
+                                color = scheme.textSecondary,
+                                fontSize = 12.5.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
+                            )
+                        } else {
+                            Text(
+                                text = "",
+                                color = scheme.textMuted,
+                                fontSize = 12.sp,
+                                maxLines = 1
                             )
                         }
                     }
