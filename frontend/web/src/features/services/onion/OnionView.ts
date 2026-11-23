@@ -144,19 +144,20 @@ export function createOnionView(onBack: () => void): HTMLElement {
             el('strong', { style: 'font-size:14px;color:var(--ag-text-primary);' }, s.onionCircuitTitle),
             el('span', { class: 'ag-chip' }, `~${totalMs} ms`),
           ),
-          ...st.hops.map((h, idx) =>
-            el(
+          ...st.hops.map((h, idx) => {
+            const hopRole = idx === 0 ? s.onionHopGuard : idx === 1 ? s.onionHopRelay : s.onionHopExit;
+            return el(
               'div',
               { class: 'ag-onion-hop-card' },
               el(
                 'div',
                 { style: 'display:flex;flex-direction:column;gap:2px;' },
-                el('strong', { style: 'font-size:13px;color:var(--ag-text-primary);' }, `${idx + 1}. ${h.role} (${h.country})`),
+                el('strong', { style: 'font-size:13px;color:var(--ag-text-primary);' }, `${idx + 1}. ${hopRole} (${h.country})`),
                 el('span', { style: 'font-size:11px;color:var(--ag-text-secondary);font-family:monospace;' }, h.node),
               ),
               el('span', { style: 'font-size:12px;color:var(--ag-success);font-weight:600;' }, `${h.latencyMs} ms`),
-            ),
-          ),
+            );
+          }),
           el('div', { style: 'font-size:11px;color:var(--ag-text-muted);' }, s.onionCamouflage),
           el(
             'button',

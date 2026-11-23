@@ -33,6 +33,7 @@ export interface ServicesStrings {
   aiEngineCloud: string;
   aiClearChat: string;
   aiCopied: string;
+  aiMsgCount: (n: number) => string;
   aiSuggestions: string[];
 
   // Onion
@@ -43,6 +44,9 @@ export interface ServicesStrings {
   onionRotateBtn: string;
   onionRotatedToast: string;
   onionCamouflage: string;
+  onionHopGuard: string;
+  onionHopRelay: string;
+  onionHopExit: string;
 
   // OTP
   otpHeading: string;
@@ -90,6 +94,7 @@ const RU: ServicesStrings = {
   aiEngineCloud: 'Облачный API',
   aiClearChat: 'Очистить чат',
   aiCopied: 'Ответ скопирован',
+  aiMsgCount: (n: number) => `${n} сообщ.`,
   aiSuggestions: [
     'Объясни, как работает Blind Relay в AnonGram',
     'Проверь безопасность моей seed-фразы (чеклист)',
@@ -103,6 +108,9 @@ const RU: ServicesStrings = {
   onionRotateBtn: 'Сменить цепочку',
   onionRotatedToast: 'Новая 3-хоп цепочка построена',
   onionCamouflage: 'Маскировка: TLS 1.3 · uTLS Chrome',
+  onionHopGuard: 'Входной узел',
+  onionHopRelay: 'Средний ретранслятор',
+  onionHopExit: 'Выходной узел',
 
   otpHeading: 'OTP Блокнот (Сгораемый)',
   otpCreateBtn: 'Создать страницу',
@@ -149,6 +157,7 @@ const EN: ServicesStrings = {
   aiEngineCloud: 'Cloud API',
   aiClearChat: 'Clear chat',
   aiCopied: 'Response copied',
+  aiMsgCount: (n: number) => `${n} msg`,
   aiSuggestions: [
     'Explain how Blind Relay works in AnonGram',
     'Give me a seed-phrase security checklist',
@@ -162,6 +171,9 @@ const EN: ServicesStrings = {
   onionRotateBtn: 'Rotate Circuit',
   onionRotatedToast: 'New 3-hop circuit established',
   onionCamouflage: 'Camouflage: TLS 1.3 · uTLS Chrome',
+  onionHopGuard: 'Entry Guard',
+  onionHopRelay: 'Middle Relay',
+  onionHopExit: 'Exit Node',
 
   otpHeading: 'OTP Notepad (Burnable)',
   otpCreateBtn: 'Create Page',

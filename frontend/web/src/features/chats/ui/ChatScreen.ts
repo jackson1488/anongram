@@ -10,6 +10,7 @@ import { chatScreenT } from '../i18n';
 import type { ChatMessage, MessageAttachment, ReplyPreview } from '../models';
 import { createInChatSearchBar } from '../search/ChatSearchScreen';
 import { createUserProfileScreen } from '../user_profile/api/UserProfileScreen';
+import { blockedUsersStore } from '../user_profile/data/BlockedUsersStore';
 import { createChatTopBar } from './ChatTopBar';
 import { createChatWallpaper } from './ChatWallpaper';
 import { createAttachMenu } from './components/AttachMenu';
@@ -72,6 +73,7 @@ export function createChatRoomView(
   const stage = el('div', { class: 'ag-cs-stage' }, wallpaper, messagesEl, scrollDownBtn);
 
   const replySlot = el('div');
+  const blockedSlot = el('div');
   const drawerSlot = el('div');
 
   const syncDraft = (text: string) => {
@@ -83,6 +85,7 @@ export function createChatRoomView(
     initialText: initialDraft?.text ?? '',
     onTextChange: (text) => syncDraft(text),
     onSend: (text) => {
+      if (blockedUsersStore.isBlocked(chatId)) return;
       chatStore.sendMessage(chatId, text, replyTarget ?? undefined);
       replyTarget = null;
       openPanel = 'none';
@@ -92,6 +95,7 @@ export function createChatRoomView(
       renderDrawer();
     },
     onVoice: () => {
+      if (blockedUsersStore.isBlocked(chatId)) return;
       chatStore.sendMessage(chatId, '', replyTarget ?? undefined, {
         type: 'voice',
         title: i18nStore.t.input.attachVoice,
@@ -102,16 +106,18 @@ export function createChatRoomView(
       renderReply();
     },
     onToggleAttach: () => {
+      if (blockedUsersStore.isBlocked(chatId)) return;
       openPanel = openPanel === 'attach' ? 'none' : 'attach';
       renderDrawer();
     },
     onToggleEmoji: () => {
+      if (blockedUsersStore.isBlocked(chatId)) return;
       openPanel = openPanel === 'emoji' ? 'none' : 'emoji';
       renderDrawer();
     },
   });
 
-  const dock = el('div', { class: 'ag-cs-dock' }, replySlot, composer.root, drawerSlot);
+  const dock = el('div', { class: 'ag-cs-dock' }, replySlot, composer.root, blockedSlot, drawerSlot);
   const mainCol = el(
     'div',
     { style: 'flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;' },
@@ -270,6 +276,7 @@ export function createChatRoomView(
         createEmojiPanel(
           (em) => composer.insertText(em),
           (st) => {
+            if (blockedUsersStore.isBlocked(chatId)) return;
             chatStore.sendMessage(chatId, st, replyTarget ?? undefined);
             replyTarget = null;
             openPanel = 'none';
@@ -284,6 +291,7 @@ export function createChatRoomView(
       drawerSlot.appendChild(
         createAttachMenu({
           send: (att: MessageAttachment) => {
+            if (blockedUsersStore.isBlocked(chatId)) return;
             const text = composer.getText();
             chatStore.sendMessage(chatId, text, replyTarget ?? undefined, att);
             composer.setText('');
@@ -395,10 +403,74 @@ export function createChatRoomView(
     }
   };
 
+  const renderBlockedDock = () => {
+    const blocked = blockedUsersStore.isBlocked(chatId);
+    composer.root.style.display = blocked ? 'none' : '';
+    replySlot.style.display = blocked ? 'none' : '';
+    drawerSlot.style.display = blocked ? 'none' : '';
+    clear(blockedSlot);
+    if (!blocked) return;
+    if (openPanel !== 'none') {
+      openPanel = 'none';
+      renderDrawer();
+    }
+    const s = chatScreenT();
+    const unblockBtn = el(
+      'button',
+      {
+        type: 'button',
+        style: [
+          'border:none',
+          'background:var(--ag-accent)',
+          'color:var(--ag-on-accent)',
+          'border-radius:9999px',
+          'padding:8px 18px',
+          'font-size:14px',
+          'font-weight:600',
+          'cursor:pointer',
+          'flex-shrink:0',
+        ].join(';'),
+        onClick: () => {
+          blockedUsersStore.unblock(chatId);
+          composer.focus();
+        },
+      },
+      s.unblockUser,
+    );
+    const banner = el(
+      'div',
+      {
+        class: 'ag-cs-blocked-banner',
+        style: [
+          'display:flex',
+          'align-items:center',
+          'justify-content:space-between',
+          'gap:12px',
+          'padding:10px 16px',
+          'background:var(--ag-island-bg)',
+          'border-top:1px solid var(--ag-divider)',
+          'backdrop-filter:blur(12px)',
+          '-webkit-backdrop-filter:blur(12px)',
+        ].join(';'),
+      },
+      el(
+        'span',
+        {
+          style: 'font-size:14px;color:var(--ag-text-secondary);min-width:0;',
+        },
+        s.blockedBannerText,
+      ),
+      unblockBtn,
+    );
+    blockedSlot.appendChild(banner);
+  };
+
   const unsubChats = chatStore.subscribe(() => {
     renderHeader();
     renderMessages();
   });
+
+  const unsubBlocked = blockedUsersStore.subscribe(renderBlockedDock);
 
   let audioKey = `${audioPlayer.currentTrack?.id ?? ''}|${audioPlayer.playing}`;
   const unsubAudio = audioPlayer.subscribe(() => {
@@ -418,20 +490,23 @@ export function createChatRoomView(
     renderReply();
     renderMessages();
     renderDrawer();
+    renderBlockedDock();
   });
 
   renderHeader();
   renderReply();
   renderMessages();
   renderDrawer();
+  renderBlockedDock();
   requestAnimationFrame(scrollToBottomNow);
 
-  if (window.innerWidth >= 840) {
+  if (window.innerWidth >= 840 && !blockedUsersStore.isBlocked(chatId)) {
     requestAnimationFrame(() => composer.focus());
   }
 
   (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
     unsubChats();
+    unsubBlocked();
     unsubAudio();
     unsubI18n();
     closeMessageContextMenu();

@@ -170,7 +170,7 @@ button {
   color: var(--ag-text-primary);
   font-size: 13px;
   font-weight: 500;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px var(--ag-shadow);
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }

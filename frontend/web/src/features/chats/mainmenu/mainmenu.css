@@ -5,19 +5,32 @@
 
 /* Desktop: Telegram Web A style rows */
 @media (min-width: 840px) {
-  .ag-mm .ag-scroll-list { padding: 4px 8px; }
-  .ag-mm .ag-chat-row { padding: 9px 10px; border-radius: 12px; gap: 12px; }
+  .ag-mm .ag-scroll-list { padding: 6px 8px; display: flex; flex-direction: column; gap: 2px; }
+  .ag-mm .ag-chat-row { padding: 9px 10px; border-radius: 12px; gap: 12px; transition: background-color 0.14s ease; }
+  .ag-mm .ag-chat-row:hover { background: var(--ag-hover); }
   .ag-mm .ag-chat-row .ag-avatar { width: 54px; height: 54px; font-size: 26px; }
-  .ag-mm .ag-chat-row.is-selected { background: var(--ag-accent); }
+  .ag-mm .ag-chat-row__body { gap: 3px; }
+  .ag-mm .ag-chat-row.is-selected,
+  .ag-mm .ag-chat-row.is-selected:hover { background: var(--ag-accent); }
+  .ag-mm .ag-chat-row.is-selected .ag-online-dot { border-color: var(--ag-accent); }
   .ag-mm .ag-chat-row.is-selected .ag-chat-row__title,
   .ag-mm .ag-chat-row.is-selected .ag-chat-row__time,
   .ag-mm .ag-chat-row.is-selected .ag-chat-row__preview,
+  .ag-mm .ag-chat-row.is-selected .ag-draft-prefix,
   .ag-mm .ag-chat-row.is-selected .ag-pin-icon { color: var(--ag-on-accent); }
+  .ag-mm .ag-chat-row .ag-unread-badge {
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 22px;
+  }
   .ag-mm .ag-chat-row.is-selected .ag-unread-badge { background: var(--ag-on-accent); color: var(--ag-accent); }
   .ag-mm .ag-chat-row__title { font-size: 16px; font-weight: 600; }
   .ag-mm .ag-chat-row__preview { font-size: 15px; }
   .ag-mm .ag-chat-row__time { font-size: 12px; }
-  .ag-mm .ag-chips-row { padding: 4px 10px; border-bottom: 1px solid var(--ag-divider); }
+  .ag-mm .ag-chips-row { padding: 6px 10px 8px; border-bottom: 1px solid var(--ag-divider); }
 }
 
 .ag-mm-section--row {

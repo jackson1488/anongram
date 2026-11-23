@@ -35,13 +35,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 18px 6px;
+  padding: max(14px, env(safe-area-inset-top)) 20px 10px;
 }
 
 .ag-app-header__left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .ag-app-header__logo {
@@ -75,6 +75,7 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 10px;
   font-weight: 700;
+  line-height: 1.2;
 }
 
 .ag-onion-dot {
@@ -99,7 +100,7 @@
   position: fixed;
   left: 16px;
   right: 16px;
-  bottom: 12px;
+  bottom: max(12px, env(safe-area-inset-bottom));
   z-index: 40;
   display: flex;
   justify-content: center;
@@ -129,24 +130,27 @@
 }
 
 .ag-island__tab {
+  flex: 1;
+  min-width: 0;
+  max-width: 76px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
-  min-width: 56px;
+  gap: 2px;
   height: 48px;
-  padding: 0 8px;
-  border-radius: 18px;
+  padding: 0 6px;
+  border-radius: 9999px;
   color: var(--ag-text-secondary);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .ag-island__tab.is-active {
   background: var(--ag-accent-soft);
   color: var(--ag-accent);
+  font-weight: 700;
 }
 
 .ag-island-qr-btn {
@@ -163,7 +167,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 12px 28px var(--ag-accent-soft);
+  box-shadow: 0 10px 26px var(--ag-accent-soft), 0 4px 14px var(--ag-shadow);
   pointer-events: auto;
   transition: transform 0.14s ease;
 }

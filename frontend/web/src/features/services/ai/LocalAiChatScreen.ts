@@ -147,7 +147,7 @@ export function createLocalAiChatScreen(options: LocalAiChatOptions): HTMLElemen
                 el(
                   'div',
                   { style: 'font-size:11px;color:var(--ag-text-secondary);' },
-                  `${sess.messages.length} msg`,
+                  s.aiMsgCount(sess.messages.length),
                 ),
               ),
               el(

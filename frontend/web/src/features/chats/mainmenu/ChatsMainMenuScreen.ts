@@ -3,8 +3,10 @@ import { clear, el } from '../../../core/ui/dom';
 import { openContactsOverlay } from '../../contacts/ContactsOverlay';
 import { draftsStore } from '../../drafts/draftsStore';
 import { chatStore } from '../chatStore';
+import { archiveSettingsStore } from '../archive/ArchiveSettingsStore';
 import type { ChatFolder } from '../models';
 import { renderGlobalSearchResults, renderRecentSearchesSection } from '../search/ChatSearchScreen';
+import { blockedUsersStore } from '../user_profile/data/BlockedUsersStore';
 import { createArchivePill } from './components/ArchivePill';
 import { createChatListItemCard } from './components/ChatListItemCard';
 import { createChatsFab } from './components/ChatsFab';
@@ -112,7 +114,7 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
     }
 
     const archived = chatStore.threads.filter((th) => th.isArchived);
-    if (archived.length > 0 && folder === 'all') {
+    if (archived.length > 0 && folder === 'all' && archiveSettingsStore.getState().showArchiveInMainList) {
       listWrap.appendChild(
         createArchivePill(archived, () => {
           inArchive = true;
@@ -199,6 +201,8 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
     renderList();
     if (inArchive) renderArchive();
   });
+  const u4 = archiveSettingsStore.subscribe(renderList);
+  const u5 = blockedUsersStore.subscribe(renderList);
 
   const r = root as unknown as {
     __refresh?: () => void;
@@ -214,6 +218,8 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
     u1();
     u2();
     u3();
+    u4();
+    u5();
   };
   return root;
 }

@@ -880,9 +880,80 @@
     margin: 0 auto;
   }
 
+  .ag-scroll-list,
+  .ag-messages-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 0.25s ease;
+  }
+
+  .ag-scroll-list:hover,
+  .ag-scroll-list:focus,
+  .ag-scroll-list:focus-within,
+  .ag-messages-scroll:hover,
+  .ag-messages-scroll:focus,
+  .ag-messages-scroll:focus-within {
+    scrollbar-color: color-mix(in srgb, var(--ag-text-muted) 38%, transparent) transparent;
+  }
+
+  .ag-scroll-list::-webkit-scrollbar,
+  .ag-messages-scroll::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .ag-scroll-list::-webkit-scrollbar-track,
+  .ag-messages-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .ag-scroll-list::-webkit-scrollbar-thumb,
+  .ag-messages-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: transparent;
+    transition: background-color 0.25s ease;
+  }
+
+  .ag-scroll-list:hover::-webkit-scrollbar-thumb,
+  .ag-scroll-list:focus::-webkit-scrollbar-thumb,
+  .ag-scroll-list:focus-within::-webkit-scrollbar-thumb,
+  .ag-messages-scroll:hover::-webkit-scrollbar-thumb,
+  .ag-messages-scroll:focus::-webkit-scrollbar-thumb,
+  .ag-messages-scroll:focus-within::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--ag-text-muted) 38%, transparent);
+  }
+
+  .ag-scroll-list::-webkit-scrollbar-thumb:hover,
+  .ag-messages-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in srgb, var(--ag-text-muted) 58%, transparent);
+  }
+
   .ag-messages-scroll {
     padding-left: max(14px, calc((100% - 760px) / 2));
     padding-right: max(14px, calc((100% - 760px) / 2));
+  }
+
+  .ag-bubble {
+    max-width: min(78%, 480px);
+    border-radius: 16px;
+    box-shadow: 0 1px 2px color-mix(in srgb, var(--ag-shadow) 45%, transparent);
+    transition: box-shadow 0.16s ease, border-color 0.16s ease;
+  }
+
+  .ag-bubble.is-outgoing {
+    border-bottom-right-radius: 6px;
+  }
+
+  .ag-bubble.is-incoming {
+    border-bottom-left-radius: 6px;
+  }
+
+  .ag-bubble:hover {
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--ag-shadow) 65%, transparent);
+  }
+
+  .ag-bubble.is-incoming:hover {
+    border-color: color-mix(in srgb, var(--ag-in-border) 65%, var(--ag-accent));
   }
 }
 

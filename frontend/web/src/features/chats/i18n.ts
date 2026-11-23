@@ -21,6 +21,8 @@ export interface ChatScreenStrings {
   emojiGestures: string;
   emojiHearts: string;
   emojiStickers: string;
+  blockedBannerText: string;
+  unblockUser: string;
 }
 
 const RU: ChatScreenStrings = {
@@ -44,6 +46,8 @@ const RU: ChatScreenStrings = {
   emojiGestures: 'Жесты',
   emojiHearts: 'Сердца',
   emojiStickers: 'Стикеры и каомодзи',
+  blockedBannerText: 'Вы заблокировали этого пользователя',
+  unblockUser: 'Разблокировать',
 };
 
 const EN: ChatScreenStrings = {
@@ -67,6 +71,8 @@ const EN: ChatScreenStrings = {
   emojiGestures: 'Gestures',
   emojiHearts: 'Hearts',
   emojiStickers: 'Stickers & Kaomoji',
+  blockedBannerText: 'You blocked this user',
+  unblockUser: 'Unblock',
 };
 
 export function chatScreenT(): ChatScreenStrings {

@@ -224,6 +224,16 @@
   .ag-cs-dock .ag-tgpop {
     bottom: 66px;
   }
+
+  .ag-cs-row {
+    padding: 2px 6px;
+    border-radius: 14px;
+  }
+
+  .ag-cs-scroll-down {
+    right: 24px;
+    bottom: 18px;
+  }
 }
 
 /* Message Context Menu (Desktop popup & Mobile bottom sheet) */
