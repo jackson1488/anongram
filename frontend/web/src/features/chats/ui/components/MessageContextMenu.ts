@@ -1,8 +1,9 @@
 import { i18nStore } from '../../../../core/i18n/i18nStore';
 import { el } from '../../../../core/ui/dom';
-import { icons } from '../../../../core/ui/icons';
+import { icons, tgIcons } from '../../../../core/ui/icons';
 import { chatScreenT } from '../../i18n';
 import type { ChatMessage } from '../../models';
+import { pinnedMessageStore } from './PinnedMessageBar';
 
 export const QUICK_REACTIONS = ['👍', '❤️', '🔥', '😂', '😮', '😢', '🛡️'];
 
@@ -11,6 +12,7 @@ export interface MenuActions {
   onReply: () => void;
   onCopy: () => void;
   onForward: () => void;
+  onPin?: () => void;
   onSelect: () => void;
   onDelete: () => void;
 }
@@ -27,6 +29,7 @@ export function showMessageContextMenu(msg: ChatMessage, x: number, y: number, a
   const t = i18nStore.t;
   const cs = chatScreenT();
   const mobile = window.innerWidth < 840;
+  const isPinned = pinnedMessageStore.isPinned(msg.chatId, msg.id);
 
   const list = el('div', { class: 'ag-cs-menu__list' });
   const item = (ico: SVGElement, label: string, fn: () => void, danger = false) => {
@@ -48,6 +51,14 @@ export function showMessageContextMenu(msg: ChatMessage, x: number, y: number, a
   item(icons.reply(18), t.chats.replyAction, a.onReply);
   if (msg.text) item(icons.copy(18), t.chats.copyAction, a.onCopy);
   item(icons.forward(18), t.chats.forwardAction, a.onForward);
+  item(
+    isPinned ? tgIcons.pinOff(18) : icons.pin(18),
+    isPinned ? cs.unpinMessage : cs.pinMessage,
+    () => {
+      pinnedMessageStore.togglePin(msg.chatId, msg.id);
+      a.onPin?.();
+    },
+  );
   item(icons.check(18), cs.select, a.onSelect);
   item(icons.trash(18), t.chats.deleteAction, a.onDelete, true);
 

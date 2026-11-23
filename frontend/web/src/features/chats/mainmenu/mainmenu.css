@@ -19,3 +19,49 @@
   .ag-mm .ag-chat-row__time { font-size: 12px; }
   .ag-mm .ag-chips-row { padding: 4px 10px; border-bottom: 1px solid var(--ag-divider); }
 }
+
+.ag-mm-section--row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ag-mm-section__action {
+  border: none;
+  background: transparent;
+  color: var(--ag-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.ag-mm-section__action:hover {
+  background: var(--ag-surface);
+  color: var(--ag-text-primary);
+}
+
+.ag-recent-searches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 14px 10px;
+}
+
+.ag-recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.ag-search-highlight {
+  background: var(--ag-accent-soft);
+  color: var(--ag-accent);
+  border-radius: 4px;
+  padding: 0 2px;
+  font-weight: 600;
+}
+

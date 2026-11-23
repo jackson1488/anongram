@@ -50,10 +50,12 @@ function applyCssVars(scheme: AnonGramScheme): void {
   const dark = scheme.isDark;
   root.setProperty('--ag-danger', dark ? '#ff5c6c' : '#d93a4a');
   root.setProperty('--ag-danger-soft', dark ? 'rgba(255,92,108,0.16)' : 'rgba(217,58,74,0.12)');
+  root.setProperty('--ag-danger-border', dark ? 'rgba(255,92,108,0.35)' : 'rgba(217,58,74,0.30)');
   root.setProperty('--ag-success', dark ? '#4fd98a' : '#1f9d57');
   root.setProperty('--ag-success-soft', dark ? 'rgba(79,217,138,0.16)' : 'rgba(31,157,87,0.12)');
   root.setProperty('--ag-warning', dark ? '#ffb04a' : '#c77a0a');
   root.setProperty('--ag-warning-soft', dark ? 'rgba(255,176,74,0.16)' : 'rgba(199,122,10,0.12)');
+  root.setProperty('--ag-warning-border', dark ? 'rgba(255,176,74,0.40)' : 'rgba(199,122,10,0.35)');
   root.setProperty('--ag-hover', dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)');
   root.setProperty('--ag-shadow', dark ? 'rgba(0,0,0,0.45)' : 'rgba(0,0,0,0.18)');
   if (!root.getPropertyValue('--ag-chat-wallpaper')) root.setProperty('--ag-chat-wallpaper', 'none');

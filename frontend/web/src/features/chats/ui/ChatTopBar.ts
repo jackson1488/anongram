@@ -5,7 +5,16 @@ import { openActiveCallModal } from '../../calls/CallsView';
 import { chatStore } from '../chatStore';
 import type { ChatThread } from '../models';
 
-export function createChatTopBar(thread: ChatThread, onBackMobile: () => void): HTMLElement {
+export interface ChatTopBarActions {
+  onOpenProfile?: () => void;
+  onToggleSearch?: () => void;
+}
+
+export function createChatTopBar(
+  thread: ChatThread,
+  onBackMobile: () => void,
+  actions?: ChatTopBarActions,
+): HTMLElement {
   const t = i18nStore.t;
   return el(
     'div',
@@ -13,15 +22,36 @@ export function createChatTopBar(thread: ChatThread, onBackMobile: () => void): 
     el('button', { class: 'ag-icon-btn ag-mobile-only', onClick: onBackMobile }, icons.back(22)),
     el(
       'div',
-      { class: 'ag-avatar ag-avatar--sm', style: `background:${thread.avatarColor}22;border-color:${thread.avatarColor}55` },
+      {
+        class: 'ag-avatar ag-avatar--sm',
+        style: `background:${thread.avatarColor}22;border-color:${thread.avatarColor}55;cursor:pointer`,
+        onClick: () => actions?.onOpenProfile?.(),
+      },
       thread.avatarEmoji,
     ),
     el(
       'div',
-      { class: 'ag-chat-header__meta' },
+      {
+        class: 'ag-chat-header__meta',
+        style: 'cursor:pointer',
+        onClick: () => actions?.onOpenProfile?.(),
+      },
       el('div', { class: 'ag-chat-header__title' }, thread.title),
       el('div', { class: 'ag-chat-header__sub' }, thread.statusText),
     ),
+    ...(actions?.onToggleSearch
+      ? [
+          el(
+            'button',
+            {
+              class: 'ag-icon-btn',
+              title: t.chats.searchPlaceholder,
+              onClick: actions.onToggleSearch,
+            },
+            icons.search(19),
+          ),
+        ]
+      : []),
     el(
       'button',
       {

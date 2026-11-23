@@ -11,6 +11,16 @@ export interface ChatScreenStrings {
   cancel: string;
   more: string;
   edited: string;
+  pinMessage: string;
+  unpinMessage: string;
+  pinnedMessage: string;
+  emojiSearchPlaceholder: string;
+  emojiEmpty: string;
+  emojiRecent: string;
+  emojiSmileys: string;
+  emojiGestures: string;
+  emojiHearts: string;
+  emojiStickers: string;
 }
 
 const RU: ChatScreenStrings = {
@@ -24,6 +34,16 @@ const RU: ChatScreenStrings = {
   cancel: 'Отмена',
   more: 'Ещё',
   edited: 'изм.',
+  pinMessage: 'Закрепить',
+  unpinMessage: 'Открепить',
+  pinnedMessage: 'Закреплённое сообщение',
+  emojiSearchPlaceholder: 'Поиск эмодзи...',
+  emojiEmpty: 'Эмодзи не найдены',
+  emojiRecent: 'Недавние',
+  emojiSmileys: 'Смайлы',
+  emojiGestures: 'Жесты',
+  emojiHearts: 'Сердца',
+  emojiStickers: 'Стикеры и каомодзи',
 };
 
 const EN: ChatScreenStrings = {
@@ -37,6 +57,16 @@ const EN: ChatScreenStrings = {
   cancel: 'Cancel',
   more: 'More',
   edited: 'edited',
+  pinMessage: 'Pin',
+  unpinMessage: 'Unpin',
+  pinnedMessage: 'Pinned message',
+  emojiSearchPlaceholder: 'Search emoji...',
+  emojiEmpty: 'No emojis found',
+  emojiRecent: 'Recent',
+  emojiSmileys: 'Smileys',
+  emojiGestures: 'Gestures',
+  emojiHearts: 'Hearts',
+  emojiStickers: 'Stickers & Kaomoji',
 };
 
 export function chatScreenT(): ChatScreenStrings {

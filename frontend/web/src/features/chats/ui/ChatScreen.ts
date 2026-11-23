@@ -8,6 +8,8 @@ import { audioPlayer, createMiniAudioPlayerBar } from '../../player/audioPlayer'
 import { chatStore } from '../chatStore';
 import { chatScreenT } from '../i18n';
 import type { ChatMessage, MessageAttachment, ReplyPreview } from '../models';
+import { createInChatSearchBar } from '../search/ChatSearchScreen';
+import { createUserProfileScreen } from '../user_profile/api/UserProfileScreen';
 import { createChatTopBar } from './ChatTopBar';
 import { createChatWallpaper } from './ChatWallpaper';
 import { createAttachMenu } from './components/AttachMenu';
@@ -17,6 +19,7 @@ import { createEmojiPanel } from './components/EmojiPanel';
 import { openForwardModal } from './components/ForwardModal';
 import { createMessageRow } from './components/MessageBubble';
 import { closeMessageContextMenu, showMessageContextMenu } from './components/MessageContextMenu';
+import { createPinnedMessageBar } from './components/PinnedMessageBar';
 import { createReplyBar } from './components/ReplyBar';
 import { createSelectionTopBar } from './components/SelectionTopBar';
 
@@ -43,11 +46,15 @@ export function createChatRoomView(
 
   let openPanel: 'none' | 'emoji' | 'attach' = 'none';
   let selectionMode = false;
+  let searchOpen = false;
+  let profileOpen = false;
   const selectedIds = new Set<string>();
   let isAtBottom = true;
   let forceScrollBottom = true;
 
   const headerSlot = el('div');
+  const searchSlot = el('div');
+  const pinnedSlot = el('div');
   const miniPlayer = createMiniAudioPlayerBar();
   const wallpaper = createChatWallpaper();
   const messagesEl = el('div', { class: 'ag-messages-scroll' });
@@ -105,7 +112,18 @@ export function createChatRoomView(
   });
 
   const dock = el('div', { class: 'ag-cs-dock' }, replySlot, composer.root, drawerSlot);
-  const root = el('div', { class: 'ag-chat-room' }, headerSlot, miniPlayer, stage, dock);
+  const mainCol = el(
+    'div',
+    { style: 'flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;' },
+    headerSlot,
+    searchSlot,
+    pinnedSlot,
+    miniPlayer,
+    stage,
+    dock,
+  );
+  const profileSlot = el('div', { style: 'display:none;' });
+  const root = el('div', { class: 'ag-chat-room', style: 'flex-direction:row;' }, mainCol, profileSlot);
 
   const updateScrollBtn = () => {
     const dist = messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight;
@@ -176,9 +194,63 @@ export function createChatRoomView(
 
     const thread = chatStore.getThread(chatId);
     if (thread) {
-      headerSlot.appendChild(createChatTopBar(thread, onBackMobile));
+      headerSlot.appendChild(
+        createChatTopBar(thread, onBackMobile, {
+          onOpenProfile: () => {
+            profileOpen = !profileOpen;
+            renderProfile();
+          },
+          onToggleSearch: () => {
+            searchOpen = !searchOpen;
+            renderSearchBar();
+          },
+        }),
+      );
     }
   };
+
+  const renderSearchBar = () => {
+    clear(searchSlot);
+    if (!searchOpen) return;
+    searchSlot.appendChild(
+      createInChatSearchBar(
+        chatId,
+        (msgId) => jumpToMessage(msgId),
+        () => {
+          searchOpen = false;
+          renderSearchBar();
+          composer.focus();
+        },
+      ),
+    );
+  };
+
+  const renderProfile = () => {
+    clear(profileSlot);
+    if (!profileOpen) {
+      profileSlot.style.display = 'none';
+      return;
+    }
+    const isDesk = window.innerWidth >= 840;
+    profileSlot.style.display = isDesk ? 'flex' : 'block';
+    if (!isDesk) {
+      profileSlot.style.cssText = 'position:fixed;inset:0;z-index:75;display:flex;flex-direction:column;';
+    } else {
+      profileSlot.style.cssText = 'display:flex;height:100%;';
+    }
+    profileSlot.appendChild(
+      createUserProfileScreen(
+        chatId,
+        () => {
+          profileOpen = false;
+          renderProfile();
+        },
+        { desktopColumn: isDesk },
+      ),
+    );
+  };
+
+  pinnedSlot.appendChild(createPinnedMessageBar(chatId, (msgId) => jumpToMessage(msgId)));
 
   const renderReply = () => {
     clear(replySlot);

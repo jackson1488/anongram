@@ -3,7 +3,7 @@ import { icons } from '../../../../core/ui/icons';
 import { audioPlayer } from '../../../player/audioPlayer';
 import { chatStore } from '../../chatStore';
 import type { ChatMessage, MessageAttachment } from '../../models';
-import { openMediaViewer } from '../../viewer/MediaViewerOverlay';
+import { openDocumentViewer, openMediaViewer } from '../../viewer/MediaViewerOverlay';
 
 export interface BubbleContext {
   chatId: string;
@@ -52,7 +52,7 @@ function renderAttachment(msg: ChatMessage, att: MessageAttachment): HTMLElement
         class: 'ag-att-photo',
         onClick: (e: Event) => {
           e.stopPropagation();
-          openMediaViewer(att);
+          openMediaViewer(att, undefined, undefined, msg);
         },
       },
       el('img', { src: att.previewUrl, alt: att.title }),
@@ -64,7 +64,11 @@ function renderAttachment(msg: ChatMessage, att: MessageAttachment): HTMLElement
       class: 'ag-att-card',
       onClick: (e: Event) => {
         e.stopPropagation();
-        openMediaViewer(att);
+        if (att.type === 'file') {
+          openDocumentViewer(att, msg);
+        } else {
+          openMediaViewer(att, undefined, undefined, msg);
+        }
       },
     },
     el('span', { class: 'ag-att-card__badge' }, att.type.toUpperCase()),

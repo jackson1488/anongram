@@ -1,10 +1,10 @@
 import { i18nStore } from '../../../core/i18n/i18nStore';
 import { clear, el } from '../../../core/ui/dom';
-import { icons } from '../../../core/ui/icons';
 import { openContactsOverlay } from '../../contacts/ContactsOverlay';
 import { draftsStore } from '../../drafts/draftsStore';
 import { chatStore } from '../chatStore';
 import type { ChatFolder } from '../models';
+import { renderGlobalSearchResults, renderRecentSearchesSection } from '../search/ChatSearchScreen';
 import { createArchivePill } from './components/ArchivePill';
 import { createChatListItemCard } from './components/ChatListItemCard';
 import { createChatsFab } from './components/ChatsFab';
@@ -12,12 +12,11 @@ import { createEmptyChatsState } from './components/EmptyChatsState';
 import { renderFolderChips } from './components/FolderChips';
 import { createOnionOfflineBanner } from './components/OnionOfflineBanner';
 import { createSearchRow } from './components/SearchRow';
-import { mainMenuT } from './i18n';
 import './mainmenu.css';
 
 export interface ChatListCallbacks {
   getActiveChatId: () => string | null;
-  onSelectChat: (chatId: string) => void;
+  onSelectChat: (chatId: string, messageId?: string) => void;
   /** Desktop (Telegram Web style): hamburger button left of the search field. */
   onOpenMenu?: () => void;
   focusSearchSignal?: (focusFn: () => void) => void;
@@ -32,12 +31,28 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
   let query = '';
   let folder: ChatFolder = 'all';
   let inArchive = false;
+  let searchFocused = false;
 
   const mainScreen = el('div', { class: 'ag-list-pane', style: 'min-height:0;flex:1;' });
   const search = createSearchRow((q) => {
     query = q;
     renderList();
   }, callbacks.onOpenMenu);
+  search.input.addEventListener('focus', () => {
+    if (!searchFocused) {
+      searchFocused = true;
+      if (!query.trim()) renderList();
+    }
+  });
+  search.input.addEventListener('blur', () => {
+    window.setTimeout(() => {
+      if (document.activeElement !== search.input && searchFocused) {
+        searchFocused = false;
+        if (!query.trim()) renderList();
+      }
+    }, 150);
+  });
+
   const bannerSlot = el('div');
   const chipsRow = el('div', { class: 'ag-chips-row' });
   const listWrap = el('div', { class: 'ag-scroll-list' });
@@ -52,9 +67,15 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
   const archiveScreen = el('div', { class: 'ag-list-pane', style: 'display:none;min-height:0;flex:1;' });
   root.append(mainScreen, archiveScreen);
 
-  const select = (id: string) => {
+  const select = (id: string, messageId?: string) => {
     chatStore.markRead(id);
-    callbacks.onSelectChat(id);
+    callbacks.onSelectChat(id, messageId);
+  };
+
+  const pickSearchQuery = (q: string) => {
+    search.input.value = q;
+    search.input.dispatchEvent(new Event('input'));
+    search.input.focus();
   };
 
   const renderBanner = () => {
@@ -74,11 +95,24 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
 
   const renderList = () => {
     const activeId = callbacks.getActiveChatId();
+    const q = query.trim();
+
+    if (q) {
+      renderGlobalSearchResults(listWrap, q, {
+        onSelectChat: (chatId, messageId) => select(chatId, messageId),
+        onPickQuery: pickSearchQuery,
+      });
+      return;
+    }
+
     clear(listWrap);
-    const q = query.trim().toLowerCase();
+
+    if (searchFocused) {
+      renderRecentSearchesSection(listWrap, pickSearchQuery, renderList);
+    }
 
     const archived = chatStore.threads.filter((th) => th.isArchived);
-    if (archived.length > 0 && !q && folder === 'all') {
+    if (archived.length > 0 && folder === 'all') {
       listWrap.appendChild(
         createArchivePill(archived, () => {
           inArchive = true;
@@ -91,14 +125,12 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
       if (thread.isArchived) return false;
       if (folder === 'unread' && thread.unreadCount === 0) return false;
       if (folder === 'pinned' && !thread.isPinned) return false;
-      if (!q) return true;
-      const last = chatStore.getLastMessage(thread.id);
-      return thread.title.toLowerCase().includes(q) || (last?.text.toLowerCase().includes(q) ?? false);
+      return true;
     });
 
     if (threads.length === 0) {
       listWrap.appendChild(
-        q || folder !== 'all' ? createEmptyChatsState(i18nStore.t.chats.emptySearch) : createEmptyChatsState(),
+        folder !== 'all' ? createEmptyChatsState(i18nStore.t.chats.emptySearch) : createEmptyChatsState(),
       );
       return;
     }
@@ -107,49 +139,38 @@ export function createChatsMainMenuScreen(callbacks: ChatListCallbacks): HTMLEle
     }
   };
 
+  let archiveSettingsOpen = false;
+
   const renderArchive = () => {
-    const mt = mainMenuT();
     clear(archiveScreen);
-    const activeId = callbacks.getActiveChatId();
-    archiveScreen.appendChild(
-      el(
-        'div',
-        { class: 'ag-chat-header' },
-        el(
-          'button',
-          {
-            class: 'ag-icon-btn',
-            onClick: () => {
-              inArchive = false;
-              showArchive();
-            },
+    if (archiveSettingsOpen) {
+      import('../archive/ArchiveSettingsScreen').then(({ createArchiveSettingsScreen }) => {
+        clear(archiveScreen);
+        archiveScreen.appendChild(
+          createArchiveSettingsScreen(() => {
+            archiveSettingsOpen = false;
+            renderArchive();
+          }),
+        );
+      });
+      return;
+    }
+    import('../archive/ArchiveScreen').then(({ createArchiveScreen }) => {
+      clear(archiveScreen);
+      archiveScreen.appendChild(
+        createArchiveScreen(
+          () => {
+            inArchive = false;
+            showArchive();
           },
-          icons.back(20),
-        ),
-        el('div', { class: 'ag-chat-header__title' }, mt.archive),
-      ),
-    );
-    const archList = el('div', { class: 'ag-scroll-list' });
-    const archived = chatStore.threads.filter((th) => th.isArchived);
-    if (archived.length === 0) archList.appendChild(el('div', { class: 'ag-empty-inline' }, mt.archiveEmpty));
-    for (const thread of archived) {
-      const card = createChatListItemCard(thread, activeId === thread.id, () => callbacks.onSelectChat(thread.id));
-      card.appendChild(
-        el(
-          'button',
-          {
-            class: 'ag-chip',
-            onClick: (e: Event) => {
-              e.stopPropagation();
-              chatStore.toggleArchive(thread.id);
-            },
+          (chatId) => callbacks.onSelectChat(chatId),
+          () => {
+            archiveSettingsOpen = true;
+            renderArchive();
           },
-          mt.restore,
         ),
       );
-      archList.appendChild(card);
-    }
-    archiveScreen.appendChild(archList);
+    });
   };
 
   const showArchive = () => {

@@ -22,6 +22,11 @@ export interface MainMenuStrings {
   unpin: string;
   toArchive: string;
   savedMessages: string;
+  searchContactsSection: string;
+  recentSearches: string;
+  clearRecent: string;
+  inChatSearchPlaceholder: string;
+  noMatches: string;
 }
 
 const RU: MainMenuStrings = {
@@ -46,6 +51,11 @@ const RU: MainMenuStrings = {
   unpin: 'Открепить',
   toArchive: 'В архив',
   savedMessages: 'Избранное',
+  searchContactsSection: 'Контакты',
+  recentSearches: 'Недавние запросы',
+  clearRecent: 'Очистить',
+  inChatSearchPlaceholder: 'Поиск в чате...',
+  noMatches: 'Нет совпадений',
 };
 
 const EN: MainMenuStrings = {
@@ -70,6 +80,11 @@ const EN: MainMenuStrings = {
   unpin: 'Unpin',
   toArchive: 'Archive',
   savedMessages: 'Saved messages',
+  searchContactsSection: 'Contacts',
+  recentSearches: 'Recent searches',
+  clearRecent: 'Clear',
+  inChatSearchPlaceholder: 'Search in chat...',
+  noMatches: 'No matches',
 };
 
 export const mainMenuT = (): MainMenuStrings => (i18nStore.language === 'ru' ? RU : EN);
