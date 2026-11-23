@@ -219,7 +219,7 @@ fun ForwardPreviewOverlay(
                                                     message = item.resolvedMessage.copy(
                                                         attachment = com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo(
                                                             label = if (mediaItem.isVideo) "Video" else "Photo",
-                                                            colorSeed = mediaItem.colorSeed,
+                                                            colorSeed = photoIdx,
                                                             uri = mediaItem.uri,
                                                             isVideo = mediaItem.isVideo
                                                         )

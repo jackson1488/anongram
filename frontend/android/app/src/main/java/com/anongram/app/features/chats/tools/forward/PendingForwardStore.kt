@@ -88,7 +88,7 @@ object PendingForwardStore {
             val single = nextPhotos.first()
             com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo(
                 label = if (single.isVideo) "Video" else "Photo",
-                colorSeed = single.colorSeed,
+                colorSeed = 0,
                 uri = single.uri,
                 isVideo = single.isVideo
             )
