@@ -526,14 +526,14 @@ export function createChatRoomView(
         ),
       );
     } else if (openPanel === 'attach') {
-      const attachItems: Array<{ label: string; emoji: string; action: () => void }> = [
-        { label: t.input.attachPhoto, emoji: '🖼️', action: () => triggerFileAttach('photo', 'image/*') },
-        { label: t.input.attachAlbum, emoji: '🗂️', action: () => triggerFileAttach('album', 'image/*') },
-        { label: t.input.attachFile, emoji: '📄', action: () => triggerFileAttach('file', '*/*') },
-        { label: t.input.attachMusic, emoji: '🎵', action: () => triggerFileAttach('music', 'audio/*') },
+      const attachItems: Array<{ label: string; emoji: string; ico: () => SVGElement; action: () => void }> = [
+        { label: t.input.attachPhoto, emoji: '🖼️', ico: () => icons.image(20), action: () => triggerFileAttach('photo', 'image/*') },
+        { label: t.input.attachAlbum, emoji: '🗂️', ico: () => icons.image(20), action: () => triggerFileAttach('album', 'image/*') },
+        { label: t.input.attachFile, emoji: '📄', ico: () => icons.fileText(20), action: () => triggerFileAttach('file', '*/*') },
+        { label: t.input.attachMusic, emoji: '🎵', ico: () => icons.music(20), action: () => triggerFileAttach('music', 'audio/*') },
         {
           label: t.input.attachVoice,
-          emoji: '🎙️',
+          emoji: '🎙️', ico: () => icons.mic(20),
           action: () => {
             chatStore.sendMessage(chatId, '', undefined, { type: 'voice', title: t.input.attachVoice, durationSec: 12 });
             openPanel = 'none';
@@ -542,7 +542,7 @@ export function createChatRoomView(
         },
         {
           label: t.input.attachVideoCircle,
-          emoji: '⭕',
+          emoji: '⭕', ico: () => icons.video(20),
           action: () => {
             chatStore.sendMessage(chatId, '', undefined, { type: 'video_circle', title: t.input.attachVideoCircle, durationSec: 9 });
             openPanel = 'none';
@@ -551,7 +551,7 @@ export function createChatRoomView(
         },
         {
           label: t.input.attachGeo,
-          emoji: '📍',
+          emoji: '📍', ico: () => icons.mapPin(20),
           action: () => {
             chatStore.sendMessage(chatId, '', undefined, { type: 'geo', title: t.input.attachGeo, subtitle: 'Encrypted Relay Node' });
             openPanel = 'none';
@@ -560,7 +560,7 @@ export function createChatRoomView(
         },
         {
           label: t.input.attachContact,
-          emoji: '👤',
+          emoji: '👤', ico: () => icons.user(20),
           action: () => {
             chatStore.sendMessage(chatId, '', undefined, { type: 'contact', title: 'Ghost Contact', subtitle: '@ghost_node' });
             openPanel = 'none';
@@ -569,20 +569,48 @@ export function createChatRoomView(
         },
       ];
 
-      root.appendChild(
-        el(
-          'div',
-          { class: 'ag-drawer-panel ag-attach-grid' },
-          ...attachItems.map((it) =>
+      if (window.innerWidth >= 840) {
+        const close = () => {
+          openPanel = 'none';
+          render();
+        };
+        root.appendChild(
+          el(
+            'div',
+            { class: 'ag-tgpop-wrap' },
+            el('div', { class: 'ag-tgpop-backdrop', onClick: close }),
             el(
-              'button',
-              { class: 'ag-attach-tile', onClick: it.action },
-              el('span', { class: 'ag-attach-tile__icon' }, it.emoji),
-              el('span', { class: 'ag-attach-tile__label' }, it.label),
+              'div',
+              { class: 'ag-tgpop ag-attach-pop' },
+              ...attachItems
+                .filter((it) => it.label !== t.input.attachAlbum)
+                .map((it) =>
+                  el(
+                    'button',
+                    { class: 'ag-tgpop__item', onClick: it.action },
+                    it.ico(),
+                    el('span', {}, it.label),
+                  ),
+                ),
             ),
           ),
-        ),
-      );
+        );
+      } else {
+      root.appendChild(
+          el(
+            'div',
+            { class: 'ag-drawer-panel ag-attach-grid' },
+            ...attachItems.map((it) =>
+              el(
+                'button',
+                { class: 'ag-attach-tile', onClick: it.action },
+                el('span', { class: 'ag-attach-tile__icon' }, it.emoji),
+                el('span', { class: 'ag-attach-tile__label' }, it.label),
+              ),
+            ),
+          ),
+        );
+      }
     }
   };
 

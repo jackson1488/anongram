@@ -1335,3 +1335,22 @@
 }
 .ag-context-menu .ag-menu-item:hover { background: var(--ag-accent-soft); }
 .ag-quick-reacts { border-radius: 18px; padding: 4px 6px; }
+
+/* Telegram Web A-style popup (ported metrics: Menu.compact + MenuItem.compact) */
+.ag-tgpop-wrap { position: relative; }
+.ag-tgpop-backdrop { position: fixed; inset: 0; z-index: 40; }
+.ag-tgpop {
+  position: absolute; left: 12px; bottom: 8px; z-index: 41; min-width: 216px; padding: 4px 0;
+  border-radius: 14px; background: color-mix(in srgb, var(--ag-surface) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 8px 2px rgba(0,0,0,.2); border: 1px solid var(--ag-divider);
+  transform-origin: bottom left; animation: ag-tgpop-in .15s cubic-bezier(.2,0,.2,1);
+}
+@keyframes ag-tgpop-in { from { opacity: 0; transform: scale(.85); } }
+.ag-tgpop__item {
+  display: flex; align-items: center; gap: 20px; width: calc(100% - 8px); margin: 2px 4px; padding: 6px 12px 6px 8px;
+  border: 0; border-radius: 12px; background: none; color: var(--ag-text-primary); font-size: 14px; font-weight: 500; cursor: pointer;
+}
+.ag-tgpop__item svg { margin-left: 4px; color: var(--ag-text-secondary); }
+.ag-tgpop__item:hover { background: var(--ag-accent-soft); }
+.ag-tgpop__item:active { transform: scale(.98); }
