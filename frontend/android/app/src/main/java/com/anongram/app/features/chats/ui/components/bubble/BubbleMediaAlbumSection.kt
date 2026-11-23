@@ -706,14 +706,21 @@ internal fun ChatRealPhotoBox(
         }
     }
 
+    val isScrollingState = com.anongram.app.features.chats.ui.components.LocalIsListScrollingState.current
     LaunchedEffect(parsedUri, isVideo) {
         if (parsedUri != null) {
-            val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
-            if (bitmap == null) bitmap = quick?.asImageBitmap()
-            if (!isVideo) {
-                val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, parsedUri) }
-                if (hd != null) bitmap = hd.asImageBitmap()
+            if (bitmap == null) {
+                val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
+                if (quick != null) bitmap = quick.asImageBitmap()
             }
+        }
+    }
+    val isScrollingNow = isScrollingState.value
+    LaunchedEffect(parsedUri, isVideo, isScrollingNow) {
+        if (parsedUri != null && !isVideo && !isScrollingNow) {
+            delay(100)
+            val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, parsedUri) }
+            if (hd != null) bitmap = hd.asImageBitmap()
         }
     }
 

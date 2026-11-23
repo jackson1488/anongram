@@ -312,15 +312,7 @@ internal fun MessagesList(
             }
         ) { _, item ->
             Column(
-                modifier = Modifier
-                    .padding(top = item.spacingAboveDp.dp)
-                    .then(
-                        if (animSettings.listItemShiftEnabled && !animSettings.reduceMotionEnabled) {
-                            Modifier.animateItem(fadeInSpec = null, fadeOutSpec = null)
-                        } else {
-                            Modifier
-                        }
-                    )
+                modifier = Modifier.padding(top = item.spacingAboveDp.dp)
             ) {
                 if (item.dateChipAbove) {
                     DateChip(epochMs = item.message.epochMs)

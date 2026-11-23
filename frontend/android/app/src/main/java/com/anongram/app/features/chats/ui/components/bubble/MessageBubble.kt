@@ -331,6 +331,16 @@ internal fun MessageBubble(
         val isStandaloneCircle = message.attachment is MessageAttachment.VideoCircle && message.text.isBlank()
         val snapshotRegistry = LocalMessageSnapshotRegistry.current
         val isCaptureArmed = snapshotRegistry?.isCaptureArmed == true
+        val bubbleCoordsRef = remember { arrayOfNulls<androidx.compose.ui.layout.LayoutCoordinates>(1) }
+        fun computeBubbleBounds(): Pair<Float, Float> {
+            val c = bubbleCoordsRef[0]
+            return if (c != null && c.isAttached) {
+                val y = c.positionInRoot().y
+                y to (y + c.size.height)
+            } else {
+                bubbleTopYHolder[0] to bubbleBottomYHolder[0]
+            }
+        }
         val deleteCaptureLayer = if (isCaptureArmed) rememberGraphicsLayer() else null
 
         if (deleteCaptureLayer != null && snapshotRegistry != null) {
@@ -364,7 +374,8 @@ internal fun MessageBubble(
                                 if (isSelectionMode) {
                                     onSelect()
                                 } else {
-                                    onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
+                                    val (topY, bottomY) = computeBubbleBounds()
+                                    onClick(topY, bottomY)
                                 }
                             },
                             onLongClick = onLongClick
@@ -377,9 +388,7 @@ internal fun MessageBubble(
                     } else Modifier
                 )
                 .onGloballyPositioned { coordinates ->
-                    val y = coordinates.positionInRoot().y
-                    bubbleTopYHolder[0] = y
-                    bubbleBottomYHolder[0] = y + coordinates.size.height
+                    bubbleCoordsRef[0] = coordinates
                 }
                 .padding(vertical = 1.dp)
         ) {
@@ -433,7 +442,8 @@ internal fun MessageBubble(
                             if (isSelectionMode) {
                                 onSelect()
                             } else {
-                                onClick(bubbleTopYHolder[0], bubbleBottomYHolder[0])
+                                val (topY, bottomY) = computeBubbleBounds()
+                                onClick(topY, bottomY)
                             }
                         },
                         onLongClick = onLongClick

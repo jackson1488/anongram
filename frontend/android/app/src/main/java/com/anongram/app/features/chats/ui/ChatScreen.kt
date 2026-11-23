@@ -107,6 +107,9 @@ fun ChatScreen(
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var isUserProfileOpen by remember { mutableStateOf(false) }
+    LaunchedEffect(session.id) {
+        viewModel.refreshMessages()
+    }
     LaunchedEffect(isUserProfileOpen, viewingMediaMessage) {
         onChildOverlayOpenChange(isUserProfileOpen || viewingMediaMessage != null)
     }

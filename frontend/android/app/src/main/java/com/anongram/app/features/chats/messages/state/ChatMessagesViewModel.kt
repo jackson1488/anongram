@@ -84,6 +84,15 @@ class ChatMessagesViewModel(
         }
     }
 
+    fun refreshMessages() {
+        viewModelScope.launch {
+            val loaded = repository.loadMessages(sessionId)
+            if (loaded != _uiState.value.messages) {
+                _uiState.update { it.copy(messages = loaded) }
+            }
+        }
+    }
+
     // --- Поле ввода и черновики ---
 
     private fun persistDraft() {
