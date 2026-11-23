@@ -65,6 +65,7 @@ internal fun ChatMediaFullscreenViewer(
     peerName: String,
     allChatMessages: List<ChatMessage> = emptyList(),
     overrideSingleUri: String? = null,
+    newestFirst: Boolean = false,
     onClose: () -> Unit,
     onShowInChat: (ChatMessage) -> Unit,
     onReply: (ChatMessage, Int?) -> Unit = { _, _ -> },
@@ -86,8 +87,9 @@ internal fun ChatMediaFullscreenViewer(
             message.attachment is MessageAttachment.FileGroup
     }
 
-    val viewerEntries = remember(allChatMessages, message, overrideSingleUri, isUncompressedMode) {
-        buildViewerEntries(allChatMessages, message, overrideSingleUri, isUncompressedMode)
+    val viewerEntries = remember(allChatMessages, message, overrideSingleUri, isUncompressedMode, newestFirst) {
+        val base = buildViewerEntries(allChatMessages, message, overrideSingleUri, isUncompressedMode)
+        if (newestFirst) base.reversed() else base
     }
 
     if (viewerEntries.isEmpty()) {
@@ -276,7 +278,47 @@ internal fun ChatMediaFullscreenViewer(
             val entry = viewerEntries.getOrNull(page) ?: return@HorizontalPager
             val isPageActive = (page == safeCurrentPage)
 
-            if (entry.isVideo) {
+            if (entry.isVideoCircle) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(280.dp)
+                            .clip(androidx.compose.foundation.shape.CircleShape)
+                            .background(com.anongram.app.features.chats.messages.domain.attachmentColor(entry.colorSeed))
+                            .border(2.dp, Color.White.copy(alpha = 0.28f), androidx.compose.foundation.shape.CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (entry.uri.isNotBlank()) {
+                            ViewerVideoPage(
+                                uriString = entry.uri,
+                                isActivePage = isPageActive,
+                                showControls = controlsVisible,
+                                playbackSpeed = playbackSpeed,
+                                isLooping = isLooping,
+                                playbackState = videoPlaybackState,
+                                onTap = {
+                                    if (isSettingsMenuOpen || isMoreMenuOpen) {
+                                        isSettingsMenuOpen = false
+                                        isMoreMenuOpen = false
+                                    } else {
+                                        showControls = !showControls
+                                    }
+                                }
+                            )
+                        } else {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Outlined.PlayArrow,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(56.dp)
+                            )
+                        }
+                    }
+                }
+            } else if (entry.isVideo) {
                 ViewerVideoPage(
                     uriString = entry.uri,
                     isActivePage = isPageActive,

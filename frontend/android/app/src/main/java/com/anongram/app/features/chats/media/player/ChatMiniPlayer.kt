@@ -71,10 +71,16 @@ fun ChatMiniPlayer(
                 .clip(RoundedCornerShape(16.dp))
                 .background(scheme.islandBg)
                 .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
-                .clickable {
-                    onOpenSheet?.invoke()
-                    ctrl.openSheet()
-                }
+                .then(
+                    if (!track.isVoice) {
+                        Modifier.clickable {
+                            onOpenSheet?.invoke()
+                            ctrl.openSheet()
+                        }
+                    } else {
+                        Modifier
+                    }
+                )
         ) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Row(

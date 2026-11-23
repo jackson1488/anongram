@@ -78,6 +78,7 @@ internal fun ChatOverlaysHost(
     viewingMediaMessage: ChatMessage?,
     viewingMediaInitialIndex: Int,
     viewingOverrideSingleUri: String?,
+    viewingMediaNewestFirst: Boolean = false,
     wasKeyboardOpenBeforeViewer: Boolean,
     onUpdateMediaViewer: (ChatMessage?) -> Unit,
     onCloseMediaViewer: (restoreKeyboard: Boolean) -> Unit,
@@ -110,6 +111,7 @@ internal fun ChatOverlaysHost(
         viewingMediaMessage = viewingMediaMessage,
         viewingMediaInitialIndex = viewingMediaInitialIndex,
         viewingOverrideSingleUri = viewingOverrideSingleUri,
+        viewingMediaNewestFirst = viewingMediaNewestFirst,
         wasKeyboardOpenBeforeViewer = wasKeyboardOpenBeforeViewer,
         onUpdateMediaViewer = onUpdateMediaViewer,
         onCloseMediaViewer = onCloseMediaViewer,
@@ -178,6 +180,7 @@ private fun ChatInputAndMediaOverlays(
     viewingMediaMessage: ChatMessage?,
     viewingMediaInitialIndex: Int,
     viewingOverrideSingleUri: String?,
+    viewingMediaNewestFirst: Boolean = false,
     wasKeyboardOpenBeforeViewer: Boolean,
     onUpdateMediaViewer: (ChatMessage?) -> Unit,
     onCloseMediaViewer: (restoreKeyboard: Boolean) -> Unit,
@@ -340,6 +343,7 @@ private fun ChatInputAndMediaOverlays(
             peerName = session.title,
             allChatMessages = state.messages,
             overrideSingleUri = viewingOverrideSingleUri,
+            newestFirst = viewingMediaNewestFirst,
             onClose = { closeViewerAndRestoreIme() },
             onShowInChat = { msg ->
                 onBeforeShowInChat()

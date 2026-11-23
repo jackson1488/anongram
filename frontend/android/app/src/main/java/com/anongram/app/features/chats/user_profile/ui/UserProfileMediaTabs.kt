@@ -485,18 +485,6 @@ internal fun UserProfileAudioRow(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-                if (isActive) {
-                    Spacer(modifier = Modifier.height(5.dp))
-                    LinearProgressIndicator(
-                        progress = { progress.coerceIn(0f, 1f) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(3.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = scheme.accent,
-                        trackColor = scheme.accentSoft
-                    )
-                }
             }
         }
         HorizontalDivider(

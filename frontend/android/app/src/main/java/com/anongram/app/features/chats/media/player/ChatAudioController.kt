@@ -116,7 +116,7 @@ class ChatAudioController private constructor(
                 durationMs = startTrack.durationMs,
                 positionMs = initialPositionMs.coerceAtLeast(0L),
                 isPlaying = true,
-                isVisible = false // Плашка мини-плеера не перекрывает чат при прослушивании ГС
+                isVisible = true
             )
         }
 

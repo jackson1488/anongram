@@ -96,6 +96,7 @@ fun ChatScreen(
     var isReplyPreviewOpen by remember { mutableStateOf(false) }
     var isSearchListMode by remember { mutableStateOf(false) }
     var viewingMediaMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var viewingMediaNewestFirst by remember { mutableStateOf(false) }
     var viewingGeoMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var viewingMediaInitialIndex by remember { mutableIntStateOf(0) }
     var viewingOverrideSingleUri by remember { mutableStateOf<String?>(null) }
@@ -302,6 +303,7 @@ fun ChatScreen(
                 if (imeMetrics.isKeyboardVisible) keyboardController?.hide()
                 viewingOverrideSingleUri = overrideUri
                 viewingMediaInitialIndex = initialIndex
+                viewingMediaNewestFirst = false
                 viewingMediaMessage = message
             },
             onOpenDirectPeer = onOpenDirectPeer,
@@ -567,10 +569,11 @@ fun ChatScreen(
                         onToggleMute = viewModel::openNotifications,
                         onSetSelfDestruct = viewModel::setSelfDestruct,
                         onOpenKeyVerification = viewModel::openKeyCheck,
-                        onOpenMediaMessage = { msg ->
+                        onOpenMediaMessage = { msg, subIdx ->
                             viewingMediaMessage = msg
-                            viewingMediaInitialIndex = 0
+                            viewingMediaInitialIndex = subIdx
                             viewingOverrideSingleUri = null
+                            viewingMediaNewestFirst = true
                         },
                         onShowInChat = { msg ->
                             isUserProfileOpen = false
@@ -634,6 +637,7 @@ fun ChatScreen(
                 viewingMediaMessage = viewingMediaMessage,
                 viewingMediaInitialIndex = viewingMediaInitialIndex,
                 viewingOverrideSingleUri = viewingOverrideSingleUri,
+                viewingMediaNewestFirst = viewingMediaNewestFirst,
                 wasKeyboardOpenBeforeViewer = wasKeyboardOpenBeforeViewer,
                 onUpdateMediaViewer = { updated -> viewingMediaMessage = updated },
                 onCloseMediaViewer = { _ ->

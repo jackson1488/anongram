@@ -181,11 +181,12 @@ internal fun MessagesList(
             val visible = layoutInfo.visibleItemsInfo
             if (visible.isEmpty()) return null
             val vpH = layoutInfo.viewportSize.height.toFloat()
+            val bottomEdge = vpH - layoutInfo.beforeContentPadding.toFloat()
             var bestIdx = visible.first().index
             var bestDist = Float.MAX_VALUE
             for (item in visible) {
-                val topY = vpH - item.offset - item.size
-                val bottomY = vpH - item.offset
+                val bottomY = bottomEdge - item.offset
+                val topY = bottomY - item.size
                 if (screenY in topY..bottomY) return item.index
                 val dist = if (screenY < topY) topY - screenY else screenY - bottomY
                 if (dist < bestDist) {
@@ -199,16 +200,26 @@ internal fun MessagesList(
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             val longPress = awaitLongPressOrCancellation(down.id) ?: return@awaitEachGesture
+            val initialSet = latestSelection.toSet()
+            // Не перехватываем первичный longClick (контекстное меню / выделение отдельного фото в альбоме #photo_X)
+            if (initialSet.isEmpty()) return@awaitEachGesture
             val items = latestRenderItems
             if (items.isEmpty()) return@awaitEachGesture
             val anchorIdx = findIndexAtY(longPress.position.y)?.coerceIn(0, items.lastIndex) ?: return@awaitEachGesture
-            val initialSet = latestSelection.toSet()
             val anchorMsg = items[anchorIdx].message
             val anchorId = anchorMsg.id
 
             // Если сообщение уже выбрано и у него есть текст/подпись, и палец не в левой полосе галочек,
             // отдаём жест родному Android TextView для выделения слов без конфликтов.
-            if (initialSet.isNotEmpty() && anchorId in initialSet && anchorMsg.text.isNotBlank() && longPress.position.x > railWidthPx) {
+            if (anchorId in initialSet && anchorMsg.text.isNotBlank() && longPress.position.x > railWidthPx) {
+                return@awaitEachGesture
+            }
+
+            // Если это альбом/группа и палец не в левой полосе галочек, не затираем выделение отдельных подэлементов
+            val hasSubItems = anchorMsg.attachment is MessageAttachment.MediaAlbum ||
+                anchorMsg.attachment is MessageAttachment.FileGroup ||
+                anchorMsg.attachment is MessageAttachment.MusicGroup
+            if (hasSubItems && longPress.position.x > railWidthPx) {
                 return@awaitEachGesture
             }
 

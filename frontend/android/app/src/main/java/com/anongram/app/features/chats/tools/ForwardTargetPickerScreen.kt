@@ -736,7 +736,16 @@ private fun ForwardActiveSessionRow(
             val cleanPreview = session.lastMessagePreview.trim()
             val looksLikeProtocol = cleanPreview.equals(session.securityLabel, ignoreCase = true) ||
                 cleanPreview.contains("ML-KEM", ignoreCase = true) ||
-                cleanPreview.contains("Kyber", ignoreCase = true)
+                cleanPreview.contains("Kyber", ignoreCase = true) ||
+                cleanPreview.contains("Ratchet", ignoreCase = true) ||
+                cleanPreview.contains("E2EE", ignoreCase = true) ||
+                cleanPreview.contains("SHA-256", ignoreCase = true) ||
+                cleanPreview.contains("zk-SNARK", ignoreCase = true) ||
+                cleanPreview.contains("obfs4", ignoreCase = true) ||
+                cleanPreview.contains("X3DH", ignoreCase = true) ||
+                cleanPreview.contains("ChaCha20", ignoreCase = true) ||
+                cleanPreview.contains("SAS", ignoreCase = false) ||
+                cleanPreview.contains("0x", ignoreCase = true)
             val subtitleText = when {
                 att is com.anongram.app.features.chats.messages.domain.MessageAttachment.Photo ->
                     if (cleanPreview.isNotBlank() && !looksLikeProtocol) cleanPreview else if (att.isVideo) "Видео" else "Фото"

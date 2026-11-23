@@ -107,7 +107,7 @@ fun UserProfileScreen(
     onToggleMute: () -> Unit,
     onSetSelfDestruct: (SelfDestruct) -> Unit,
     onOpenKeyVerification: () -> Unit,
-    onOpenMediaMessage: (ChatMessage) -> Unit,
+    onOpenMediaMessage: (ChatMessage, Int) -> Unit,
     onShowInChat: (ChatMessage) -> Unit = {},
     onForwardMessages: (List<String>) -> Unit = {},
     onDeleteMessages: (List<String>) -> Unit = {},
@@ -358,6 +358,13 @@ fun UserProfileScreen(
 
                 if (availableTabs.isNotEmpty()) {
                     item(key = "tabs_spacer") {
+                        val profileAudioCtrl = remember(context) {
+                            com.anongram.app.features.chats.media.player.ChatAudioController.getInstance(context)
+                        }
+                        com.anongram.app.features.chats.media.player.ChatMiniPlayer(
+                            controller = profileAudioCtrl,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
                     }
 
@@ -510,7 +517,8 @@ fun UserProfileScreen(
                                                             val k = item.itemKey
                                                             selectedKeys = if (k in selectedKeys) selectedKeys - k else selectedKeys + k
                                                         } else {
-                                                            onOpenMediaMessage(item.message)
+                                                            val subIdx = item.itemKey.substringAfter("#").toIntOrNull() ?: 0
+                                                            onOpenMediaMessage(item.message, subIdx)
                                                         }
                                                     },
                                                     onMediaLongClick = { item ->
@@ -838,7 +846,7 @@ fun UserProfileScreen(
                         activeSessions = activeSessions,
                         titleOverride = toolsStrings.selectChatTitle,
                         multiSelectMode = true,
-                        sharedPreviewText = "${session.title} (${session.fingerprint})",
+                        sharedPreviewText = session.title,
                         onClose = { isShareContactPickerOpen = false },
                         onConfirmMultiSelect = { targets, comment ->
                             isShareContactPickerOpen = false

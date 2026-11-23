@@ -29,7 +29,9 @@ internal data class ViewerMediaEntry(
     val itemIndexInMessage: Int,
     val albumPositionInGroup: Int,
     val albumUrisInMessage: List<String>,
-    val albumVideoFlagsInMessage: List<Boolean>
+    val albumVideoFlagsInMessage: List<Boolean>,
+    val isVideoCircle: Boolean = false,
+    val colorSeed: Int = 0
 )
 
 private fun isUncompressedImageFile(file: MessageAttachment.File): Boolean {
@@ -155,6 +157,22 @@ internal fun buildViewerEntries(
                                 )
                             )
                         }
+                    }
+                    is MessageAttachment.VideoCircle -> {
+                        val u = att.uri.orEmpty()
+                        add(
+                            ViewerMediaEntry(
+                                message = msg,
+                                uri = u,
+                                isVideo = true,
+                                itemIndexInMessage = 0,
+                                albumPositionInGroup = 0,
+                                albumUrisInMessage = listOf(u),
+                                albumVideoFlagsInMessage = listOf(true),
+                                isVideoCircle = true,
+                                colorSeed = att.colorSeed
+                            )
+                        )
                     }
                     else -> Unit
                 }
