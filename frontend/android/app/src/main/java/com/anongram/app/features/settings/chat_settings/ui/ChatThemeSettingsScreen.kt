@@ -130,7 +130,7 @@ fun ChatThemeSettingsScreen(
                             .padding(horizontal = 10.dp, vertical = 4.dp)
                     ) {
                         Text(
-                            text = scheme.name,
+                            text = scheme.displayName,
                             color = scheme.accent,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
@@ -169,7 +169,7 @@ fun ChatThemeSettingsScreen(
                             .padding(horizontal = 12.dp, vertical = 9.dp)
                     ) {
                         Text(
-                            text = strings.themePreviewOutgoing(scheme.name),
+                            text = strings.themePreviewOutgoing(scheme.displayName),
                             color = scheme.outgoingText,
                             fontSize = 13.5.sp
                         )
