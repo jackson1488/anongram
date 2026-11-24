@@ -107,7 +107,9 @@ fun ChatScreen(
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     var isFullEditorOpen by remember { mutableStateOf(false) }
     var isUserProfileOpen by remember { mutableStateOf(false) }
+    var isChatThemeSheetOpen by remember { mutableStateOf(false) }
     LaunchedEffect(session.id) {
+        com.anongram.app.core.theme.PerChatThemeStore.ensureInitialized(context)
         viewModel.refreshMessages()
     }
     LaunchedEffect(isUserProfileOpen, viewingMediaMessage) {
@@ -201,6 +203,7 @@ fun ChatScreen(
         forwardingMessageIds != null ||
         viewingMediaMessage != null ||
         isWallpaperOpen ||
+        isChatThemeSheetOpen ||
         isReplyPreviewOpen ||
         isSearchListMode ||
         state.isSearchOpen ||
@@ -230,6 +233,7 @@ fun ChatScreen(
                 viewingOverrideSingleUri = null
                 wasKeyboardOpenBeforeViewer = false
             }
+            isChatThemeSheetOpen -> isChatThemeSheetOpen = false
             isWallpaperOpen -> isWallpaperOpen = false
             isReplyPreviewOpen -> isReplyPreviewOpen = false
             isSearchListMode -> isSearchListMode = false
@@ -247,7 +251,14 @@ fun ChatScreen(
 
     val imeMetrics = rememberChatImeMetrics(state, isReplaceAttachOpen = isReplaceAttachSheetOpen)
     val isCircleOverlayActive = state.recording.mode == RecordMode.CIRCLE || state.videoReviewDraft != null
-    val scheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
+    val globalScheme = com.anongram.app.core.theme.LocalAnonGramScheme.current
+    val perChatThemes by com.anongram.app.core.theme.PerChatThemeStore.themesFlow.collectAsState()
+    val perChatSpec = perChatThemes[session.id]
+    val scheme = remember(perChatSpec, globalScheme, session.id, session.title) {
+        perChatSpec?.let {
+            com.anongram.app.core.theme.ThemePaletteEngine.buildScheme("chat_${session.id}", session.title, it)
+        } ?: globalScheme
+    }
 
     val videoReviewKey = state.videoReviewDraft?.uri
     var isVideoReviewPlaying by remember(videoReviewKey) { mutableStateOf(false) }
@@ -266,6 +277,7 @@ fun ChatScreen(
 
     val revealedSpoilersMap = remember(session.id) { androidx.compose.runtime.mutableStateMapOf<String, Set<Int>>() }
     CompositionLocalProvider(
+        com.anongram.app.core.theme.LocalAnonGramScheme provides scheme,
         LocalMessageSnapshotRegistry provides snapshotRegistry,
         com.anongram.app.features.chats.ui.components.bubble.LocalChatRevealedSpoilers provides revealedSpoilersMap
     ) {
@@ -494,6 +506,7 @@ fun ChatScreen(
             isCircleOverlayActive = isCircleOverlayActive,
             onBack = onBack,
             onCycleWallpaper = { isWallpaperOpen = true },
+            onOpenChatTheme = { isChatThemeSheetOpen = true },
             onStartForward = { ids -> forwardingMessageIds = ids },
             onOpenMusicSheet = {
                 isMusicSheetOpen = true
@@ -673,6 +686,48 @@ fun ChatScreen(
             bottomOffsetPx = imeMetrics.bottomInputTopPx
         )
         ChatActionBannerHost(bottomOffsetPx = imeMetrics.bottomInputTopPx)
+
+        if (isChatThemeSheetOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(40f)
+                    .background(scheme.overlayScrim)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { isChatThemeSheetOpen = false }
+                    )
+            )
+        }
+
+        AnimatedVisibility(
+            visible = isChatThemeSheetOpen,
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = tween(240)
+            ) + fadeIn(tween(180)),
+            exit = slideOutVertically(
+                targetOffsetY = { it },
+                animationSpec = tween(200)
+            ) + fadeOut(tween(150)),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .zIndex(41f)
+                .padding(horizontal = 12.dp, vertical = 12.dp)
+                .safeNavigationBarPadding()
+        ) {
+            com.anongram.app.features.settings.chat_settings.ui.components.FullOsColorPaletteSheet(
+                currentSpec = scheme.spec,
+                onSelectSpec = { newSpec ->
+                    com.anongram.app.core.theme.PerChatThemeStore.setChatTheme(context, session.id, newSpec)
+                },
+                onReset = {
+                    com.anongram.app.core.theme.PerChatThemeStore.clearChatTheme(context, session.id)
+                },
+                onDone = { isChatThemeSheetOpen = false }
+            )
+        }
     }
     }
 }

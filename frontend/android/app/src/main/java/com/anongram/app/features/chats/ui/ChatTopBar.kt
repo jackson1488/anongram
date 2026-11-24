@@ -80,6 +80,7 @@ internal fun ChatTopBar(
     onBack: () -> Unit,
     onOpenSearch: () -> Unit,
     onCycleWallpaper: () -> Unit,
+    onOpenChatTheme: () -> Unit = {},
     onOpenKeyCheck: () -> Unit,
     onSelfDestruct: () -> Unit,
     onClearHistory: () -> Unit,
@@ -193,6 +194,7 @@ internal fun ChatTopBar(
                     accent = scheme.accent,
                     onOpenSearch = onOpenSearch,
                     onCycleWallpaper = onCycleWallpaper,
+                    onOpenChatTheme = onOpenChatTheme,
                     onOpenNotifications = onOpenNotifications,
                     onClearHistory = onClearHistory,
                     onDeleteChat = onDeleteChat
@@ -220,6 +222,7 @@ private fun ChatMenu(
     accent: Color,
     onOpenSearch: () -> Unit,
     onCycleWallpaper: () -> Unit,
+    onOpenChatTheme: () -> Unit,
     onOpenNotifications: () -> Unit,
     onClearHistory: () -> Unit,
     onDeleteChat: () -> Unit
@@ -281,7 +284,16 @@ private fun ChatMenu(
                     onOpenSearch()
                 }
 
-                // 4. Изменить обои
+                // 4. Тема чата (только для этого чата)
+                MenuAction(
+                    icon = androidx.compose.material.icons.Icons.Outlined.Palette,
+                    label = com.anongram.app.features.chats.input.i18n.LocalInputStrings.current.chatThemeTitle
+                ) {
+                    menuOpen = false
+                    onOpenChatTheme()
+                }
+
+                // 5. Изменить обои
                 MenuAction(
                     painter = painterResource(id = R.drawable.ic_gallery_horizontal_end),
                     label = "Изменить обои"

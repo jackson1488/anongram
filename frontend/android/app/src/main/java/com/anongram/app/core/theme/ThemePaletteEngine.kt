@@ -30,13 +30,13 @@ object ThemePaletteEngine {
             ThemeTintMode.MONOCHROME -> 0f
             ThemeTintMode.AMOLED_ACCENT -> effSat * 0.06f
             ThemeTintMode.SOFT_OS -> effSat * 0.24f
-            ThemeTintMode.FULL_OS -> effSat * 0.40f
+            ThemeTintMode.FULL_OS -> effSat * if (isDark) 0.58f else 0.68f
         }
         val cardSat = when (spec.tintMode) {
             ThemeTintMode.MONOCHROME -> 0f
             ThemeTintMode.AMOLED_ACCENT -> effSat * 0.11f
             ThemeTintMode.SOFT_OS -> effSat * 0.32f
-            ThemeTintMode.FULL_OS -> effSat * 0.48f
+            ThemeTintMode.FULL_OS -> effSat * if (isDark) 0.65f else 0.76f
         }
 
         val bgL = if (isDark) {
@@ -44,21 +44,21 @@ object ThemePaletteEngine {
                 ThemeTintMode.MONOCHROME -> 0.02f
                 ThemeTintMode.AMOLED_ACCENT -> 0.024f
                 ThemeTintMode.SOFT_OS -> 0.055f
-                ThemeTintMode.FULL_OS -> 0.105f
+                ThemeTintMode.FULL_OS -> 0.135f
             }
         } else {
             when (spec.tintMode) {
                 ThemeTintMode.MONOCHROME -> 0.94f
                 ThemeTintMode.AMOLED_ACCENT -> 0.965f
                 ThemeTintMode.SOFT_OS -> 0.935f
-                ThemeTintMode.FULL_OS -> 0.895f
+                ThemeTintMode.FULL_OS -> 0.765f
             }
         }
 
-        val surfaceL = if (isDark) bgL + 0.032f else (bgL + 0.03f).coerceAtMost(0.985f)
-        val cardL = if (isDark) bgL + 0.052f else 0.992f
-        val islandL = if (isDark) bgL + 0.068f else 0.996f
-        val incomingL = if (isDark) bgL + 0.088f else 0.996f
+        val surfaceL = if (isDark) bgL + 0.036f else if (spec.tintMode == ThemeTintMode.FULL_OS) 0.82f else (bgL + 0.03f).coerceAtMost(0.985f)
+        val cardL = if (isDark) bgL + 0.058f else if (spec.tintMode == ThemeTintMode.FULL_OS) 0.865f else 0.992f
+        val islandL = if (isDark) bgL + 0.074f else if (spec.tintMode == ThemeTintMode.FULL_OS) 0.885f else 0.996f
+        val incomingL = if (isDark) bgL + 0.095f else if (spec.tintMode == ThemeTintMode.FULL_OS) 0.88f else 0.996f
 
         val background = hslToColor(hue, bgSat, bgL)
         val surface = hslToColor(hue, cardSat * 0.85f, surfaceL)

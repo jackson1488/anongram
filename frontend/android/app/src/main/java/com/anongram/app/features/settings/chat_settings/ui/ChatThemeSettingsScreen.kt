@@ -324,11 +324,15 @@ fun ChatThemeSettingsScreen(
                 .padding(horizontal = 12.dp, vertical = 12.dp)
                 .safeNavigationBarPadding()
         ) {
-            ChatThemeSlidingPaletteSheet(
-                currentThemeId = currentThemeId,
-                filter = polarityFilter,
-                onFilterChange = { polarityFilter = it },
-                onSelectTheme = onThemeSelect,
+            val controller = com.anongram.app.core.theme.LocalThemeController.current
+            com.anongram.app.features.settings.chat_settings.ui.components.FullOsColorPaletteSheet(
+                currentSpec = scheme.spec,
+                onSelectSpec = { newSpec ->
+                    controller?.applyCustomSpec(newSpec, "Full OS")
+                },
+                onReset = {
+                    AnonGramThemes.all.firstOrNull()?.let { onThemeSelect(it.id) }
+                },
                 onDone = { isPaletteSheetOpen = false }
             )
         }

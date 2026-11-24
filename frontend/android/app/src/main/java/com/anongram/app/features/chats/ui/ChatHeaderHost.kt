@@ -62,6 +62,7 @@ internal fun ChatFloatingTopHeader(
     isCircleOverlayActive: Boolean,
     onBack: () -> Unit,
     onCycleWallpaper: () -> Unit,
+    onOpenChatTheme: () -> Unit = {},
     onStartForward: (List<String>) -> Unit,
     onOpenMusicSheet: () -> Unit,
     onOpenProfile: () -> Unit = {},
@@ -178,6 +179,7 @@ internal fun ChatFloatingTopHeader(
                     onBack = onBack,
                     onOpenSearch = viewModel::openSearch,
                     onCycleWallpaper = onCycleWallpaper,
+                    onOpenChatTheme = onOpenChatTheme,
                     onOpenKeyCheck = viewModel::openKeyCheck,
                     onSelfDestruct = {
                         val next = when (state.selfDestruct) {
