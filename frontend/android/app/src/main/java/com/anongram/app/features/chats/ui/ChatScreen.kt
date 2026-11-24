@@ -282,16 +282,17 @@ fun ChatScreen(
         !state.deleteDialogFor.isNullOrEmpty() ||
         viewingMediaMessage != null
 
+    val effectiveScheme = com.anongram.app.core.theme.rememberLiveRainbowScheme(scheme)
     val revealedSpoilersMap = remember(session.id) { androidx.compose.runtime.mutableStateMapOf<String, Set<Int>>() }
     CompositionLocalProvider(
-        com.anongram.app.core.theme.LocalAnonGramScheme provides scheme,
+        com.anongram.app.core.theme.LocalAnonGramScheme provides effectiveScheme,
         LocalMessageSnapshotRegistry provides snapshotRegistry,
         com.anongram.app.features.chats.ui.components.bubble.LocalChatRevealedSpoilers provides revealedSpoilersMap
     ) {
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(scheme.background)
+            .background(effectiveScheme.background)
     ) {
         WallpaperBackground(
             chatId = session.id,

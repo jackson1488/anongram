@@ -203,6 +203,8 @@ object InputStringsRu : InputI18nStrings {
     override val themeRainbow: String = "Радуга"
     override val themeRainbowStatic: String = "Радуга 7"
     override val themeRainbowLive: String = "Живая радуга"
+    override val themeStaticMode: String = "Статичная"
+    override val themeLiveMode: String = "Живая (перелив)"
     override val themeQuickColors: String = "Быстрые акценты"
     override val themeTabPresets: String = "Пресеты"
     override val themeTabWheel: String = "Цветовой круг"

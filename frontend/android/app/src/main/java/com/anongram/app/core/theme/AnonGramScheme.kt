@@ -187,45 +187,45 @@ object AnonGramThemes {
         displayName = name,
         spec = ThemeSpec(
             polarity = polarity,
-            tintMode = ThemeTintMode.MONOCHROME,
+            tintMode = ThemeTintMode.FULL_OS,
             bubbleStyle = BubbleColorStyle.GRADIENT,
-            hue = 0f,
-            saturation = 0f
+            hue = 318f,
+            saturation = if (polarity == ThemePolarity.DARK) 0.88f else 0.82f
         )
     ).copy(
         isRainbow = true,
         isRainbowLive = live,
         outgoingBubbleStart = rainbowColors.first(),
         outgoingBubbleEnd = rainbowColors.last(),
-        outgoingBubbleBorder = if (polarity == ThemePolarity.DARK) Color(0x4DFFFFFF) else Color(0x33000000),
+        outgoingBubbleBorder = if (polarity == ThemePolarity.DARK) Color(0x55FFFFFF) else Color(0x33000000),
         outgoingText = Color(0xFFFFFFFF),
         selectedGlow = Color(0xFF38BDF8)
     )
 
     val RainbowStaticDark = rainbowPreset(
         id = "rainbow_static_dark",
-        name = "Радуга 7 · Статика (Тёмная)",
+        name = "Радуга ОС (Тёмная)",
         polarity = ThemePolarity.DARK,
         live = false
     )
 
     val RainbowLiveDark = rainbowPreset(
         id = "rainbow_live_dark",
-        name = "Радуга 7 · Живая (Тёмная)",
+        name = "Радуга ОС · Живая (Тёмная)",
         polarity = ThemePolarity.DARK,
         live = true
     )
 
     val RainbowStaticLight = rainbowPreset(
         id = "rainbow_static_light",
-        name = "Радуга 7 · Статика (Светлая)",
+        name = "Радуга ОС (Светлая)",
         polarity = ThemePolarity.LIGHT,
         live = false
     )
 
     val RainbowLiveLight = rainbowPreset(
         id = "rainbow_live_light",
-        name = "Радуга 7 · Живая (Светлая)",
+        name = "Радуга ОС · Живая (Светлая)",
         polarity = ThemePolarity.LIGHT,
         live = true
     )

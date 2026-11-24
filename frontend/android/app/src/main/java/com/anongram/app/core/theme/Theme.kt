@@ -70,53 +70,55 @@ fun AnonGramTheme(
         }
     }
 
-    val colorScheme = if (scheme.isDark) {
+    val liveScheme = rememberLiveRainbowScheme(scheme)
+
+    val colorScheme = if (liveScheme.isDark) {
         darkColorScheme(
-            primary = scheme.accent,
-            onPrimary = scheme.onAccent,
-            primaryContainer = scheme.accentSoft,
-            onPrimaryContainer = scheme.textPrimary,
-            secondary = scheme.accentDim,
-            onSecondary = scheme.onAccent,
-            secondaryContainer = scheme.islandBg,
-            onSecondaryContainer = scheme.textPrimary,
-            tertiary = scheme.accentDim,
-            onTertiary = scheme.onAccent,
-            background = scheme.background,
-            onBackground = scheme.textPrimary,
-            surface = scheme.surface,
-            onSurface = scheme.textPrimary,
-            surfaceVariant = scheme.card,
-            onSurfaceVariant = scheme.textSecondary,
-            outline = scheme.cardBorder,
-            outlineVariant = scheme.divider
+            primary = liveScheme.accent,
+            onPrimary = liveScheme.onAccent,
+            primaryContainer = liveScheme.accentSoft,
+            onPrimaryContainer = liveScheme.textPrimary,
+            secondary = liveScheme.accentDim,
+            onSecondary = liveScheme.onAccent,
+            secondaryContainer = liveScheme.islandBg,
+            onSecondaryContainer = liveScheme.textPrimary,
+            tertiary = liveScheme.accentDim,
+            onTertiary = liveScheme.onAccent,
+            background = liveScheme.background,
+            onBackground = liveScheme.textPrimary,
+            surface = liveScheme.surface,
+            onSurface = liveScheme.textPrimary,
+            surfaceVariant = liveScheme.card,
+            onSurfaceVariant = liveScheme.textSecondary,
+            outline = liveScheme.cardBorder,
+            outlineVariant = liveScheme.divider
         )
     } else {
         lightColorScheme(
-            primary = scheme.accent,
-            onPrimary = scheme.onAccent,
-            primaryContainer = scheme.accentSoft,
-            onPrimaryContainer = scheme.textPrimary,
-            secondary = scheme.accentDim,
-            onSecondary = scheme.onAccent,
-            secondaryContainer = scheme.islandBg,
-            onSecondaryContainer = scheme.textPrimary,
-            tertiary = scheme.accentDim,
-            onTertiary = scheme.onAccent,
-            background = scheme.background,
-            onBackground = scheme.textPrimary,
-            surface = scheme.surface,
-            onSurface = scheme.textPrimary,
-            surfaceVariant = scheme.card,
-            onSurfaceVariant = scheme.textSecondary,
-            outline = scheme.cardBorder,
-            outlineVariant = scheme.divider
+            primary = liveScheme.accent,
+            onPrimary = liveScheme.onAccent,
+            primaryContainer = liveScheme.accentSoft,
+            onPrimaryContainer = liveScheme.textPrimary,
+            secondary = liveScheme.accentDim,
+            onSecondary = liveScheme.onAccent,
+            secondaryContainer = liveScheme.islandBg,
+            onSecondaryContainer = liveScheme.textPrimary,
+            tertiary = liveScheme.accentDim,
+            onTertiary = liveScheme.onAccent,
+            background = liveScheme.background,
+            onBackground = liveScheme.textPrimary,
+            surface = liveScheme.surface,
+            onSurface = liveScheme.textPrimary,
+            surfaceVariant = liveScheme.card,
+            onSurfaceVariant = liveScheme.textSecondary,
+            outline = liveScheme.cardBorder,
+            outlineVariant = liveScheme.divider
         )
     }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
+        androidx.compose.runtime.LaunchedEffect(scheme.id, scheme.isDark) {
             val window = (view.context as Activity).window
             @Suppress("DEPRECATION")
             window.statusBarColor = scheme.background.toArgb()
@@ -129,7 +131,7 @@ fun AnonGramTheme(
     }
 
     CompositionLocalProvider(
-        LocalAnonGramScheme provides scheme,
+        LocalAnonGramScheme provides liveScheme,
         LocalThemeController provides controller,
         LocalInputStrings provides inputStrings,
         LocalChatMessageFontFamily provides messageFontFamily

@@ -203,6 +203,8 @@ object InputStringsEn : InputI18nStrings {
     override val themeRainbow: String = "Rainbow"
     override val themeRainbowStatic: String = "Rainbow 7"
     override val themeRainbowLive: String = "Live Rainbow"
+    override val themeStaticMode: String = "Static"
+    override val themeLiveMode: String = "Live (flowing)"
     override val themeQuickColors: String = "Quick accents"
     override val themeTabPresets: String = "Presets"
     override val themeTabWheel: String = "Color Wheel"

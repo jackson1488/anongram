@@ -241,10 +241,14 @@ fun ThemeSelectorCard(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
+                val basePresets = AnonGramThemes.all.filter {
+                    it.id != AnonGramThemes.RainbowStaticDark.id &&
+                        it.id != AnonGramThemes.RainbowStaticLight.id
+                }
                 val filtered = when (presetFilter) {
-                    PresetFilter.ALL -> AnonGramThemes.all
-                    PresetFilter.DARK -> AnonGramThemes.all.filter { it.isDark }
-                    PresetFilter.LIGHT -> AnonGramThemes.all.filter { !it.isDark }
+                    PresetFilter.ALL -> basePresets
+                    PresetFilter.DARK -> basePresets.filter { it.isDark }
+                    PresetFilter.LIGHT -> basePresets.filter { !it.isDark }
                 }
 
                 Column(
@@ -252,13 +256,44 @@ fun ThemeSelectorCard(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     filtered.forEach { theme ->
+                        val isRainbowRow = theme.isRainbow
+                        val selected = if (isRainbowRow) {
+                            activeTheme.isRainbow && activeTheme.isDark == theme.isDark
+                        } else {
+                            theme.id == currentThemeId
+                        }
                         ThemeItemRow(
                             theme = theme,
                             activeScheme = activeTheme,
-                            isSelected = theme.id == currentThemeId,
+                            isSelected = selected,
                             onSelect = {
-                                draftSpec = theme.spec
-                                onThemeSelect(theme.id)
+                                if (isRainbowRow) {
+                                    val target = when {
+                                        theme.isDark && activeTheme.isRainbowLive -> AnonGramThemes.RainbowLiveDark
+                                        theme.isDark -> AnonGramThemes.RainbowStaticDark
+                                        activeTheme.isRainbowLive -> AnonGramThemes.RainbowLiveLight
+                                        else -> AnonGramThemes.RainbowStaticLight
+                                    }
+                                    draftSpec = target.spec
+                                    onThemeSelect(target.id)
+                                } else {
+                                    draftSpec = theme.spec
+                                    onThemeSelect(theme.id)
+                                }
+                            },
+                            onSelectRainbowMode = if (isRainbowRow) {
+                                { isLive ->
+                                    val target = when {
+                                        theme.isDark && isLive -> AnonGramThemes.RainbowLiveDark
+                                        theme.isDark -> AnonGramThemes.RainbowStaticDark
+                                        isLive -> AnonGramThemes.RainbowLiveLight
+                                        else -> AnonGramThemes.RainbowStaticLight
+                                    }
+                                    draftSpec = target.spec
+                                    onThemeSelect(target.id)
+                                }
+                            } else {
+                                null
                             }
                         )
                     }
@@ -1060,12 +1095,13 @@ private fun ThemeItemRow(
     activeScheme: AnonGramScheme,
     isSelected: Boolean,
     onSelect: () -> Unit,
+    onSelectRainbowMode: ((Boolean) -> Unit)? = null,
     onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val strings = LocalInputStrings.current
     val animatedBorderColor by animateColorAsState(
-        targetValue = if (isSelected) theme.accent else activeScheme.cardBorder,
+        targetValue = if (isSelected) activeScheme.accent else activeScheme.cardBorder,
         animationSpec = tween(durationMillis = 220),
         label = "themeItemBorder"
     )
@@ -1075,7 +1111,7 @@ private fun ThemeItemRow(
         label = "themeItemBackground"
     )
 
-    Row(
+    Column(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(18.dp))
@@ -1087,79 +1123,135 @@ private fun ThemeItemRow(
             )
             .clickable(onClick = onSelect)
             .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        // Двухцветный или радужный превью-кружок
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(
-                    if (theme.isRainbow) {
-                        Brush.sweepGradient(AnonGramThemes.rainbowColors)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Двухцветный или радужный превью-кружок
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (theme.isRainbow) {
+                            Brush.sweepGradient(AnonGramThemes.rainbowColors)
+                        } else {
+                            Brush.linearGradient(
+                                colors = listOf(theme.background, theme.outgoingBubbleStart)
+                            )
+                        }
+                    )
+                    .border(
+                        width = 2.5.dp,
+                        brush = if (theme.isRainbow) {
+                            Brush.linearGradient(listOf(Color(0xFFEC4899), Color(0xFF06B6D4)))
+                        } else {
+                            Brush.linearGradient(listOf(theme.accent, theme.accent))
+                        },
+                        shape = CircleShape
+                    )
+            )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = if (theme.isRainbow) {
+                        if (theme.isDark) "${strings.themeRainbow} (${strings.themePolarityDark})"
+                        else "${strings.themeRainbow} (${strings.themePolarityLight})"
                     } else {
-                        Brush.linearGradient(
-                            colors = listOf(theme.background, theme.outgoingBubbleStart)
-                        )
-                    }
-                )
-                .border(
-                    width = 2.5.dp,
-                    brush = if (theme.isRainbow) {
-                        Brush.linearGradient(listOf(Color(0xFFEC4899), Color(0xFF06B6D4)))
-                    } else {
-                        Brush.linearGradient(listOf(theme.accent, theme.accent))
+                        theme.displayName
                     },
-                    shape = CircleShape
+                    color = activeScheme.textPrimary,
+                    fontSize = 14.5.sp,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-        )
-
-        Spacer(modifier = Modifier.width(12.dp))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = theme.displayName,
-                color = activeScheme.textPrimary,
-                fontSize = 14.5.sp,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            Text(
-                text = if (theme.isDark) strings.themePolarityDark else strings.themePolarityLight,
-                color = activeScheme.textMuted,
-                fontSize = 11.sp
-            )
-        }
-
-        if (onDelete != null) {
-            IconButton(
-                onClick = onDelete,
-                modifier = Modifier.size(30.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.DeleteOutline,
-                    contentDescription = "Delete",
-                    tint = activeScheme.textMuted,
-                    modifier = Modifier.size(18.dp)
+                Text(
+                    text = if (theme.isDark) strings.themePolarityDark else strings.themePolarityLight,
+                    color = activeScheme.textMuted,
+                    fontSize = 11.sp
                 )
+            }
+
+            if (onDelete != null) {
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.size(30.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = "Delete",
+                        tint = activeScheme.textMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            if (isSelected) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(activeScheme.accent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = activeScheme.onAccent,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
             }
         }
 
-        if (isSelected) {
-            Box(
+        if (onSelectRainbowMode != null) {
+            val isLiveActive = if (isSelected) activeScheme.isRainbowLive else true
+            Row(
                 modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .background(theme.accent),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(50))
+                    .background(activeScheme.card)
+                    .border(0.8.dp, activeScheme.cardBorder, RoundedCornerShape(50))
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.Check,
-                    contentDescription = null,
-                    tint = theme.onAccent,
-                    modifier = Modifier.size(14.dp)
-                )
+                listOf(
+                    false to strings.themeStaticMode,
+                    true to strings.themeLiveMode
+                ).forEach { (liveMode, modeLabel) ->
+                    val modeSelected = isSelected && (activeScheme.isRainbowLive == liveMode)
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(50))
+                            .background(
+                                if (modeSelected) {
+                                    Brush.horizontalGradient(
+                                        listOf(activeScheme.accent, activeScheme.accentDim)
+                                    )
+                                } else {
+                                    Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
+                                }
+                            )
+                            .clickable { onSelectRainbowMode(liveMode) }
+                            .padding(vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = modeLabel,
+                            color = if (modeSelected) activeScheme.onAccent else activeScheme.textSecondary,
+                            fontSize = 11.5.sp,
+                            fontWeight = if (modeSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
         }
     }
