@@ -20,12 +20,13 @@ class PredictiveBackStackStyle : ITransitionStyle {
         val towardEdgeDir = if (config.swipeEdge == 1) 1f else -1f
         val inwardDir = -towardEdgeDir
         val yOffsetFactor = (config.touchYFraction - 0.5f).coerceIn(-0.5f, 0.5f)
-        val scale = (1f - progress * 0.18f).coerceIn(0.80f, 1f)
+        val scale = (1f - progress * 0.34f).coerceIn(0.78f, 1f)
         scaleX = scale
         scaleY = scale
-        shape = RoundedCornerShape((progress * 28f).dp)
+        val cornerRadius = (progress * 84f).coerceIn(0f, 32f)
+        shape = RoundedCornerShape(cornerRadius.dp)
         clip = progress > 0.01f
-        shadowElevation = progress * 18.dp.toPx()
+        shadowElevation = (progress * 24f).coerceAtMost(20f).dp.toPx()
         translationY = yOffsetFactor * progress * size.height * 0.06f
 
         val holdFraction = 0.22f
