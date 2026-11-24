@@ -55,12 +55,14 @@ export function createAppShell(): HTMLElement {
   let mobileChatOpen = false;
   let settingsRoute: SettingsRoute = 'chatAppearance';
   let mobileSettingsOpen = false;
+  let desktopSettingsSubOpen = false;
   let focusChatSearchFn: (() => void) | null = null;
 
   let cleanupLeft: (() => void) | null = null;
   let cleanupRight: (() => void) | null = null;
   let cleanupHeader: (() => void) | null = null;
   let chatListRef: Cleanable | null = null;
+  let leftPaneRef: HTMLElement | null = null;
   let rightPaneRef: HTMLElement | null = null;
 
   let detailScreen: TransitionScreen | null = null;
@@ -83,6 +85,12 @@ export function createAppShell(): HTMLElement {
   ].join(',');
 
   const isDesktop = () => window.innerWidth >= 840;
+
+  const isModuleSubRoute = (route: SettingsRoute): boolean =>
+    route === 'moduleVoice' ||
+    route === 'moduleTranslation' ||
+    route === 'moduleLocalAi' ||
+    route === 'moduleFonts';
 
   const getNavConfig = (): NavigationTransitionConfig =>
     settingsStore.all.animationsEnabled
@@ -167,6 +175,16 @@ export function createAppShell(): HTMLElement {
     });
   };
 
+  const stepBackDesktopSettings = () => {
+    if (isModuleSubRoute(settingsRoute)) {
+      settingsRoute = 'modules';
+      desktopSettingsSubOpen = true;
+    } else {
+      desktopSettingsSubOpen = false;
+    }
+    mountLeft();
+  };
+
   const goTab = (tab: MainTab) => {
     backHistory.remove('shell:mobile-detail');
     if (tab !== 'chats') {
@@ -181,30 +199,25 @@ export function createAppShell(): HTMLElement {
     activeTab = tab;
     mobileChatOpen = false;
     mobileSettingsOpen = false;
-    render();
+    desktopSettingsSubOpen = false;
+    if (isDesktop() && leftPaneRef && rightPaneRef) {
+      mountLeft();
+    } else {
+      render();
+    }
   };
 
   const buildRightContent = (): HTMLElement => {
     const s = NavigationI18n.current;
-    if (activeTab === 'settings') {
+    if (!isDesktop() && activeTab === 'settings') {
       const detail = createSettingsDetailView(
         settingsRoute,
         (next) => {
           settingsRoute = next;
-          if (isDesktop()) {
-            mountRight();
-            renderLeftOnly();
-          } else {
-            openMobileDetail();
-          }
+          openMobileDetail();
         },
         () => {
-          if (isDesktop()) {
-            mobileSettingsOpen = false;
-            render();
-          } else {
-            closeMobileDetail();
-          }
+          closeMobileDetail();
         },
       ) as Cleanable;
       cleanupRight = detail.__cleanup ?? null;
@@ -213,8 +226,10 @@ export function createAppShell(): HTMLElement {
     if (activeChatId) {
       const room = createChatRoomView(activeChatId, () => {
         if (isDesktop()) {
+          activeChatId = null;
           mobileChatOpen = false;
-          render();
+          mountRight();
+          chatListRef?.__refresh?.();
         } else {
           closeMobileDetail();
         }
@@ -226,6 +241,100 @@ export function createAppShell(): HTMLElement {
     return el('div', { class: 'ag-empty-stage' }, s.selectChatHint);
   };
 
+  /** Rebuilds only the left pane — the desktop right pane keeps its active chat room intact. */
+  const mountLeft = () => {
+    if (!leftPaneRef) return;
+    cleanupLeft?.();
+    cleanupHeader?.();
+    cleanupLeft = null;
+    cleanupHeader = null;
+    chatListRef = null;
+    clear(leftPaneRef);
+
+    const s = NavigationI18n.current;
+    const desktop = isDesktop();
+
+    if (desktop && (activeTab === 'services' || activeTab === 'profile')) {
+      const titles: Record<MainTab, string> = {
+        chats: s.chats,
+        services: s.services,
+        settings: s.settings,
+        profile: s.profile,
+      };
+      leftPaneRef.appendChild(
+        el(
+          'div',
+          { class: 'ag-chat-header' },
+          el('button', { class: 'ag-icon-btn', onClick: () => goTab('chats') }, icons.back(22)),
+          el('div', { class: 'ag-chat-header__title' }, titles[activeTab]),
+        ),
+      );
+    } else if (!desktop && (activeTab === 'services' || activeTab === 'profile')) {
+      const header = createAppHeader() as Cleanable;
+      cleanupHeader = header.__cleanup ?? null;
+      leftPaneRef.appendChild(header);
+    }
+
+    let leftContent: Cleanable;
+    if (activeTab === 'chats') {
+      leftContent = createChatListView({
+        getActiveChatId: () => activeChatId,
+        onSelectChat: selectChat,
+        onOpenMenu: desktop ? openDrawer : undefined,
+        focusSearchSignal: (fn) => {
+          focusChatSearchFn = fn;
+        },
+      }) as Cleanable;
+      chatListRef = leftContent;
+    } else if (activeTab === 'services') {
+      leftContent = createServicesView() as Cleanable;
+    } else if (activeTab === 'profile') {
+      leftContent = createProfileView() as Cleanable;
+    } else if (desktop && desktopSettingsSubOpen) {
+      const detail = createSettingsDetailView(
+        settingsRoute,
+        (next) => {
+          settingsRoute = next;
+          desktopSettingsSubOpen = true;
+          mountLeft();
+        },
+        () => {
+          stepBackDesktopSettings();
+        },
+      ) as Cleanable;
+      detail.addEventListener(
+        'click',
+        (e: Event) => {
+          const target = e.target as HTMLElement | null;
+          if (target?.closest('.ag-settings-back')) {
+            e.stopImmediatePropagation();
+            e.preventDefault();
+            stepBackDesktopSettings();
+          }
+        },
+        true,
+      );
+      leftContent = detail;
+    } else {
+      leftContent = createSettingsListPane(
+        () => 'main',
+        (route) => {
+          settingsRoute = route;
+          if (isDesktop()) {
+            desktopSettingsSubOpen = true;
+            mountLeft();
+          } else {
+            mobileSettingsOpen = true;
+            openMobileDetail();
+          }
+        },
+        desktop ? () => goTab('chats') : undefined,
+      ) as Cleanable;
+    }
+    cleanupLeft = leftContent.__cleanup ?? null;
+    leftPaneRef.appendChild(leftContent);
+  };
+
   /** Rebuilds only the right pane (desktop) — the left pane keeps its search text and focus. */
   const mountRight = () => {
     if (!rightPaneRef) return;
@@ -233,11 +342,6 @@ export function createAppShell(): HTMLElement {
     cleanupRight = null;
     clear(rightPaneRef);
     rightPaneRef.appendChild(buildRightContent());
-  };
-
-  const renderLeftOnly = () => {
-    if (activeTab === 'settings') render();
-    else chatListRef?.__refresh?.();
   };
 
   const selectChat = (chatId: string) => {
@@ -309,75 +413,24 @@ export function createAppShell(): HTMLElement {
     cleanupHeader?.();
     cleanupLeft = cleanupRight = cleanupHeader = null;
     chatListRef = null;
+    leftPaneRef = null;
     rightPaneRef = null;
     clear(root);
 
-    const s = NavigationI18n.current;
     const desktop = isDesktop();
     const body = el('div', { class: 'ag-shell-body' });
 
     // ---------------- Left pane ----------------
     const leftPane = el('section', { class: 'ag-left-pane' });
-
-    if (desktop && activeTab !== 'chats') {
-      const titles: Record<MainTab, string> = {
-        chats: s.chats,
-        services: s.services,
-        settings: s.settings,
-        profile: s.profile,
-      };
-      leftPane.appendChild(
-        el(
-          'div',
-          { class: 'ag-chat-header' },
-          el('button', { class: 'ag-icon-btn', onClick: () => goTab('chats') }, icons.back(22)),
-          el('div', { class: 'ag-chat-header__title' }, titles[activeTab]),
-        ),
-      );
-    } else if (!desktop && (activeTab === 'services' || activeTab === 'profile')) {
-      const header = createAppHeader() as Cleanable;
-      cleanupHeader = header.__cleanup ?? null;
-      leftPane.appendChild(header);
-    }
-
-    let leftContent: Cleanable;
-    if (activeTab === 'chats') {
-      leftContent = createChatListView({
-        getActiveChatId: () => activeChatId,
-        onSelectChat: selectChat,
-        onOpenMenu: desktop ? openDrawer : undefined,
-        focusSearchSignal: (fn) => {
-          focusChatSearchFn = fn;
-        },
-      }) as Cleanable;
-      chatListRef = leftContent;
-    } else if (activeTab === 'services') {
-      leftContent = createServicesView() as Cleanable;
-    } else if (activeTab === 'profile') {
-      leftContent = createProfileView() as Cleanable;
-    } else {
-      leftContent = createSettingsListPane(
-        () => settingsRoute,
-        (route) => {
-          settingsRoute = route;
-          if (desktop) {
-            render();
-          } else {
-            mobileSettingsOpen = true;
-            openMobileDetail();
-          }
-        },
-      ) as Cleanable;
-    }
-    cleanupLeft = leftContent.__cleanup ?? null;
-    leftPane.appendChild(leftContent);
+    leftPaneRef = leftPane;
+    mountLeft();
     body.appendChild(leftPane);
 
-    // ---------------- Right pane (desktop only) ----------------
+    // ---------------- Right pane (desktop only: ALWAYS chat room or empty stage) ----------------
     if (desktop) {
       const rightPane = el('main', { class: 'ag-right-pane' });
       rightPaneRef = rightPane;
-      rightPane.appendChild(buildRightContent());
+      mountRight();
       body.appendChild(rightPane);
     }
 
@@ -460,9 +513,8 @@ export function createAppShell(): HTMLElement {
       return;
     }
 
-    if (isDesktop() && activeTab === 'settings' && settingsRoute === 'search') {
-      settingsRoute = 'chatAppearance';
-      render();
+    if (isDesktop() && activeTab === 'settings' && desktopSettingsSubOpen && !typing) {
+      stepBackDesktopSettings();
       e.preventDefault();
       return;
     }
@@ -489,12 +541,6 @@ export function createAppShell(): HTMLElement {
       chatListRef?.__refresh?.();
       e.preventDefault();
       return;
-    }
-
-    if (isDesktop() && activeTab === 'settings' && settingsRoute !== 'chatAppearance' && !typing) {
-      settingsRoute = 'chatAppearance';
-      render();
-      e.preventDefault();
     }
   };
 

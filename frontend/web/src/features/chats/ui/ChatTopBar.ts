@@ -87,21 +87,149 @@ function handleOpenWallpaper(actions?: ChatTopBarActions): void {
   openWallpaperPicker();
 }
 
-function handleToggleMute(threadId: string, actions?: ChatTopBarActions): void {
-  if (actions?.onToggleMute) {
-    actions.onToggleMute();
-    return;
-  }
-  const nowMuted = blockedUsersStore.toggleMute(threadId);
+function openNotificationsDialog(thread: ChatThread): void {
+  const isRu = i18nStore.language === 'ru';
   const ups = userProfileT();
-  showToast(nowMuted ? ups.mutedToast : ups.unmutedToast);
+  const isMuted = blockedUsersStore.isMuted(thread.id);
+
+  const listWrap = el('div', {
+    style: 'display:flex;flex-direction:column;gap:6px;margin-top:8px;',
+  });
+
+  const handle = openDialog({
+    title: isRu ? 'Уведомления' : 'Notifications',
+    message: isRu
+      ? `Настройка звука уведомлений для чата «${thread.title}»`
+      : `Notification sound settings for "${thread.title}"`,
+    content: listWrap,
+    confirmLabel: i18nStore.t.common.close,
+    cancelLabel: null,
+  });
+
+  const makeOptionRow = (
+    label: string,
+    iconNode: SVGElement,
+    onSelect: () => void,
+    highlight = false,
+  ): HTMLButtonElement => {
+    const btn = el(
+      'button',
+      {
+        type: 'button',
+        style: [
+          'display:flex',
+          'align-items:center',
+          'gap:12px',
+          'width:100%',
+          'padding:11px 14px',
+          'border-radius:16px',
+          'border:1px solid var(--ag-island-border)',
+          highlight
+            ? 'background:var(--ag-accent-soft);color:var(--ag-accent);'
+            : 'background:var(--ag-surface);color:var(--ag-text-primary);',
+          'font-size:14px',
+          'font-weight:600',
+          'text-align:left',
+          'cursor:pointer',
+          'transition:background-color 0.14s ease,transform 0.1s ease',
+        ].join(';'),
+        onClick: (e: Event) => {
+          e.stopPropagation();
+          handle.close();
+          onSelect();
+        },
+      },
+      el(
+        'span',
+        {
+          style: [
+            'display:inline-flex',
+            'align-items:center',
+            'justify-content:center',
+            'width:20px',
+            'height:20px',
+            'flex-shrink:0',
+            highlight ? 'color:var(--ag-accent);' : 'color:var(--ag-text-secondary);',
+          ].join(';'),
+        },
+        iconNode,
+      ),
+      el('span', { style: 'flex:1;min-width:0;' }, label),
+    ) as HTMLButtonElement;
+    return btn;
+  };
+
+  if (isMuted) {
+    listWrap.appendChild(
+      makeOptionRow(
+        isRu ? 'Включить звук' : 'Unmute',
+        tgIcons.bell(18),
+        () => {
+          blockedUsersStore.setMuted(thread.id, false);
+          showToast(ups.unmutedToast);
+        },
+        true,
+      ),
+    );
+  }
+
+  const muteOptions: Array<{ labelRu: string; labelEn: string; toastRu: string; toastEn: string }> = [
+    {
+      labelRu: 'Выключить на 1 час',
+      labelEn: 'Mute for 1 hour',
+      toastRu: 'Уведомления выключены на 1 час',
+      toastEn: 'Muted for 1 hour',
+    },
+    {
+      labelRu: 'Выключить на 8 часов',
+      labelEn: 'Mute for 8 hours',
+      toastRu: 'Уведомления выключены на 8 часов',
+      toastEn: 'Muted for 8 hours',
+    },
+    {
+      labelRu: 'Выключить на 2 дня',
+      labelEn: 'Mute for 2 days',
+      toastRu: 'Уведомления выключены на 2 дня',
+      toastEn: 'Muted for 2 days',
+    },
+    {
+      labelRu: 'Выключить навсегда',
+      labelEn: 'Mute forever',
+      toastRu: ups.mutedToast,
+      toastEn: ups.mutedToast,
+    },
+  ];
+
+  for (const opt of muteOptions) {
+    listWrap.appendChild(
+      makeOptionRow(
+        isRu ? opt.labelRu : opt.labelEn,
+        tgIcons.bellOff(18),
+        () => {
+          blockedUsersStore.setMuted(thread.id, true);
+          showToast(isRu ? opt.toastRu : opt.toastEn);
+        },
+      ),
+    );
+  }
+}
+
+function handleVideoCall(thread: ChatThread): void {
+  const isRu = i18nStore.language === 'ru';
+  openDialog({
+    title: isRu ? 'Видеозвонок' : 'Video Call',
+    message: isRu
+      ? `Начать зашифрованный E2EE видеозвонок с ${thread.title}?`
+      : `Start an encrypted E2EE video call with ${thread.title}?`,
+    confirmLabel: isRu ? 'Позвонить' : 'Start Call',
+    cancelLabel: i18nStore.t.common.cancel,
+    onConfirm: () => {
+      openActiveCallModal(thread.title, thread.avatarEmoji, true);
+    },
+  });
 }
 
 function handleClearHistory(thread: ChatThread, actions?: ChatTopBarActions): void {
-  if (actions?.onClearHistory) {
-    actions.onClearHistory();
-    return;
-  }
   const isRu = i18nStore.language === 'ru';
   const ups = userProfileT();
   openDialog({
@@ -113,7 +241,11 @@ function handleClearHistory(thread: ChatThread, actions?: ChatTopBarActions): vo
     cancelLabel: i18nStore.t.common.cancel,
     danger: true,
     onConfirm: () => {
-      for (const m of chatStore.getMessages(thread.id)) {
+      if (actions?.onClearHistory) {
+        actions.onClearHistory();
+        return;
+      }
+      for (const m of [...chatStore.getMessages(thread.id)]) {
         chatStore.deleteMessage(thread.id, m.id);
       }
       showToast(ups.clearedHistoryToast);
@@ -126,10 +258,6 @@ function handleDeleteChat(
   onBackMobile: () => void,
   actions?: ChatTopBarActions,
 ): void {
-  if (actions?.onDeleteChat) {
-    actions.onDeleteChat();
-    return;
-  }
   const isRu = i18nStore.language === 'ru';
   const ups = userProfileT();
   openDialog({
@@ -141,7 +269,11 @@ function handleDeleteChat(
     cancelLabel: i18nStore.t.common.cancel,
     danger: true,
     onConfirm: () => {
-      for (const m of chatStore.getMessages(thread.id)) {
+      if (actions?.onDeleteChat) {
+        actions.onDeleteChat();
+        return;
+      }
+      for (const m of [...chatStore.getMessages(thread.id)]) {
         chatStore.deleteMessage(thread.id, m.id);
       }
       const current = chatStore.getThread(thread.id);
@@ -159,61 +291,48 @@ function openOverflowMenu(
   thread: ChatThread,
   onBackMobile: () => void,
   actions: ChatTopBarActions | undefined,
-  isMobile: boolean,
 ): void {
   const t = i18nStore.t;
-  const cs = chatScreenT();
   const ups = userProfileT();
   const isRu = i18nStore.language === 'ru';
   const currentThread = chatStore.getThread(thread.id) ?? thread;
-  const isPinned = currentThread.isPinned;
   const isMuted = blockedUsersStore.isMuted(thread.id);
 
-  const items: MenuItem[] = [];
-  if (isMobile) {
-    items.push({
+  const items: MenuItem[] = [
+    {
+      label: isRu ? 'Уведомления   ›' : 'Notifications   ›',
+      icon: () => (isMuted ? tgIcons.bellOff(18) : tgIcons.bell(18)),
+      onClick: () => openNotificationsDialog(currentThread),
+    },
+    {
+      label: isRu ? 'Видеозвонок' : 'Video Call',
+      icon: () => icons.video(18),
+      onClick: () => handleVideoCall(currentThread),
+    },
+    {
       label: t.common.search,
-      icon: () => icons.search(17),
+      icon: () => icons.search(18),
       onClick: () => actions?.onToggleSearch?.(),
-    });
-  }
-  items.push(
+    },
     {
       label: isRu ? 'Изменить обои' : 'Change wallpaper',
-      icon: () => icons.image(17),
+      icon: () => icons.image(18),
       onClick: () => handleOpenWallpaper(actions),
     },
     {
-      label: isMuted
-        ? isRu
-          ? 'Включить звук'
-          : 'Unmute'
-        : isRu
-          ? 'Выключить звук'
-          : 'Mute',
-      icon: () => (isMuted ? tgIcons.unmute(17) : tgIcons.mute(17)),
-      onClick: () => handleToggleMute(thread.id, actions),
-    },
-    {
-      label: isPinned ? cs.unpinMessage : t.chats.pinAction,
-      icon: () => (isPinned ? tgIcons.pinOff(17) : icons.pin(17)),
-      onClick: () => chatStore.togglePin(thread.id),
-    },
-    { separator: true },
-    {
       label: ups.menuClearHistory,
-      icon: () => icons.trash(17),
+      icon: () => icons.edit(18),
       onClick: () => handleClearHistory(currentThread, actions),
     },
     {
       label: ups.menuDeleteChat,
-      icon: () => icons.trash(17),
+      icon: () => icons.trash(18),
       danger: true,
       onClick: () => handleDeleteChat(currentThread, onBackMobile, actions),
     },
-  );
+  ];
 
-  openMenu(anchor, items, { align: 'right', compact: !isMobile });
+  openMenu(anchor, items, { align: 'right', compact: false });
 }
 
 export function createChatTopBar(
@@ -246,7 +365,7 @@ export function createChatTopBar(
       'aria-label': cs.more,
       onClick: (e: Event) => {
         e.stopPropagation();
-        openOverflowMenu(e.currentTarget as HTMLElement, thread, onBackMobile, actions, isMobile);
+        openOverflowMenu(e.currentTarget as HTMLElement, thread, onBackMobile, actions);
       },
     },
     icons.more(19),

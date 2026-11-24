@@ -332,6 +332,14 @@
     border: 1px solid var(--ag-divider);
   }
 
+  .ag-left-pane > .ag-settings-detail {
+    background: transparent;
+  }
+
+  .ag-left-pane .ag-settings-back.ag-mobile-only {
+    display: inline-flex !important;
+  }
+
   .ag-right-pane {
     flex: 1;
     min-width: 0;

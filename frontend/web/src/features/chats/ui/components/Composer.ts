@@ -305,12 +305,14 @@ export function createComposer(o: ComposerOptions): ComposerHandle {
 
     root.classList.toggle('is-has-text', hasText);
     root.classList.toggle('is-editing', isEditing);
-    root.classList.toggle('is-camera-mode', !canSend && isCameraMode);
+    root.classList.toggle('is-send-mode', canSend);
+    root.classList.toggle('is-camera-mode', !canSend);
     root.classList.toggle('is-recording', isVoiceRec);
     root.classList.toggle('is-holding', isHolding);
     root.classList.toggle('is-locked', isLockedVoice);
 
-    actionBtn.classList.toggle('is-camera-mode', !canSend && isCameraMode);
+    actionBtn.classList.toggle('is-send-mode', canSend);
+    actionBtn.classList.toggle('is-camera-mode', !canSend);
     actionBtn.classList.toggle('is-recording', isVoiceRec);
     actionBtn.classList.toggle('is-holding', isHolding);
     actionBtn.classList.toggle('is-locked', isLockedVoice);

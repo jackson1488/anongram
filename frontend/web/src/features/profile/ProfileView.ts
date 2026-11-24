@@ -3,6 +3,7 @@ import { clear, copyToClipboard, el } from '../../core/ui/dom';
 import { icons, tgIcons } from '../../core/ui/icons';
 import { showToast } from '../../core/ui/toast';
 import { authStore } from '../auth/authStore';
+import { pickAndResizeAvatar } from '../settings/main/SettingsMainScreen';
 import { profileT } from './i18n';
 import './profile.css';
 
@@ -30,6 +31,7 @@ export function createProfileView(): HTMLElement {
     const id = authStore.identity;
     if (!id) return;
     const s = profileT();
+    const initial = (id.displayName.trim().slice(0, 1) || 'G').toUpperCase();
 
     root.appendChild(
       el(
@@ -41,16 +43,44 @@ export function createProfileView(): HTMLElement {
 
     const scroll = el('div', { class: 'ag-scroll-list ag-profile-scroll' });
 
+    const avatarContent = id.avatarUrl
+      ? el('img', {
+          src: id.avatarUrl,
+          alt: id.displayName,
+          style: 'width:100%;height:100%;object-fit:cover;border-radius:inherit;',
+        })
+      : el('span', null, initial);
+
     scroll.appendChild(
       el(
         'div',
         { class: 'ag-profile-hero' },
-        el('div', { class: 'ag-profile-badge-icon' }, id.displayName.slice(0, 1).toUpperCase()),
+        el(
+          'button',
+          {
+            type: 'button',
+            class: 'ag-profile-badge-icon',
+            style: 'overflow:hidden;padding:0;cursor:pointer;',
+            onClick: () => {
+              pickAndResizeAvatar((avatarUrl) => {
+                authStore.updateProfile({ avatarUrl });
+              });
+            },
+          },
+          avatarContent,
+        ),
         el(
           'div',
           { class: 'ag-profile-hero__meta' },
           el('h2', { class: 'ag-profile-hero__name' }, id.displayName),
           el('div', { class: 'ag-profile-hero__sub' }, `${id.username} • ${shortPublicId(id.publicId)} (Ed25519)`),
+          id.bio
+            ? el(
+                'div',
+                { style: 'font-size:12px;color:var(--ag-text-secondary);margin-top:2px;' },
+                id.bio,
+              )
+            : null,
         ),
       ),
     );

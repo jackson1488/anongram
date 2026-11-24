@@ -350,6 +350,25 @@ button.ag-top-pill.ag-icon-btn,
   transform: translateY(0);
 }
 
+/* Pinned Message Floating Pill (mobile <840px) & Desktop bar (>=840px) */
+@media (max-width: 839px) {
+  .ag-pinned-bar {
+    margin: 62px 8px -54px;
+    position: relative;
+    z-index: 14;
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--ag-island-bg) 94%, transparent);
+    border: 1px solid var(--ag-island-border);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    padding: 8px 12px;
+  }
+
+  .ag-chat-room:has(.ag-pinned-bar:not([style*="display: none"]):not([style*="display:none"])) .ag-messages-inner {
+    padding-top: calc(114px + env(safe-area-inset-top, 0px));
+  }
+}
+
 /* Bottom Dock (ReplyBar + Composer + Drawers) */
 .ag-cs-dock {
   position: relative;
@@ -358,6 +377,24 @@ button.ag-top-pill.ag-icon-btn,
   flex-direction: column;
   border-top: none;
   background: transparent;
+}
+
+.ag-cs-dock .ag-tgpop-wrap {
+  width: 100%;
+}
+
+.ag-cs-dock .ag-tgpop,
+.ag-cs-dock .ag-tgpop.ag-attach-pop {
+  bottom: 58px;
+  left: 12px;
+}
+
+@media (max-width: 839px) {
+  .ag-cs-dock .ag-tgpop.ag-attach-pop {
+    right: 12px;
+    left: auto;
+    transform-origin: bottom right;
+  }
 }
 
 @media (min-width: 840px) {
@@ -387,9 +424,11 @@ button.ag-top-pill.ag-icon-btn,
     box-shadow: 0 8px 28px var(--ag-shadow);
   }
 
-  .ag-cs-dock .ag-tgpop {
+  .ag-cs-dock .ag-tgpop,
+  .ag-cs-dock .ag-tgpop.ag-attach-pop {
     bottom: 68px;
     left: 16px;
+    right: auto;
   }
 
   .ag-cs-row {

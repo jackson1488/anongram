@@ -134,17 +134,7 @@ export function createModulesSettingsScreen(
       formatModuleMb(packsMb, s.mbUnit),
     )}`;
 
-    // 3. Local AI GGUF status
-    const installedAiCount = prefs.installedAiModels.length;
-    const activeAi = settingsStore.activeAiModel;
-    const aiSub =
-      installedAiCount > 0 && activeAi
-        ? `${activeAi.displayName} • ${s.moduleMemoryLabel(
-            formatModuleMb(settingsStore.installedAiMb, s.mbUnit),
-          )}`
-        : s.localAiHubEmpty;
-
-    // 4. Fonts status
+    // 3. Fonts status
     const fontSub = `${s.fontFamilies[prefs.fontFamily]} • ${themeStore.messageTextSize} px`;
 
     const rows: Array<{
@@ -166,12 +156,6 @@ export function createModulesSettingsScreen(
         icon: moduleIcons.translate(24),
         title: s.modulesTranslationTitle,
         subtitle: translateSub,
-      },
-      {
-        route: 'moduleLocalAi',
-        icon: moduleIcons.sparkles(24),
-        title: s.modulesLocalAiTitle,
-        subtitle: aiSub,
       },
       {
         route: 'moduleFonts',

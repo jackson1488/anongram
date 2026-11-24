@@ -10,6 +10,34 @@ export interface MainFloatingIslandProps {
   onQrClick: () => void;
 }
 
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/**
+ * Canonical 28px AnonGram Stealth QR icon (1:1 port of Android R.drawable.ic_stat_anongram):
+ * outer cryptographic shield + inner origami paper plane in currentColor.
+ */
+function createStealthShieldPlaneIcon(size = 28): SVGSVGElement {
+  const svg = document.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('width', String(size));
+  svg.setAttribute('height', String(size));
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('stroke-width', '2');
+  svg.setAttribute('stroke-linecap', 'round');
+  svg.setAttribute('stroke-linejoin', 'round');
+
+  const shieldPath = document.createElementNS(SVG_NS, 'path');
+  shieldPath.setAttribute('d', 'M12 22C12 22 20 18 20 12V5L12 2L4 5V12C4 18 12 22 12 22Z');
+
+  const planePath = document.createElementNS(SVG_NS, 'path');
+  planePath.setAttribute('d', 'M7 11L17 7L13 17L11 13L7 11Z');
+
+  svg.appendChild(shieldPath);
+  svg.appendChild(planePath);
+  return svg;
+}
+
 /**
  * 1:1 port of Android MainFloatingIsland.kt:
  * 4-tab floating pill capsule with an elevated center Stealth QR button.
@@ -59,7 +87,7 @@ export function createMainFloatingIsland(props: MainFloatingIslandProps): HTMLEl
         'aria-label': s.qrHub,
         onClick: props.onQrClick,
       },
-      icons.shield(26),
+      createStealthShieldPlaneIcon(28),
     ),
   );
 }

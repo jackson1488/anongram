@@ -537,19 +537,20 @@
 
 /* Attachments (flat nested tonal surface, no double box borders) */
 .ag-att-audio {
+  min-width: 230px;
+  padding: 6px 4px;
+  background: transparent;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--ag-bg) 28%, transparent);
   border: none;
   cursor: pointer;
 }
 
 .ag-att-audio__btn {
-  width: 34px;
-  height: 34px;
+  width: 42px;
+  height: 42px;
   border-radius: 9999px;
   background: var(--ag-accent);
   color: var(--ag-on-accent);
@@ -557,22 +558,50 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: transform 0.12s ease, filter 0.14s ease, background-color 0.14s ease, color 0.14s ease;
 }
 
 .ag-bubble.is-outgoing .ag-att-audio__btn {
-  background: color-mix(in srgb, var(--ag-out-text) 20%, transparent);
-  color: var(--ag-out-text);
+  background: var(--ag-out-text);
+  color: var(--ag-out-end);
+}
+
+.ag-voice-wave {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 22px;
+  flex: 1;
+  min-width: 110px;
+}
+
+.ag-voice-wave__bar {
+  width: 2.5px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, currentColor 38%, transparent);
+  transition: background-color 0.15s;
+}
+
+.ag-voice-wave__bar.is-active {
+  background: var(--ag-accent);
+}
+
+.ag-bubble.is-outgoing .ag-voice-wave__bar.is-active {
+  background: var(--ag-out-text);
 }
 
 .ag-att-audio__meta {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  gap: 4px;
   font-size: 13px;
 }
 
 .ag-att-audio__meta span {
   font-size: 11px;
-  opacity: 0.75;
+  opacity: 0.78;
 }
 
 .ag-att-photo img {
@@ -830,18 +859,29 @@
   }
 }
 
-.ag-send-fab {
+.ag-send-fab,
+.ag-send-fab:not(.is-send-mode),
+.ag-composer:not(.is-has-text):not(.is-editing) .ag-send-fab {
   order: 3;
   width: 38px;
   height: 38px;
   border-radius: 9999px;
-  background: var(--ag-accent);
-  color: var(--ag-on-accent);
+  background: color-mix(in srgb, var(--ag-surface) 90%, transparent);
+  border: 1.5px solid var(--ag-accent);
+  color: var(--ag-accent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.12s ease, filter 0.14s ease, box-shadow 0.16s ease, background-color 0.14s ease;
+  transition: transform 0.12s ease, filter 0.14s ease, box-shadow 0.16s ease, background-color 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.ag-composer.is-has-text .ag-send-fab,
+.ag-composer.is-editing .ag-send-fab,
+.ag-send-fab.is-send-mode {
+  background: var(--ag-accent);
+  color: var(--ag-on-accent);
+  border-color: transparent;
 }
 
 .ag-send-fab:active {
@@ -1299,12 +1339,17 @@
     color: var(--ag-text-secondary);
   }
 
-  .ag-send-fab {
+  .ag-send-fab,
+  .ag-send-fab:not(.is-send-mode),
+  .ag-composer:not(.is-has-text):not(.is-editing) .ag-send-fab {
     order: 1;
     position: static;
     width: 50px;
     height: 50px;
     border-radius: 50%;
+    background: var(--ag-accent);
+    color: var(--ag-on-accent);
+    border-color: transparent;
     box-shadow: 0 2px 10px color-mix(in srgb, var(--ag-shadow) 65%, transparent);
   }
 
@@ -1451,9 +1496,10 @@
   }
 }
 
-/* Telegram Web A-style popup (Menu.compact + MenuItem.compact) */
+/* Telegram Web A-style popup (Menu.compact + MenuItem.compact on mobile & desktop) */
 .ag-tgpop-wrap {
   position: relative;
+  width: 100%;
 }
 
 .ag-tgpop-backdrop {
@@ -1462,18 +1508,19 @@
   z-index: 40;
 }
 
-.ag-tgpop {
+.ag-tgpop,
+.ag-tgpop.ag-attach-pop {
   position: absolute;
   left: 12px;
-  bottom: 8px;
+  bottom: 58px;
   z-index: 41;
   min-width: 216px;
   padding: 4px 0;
   border-radius: 16px;
-  background: color-mix(in srgb, var(--ag-island-bg) 92%, transparent);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 6px 20px var(--ag-shadow);
+  background: color-mix(in srgb, var(--ag-island-bg) 94%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 26px var(--ag-shadow);
   border: 1px solid var(--ag-island-border);
   transform-origin: bottom left;
   animation: ag-tgpop-in 0.15s cubic-bezier(0.2, 0, 0.2, 1);
@@ -1489,10 +1536,10 @@
 .ag-tgpop__item {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   width: calc(100% - 8px);
   margin: 2px 4px;
-  padding: 6px 12px 6px 8px;
+  padding: 8px 12px 8px 10px;
   border: 0;
   border-radius: 12px;
   background: none;
@@ -1500,11 +1547,13 @@
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
+  transition: background-color 0.12s ease, transform 0.1s ease;
 }
 
 .ag-tgpop__item svg {
-  margin-left: 4px;
+  margin-left: 2px;
   color: var(--ag-text-secondary);
+  flex-shrink: 0;
 }
 
 .ag-tgpop__item:hover {
@@ -1520,12 +1569,31 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 6px 12px;
-  background: var(--ag-island-bg);
-  border-bottom: 1px solid var(--ag-divider);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  z-index: 4;
+  margin: 62px 8px -54px;
+  position: relative;
+  z-index: 14;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--ag-island-bg) 94%, transparent);
+  border: 1px solid var(--ag-island-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 8px 12px;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ag-shadow) 30%, transparent);
+}
+
+@media (min-width: 840px) {
+  .ag-pinned-bar {
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    border-bottom: 1px solid var(--ag-divider);
+    background: var(--ag-island-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 6px 12px;
+    box-shadow: none;
+    z-index: 4;
+  }
 }
 
 .ag-pinned-bar__ico {
@@ -1791,22 +1859,22 @@
   justify-content: center;
   gap: 4px;
   min-width: 30px;
-  height: 28px;
-  padding: 0 9px;
-  border-radius: 9999px;
-  background: var(--ag-accent-soft);
-  border: 1px solid color-mix(in srgb, var(--ag-accent) 28%, transparent);
+  height: auto;
+  padding: 4px 9px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ag-bg) 35%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   color: var(--ag-accent);
   font-size: 11px;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.2;
   flex-shrink: 0;
   cursor: pointer;
   transition: background-color 0.14s ease, border-color 0.14s ease, transform 0.12s ease;
 }
 
 .ag-voice-stt-btn:hover {
-  background: color-mix(in srgb, var(--ag-accent) 24%, transparent);
+  background: color-mix(in srgb, var(--ag-bg) 50%, transparent);
 }
 
 .ag-voice-stt-btn:active {
@@ -1820,17 +1888,17 @@
 }
 
 .ag-bubble.is-outgoing .ag-voice-stt-btn {
-  background: color-mix(in srgb, var(--ag-out-text) 16%, transparent);
-  border-color: color-mix(in srgb, var(--ag-out-text) 26%, transparent);
+  background: color-mix(in srgb, var(--ag-bg) 35%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
   color: var(--ag-out-text);
 }
 
 .ag-bubble.is-outgoing .ag-voice-stt-btn:hover {
-  background: color-mix(in srgb, var(--ag-out-text) 24%, transparent);
+  background: color-mix(in srgb, var(--ag-bg) 50%, transparent);
 }
 
 .ag-bubble.is-outgoing .ag-voice-stt-btn.is-active {
-  background: color-mix(in srgb, var(--ag-out-text) 32%, transparent);
+  background: color-mix(in srgb, var(--ag-out-text) 28%, transparent);
   border-color: var(--ag-out-text);
   color: var(--ag-out-text);
 }

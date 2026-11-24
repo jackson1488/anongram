@@ -1,7 +1,7 @@
 import { i18nStore } from '../../../../core/i18n/i18nStore';
 import { kvStore } from '../../../../core/storage/kvStore';
 import { clear, el } from '../../../../core/ui/dom';
-import { icons, tgIcons } from '../../../../core/ui/icons';
+import { icons } from '../../../../core/ui/icons';
 import { showToast } from '../../../../core/ui/toast';
 import { chatStore } from '../../chatStore';
 import { chatScreenT } from '../../i18n';
@@ -108,7 +108,23 @@ export function createPinnedMessageBar(
   onJumpToMessage?: (messageId: string) => void,
   onUnpin?: () => void,
 ): HTMLElement {
-  const root = el('div', { class: 'ag-pinned-bar', style: 'display:none;' });
+  const root = el('div', {
+    class: 'ag-pinned-bar',
+    style: [
+      'display:none',
+      'align-items:center',
+      'gap:10px',
+      'padding:8px 10px 8px 12px',
+      'margin:6px 10px 4px',
+      'border-radius:18px',
+      'background:color-mix(in srgb, var(--ag-island-bg) 94%, transparent)',
+      'border:1px solid var(--ag-island-border)',
+      'box-shadow:0 4px 16px color-mix(in srgb, var(--ag-shadow) 32%, transparent)',
+      'backdrop-filter:blur(16px)',
+      '-webkit-backdrop-filter:blur(16px)',
+      'z-index:12',
+    ].join(';'),
+  });
   let currentMsgId: string | null = null;
 
   const jumpToCurrent = () => {
@@ -144,6 +160,16 @@ export function createPinnedMessageBar(
         tabindex: 0,
         title: cs.jumpToPinned,
         'aria-label': cs.jumpToPinned,
+        style: [
+          'flex:1',
+          'min-width:0',
+          'display:flex',
+          'flex-direction:column',
+          'gap:2px',
+          'padding-left:10px',
+          'border-left:3px solid var(--ag-accent)',
+          'cursor:pointer',
+        ].join(';'),
         onClick: (e: Event) => {
           e.stopPropagation();
           jumpToCurrent();
@@ -156,8 +182,15 @@ export function createPinnedMessageBar(
           }
         },
       },
-      el('strong', { class: 'ag-pinned-bar__title' }, cs.pinnedMessage),
-      el('span', { class: 'ag-pinned-bar__snippet' }, formatPinnedSnippet(msg)),
+      el('strong', { class: 'ag-pinned-bar__title' }, `#1 ${cs.pinnedMessage}`),
+      el(
+        'span',
+        {
+          class: 'ag-pinned-bar__snippet',
+          style: 'color:var(--ag-text-primary);font-size:13px;',
+        },
+        formatPinnedSnippet(msg),
+      ),
     );
 
     const unpinBtn = el(
@@ -167,6 +200,7 @@ export function createPinnedMessageBar(
         class: 'ag-icon-btn ag-pinned-bar__unpin',
         title: cs.unpinMessage,
         'aria-label': cs.unpinMessage,
+        style: 'width:32px;height:32px;flex-shrink:0;',
         onClick: (e: Event) => {
           e.stopPropagation();
           pinnedMessageStore.unpin(chatId);
@@ -174,25 +208,10 @@ export function createPinnedMessageBar(
           onUnpin?.();
         },
       },
-      tgIcons.pinOff(16),
+      icons.close(16),
     );
 
-    root.append(
-      el(
-        'span',
-        {
-          class: 'ag-pinned-bar__ico',
-          title: cs.jumpToPinned,
-          onClick: (e: Event) => {
-            e.stopPropagation();
-            jumpToCurrent();
-          },
-        },
-        icons.pin(16),
-      ),
-      body,
-      unpinBtn,
-    );
+    root.append(body, unpinBtn);
   };
 
   render();

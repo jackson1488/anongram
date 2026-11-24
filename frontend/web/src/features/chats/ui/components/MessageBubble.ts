@@ -64,10 +64,30 @@ function scheduleRowPrune(): void {
   }, 0);
 }
 
+const VOICE_WAVE_BAR_COUNT = 28;
+
+function computeVoiceWaveHeights(seedStr: string): number[] {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < seedStr.length; i++) {
+    h ^= seedStr.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  const bars: number[] = [];
+  for (let i = 0; i < VOICE_WAVE_BAR_COUNT; i++) {
+    h ^= (i + 1) * 0x9e3779b9;
+    h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0;
+    const raw = (h & 0xffff) / 0xffff;
+    const envelope = Math.sin(((i + 1) / (VOICE_WAVE_BAR_COUNT + 1)) * Math.PI);
+    const pct = Math.round(25 + (raw * 0.65 + envelope * 0.35) * 75);
+    bars.push(Math.max(25, Math.min(100, pct)));
+  }
+  return bars;
+}
+
 function registerTranslatorSync(row: HTMLElement, sync: SyncFn): void {
   if (!translatorSubscribed) {
     translatorSubscribed = true;
-    localTranslator.subscribe(() => {
+    const notifyAll = () => {
       for (const [node, fn] of activeTranslatorRows) {
         if (!node.isConnected) {
           activeTranslatorRows.delete(node);
@@ -75,7 +95,9 @@ function registerTranslatorSync(row: HTMLElement, sync: SyncFn): void {
         }
         fn();
       }
-    });
+    };
+    localTranslator.subscribe(notifyAll);
+    audioPlayer.subscribe(notifyAll);
   }
   activeTranslatorRows.set(row, sync);
   scheduleRowPrune();
@@ -354,44 +376,115 @@ function renderAttachment(
 
   const isAudio = att.type === 'voice' || att.type === 'music';
   if (isAudio) {
-    const playingThis = audioPlayer.currentTrack?.id === msg.id && audioPlayer.playing;
-    const durSec = att.durationSec ?? 24;
-    const audioRow = el(
-      'div',
-      {
-        class: 'ag-att-audio',
-        style: att.type === 'voice' ? 'min-width:206px;' : undefined,
-        onClick: (e: Event) => {
-          e.stopPropagation();
-          if (ctx.selectionMode) {
-            ctx.onToggleSelect(msg);
-            return;
-          }
-          audioPlayer.toggleTrack({
-            id: msg.id,
-            title: att.title,
-            subtitle: msg.senderName,
-            durationSec: durSec,
-            url: att.previewUrl,
-          });
-        },
-      },
-      el('div', { class: 'ag-att-audio__btn' }, playingThis ? icons.pause(16) : icons.play(16)),
-      el(
-        'div',
-        { class: 'ag-att-audio__meta', style: 'flex:1;min-width:0;' },
-        el(
-          'strong',
-          { style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' },
-          att.title,
-        ),
-        el('span', null, formatDuration(durSec)),
-      ),
-    );
+    const durSec = att.durationSec ?? (att.type === 'voice' ? 9 : 24);
 
-    if (att.type !== 'voice') {
+    if (att.type === 'music') {
+      const playingThis = audioPlayer.currentTrack?.id === msg.id && audioPlayer.playing;
+      const audioRow = el(
+        'div',
+        {
+          class: 'ag-att-audio',
+          onClick: (e: Event) => {
+            e.stopPropagation();
+            if (ctx.selectionMode) {
+              ctx.onToggleSelect(msg);
+              return;
+            }
+            audioPlayer.toggleTrack({
+              id: msg.id,
+              title: att.title,
+              subtitle: msg.senderName,
+              durationSec: durSec,
+              url: att.previewUrl,
+            });
+          },
+        },
+        el('div', { class: 'ag-att-audio__btn' }, playingThis ? icons.pause(16) : icons.play(16)),
+        el(
+          'div',
+          { class: 'ag-att-audio__meta', style: 'flex:1;min-width:0;' },
+          el(
+            'strong',
+            { style: 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' },
+            att.title,
+          ),
+          el('span', null, formatDuration(durSec)),
+        ),
+      );
       return { node: audioRow };
     }
+
+    const playBtn = el('div', {
+      class: 'ag-att-audio__btn',
+      style: [
+        'width:42px',
+        'height:42px',
+        'border-radius:9999px',
+        msg.isOutgoing
+          ? 'background:var(--ag-out-text);color:var(--ag-out-start);'
+          : 'background:var(--ag-accent);color:var(--ag-on-accent);',
+        'display:flex',
+        'align-items:center',
+        'justify-content:center',
+        'flex-shrink:0',
+      ].join(';'),
+    });
+
+    const barHeights = computeVoiceWaveHeights(msg.id);
+    const waveBars: HTMLElement[] = [];
+    const waveRow = el(
+      'div',
+      {
+        class: 'ag-voice-wave',
+        style: [
+          'display:flex',
+          'align-items:flex-end',
+          'gap:2px',
+          'height:22px',
+          'min-width:142px',
+        ].join(';'),
+      },
+      ...barHeights.map((pct) => {
+        const pxHeight = Math.max(5, Math.round((pct / 100) * 20));
+        const bar = el('span', {
+          class: 'ag-voice-wave__bar',
+          style: [
+            'width:3px',
+            `height:${pxHeight}px`,
+            'border-radius:9999px',
+            'flex-shrink:0',
+            'transition:background-color 0.12s ease,opacity 0.12s ease',
+          ].join(';'),
+        });
+        waveBars.push(bar);
+        return bar;
+      }),
+    );
+
+    const durLabelEl = el(
+      'span',
+      {
+        class: 'ag-voice-duration',
+        style: [
+          'font-size:11.5px',
+          'font-weight:600',
+          'line-height:1.15',
+          'opacity:0.86',
+          'font-variant-numeric:tabular-nums',
+        ].join(';'),
+      },
+      `${formatDuration(durSec)} •`,
+    );
+
+    const centerCol = el(
+      'div',
+      {
+        class: 'ag-att-audio__meta',
+        style: 'flex:1;min-width:0;display:flex;flex-direction:column;gap:5px;',
+      },
+      waveRow,
+      durLabelEl,
+    );
 
     const ca = chatActionsT();
     const sttBtn = el(
@@ -402,11 +495,10 @@ function renderAttachment(
         title: ca.transcribe,
         'aria-label': ca.transcribe,
         style: [
-          'height:26px',
-          'padding:0 9px',
-          'border-radius:9999px',
-          'background:color-mix(in srgb, currentColor 14%, transparent)',
-          'color:inherit',
+          'height:28px',
+          'min-width:36px',
+          'padding:0 10px',
+          'border-radius:10px',
           'font-size:11.5px',
           'font-weight:700',
           'line-height:1',
@@ -424,7 +516,11 @@ function renderAttachment(
             return;
           }
           if (ctx.onTranscribeVoice) {
-            ctx.onTranscribeVoice(msg);
+            if (localTranslator.getVoiceTranscript(msg.id)) {
+              localTranslator.clearVoiceTranscript(msg.id);
+            } else {
+              ctx.onTranscribeVoice(msg);
+            }
             return;
           }
           if (localTranslator.getVoiceTranscript(msg.id)) {
@@ -434,10 +530,38 @@ function renderAttachment(
           }
         },
       },
-      ca.transcribeShort,
+      '→A',
     ) as HTMLButtonElement;
 
-    audioRow.appendChild(sttBtn);
+    const audioRow = el(
+      'div',
+      {
+        class: 'ag-att-audio',
+        style: [
+          'min-width:236px',
+          'padding:4px 2px 2px',
+          'background:transparent',
+          'gap:12px',
+        ].join(';'),
+        onClick: (e: Event) => {
+          e.stopPropagation();
+          if (ctx.selectionMode) {
+            ctx.onToggleSelect(msg);
+            return;
+          }
+          audioPlayer.toggleTrack({
+            id: msg.id,
+            title: att.title,
+            subtitle: msg.senderName,
+            durationSec: durSec,
+            url: att.previewUrl,
+          });
+        },
+      },
+      playBtn,
+      centerCol,
+      sttBtn,
+    );
 
     const sttBox = el('div', {
       class: 'ag-stt-box',
@@ -453,15 +577,41 @@ function renderAttachment(
     });
 
     const syncVoice = () => {
+      const isCurrentTrack = audioPlayer.currentTrack?.id === msg.id;
+      const isPlayingNow = isCurrentTrack && audioPlayer.playing;
+      const totalDur = isCurrentTrack && audioPlayer.duration > 0 ? audioPlayer.duration : durSec;
+      const pos = isCurrentTrack ? audioPlayer.position : 0;
+      const frac =
+        isCurrentTrack && totalDur > 0 ? Math.max(0, Math.min(1, pos / totalDur)) : 0;
+      const activeBarsCount = isCurrentTrack
+        ? Math.max(isPlayingNow ? 1 : 0, Math.round(frac * waveBars.length))
+        : 0;
+
+      playBtn.replaceChildren(isPlayingNow ? icons.pause(18) : icons.play(18));
+
+      for (let i = 0; i < waveBars.length; i++) {
+        const bar = waveBars[i];
+        const isActive = i < activeBarsCount;
+        bar.classList.toggle('is-active', isActive);
+        if (msg.isOutgoing) {
+          bar.style.background = isActive
+            ? 'var(--ag-out-text)'
+            : 'color-mix(in srgb, var(--ag-out-text) 46%, transparent)';
+        } else {
+          bar.style.background = isActive
+            ? 'var(--ag-accent)'
+            : 'color-mix(in srgb, var(--ag-text-primary) 38%, transparent)';
+        }
+      }
+
+      const displaySec = isCurrentTrack && (isPlayingNow || pos > 0) ? pos : totalDur;
+      durLabelEl.textContent = `${formatDuration(displaySec)} •`;
+
       const curCa = chatActionsT();
       const transcript = localTranslator.getVoiceTranscript(msg.id);
       const transcribing = localTranslator.isVoiceTranscribing(msg.id);
       const hasContent = Boolean(transcript) || transcribing;
 
-      sttBtn.style.background = transcript
-        ? 'var(--ag-accent)'
-        : 'color-mix(in srgb, currentColor 14%, transparent)';
-      sttBtn.style.color = transcript ? 'var(--ag-on-accent)' : 'inherit';
       sttBtn.classList.toggle('is-active', Boolean(transcript));
 
       sttBox.replaceChildren();

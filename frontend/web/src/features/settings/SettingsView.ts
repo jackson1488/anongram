@@ -10,7 +10,6 @@ import { createDevicesSettingsScreen } from './devices/DevicesSettingsScreen';
 import { createLanguageSettingsScreen } from './language/LanguageSettingsScreen';
 import { createSettingsListPane } from './main/SettingsMainScreen';
 import { createFontsModuleSettingsScreen } from './modules/FontsModuleSettingsScreen';
-import { createLocalAiModuleSettingsScreen } from './modules/LocalAiModuleSettingsScreen';
 import { createModulesSettingsScreen } from './modules/ModulesSettingsScreen';
 import { createTranslationModuleSettingsScreen } from './modules/TranslationModuleSettingsScreen';
 import { createVoiceModuleSettingsScreen } from './modules/VoiceModuleSettingsScreen';
@@ -50,7 +49,6 @@ export function createSettingsDetailView(
       case 'modules': return createModulesSettingsScreen(onNavigate);
       case 'moduleVoice': return createVoiceModuleSettingsScreen();
       case 'moduleTranslation': return createTranslationModuleSettingsScreen();
-      case 'moduleLocalAi': return createLocalAiModuleSettingsScreen();
       case 'moduleFonts': return createFontsModuleSettingsScreen();
       case 'devices': return createDevicesSettingsScreen();
       default: return null;
@@ -80,14 +78,13 @@ export function createSettingsDetailView(
       modules: t.settings.modules,
       moduleVoice: s.modulesVoiceTitle,
       moduleTranslation: s.modulesTranslationTitle,
-      moduleLocalAi: s.modulesLocalAiTitle,
+      moduleLocalAi: s.modulesTitle,
       moduleFonts: s.modulesFontsTitle,
     };
 
     const isModuleSubRoute =
       route === 'moduleVoice' ||
       route === 'moduleTranslation' ||
-      route === 'moduleLocalAi' ||
       route === 'moduleFonts';
 
     const handleBack = () => {

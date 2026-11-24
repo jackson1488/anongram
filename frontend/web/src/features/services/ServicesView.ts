@@ -2,14 +2,12 @@ import { i18nStore } from '../../core/i18n/i18nStore';
 import { clear, el } from '../../core/ui/dom';
 import { icons } from '../../core/ui/icons';
 import { createCallsView } from '../calls/CallsView';
-import { createLocalAiChatScreen } from './ai/LocalAiChatScreen';
-import { localAiStore } from './ai/LocalAiStore';
 import { servicesT } from './i18n';
 import { createOnionView, onionStore } from './onion/OnionView';
 import { createOtpNotepadView, otpStore } from './otp/OtpNotepadView';
 import './services.css';
 
-type ServicesSubView = 'hub' | 'ai' | 'onion' | 'otp' | 'calls';
+type ServicesSubView = 'hub' | 'onion' | 'otp' | 'calls';
 
 export function createServicesView(): HTMLElement {
   const root = el('div', { class: 'ag-list-pane' });
@@ -32,11 +30,6 @@ export function createServicesView(): HTMLElement {
     childCleanup = null;
     clear(root);
     const s = servicesT();
-
-    if (subView === 'ai') {
-      mountSubView(createLocalAiChatScreen({ onBack: goHub }));
-      return;
-    }
 
     if (subView === 'onion') {
       mountSubView(createOnionView(goHub));
@@ -61,8 +54,6 @@ export function createServicesView(): HTMLElement {
       return;
     }
 
-    const aiState = localAiStore.getState();
-    const activeModel = localAiStore.activeModel;
     const onionState = onionStore.getState();
     const otpCount = otpStore.getPages().length;
 
@@ -75,17 +66,6 @@ export function createServicesView(): HTMLElement {
     );
 
     const cards = [
-      {
-        emoji: '🤖',
-        badgeClass: '',
-        title: s.aiTitle,
-        sub: `${activeModel.displayName} • ${aiState.reasoningLevel.toUpperCase()}`,
-        detail: s.aiDetail,
-        action: () => {
-          subView = 'ai';
-          render();
-        },
-      },
       {
         emoji: '🧅',
         badgeClass: 'is-success',
@@ -155,9 +135,6 @@ export function createServicesView(): HTMLElement {
     );
   };
 
-  const unsubAi = localAiStore.subscribe(() => {
-    if (subView === 'hub') render();
-  });
   const unsubOnion = onionStore.subscribe(() => {
     if (subView === 'hub') render();
   });
@@ -170,7 +147,6 @@ export function createServicesView(): HTMLElement {
 
   (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
     childCleanup?.();
-    unsubAi();
     unsubOnion();
     unsubOtp();
     unsubI18n();
