@@ -268,6 +268,7 @@ fun SettingsNavHost(
                 ChatAppearanceSettingsScreen(
                     currentThemeId = currentThemeId,
                     onThemeSelect = onThemeSelect,
+                    onOpenChatTheme = { navigateTo(SettingsRoute.ChatTheme) },
                     onBack = popBack
                 )
             }

@@ -206,17 +206,8 @@ fun SettingsMainScreen(
                     icon = Icons.Default.ChatBubble,
                     iconBackgroundColor = Color(0xFFFFA726),
                     title = "Настройки чатов",
-                    subtitle = "Размер текста, ссылки, поведение",
+                    subtitle = "Размер текста, тема чата, ссылки",
                     onClick = { onNavigate(SettingsRoute.ChatSettings) }
-                )
-
-                val chatThemeStrings = com.anongram.app.features.chats.input.i18n.LocalInputStrings.current
-                SettingsItemRow(
-                    icon = Icons.Default.Palette,
-                    iconBackgroundColor = Color(0xFFAB47BC),
-                    title = chatThemeStrings.chatThemeTitle,
-                    subtitle = chatThemeStrings.chatThemeSubtitle,
-                    onClick = { onNavigate(SettingsRoute.ChatTheme) }
                 )
 
                 SettingsItemRow(

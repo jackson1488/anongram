@@ -158,8 +158,17 @@ object AnonGramThemes {
         "arctic_frost", "Арктика Свет", ThemePolarity.LIGHT, ThemeTintMode.AMOLED_ACCENT, BubbleColorStyle.OUTLINE, 196f, 0.86f
     )
 
+    val AuroraOsDark = preset(
+        "aurora_os_dark", "Аврора ОС (Тёмная)", ThemePolarity.DARK, ThemeTintMode.FULL_OS, BubbleColorStyle.GRADIENT, 168f, 0.86f
+    )
+    val AuroraOsLight = preset(
+        "aurora_os_light", "Аврора ОС (Светлая)", ThemePolarity.LIGHT, ThemeTintMode.FULL_OS, BubbleColorStyle.GRADIENT, 170f, 0.82f
+    )
+
     val all: List<AnonGramScheme> = listOf(
         CyberStealth,
+        AuroraOsDark,
+        AuroraOsLight,
         MonochromeNoir,
         MonochromePaper,
         SakuraOsDark,
