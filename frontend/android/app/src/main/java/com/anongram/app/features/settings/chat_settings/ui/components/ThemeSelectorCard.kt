@@ -43,10 +43,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -64,6 +67,7 @@ import com.anongram.app.core.theme.ThemePaletteEngine
 import com.anongram.app.core.theme.ThemePolarity
 import com.anongram.app.core.theme.ThemeSpec
 import com.anongram.app.core.theme.ThemeTintMode
+import com.anongram.app.core.theme.rememberThemeRevealLauncher
 import com.anongram.app.features.chats.input.i18n.InputI18nStrings
 import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 import java.util.Locale
@@ -461,6 +465,7 @@ fun ThemeSelectorCard(
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Medium
                     )
+                    val quickRevealLauncher = rememberThemeRevealLauncher()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -474,8 +479,10 @@ fun ThemeSelectorCard(
                             true to strings.themeRainbowLive
                         ).forEach { (isLive, label) ->
                             val rainbowSelected = activeTheme.isRainbow && activeTheme.isRainbowLive == isLive
+                            var chipOrigin by remember { mutableStateOf(Offset.Zero) }
                             Row(
                                 modifier = Modifier
+                                    .onGloballyPositioned { chipOrigin = it.boundsInRoot().center }
                                     .clip(RoundedCornerShape(50))
                                     .background(
                                         if (rainbowSelected) {
@@ -495,18 +502,20 @@ fun ThemeSelectorCard(
                                         shape = RoundedCornerShape(50)
                                     )
                                     .clickable {
-                                        val target = when {
-                                            draftSpec.polarity == ThemePolarity.DARK && isLive ->
-                                                AnonGramThemes.RainbowLiveDark
-                                            draftSpec.polarity == ThemePolarity.DARK ->
-                                                AnonGramThemes.RainbowStaticDark
-                                            isLive ->
-                                                AnonGramThemes.RainbowLiveLight
-                                            else ->
-                                                AnonGramThemes.RainbowStaticLight
+                                        quickRevealLauncher(chipOrigin) {
+                                            val target = when {
+                                                draftSpec.polarity == ThemePolarity.DARK && isLive ->
+                                                    AnonGramThemes.RainbowLiveDark
+                                                draftSpec.polarity == ThemePolarity.DARK ->
+                                                    AnonGramThemes.RainbowStaticDark
+                                                isLive ->
+                                                    AnonGramThemes.RainbowLiveLight
+                                                else ->
+                                                    AnonGramThemes.RainbowStaticLight
+                                            }
+                                            draftSpec = target.spec
+                                            onThemeSelect(target.id)
                                         }
-                                        draftSpec = target.spec
-                                        onThemeSelect(target.id)
                                     }
                                     .padding(horizontal = 10.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -541,9 +550,11 @@ fun ThemeSelectorCard(
                             val selected = !activeTheme.isRainbow &&
                                 draftSpec.tintMode != ThemeTintMode.MONOCHROME &&
                                 kotlin.math.abs(draftSpec.hue - h) < 8f
+                            var hueOrigin by remember { mutableStateOf(Offset.Zero) }
                             Box(
                                 modifier = Modifier
                                     .size(34.dp)
+                                    .onGloballyPositioned { hueOrigin = it.boundsInRoot().center }
                                     .clip(CircleShape)
                                     .then(
                                         if (selected) Modifier.border(2.dp, activeTheme.textPrimary, CircleShape)
@@ -553,18 +564,20 @@ fun ThemeSelectorCard(
                                     .clip(CircleShape)
                                     .background(swatchColor)
                                     .clickable {
-                                        val nextTint = if (draftSpec.tintMode == ThemeTintMode.MONOCHROME) {
-                                            ThemeTintMode.FULL_OS
-                                        } else {
-                                            draftSpec.tintMode
-                                        }
-                                        applyDraft(
-                                            draftSpec.copy(
-                                                hue = h,
-                                                saturation = 0.88f,
-                                                tintMode = nextTint
+                                        quickRevealLauncher(hueOrigin) {
+                                            val nextTint = if (draftSpec.tintMode == ThemeTintMode.MONOCHROME) {
+                                                ThemeTintMode.FULL_OS
+                                            } else {
+                                                draftSpec.tintMode
+                                            }
+                                            applyDraft(
+                                                draftSpec.copy(
+                                                    hue = h,
+                                                    saturation = 0.88f,
+                                                    tintMode = nextTint
+                                                )
                                             )
-                                        )
+                                        }
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -864,12 +877,18 @@ private fun LiveChatThemeMiniPreview(
     val animOutEnd by animateColorAsState(scheme.outgoingBubbleEnd, tween(260), label = "prevOutE")
     val animAccent by animateColorAsState(scheme.accent, tween(260), label = "prevAccent")
 
+    val miniBgBrush = if (scheme.isRainbow) {
+        com.anongram.app.core.theme.rememberRainbowBackgroundBrush(scheme)
+    } else {
+        Brush.linearGradient(listOf(animBg, animBg))
+    }
+    val miniBorderBrush = com.anongram.app.core.theme.rememberRainbowBorderBrush(scheme)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .background(animBg)
-            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
+            .background(miniBgBrush)
+            .border(1.dp, miniBorderBrush, RoundedCornerShape(20.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -1100,6 +1119,8 @@ private fun ThemeItemRow(
     modifier: Modifier = Modifier
 ) {
     val strings = LocalInputStrings.current
+    val revealLauncher = rememberThemeRevealLauncher()
+    var rowOrigin by remember { mutableStateOf(Offset.Zero) }
     val animatedBorderColor by animateColorAsState(
         targetValue = if (isSelected) activeScheme.accent else activeScheme.cardBorder,
         animationSpec = tween(durationMillis = 220),
@@ -1114,6 +1135,7 @@ private fun ThemeItemRow(
     Column(
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { rowOrigin = it.boundsInRoot().center }
             .clip(RoundedCornerShape(18.dp))
             .background(animatedBackground)
             .border(
@@ -1121,7 +1143,7 @@ private fun ThemeItemRow(
                 color = animatedBorderColor,
                 shape = RoundedCornerShape(18.dp)
             )
-            .clickable(onClick = onSelect)
+            .clickable { revealLauncher(rowOrigin, onSelect) }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
@@ -1225,9 +1247,11 @@ private fun ThemeItemRow(
                     true to strings.themeLiveMode
                 ).forEach { (liveMode, modeLabel) ->
                     val modeSelected = isSelected && (activeScheme.isRainbowLive == liveMode)
+                    var modeOrigin by remember { mutableStateOf(Offset.Zero) }
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .onGloballyPositioned { modeOrigin = it.boundsInRoot().center }
                             .clip(RoundedCornerShape(50))
                             .background(
                                 if (modeSelected) {
@@ -1238,7 +1262,7 @@ private fun ThemeItemRow(
                                     Brush.horizontalGradient(listOf(Color.Transparent, Color.Transparent))
                                 }
                             )
-                            .clickable { onSelectRainbowMode(liveMode) }
+                            .clickable { revealLauncher(modeOrigin) { onSelectRainbowMode(liveMode) } }
                             .padding(vertical = 7.dp),
                         contentAlignment = Alignment.Center
                     ) {

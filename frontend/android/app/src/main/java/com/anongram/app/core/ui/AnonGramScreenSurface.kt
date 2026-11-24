@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.theme.rememberRainbowBackgroundBrush
+import com.anongram.app.core.theme.rememberRainbowBorderBrush
 
 /**
  * Базовый контейнер для новых экранов AnonGram.
@@ -32,9 +34,10 @@ fun AnonGramScreenSurface(
     content: @Composable BoxScope.() -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val bgBrush = rememberRainbowBackgroundBrush(scheme)
     val baseModifier = modifier
         .fillMaxSize()
-        .background(scheme.background)
+        .background(bgBrush)
         .let { m ->
             if (applySystemBarsPadding) {
                 m.safeStatusBarPadding().safeNavigationBarPadding()
@@ -58,10 +61,11 @@ fun AnonGramIslandCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
+    val borderBrush = rememberRainbowBorderBrush(scheme)
     Surface(
         modifier = modifier
             .clip(shape)
-            .border(BorderStroke(1.dp, scheme.cardBorder), shape),
+            .border(BorderStroke(1.dp, borderBrush), shape),
         shape = shape,
         color = scheme.card,
         contentColor = scheme.textPrimary

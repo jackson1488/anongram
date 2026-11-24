@@ -45,9 +45,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -55,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.theme.AnonGramThemes
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.theme.rememberThemeRevealLauncher
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 import com.anongram.app.features.settings.chat_settings.ui.components.ThemeSelectorCard
@@ -99,16 +103,18 @@ fun ChatThemeSettingsScreen(
             backContentDescription = strings.back
         ) {
             // 1. Живое превью переписки
+            val previewBgBrush = if (scheme.isRainbow) {
+                com.anongram.app.core.theme.rememberRainbowBackgroundBrush(scheme)
+            } else {
+                Brush.verticalGradient(colors = listOf(scheme.background, scheme.surface))
+            }
+            val previewBorderBrush = com.anongram.app.core.theme.rememberRainbowBorderBrush(scheme)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(22.dp))
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(scheme.background, scheme.surface)
-                        )
-                    )
-                    .border(1.dp, scheme.cardBorder, RoundedCornerShape(22.dp))
+                    .background(previewBgBrush)
+                    .border(1.dp, previewBorderBrush, RoundedCornerShape(22.dp))
                     .padding(14.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -232,21 +238,24 @@ fun ChatThemeSettingsScreen(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     val quickThemes = AnonGramThemes.all.take(6)
+                    val revealLauncher = rememberThemeRevealLauncher()
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         quickThemes.forEach { t ->
                             val selected = t.id == currentThemeId
+                            var quickOrigin by remember { mutableStateOf(Offset.Zero) }
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
+                                    .onGloballyPositioned { quickOrigin = it.boundsInRoot().center }
                                     .clip(CircleShape)
                                     .then(
                                         if (selected) Modifier.border(2.dp, scheme.accent, CircleShape)
                                         else Modifier
                                     )
-                                    .clickable { onThemeSelect(t.id) },
+                                    .clickable { revealLauncher(quickOrigin) { onThemeSelect(t.id) } },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Box(
@@ -266,14 +275,18 @@ fun ChatThemeSettingsScreen(
                         }
                     }
 
+                    var resetBtnOrigin by remember { mutableStateOf(Offset.Zero) }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
+                            .onGloballyPositioned { resetBtnOrigin = it.boundsInRoot().center }
                             .clip(RoundedCornerShape(20.dp))
                             .background(scheme.surface)
                             .border(0.8.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
                             .clickable {
-                                AnonGramThemes.all.firstOrNull()?.let { onThemeSelect(it.id) }
+                                revealLauncher(resetBtnOrigin) {
+                                    AnonGramThemes.all.firstOrNull()?.let { onThemeSelect(it.id) }
+                                }
                             }
                             .padding(vertical = 11.dp),
                         contentAlignment = Alignment.Center

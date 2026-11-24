@@ -270,6 +270,8 @@ fun MainAppShell(
     androidx.compose.runtime.LaunchedEffect(hasTransitionOverlay) {
         if (!hasTransitionOverlay) {
             isSystemGestureActive = false
+            predictiveSwipeEdge = 0
+            predictiveTouchYFraction = 0.5f
         }
     }
     val isPureSwipeOrParallax = (navConfig.transitionType == TransitionType.SPRING_SWIPE ||
@@ -306,12 +308,10 @@ fun MainAppShell(
             backEvents.collect { event ->
                 predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
                 predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
-                activeProgress.snapTo(event.progress.coerceIn(0f, 1f))
+                activeProgress.snapTo(event.progress.coerceIn(0f, 1f) * 0.34f)
             }
             isPredictiveHolding = false
             onFinish()
-            predictiveSwipeEdge = 0
-            predictiveTouchYFraction = 0.5f
         } catch (_: CancellationException) {
             isPredictiveHolding = false
             scope.snapBackOverlay(activeProgress, navConfig) {
@@ -324,10 +324,11 @@ fun MainAppShell(
     }
 
     com.anongram.app.features.chats.links.browser.InAppBrowserHost(modifier = modifier) {
+        val rootBgBrush = com.anongram.app.core.theme.rememberRainbowBackgroundBrush(scheme)
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(scheme.background)
+                .background(rootBgBrush)
         ) {
         Row(modifier = Modifier.fillMaxSize()) {
             Column(

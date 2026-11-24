@@ -159,6 +159,8 @@ fun SettingsNavHost(
                 transitionProgress.snapTo(0f)
                 isExiting = false
                 isSystemGestureActive = false
+                predictiveSwipeEdge = 0
+                predictiveTouchYFraction = 0.5f
                 underlayRoute = null
                 onSubScreenVisibilityChange((backStack.lastOrNull() ?: SettingsRoute.Main) != SettingsRoute.Main)
             }
@@ -184,6 +186,8 @@ fun SettingsNavHost(
             }
             isExiting = false
             isSystemGestureActive = false
+            predictiveSwipeEdge = 0
+            predictiveTouchYFraction = 0.5f
             underlayRoute = null
         }
     }
@@ -206,17 +210,13 @@ fun SettingsNavHost(
             backEvents.collect { event ->
                 predictiveSwipeEdge = if (event.swipeEdge == 1) 1 else 0
                 predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
-                transitionProgress.snapTo(event.progress.coerceIn(0f, 1f))
+                transitionProgress.snapTo(event.progress.coerceIn(0f, 1f) * 0.34f)
             }
             isPredictiveHolding = false
             popBack()
-            predictiveSwipeEdge = 0
-            predictiveTouchYFraction = 0.5f
         } catch (_: CancellationException) {
             isPredictiveHolding = false
             cancelBackGesture()
-            predictiveSwipeEdge = 0
-            predictiveTouchYFraction = 0.5f
         }
     }
 

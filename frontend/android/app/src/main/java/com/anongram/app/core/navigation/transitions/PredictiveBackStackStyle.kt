@@ -27,12 +27,7 @@ class PredictiveBackStackStyle : ITransitionStyle {
         shadowElevation = progress * 18.dp.toPx()
         translationY = yOffsetFactor * progress * size.height * 0.06f
 
-        if (config.isPredictiveHolding) {
-            translationX = edgeDir * progress * size.width * 0.08f
-            alpha = 1f
-        } else {
-            translationX = edgeDir * progress * size.width
-            alpha = if (progress > 0.86f) 1f - ((progress - 0.86f) / 0.14f) else 1f
-        }
+        translationX = edgeDir * progress * size.width
+        alpha = 1f
     }
 }

@@ -31,9 +31,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +46,7 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.theme.ThemePolarity
 import com.anongram.app.core.theme.ThemeSpec
 import com.anongram.app.core.theme.ThemeTintMode
+import com.anongram.app.core.theme.rememberThemeRevealLauncher
 import com.anongram.app.features.chats.input.i18n.LocalInputStrings
 import com.anongram.app.features.settings.qr.ui.components.QrThemePalette
 
@@ -63,6 +67,7 @@ fun FullOsColorPaletteSheet(
     val strings = LocalInputStrings.current
     val scrollState = rememberScrollState()
     val swatchColors = remember { QrThemePalette.items.take(42) }
+    val revealLauncher = rememberThemeRevealLauncher()
 
     Box(
         modifier = modifier
@@ -91,8 +96,10 @@ fun FullOsColorPaletteSheet(
                         Triple(ThemePolarity.LIGHT, Icons.Outlined.LightMode, strings.themePolarityLight)
                     ).forEach { (polarity, icon, label) ->
                         val active = currentSpec.polarity == polarity
+                        var origin by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(Offset.Zero) }
                         Row(
                             modifier = Modifier
+                                .onGloballyPositioned { origin = it.boundsInRoot().center }
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(if (active) scheme.accent else scheme.card)
                                 .border(
@@ -101,13 +108,15 @@ fun FullOsColorPaletteSheet(
                                     RoundedCornerShape(20.dp)
                                 )
                                 .clickable {
-                                    onSelectSpec(
-                                        currentSpec.copy(
-                                            polarity = polarity,
-                                            tintMode = ThemeTintMode.FULL_OS,
-                                            bubbleStyle = BubbleColorStyle.GRADIENT
+                                    revealLauncher(origin) {
+                                        onSelectSpec(
+                                            currentSpec.copy(
+                                                polarity = polarity,
+                                                tintMode = ThemeTintMode.FULL_OS,
+                                                bubbleStyle = BubbleColorStyle.GRADIENT
+                                            )
                                         )
-                                    )
+                                    }
                                 }
                                 .padding(horizontal = 11.dp, vertical = 6.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -134,13 +143,15 @@ fun FullOsColorPaletteSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (onReset != null) {
+                        var resetOrigin by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(Offset.Zero) }
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
+                                .onGloballyPositioned { resetOrigin = it.boundsInRoot().center }
                                 .clip(CircleShape)
                                 .background(scheme.card)
                                 .border(0.8.dp, scheme.cardBorder, CircleShape)
-                                .clickable(onClick = onReset),
+                                .clickable { revealLauncher(resetOrigin, onReset) },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -182,9 +193,11 @@ fun FullOsColorPaletteSheet(
                         true to strings.themeRainbowLive
                     ).forEach { (isLive, label) ->
                         val rainbowSelected = scheme.isRainbow && scheme.isRainbowLive == isLive
+                        var rainbowOrigin by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(Offset.Zero) }
                         Row(
                             modifier = Modifier
                                 .weight(1f)
+                                .onGloballyPositioned { rainbowOrigin = it.boundsInRoot().center }
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(
                                     if (rainbowSelected) {
@@ -203,7 +216,11 @@ fun FullOsColorPaletteSheet(
                                     ),
                                     shape = RoundedCornerShape(20.dp)
                                 )
-                                .clickable { onSelectRainbow(currentSpec.polarity, isLive) }
+                                .clickable {
+                                    revealLauncher(rainbowOrigin) {
+                                        onSelectRainbow(currentSpec.polarity, isLive)
+                                    }
+                                }
                                 .padding(horizontal = 12.dp, vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
@@ -258,23 +275,27 @@ fun FullOsColorPaletteSheet(
                             val (hue, sat) = colorToHueSat(item.color)
                             val isSelected = kotlin.math.abs(currentSpec.hue - hue) < 6f &&
                                 currentSpec.tintMode == ThemeTintMode.FULL_OS
+                            var swatchOrigin by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(Offset.Zero) }
                             Box(
                                 modifier = Modifier
                                     .size(44.dp)
+                                    .onGloballyPositioned { swatchOrigin = it.boundsInRoot().center }
                                     .clip(CircleShape)
                                     .then(
                                         if (isSelected) Modifier.border(2.dp, scheme.textPrimary, CircleShape)
                                         else Modifier
                                     )
                                     .clickable {
-                                        onSelectSpec(
-                                            currentSpec.copy(
-                                                tintMode = ThemeTintMode.FULL_OS,
-                                                bubbleStyle = BubbleColorStyle.GRADIENT,
-                                                hue = hue,
-                                                saturation = sat.coerceAtLeast(0.55f)
+                                        revealLauncher(swatchOrigin) {
+                                            onSelectSpec(
+                                                currentSpec.copy(
+                                                    tintMode = ThemeTintMode.FULL_OS,
+                                                    bubbleStyle = BubbleColorStyle.GRADIENT,
+                                                    hue = hue,
+                                                    saturation = sat.coerceAtLeast(0.55f)
+                                                )
                                             )
-                                        )
+                                        }
                                     },
                                 contentAlignment = Alignment.Center
                             ) {

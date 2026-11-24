@@ -182,25 +182,38 @@ object AnonGramThemes {
         name: String,
         polarity: ThemePolarity,
         live: Boolean
-    ): AnonGramScheme = ThemePaletteEngine.buildScheme(
-        id = id,
-        displayName = name,
-        spec = ThemeSpec(
-            polarity = polarity,
-            tintMode = ThemeTintMode.FULL_OS,
-            bubbleStyle = BubbleColorStyle.GRADIENT,
-            hue = 318f,
-            saturation = if (polarity == ThemePolarity.DARK) 0.88f else 0.82f
+    ): AnonGramScheme {
+        val isDark = polarity == ThemePolarity.DARK
+        return ThemePaletteEngine.buildScheme(
+            id = id,
+            displayName = name,
+            spec = ThemeSpec(
+                polarity = polarity,
+                tintMode = ThemeTintMode.FULL_OS,
+                bubbleStyle = BubbleColorStyle.GRADIENT,
+                hue = 196f,
+                saturation = if (isDark) 0.88f else 0.82f
+            )
+        ).copy(
+            isRainbow = true,
+            isRainbowLive = live,
+            background = if (isDark) Color(0xFF0A0B14) else Color(0xFFF3F6FF),
+            surface = if (isDark) Color(0xA8111320) else Color(0xB8FFFFFF),
+            card = if (isDark) Color(0xBD151726) else Color(0xCCFFFFFF),
+            islandBg = if (isDark) Color(0xCC181B2C) else Color(0xD9FFFFFF),
+            inputBg = if (isDark) Color(0xC8141724) else Color(0xD4FFFFFF),
+            cardBorder = if (isDark) Color(0x4D38BDF8) else Color(0x3D6366F1),
+            islandBorder = if (isDark) Color(0x55EC4899) else Color(0x440284C7),
+            accent = rainbowColors[4],
+            accentDim = rainbowColors[6],
+            accentSoft = rainbowColors[4].copy(alpha = if (isDark) 0.22f else 0.16f),
+            outgoingBubbleStart = rainbowColors.first(),
+            outgoingBubbleEnd = rainbowColors.last(),
+            outgoingBubbleBorder = if (isDark) Color(0x66FFFFFF) else Color(0x3D000000),
+            outgoingText = Color(0xFFFFFFFF),
+            selectedGlow = rainbowColors[0]
         )
-    ).copy(
-        isRainbow = true,
-        isRainbowLive = live,
-        outgoingBubbleStart = rainbowColors.first(),
-        outgoingBubbleEnd = rainbowColors.last(),
-        outgoingBubbleBorder = if (polarity == ThemePolarity.DARK) Color(0x55FFFFFF) else Color(0x33000000),
-        outgoingText = Color(0xFFFFFFFF),
-        selectedGlow = Color(0xFF38BDF8)
-    )
+    }
 
     val RainbowStaticDark = rainbowPreset(
         id = "rainbow_static_dark",

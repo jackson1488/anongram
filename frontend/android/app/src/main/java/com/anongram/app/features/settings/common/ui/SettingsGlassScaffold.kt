@@ -60,6 +60,7 @@ fun Modifier.settingsGlassPill(
     glassBlurEnabled: Boolean = AnimationsSettingsStore.state.collectAsState().value.glassBlurEnabled
 ): Modifier {
     val scheme = LocalAnonGramScheme.current
+    val pillBorderBrush = com.anongram.app.core.theme.rememberRainbowBorderBrush(scheme)
     val pillModifier = if (glassBlurEnabled) {
         Modifier
             .clip(shape)
@@ -74,12 +75,12 @@ fun Modifier.settingsGlassPill(
                     noiseFactor = 0.02f
                 )
             )
-            .border(0.8.dp, scheme.islandBorder, shape)
+            .border(0.8.dp, pillBorderBrush, shape)
     } else {
         Modifier
             .clip(shape)
             .background(scheme.islandBg.copy(alpha = 0.90f))
-            .border(0.8.dp, scheme.islandBorder, shape)
+            .border(0.8.dp, pillBorderBrush, shape)
     }
     return this.then(pillModifier)
 }
@@ -175,17 +176,18 @@ fun SettingsGlassScaffold(
         )
     }
 
+    val scaffoldBgBrush = com.anongram.app.core.theme.rememberRainbowBackgroundBrush(scheme)
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(scheme.background)
+            .background(scaffoldBgBrush)
     ) {
         // 1. Прокручиваемый контент на весь экран (проходит под парящей шапкой)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .hazeSource(state = hazeState)
-                .background(scheme.background)
+                .background(scaffoldBgBrush)
         ) {
             Column(
                 modifier = Modifier

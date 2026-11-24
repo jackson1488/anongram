@@ -136,10 +136,12 @@ fun AnonGramTheme(
         LocalInputStrings provides inputStrings,
         LocalChatMessageFontFamily provides messageFontFamily
     ) {
-        MaterialTheme(
-            colorScheme = colorScheme,
-            typography = typography,
-            content = content
-        )
+        ThemeRevealHost {
+            MaterialTheme(
+                colorScheme = colorScheme,
+                typography = typography,
+                content = content
+            )
+        }
     }
 }
