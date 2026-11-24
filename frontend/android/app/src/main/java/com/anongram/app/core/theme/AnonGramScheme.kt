@@ -20,6 +20,7 @@ data class AnonGramScheme(
     val accentDim: Color,
     val isDark: Boolean = true,
     val isRainbow: Boolean = false,
+    val isRainbowLive: Boolean = false,
     val spec: ThemeSpec = ThemeSpec(),
     val background: Color = Color(0xFF05070A),
     val surface: Color = Color(0xFF0A0F18),
@@ -167,64 +168,74 @@ object AnonGramThemes {
     )
 
     val rainbowColors: List<Color> = listOf(
-        Color(0xFFFF4D6D),
-        Color(0xFFFFB703),
-        Color(0xFF10B981),
-        Color(0xFF06B6D4),
-        Color(0xFF8B5CF6),
-        Color(0xFFEC4899)
+        Color(0xFFE11D48), // Красный
+        Color(0xFFEA580C), // Оранжевый
+        Color(0xFFD97706), // Жёлтый
+        Color(0xFF059669), // Зелёный
+        Color(0xFF0284C7), // Голубой
+        Color(0xFF2563EB), // Синий
+        Color(0xFF7C3AED)  // Фиолетовый
     )
 
-    val RainbowOsDark = ThemePaletteEngine.buildScheme(
-        id = "rainbow_os_dark",
-        displayName = "Радуга ОС (Тёмная)",
+    private fun rainbowPreset(
+        id: String,
+        name: String,
+        polarity: ThemePolarity,
+        live: Boolean
+    ): AnonGramScheme = ThemePaletteEngine.buildScheme(
+        id = id,
+        displayName = name,
         spec = ThemeSpec(
-            polarity = ThemePolarity.DARK,
-            tintMode = ThemeTintMode.FULL_OS,
+            polarity = polarity,
+            tintMode = ThemeTintMode.MONOCHROME,
             bubbleStyle = BubbleColorStyle.GRADIENT,
-            hue = 290f,
-            saturation = 0.90f
+            hue = 0f,
+            saturation = 0f
         )
     ).copy(
         isRainbow = true,
-        accent = Color(0xFFE040FB),
-        accentDim = Color(0xFFB832D6),
-        accentSoft = Color(0x2AE040FB),
-        outgoingBubbleStart = Color(0xFFEC4899),
-        outgoingBubbleEnd = Color(0xFF06B6D4),
-        outgoingBubbleBorder = Color(0x6638BDF8),
+        isRainbowLive = live,
+        outgoingBubbleStart = rainbowColors.first(),
+        outgoingBubbleEnd = rainbowColors.last(),
+        outgoingBubbleBorder = if (polarity == ThemePolarity.DARK) Color(0x4DFFFFFF) else Color(0x33000000),
         outgoingText = Color(0xFFFFFFFF),
-        selectedBubbleBg = Color(0xFF4C1D95),
-        selectedGlow = Color(0xFF00E5FF)
+        selectedGlow = Color(0xFF38BDF8)
     )
 
-    val RainbowOsLight = ThemePaletteEngine.buildScheme(
-        id = "rainbow_os_light",
-        displayName = "Радуга ОС (Светлая)",
-        spec = ThemeSpec(
-            polarity = ThemePolarity.LIGHT,
-            tintMode = ThemeTintMode.FULL_OS,
-            bubbleStyle = BubbleColorStyle.GRADIENT,
-            hue = 290f,
-            saturation = 0.86f
-        )
-    ).copy(
-        isRainbow = true,
-        accent = Color(0xFFC026D3),
-        accentDim = Color(0xFF9333EA),
-        accentSoft = Color(0x22C026D3),
-        outgoingBubbleStart = Color(0xFFEC4899),
-        outgoingBubbleEnd = Color(0xFF0EA5E9),
-        outgoingBubbleBorder = Color(0x5538BDF8),
-        outgoingText = Color(0xFFFFFFFF),
-        selectedBubbleBg = Color(0xFFE9D5FF),
-        selectedGlow = Color(0xFF0EA5E9)
+    val RainbowStaticDark = rainbowPreset(
+        id = "rainbow_static_dark",
+        name = "Радуга 7 · Статика (Тёмная)",
+        polarity = ThemePolarity.DARK,
+        live = false
+    )
+
+    val RainbowLiveDark = rainbowPreset(
+        id = "rainbow_live_dark",
+        name = "Радуга 7 · Живая (Тёмная)",
+        polarity = ThemePolarity.DARK,
+        live = true
+    )
+
+    val RainbowStaticLight = rainbowPreset(
+        id = "rainbow_static_light",
+        name = "Радуга 7 · Статика (Светлая)",
+        polarity = ThemePolarity.LIGHT,
+        live = false
+    )
+
+    val RainbowLiveLight = rainbowPreset(
+        id = "rainbow_live_light",
+        name = "Радуга 7 · Живая (Светлая)",
+        polarity = ThemePolarity.LIGHT,
+        live = true
     )
 
     val all: List<AnonGramScheme> = listOf(
         CyberStealth,
-        RainbowOsDark,
-        RainbowOsLight,
+        RainbowLiveDark,
+        RainbowStaticDark,
+        RainbowLiveLight,
+        RainbowStaticLight,
         AuroraOsDark,
         AuroraOsLight,
         MonochromeNoir,

@@ -433,36 +433,62 @@ fun ThemeSelectorCard(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Кнопка Радуга
-                        val rainbowSelected = activeTheme.isRainbow
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(CircleShape)
-                                .then(
-                                    if (rainbowSelected) Modifier.border(2.dp, activeTheme.textPrimary, CircleShape)
-                                    else Modifier.border(1.dp, activeTheme.cardBorder, CircleShape)
-                                )
-                                .padding(if (rainbowSelected) 3.dp else 0.dp)
-                                .clip(CircleShape)
-                                .background(Brush.sweepGradient(AnonGramThemes.rainbowColors))
-                                .clickable {
-                                    val target = if (draftSpec.polarity == ThemePolarity.DARK) {
-                                        AnonGramThemes.RainbowOsDark
-                                    } else {
-                                        AnonGramThemes.RainbowOsLight
+                        // Кнопки: Статичная Радуга 7 и Живая Радуга 7
+                        listOf(
+                            false to strings.themeRainbowStatic,
+                            true to strings.themeRainbowLive
+                        ).forEach { (isLive, label) ->
+                            val rainbowSelected = activeTheme.isRainbow && activeTheme.isRainbowLive == isLive
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(50))
+                                    .background(
+                                        if (rainbowSelected) {
+                                            Brush.horizontalGradient(
+                                                AnonGramThemes.rainbowColors.map { it.copy(alpha = 0.25f) }
+                                            )
+                                        } else {
+                                            Brush.horizontalGradient(listOf(activeTheme.card, activeTheme.card))
+                                        }
+                                    )
+                                    .border(
+                                        width = if (rainbowSelected) 1.5.dp else 1.dp,
+                                        brush = Brush.horizontalGradient(
+                                            if (rainbowSelected) AnonGramThemes.rainbowColors
+                                            else listOf(activeTheme.cardBorder, activeTheme.cardBorder)
+                                        ),
+                                        shape = RoundedCornerShape(50)
+                                    )
+                                    .clickable {
+                                        val target = when {
+                                            draftSpec.polarity == ThemePolarity.DARK && isLive ->
+                                                AnonGramThemes.RainbowLiveDark
+                                            draftSpec.polarity == ThemePolarity.DARK ->
+                                                AnonGramThemes.RainbowStaticDark
+                                            isLive ->
+                                                AnonGramThemes.RainbowLiveLight
+                                            else ->
+                                                AnonGramThemes.RainbowStaticLight
+                                        }
+                                        draftSpec = target.spec
+                                        onThemeSelect(target.id)
                                     }
-                                    draftSpec = target.spec
-                                    onThemeSelect(target.id)
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            if (rainbowSelected) {
-                                Icon(
-                                    imageVector = Icons.Filled.Check,
-                                    contentDescription = strings.themeRainbow,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
+                                    .padding(horizontal = 10.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(18.dp)
+                                        .clip(CircleShape)
+                                        .background(Brush.sweepGradient(AnonGramThemes.rainbowColors))
+                                        .border(1.dp, Color.White.copy(alpha = 0.5f), CircleShape)
+                                )
+                                Text(
+                                    text = label,
+                                    color = activeTheme.textPrimary,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = if (rainbowSelected) FontWeight.Bold else FontWeight.Medium
                                 )
                             }
                         }
@@ -896,16 +922,15 @@ private fun LiveChatThemeMiniPreview(
 
         // Исходящее сообщение
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            val previewOutgoingBrush = if (scheme.isRainbow) {
+                com.anongram.app.core.theme.rememberOutgoingBubbleBrush(scheme)
+            } else {
+                Brush.linearGradient(listOf(animOutStart, animOutEnd))
+            }
             Box(
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp))
-                    .background(
-                        if (scheme.isRainbow) {
-                            Brush.horizontalGradient(listOf(animOutStart, Color(0xFF8B5CF6), animOutEnd))
-                        } else {
-                            Brush.linearGradient(listOf(animOutStart, animOutEnd))
-                        }
-                    )
+                    .background(previewOutgoingBrush)
                     .border(
                         1.dp,
                         scheme.outgoingBubbleBorder,

@@ -56,7 +56,7 @@ fun FullOsColorPaletteSheet(
     onSelectSpec: (ThemeSpec) -> Unit,
     onDone: () -> Unit,
     onReset: (() -> Unit)? = null,
-    onSelectRainbow: ((ThemePolarity) -> Unit)? = null,
+    onSelectRainbow: ((ThemePolarity, Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -173,58 +173,69 @@ fun FullOsColorPaletteSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             if (onSelectRainbow != null) {
-                val rainbowSelected = scheme.isRainbow
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(
-                            if (rainbowSelected) {
-                                Brush.horizontalGradient(
-                                    AnonGramThemes.rainbowColors.map { it.copy(alpha = 0.24f) }
-                                )
-                            } else {
-                                Brush.horizontalGradient(listOf(scheme.card, scheme.card))
-                            }
-                        )
-                        .border(
-                            width = if (rainbowSelected) 1.5.dp else 0.8.dp,
-                            brush = Brush.horizontalGradient(
-                                if (rainbowSelected) AnonGramThemes.rainbowColors
-                                else listOf(scheme.cardBorder, scheme.cardBorder)
-                            ),
-                            shape = RoundedCornerShape(20.dp)
-                        )
-                        .clickable { onSelectRainbow(currentSpec.polarity) }
-                        .padding(horizontal = 14.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        Box(
+                    listOf(
+                        false to strings.themeRainbowStatic,
+                        true to strings.themeRainbowLive
+                    ).forEach { (isLive, label) ->
+                        val rainbowSelected = scheme.isRainbow && scheme.isRainbowLive == isLive
+                        Row(
                             modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(Brush.sweepGradient(AnonGramThemes.rainbowColors))
-                                .border(1.dp, Color.White.copy(alpha = 0.45f), CircleShape)
-                        )
-                        Text(
-                            text = strings.themeRainbow,
-                            color = scheme.textPrimary,
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    if (rainbowSelected) {
-                        Icon(
-                            imageVector = Icons.Outlined.Check,
-                            contentDescription = null,
-                            tint = scheme.accent,
-                            modifier = Modifier.size(16.dp)
-                        )
+                                .weight(1f)
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(
+                                    if (rainbowSelected) {
+                                        Brush.horizontalGradient(
+                                            AnonGramThemes.rainbowColors.map { it.copy(alpha = 0.24f) }
+                                        )
+                                    } else {
+                                        Brush.horizontalGradient(listOf(scheme.card, scheme.card))
+                                    }
+                                )
+                                .border(
+                                    width = if (rainbowSelected) 1.5.dp else 0.8.dp,
+                                    brush = Brush.horizontalGradient(
+                                        if (rainbowSelected) AnonGramThemes.rainbowColors
+                                        else listOf(scheme.cardBorder, scheme.cardBorder)
+                                    ),
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                                .clickable { onSelectRainbow(currentSpec.polarity, isLive) }
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(Brush.sweepGradient(AnonGramThemes.rainbowColors))
+                                        .border(1.dp, Color.White.copy(alpha = 0.45f), CircleShape)
+                                )
+                                Text(
+                                    text = label,
+                                    color = scheme.textPrimary,
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1
+                                )
+                            }
+                            if (rainbowSelected) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Check,
+                                    contentDescription = null,
+                                    tint = scheme.accent,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                            }
+                        }
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))

@@ -201,6 +201,8 @@ object InputStringsRu : InputI18nStrings {
     override val themePolarityDark: String = "Тёмная"
     override val themePolarityLight: String = "Светлая"
     override val themeRainbow: String = "Радуга"
+    override val themeRainbowStatic: String = "Радуга 7"
+    override val themeRainbowLive: String = "Живая радуга"
     override val themeQuickColors: String = "Быстрые акценты"
     override val themeTabPresets: String = "Пресеты"
     override val themeTabWheel: String = "Цветовой круг"

@@ -161,21 +161,12 @@ fun ChatThemeSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.CenterEnd
                 ) {
+                    val previewOutgoingBrush = com.anongram.app.core.theme.rememberOutgoingBubbleBrush(scheme)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth(0.78f)
                             .clip(RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp))
-                            .background(
-                                if (scheme.isRainbow) {
-                                    Brush.horizontalGradient(
-                                        listOf(scheme.outgoingBubbleStart, Color(0xFF8B5CF6), scheme.outgoingBubbleEnd)
-                                    )
-                                } else {
-                                    Brush.horizontalGradient(
-                                        listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd)
-                                    )
-                                }
-                            )
+                            .background(previewOutgoingBrush)
                             .padding(horizontal = 12.dp, vertical = 9.dp)
                     ) {
                         Text(
@@ -346,11 +337,16 @@ fun ChatThemeSettingsScreen(
                 onSelectSpec = { newSpec ->
                     controller?.applyCustomSpec(newSpec, "Full OS")
                 },
-                onSelectRainbow = { polarity ->
-                    val target = if (polarity == com.anongram.app.core.theme.ThemePolarity.DARK) {
-                        AnonGramThemes.RainbowOsDark
-                    } else {
-                        AnonGramThemes.RainbowOsLight
+                onSelectRainbow = { polarity, isLive ->
+                    val target = when {
+                        polarity == com.anongram.app.core.theme.ThemePolarity.DARK && isLive ->
+                            AnonGramThemes.RainbowLiveDark
+                        polarity == com.anongram.app.core.theme.ThemePolarity.DARK ->
+                            AnonGramThemes.RainbowStaticDark
+                        isLive ->
+                            AnonGramThemes.RainbowLiveLight
+                        else ->
+                            AnonGramThemes.RainbowStaticLight
                     }
                     onThemeSelect(target.id)
                 },

@@ -523,7 +523,7 @@ internal fun MessageBubble(
                             (message.text.isNotBlank() || messageTextSizeSp > 16)
 
                         val isOutgoingGradient = !isIncoming && !isSelected && !isEdgeToEdgeMedia &&
-                            pulseAlpha <= 0f && scheme.outgoingBubbleStart != scheme.outgoingBubbleEnd
+                            pulseAlpha <= 0f && (scheme.isRainbow || scheme.outgoingBubbleStart != scheme.outgoingBubbleEnd)
                         val baseColor = when {
                             isSelected -> scheme.selectedBubbleBg
                             isEdgeToEdgeMedia -> scheme.card
@@ -574,14 +574,15 @@ internal fun MessageBubble(
                             val padEnd = (10f * textScale).coerceIn(5f, 14f).dp
                             val padTop = (7f * textScale).coerceIn(2.5f, 10f).dp
                             val padBottom = (6f * textScale).coerceIn(2.5f, 9f).dp
+                            val outgoingBrush = if (isOutgoingGradient) {
+                                com.anongram.app.core.theme.rememberOutgoingBubbleBrush(scheme)
+                            } else {
+                                null
+                            }
 
                             Box(
-                                modifier = if (isOutgoingGradient) {
-                                    Modifier.background(
-                                        androidx.compose.ui.graphics.Brush.linearGradient(
-                                            listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd)
-                                        )
-                                    )
+                                modifier = if (outgoingBrush != null) {
+                                    Modifier.background(outgoingBrush)
                                 } else {
                                     Modifier
                                 }

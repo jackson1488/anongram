@@ -221,6 +221,8 @@ interface InputI18nStrings {
     val themePolarityDark: String
     val themePolarityLight: String
     val themeRainbow: String
+    val themeRainbowStatic: String
+    val themeRainbowLive: String
     val themeQuickColors: String
     val themeTabPresets: String
     val themeTabWheel: String
