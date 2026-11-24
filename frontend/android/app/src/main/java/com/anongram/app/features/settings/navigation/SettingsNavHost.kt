@@ -25,6 +25,7 @@ import com.anongram.app.features.auth.data.crypto.KeystoreVault
 import com.anongram.app.features.settings.account.ui.AccountSettingsScreen
 import com.anongram.app.features.settings.battery.ui.BatterySettingsScreen
 import com.anongram.app.features.settings.chat_settings.ui.ChatAppearanceSettingsScreen
+import com.anongram.app.features.settings.chat_settings.ui.ChatThemeSettingsScreen
 import com.anongram.app.features.settings.data_storage.ui.DataStorageSettingsScreen
 import com.anongram.app.features.settings.devices.ui.DevicesSettingsScreen
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
@@ -265,6 +266,14 @@ fun SettingsNavHost(
 
             SettingsRoute.ChatSettings -> {
                 ChatAppearanceSettingsScreen(
+                    currentThemeId = currentThemeId,
+                    onThemeSelect = onThemeSelect,
+                    onBack = popBack
+                )
+            }
+
+            SettingsRoute.ChatTheme -> {
+                ChatThemeSettingsScreen(
                     currentThemeId = currentThemeId,
                     onThemeSelect = onThemeSelect,
                     onBack = popBack

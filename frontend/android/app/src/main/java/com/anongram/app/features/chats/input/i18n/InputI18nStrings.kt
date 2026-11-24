@@ -204,6 +204,18 @@ interface InputI18nStrings {
 
     // Настройки тем и цветовой круг
     val chatSettingsTitle: String
+    val chatThemeTitle: String
+    val chatThemeSubtitle: String
+    val chatThemePaletteBtn: String
+    val chatThemePaletteDesc: String
+    val chatThemeCustomBtn: String
+    val chatThemeCustomDesc: String
+    val chatThemeTalkBtn: String
+    val chatThemeTalkDesc: String
+    val chatThemeFilterAll: String
+    val chatThemeDone: String
+    val chatThemeResetBtn: String
+    val chatThemeCurrentLabel: String
     val themeCardTitle: String
     val themeCardSubtitle: String
     val themePolarityDark: String

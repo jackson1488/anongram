@@ -10,6 +10,7 @@ sealed interface SettingsRoute {
     data object QrScanner : SettingsRoute
     data object Account : SettingsRoute
     data object ChatSettings : SettingsRoute
+    data object ChatTheme : SettingsRoute
     data object Privacy : SettingsRoute
     data object Security : SettingsRoute
     data object Notifications : SettingsRoute

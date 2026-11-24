@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Search
@@ -205,8 +206,17 @@ fun SettingsMainScreen(
                     icon = Icons.Default.ChatBubble,
                     iconBackgroundColor = Color(0xFFFFA726),
                     title = "Настройки чатов",
-                    subtitle = "Обои, ночной режим, анимации",
+                    subtitle = "Размер текста, ссылки, поведение",
                     onClick = { onNavigate(SettingsRoute.ChatSettings) }
+                )
+
+                val chatThemeStrings = com.anongram.app.features.chats.input.i18n.LocalInputStrings.current
+                SettingsItemRow(
+                    icon = Icons.Default.Palette,
+                    iconBackgroundColor = Color(0xFFAB47BC),
+                    title = chatThemeStrings.chatThemeTitle,
+                    subtitle = chatThemeStrings.chatThemeSubtitle,
+                    onClick = { onNavigate(SettingsRoute.ChatTheme) }
                 )
 
                 SettingsItemRow(

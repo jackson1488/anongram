@@ -79,14 +79,6 @@ fun ChatAppearanceSettingsScreen(
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Карточка выбора цветовой темы с живым превью и вертикальным скроллом
-            ThemeSelectorCard(
-                currentThemeId = currentThemeId,
-                onThemeSelect = onThemeSelect
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
             val browserStrings = com.anongram.app.features.chats.links.browser.InAppBrowserI18n.current
             val linkPreviewsEnabled by ChatTextSettingsStore.linkPreviewsEnabled.collectAsState()
             val hiddenLinkPreviewsEnabled by ChatTextSettingsStore.hiddenLinkPreviewsEnabled.collectAsState()
