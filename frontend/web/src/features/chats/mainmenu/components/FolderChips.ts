@@ -15,10 +15,16 @@ export function renderFolderChips(
     { id: 'pinned', label: t.chats.folderPinned },
   ];
   for (const f of folders) {
+    const active = current === f.id;
     row.appendChild(
       el(
         'button',
-        { class: `ag-chip ${current === f.id ? 'is-active' : ''}`, onClick: () => onSelect(f.id) },
+        {
+          type: 'button',
+          class: `ag-chip ${active ? 'is-active' : ''}`,
+          'aria-pressed': String(active),
+          onClick: () => onSelect(f.id),
+        },
         f.label,
       ),
     );

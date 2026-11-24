@@ -10,7 +10,11 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 14px 104px;
+  padding: 14px 16px 100px;
+}
+
+.ag-scroll-list:has(> .ag-settings-group) {
+  padding: 4px 0 100px;
 }
 
 .ag-settings-content {
@@ -23,28 +27,32 @@
 
 .ag-settings-card {
   padding: 16px;
+  border-radius: 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
 .ag-settings-group {
-  margin: 6px 14px 14px;
+  margin: 6px 16px 14px;
+  border-radius: 20px;
   overflow: hidden;
 }
 
-.ag-settings-content .ag-settings-group {
+.ag-settings-content .ag-settings-group,
+.ag-settings-scroll .ag-settings-group {
   margin: 0;
 }
 
 .ag-profile-card {
-  margin: 4px 14px 12px;
-  padding: 14px;
+  margin: 4px 16px 12px;
+  padding: 14px 16px;
+  border-radius: 20px;
   display: flex;
   align-items: center;
   gap: 12px;
   cursor: pointer;
-  transition: background-color 0.16s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
 .ag-profile-card:hover {
@@ -76,7 +84,7 @@
   text-align: left;
   border-bottom: 1px solid var(--ag-divider);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.16s ease, color 0.16s ease;
 }
 
 .ag-settings-row:last-child {
@@ -109,9 +117,16 @@
 }
 
 .ag-logout-btn {
-  width: calc(100% - 28px);
-  margin: 4px 14px 104px;
+  width: calc(100% - 32px);
+  margin: 4px 16px 12px;
+  border-radius: 9999px;
   color: var(--ag-danger);
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease;
+}
+
+.ag-logout-btn:hover {
+  background: var(--ag-danger-soft);
+  border-color: var(--ag-danger-border);
 }
 
 .ag-section-label {
@@ -147,13 +162,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 9999px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
   font-size: 12px;
   font-weight: 600;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease;
 }
 
 .ag-preset-chip:hover {
@@ -383,7 +398,12 @@
 
 .ag-danger-btn {
   color: var(--ag-danger);
-  border-color: var(--ag-danger-soft);
+  border-color: var(--ag-danger-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease;
+}
+
+.ag-danger-btn:hover {
+  background: var(--ag-danger-soft);
 }
 
 .ag-pin-form {
@@ -417,22 +437,73 @@
   transition-duration: 0.01ms !important;
 }
 
-/* Desktop (>=840px): Telegram Web A style grouped cards, smooth hover rows, sticky header */
+/* Desktop (>=840px): Telegram Web A style grouped cards, softened borders, smooth hover rows, sticky header */
 @media (min-width: 840px) {
   .ag-settings-header {
     position: sticky;
     top: 0;
     z-index: 10;
-    background: var(--ag-surface);
+    background: color-mix(in srgb, var(--ag-surface) 90%, transparent);
     backdrop-filter: blur(18px);
     -webkit-backdrop-filter: blur(18px);
-    border-bottom: 1px solid var(--ag-divider);
+    border-bottom: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
     min-height: 58px;
     padding: 0 20px;
   }
 
   .ag-settings-scroll {
     padding: 24px 32px 48px;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .ag-settings-scroll:hover {
+    scrollbar-color: color-mix(in srgb, var(--ag-text-muted) 38%, transparent) transparent;
+  }
+
+  .ag-settings-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .ag-settings-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .ag-settings-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: transparent;
+  }
+
+  .ag-settings-scroll:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--ag-text-muted) 38%, transparent);
+  }
+
+  .ag-settings-scroll > *:not(.ag-qr-card) {
+    max-width: 660px;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+  }
+
+  .ag-scroll-list:has(> .ag-settings-group) {
+    padding: 6px 0 24px;
+  }
+
+  .ag-profile-card {
+    margin: 4px 12px 10px;
+    border-radius: 20px;
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--ag-shadow) 35%, transparent);
+  }
+
+  .ag-scroll-list > .ag-settings-group {
+    margin: 6px 12px 12px;
+  }
+
+  .ag-logout-btn {
+    width: calc(100% - 24px);
+    margin: 4px 12px 12px;
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
   }
 
   .ag-settings-content {
@@ -441,13 +512,22 @@
   }
 
   .ag-settings-card,
-  .ag-settings-group {
-    border-radius: 16px;
-    box-shadow: 0 2px 14px var(--ag-shadow);
+  .ag-settings-group,
+  .ag-qr-card {
+    border-radius: 20px;
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+    box-shadow: 0 2px 14px color-mix(in srgb, var(--ag-shadow) 45%, transparent);
   }
 
-  .ag-settings-row {
+  .ag-settings-row,
+  .ag-session-row {
     padding: 14px 18px;
+    border-bottom: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-settings-row:last-child,
+  .ag-session-row:last-child {
+    border-bottom: none;
   }
 
   .ag-settings-row:hover {
@@ -457,5 +537,47 @@
   .ag-settings-row.is-active {
     background: var(--ag-accent-soft);
     color: var(--ag-accent);
+  }
+
+  .ag-preview-box,
+  .ag-ag1-code,
+  .ag-wp-thumb,
+  .ag-storage-bar,
+  .ag-preset-chip:not(.is-active),
+  .ag-settings-detail .ag-chip:not(.is-active),
+  .ag-settings-detail .ag-pill-btn--secondary:not(.ag-danger-btn),
+  .ag-settings-detail .ag-search-pill {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-settings-detail .ag-input {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+    transition: border-color 0.16s ease;
+  }
+
+  .ag-settings-detail .ag-input:focus {
+    border-color: var(--ag-accent);
+  }
+
+  .ag-settings-detail .ag-pill-btn,
+  .ag-settings-detail .ag-chip,
+  .ag-preset-chip {
+    border-radius: 9999px;
+    transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease, transform 0.14s ease, opacity 0.14s ease;
+  }
+
+  .ag-settings-detail .ag-chip:not(.is-active):hover,
+  .ag-settings-detail .ag-pill-btn--secondary:not(.ag-danger-btn):hover,
+  .ag-preset-chip:not(.is-active):hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 35%, transparent);
+  }
+
+  .ag-settings-detail .ag-pill-btn--primary:hover {
+    opacity: 0.92;
+  }
+
+  .ag-settings-detail .ag-pill-btn--ghost:hover {
+    background: color-mix(in srgb, var(--ag-accent) 24%, transparent);
   }
 }

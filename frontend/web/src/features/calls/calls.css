@@ -6,7 +6,34 @@
 }
 
 .ag-calls-search-wrap {
-  padding: 0 14px 8px;
+  padding: 0 16px 10px;
+}
+
+.ag-calls-header ~ .ag-chips-row {
+  padding: 0 16px 10px;
+}
+
+.ag-calls-header ~ .ag-scroll-list {
+  padding: 4px 12px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ag-calls-header ~ .ag-scroll-list .ag-chat-row {
+  padding: 10px 12px;
+  border-radius: 20px;
+  background: var(--ag-card);
+  border: 1px solid var(--ag-card-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease;
+}
+
+.ag-calls-header ~ .ag-scroll-list .ag-chat-row:hover {
+  background: var(--ag-hover);
+}
+
+.ag-calls-header ~ .ag-scroll-list .ag-chat-row:active {
+  transform: scale(0.99);
 }
 
 .ag-calls-row-missed {
@@ -17,6 +44,7 @@
   max-width: 380px;
   width: 100%;
   padding: 28px 22px 24px;
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -28,7 +56,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px;
+  padding: 6px 14px;
   border-radius: 9999px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
@@ -48,7 +76,11 @@
   font-weight: 600;
   background: var(--ag-danger);
   color: var(--ag-on-accent);
-  transition: transform 0.14s ease, opacity 0.14s ease;
+  transition: transform 0.14s ease, opacity 0.15s ease;
+}
+
+.ag-call-end-btn:hover {
+  opacity: 0.92;
 }
 
 .ag-call-end-btn:active {
@@ -60,4 +92,52 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--ag-accent);
+}
+
+/* Desktop (>=840px): Telegram Web A softened borders, hover transitions, capsule buttons/chips */
+@media (min-width: 840px) {
+  .ag-calls-header ~ .ag-scroll-list {
+    padding: 6px 12px 16px;
+    gap: 4px;
+  }
+
+  .ag-calls-header ~ .ag-scroll-list .ag-chat-row {
+    padding: 9px 12px;
+    border-radius: 16px;
+    background: transparent;
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-calls-header ~ .ag-scroll-list .ag-chat-row:hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 30%, transparent);
+  }
+
+  .ag-call-overlay-card {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+    box-shadow: 0 20px 56px var(--ag-shadow);
+  }
+
+  .ag-call-sas-pill,
+  .ag-calls-search-wrap .ag-search-pill,
+  .ag-calls-header .ag-chip,
+  .ag-calls-header ~ .ag-chips-row .ag-chip:not(.is-active),
+  .ag-call-overlay-card .ag-pill-btn--secondary {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-calls-header .ag-chip,
+  .ag-calls-header ~ .ag-chips-row .ag-chip,
+  .ag-call-overlay-card .ag-pill-btn,
+  .ag-call-end-btn {
+    border-radius: 9999px;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease, opacity 0.14s ease;
+  }
+
+  .ag-calls-header .ag-chip:hover,
+  .ag-calls-header ~ .ag-chips-row .ag-chip:not(.is-active):hover,
+  .ag-call-overlay-card .ag-pill-btn--secondary:hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 35%, transparent);
+  }
 }

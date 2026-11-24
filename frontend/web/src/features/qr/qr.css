@@ -1,12 +1,14 @@
 .ag-qr-modal {
   max-width: 400px;
   width: 100%;
-  padding: 20px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
-  border-radius: 28px;
+  border-radius: 26px;
 }
 
 .ag-qr-head {
@@ -34,7 +36,12 @@
   font-size: 13px;
   font-weight: 600;
   color: var(--ag-text-secondary);
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+
+.ag-qr-tab:not(.is-active):hover {
+  background: var(--ag-hover);
+  color: var(--ag-text-primary);
 }
 
 .ag-qr-tab.is-active {
@@ -66,17 +73,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-radius: 20px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
   text-align: left;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease, transform 0.14s ease;
 }
 
 .ag-qr-contacts-btn:hover {
   border-color: var(--ag-accent);
   background: var(--ag-hover);
+}
+
+.ag-qr-contacts-btn:active {
+  transform: scale(0.99);
 }
 
 .ag-qr-contacts-icon {
@@ -94,7 +105,19 @@
 .ag-qr-manual-row {
   width: 100%;
   display: flex;
+  align-items: center;
   gap: 8px;
+}
+
+.ag-qr-manual-row .ag-input {
+  flex: 1;
+  min-width: 0;
+  border-radius: 9999px;
+}
+
+.ag-qr-manual-row .ag-pill-btn {
+  flex-shrink: 0;
+  border-radius: 9999px;
 }
 
 .ag-qr-scanner-box {
@@ -137,4 +160,52 @@
   gap: 10px;
   color: var(--ag-text-secondary);
   font-size: 13px;
+}
+
+/* Desktop (>=840px): Telegram Web A modal polish, softened borders, capsule controls */
+@media (min-width: 840px) {
+  .ag-qr-modal {
+    max-width: 420px;
+    padding: 22px;
+    border-radius: 24px;
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+    box-shadow: 0 20px 56px var(--ag-shadow);
+  }
+
+  .ag-qr-tabs,
+  .ag-qr-frame,
+  .ag-qr-contacts-btn,
+  .ag-qr-scanner-box,
+  .ag-qr-modal .ag-ag1-code,
+  .ag-qr-modal .ag-pill-btn--secondary {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-qr-modal .ag-input {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+    transition: border-color 0.16s ease;
+  }
+
+  .ag-qr-modal .ag-input:focus {
+    border-color: var(--ag-accent);
+  }
+
+  .ag-qr-contacts-btn:hover {
+    border-color: color-mix(in srgb, var(--ag-accent) 45%, transparent);
+    background: var(--ag-hover);
+  }
+
+  .ag-qr-modal .ag-pill-btn {
+    border-radius: 9999px;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease, opacity 0.14s ease;
+  }
+
+  .ag-qr-modal .ag-pill-btn--primary:hover {
+    opacity: 0.92;
+  }
+
+  .ag-qr-modal .ag-pill-btn--secondary:hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 35%, transparent);
+  }
 }

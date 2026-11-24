@@ -1,20 +1,20 @@
 .ag-services-scroll {
-  padding: 8px 14px 96px;
+  padding: 10px 16px 100px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .ag-service-card-v2 {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 15px 16px;
-  border-radius: 22px;
+  padding: 16px;
+  border-radius: 20px;
   background: var(--ag-card);
   border: 1px solid var(--ag-card-border);
   cursor: pointer;
-  transition: transform 0.14s ease, border-color 0.16s ease, background-color 0.16s ease;
+  transition: transform 0.14s ease, border-color 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .ag-service-card-v2:hover {
@@ -91,6 +91,7 @@
   flex-direction: column;
   flex: 1;
   min-height: 0;
+  padding-bottom: 84px;
 }
 
 .ag-ai-topbar {
@@ -118,6 +119,11 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.ag-ai-model-pill:hover {
+  background: var(--ag-hover);
 }
 
 .ag-ai-drawer {
@@ -136,11 +142,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px;
-  border-radius: 14px;
+  padding: 9px 12px;
+  border-radius: 16px;
   background: var(--ag-card);
   border: 1px solid var(--ag-card-border);
   cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.ag-ai-session-item:hover {
+  background: var(--ag-hover);
 }
 
 .ag-ai-session-item.is-active {
@@ -168,13 +179,13 @@
 
 .ag-ai-suggestion-btn {
   text-align: left;
-  padding: 10px 14px;
-  border-radius: 18px;
+  padding: 11px 16px;
+  border-radius: 20px;
   background: var(--ag-card);
   border: 1px solid var(--ag-card-border);
   color: var(--ag-text-primary);
   font-size: 13px;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
 .ag-ai-suggestion-btn:hover {
@@ -185,7 +196,7 @@
 .ag-ai-thinking-box {
   margin-bottom: 6px;
   padding: 8px 10px;
-  border-radius: 12px;
+  border-radius: 14px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-divider);
   font-size: 11px;
@@ -196,8 +207,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px 0;
+  padding: 6px 12px 2px;
   overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ag-ai-controls-bar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Onion & OTP views */
@@ -205,20 +221,22 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-radius: 18px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
 .ag-otp-page-card {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 14px;
+  padding: 16px;
   border-radius: 20px;
   background: var(--ag-card);
   border: 1px solid var(--ag-card-border);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .ag-otp-secret {
@@ -230,4 +248,75 @@
   font-size: 12px;
   color: var(--ag-text-primary);
   word-break: break-word;
+}
+
+/* Desktop (>=840px): Telegram Web A softened borders, hover transitions, capsule buttons/chips */
+@media (min-width: 840px) {
+  .ag-services-scroll {
+    padding: 12px 14px 24px;
+    gap: 10px;
+  }
+
+  .ag-ai-shell {
+    padding-bottom: 0;
+  }
+
+  .ag-service-card-v2,
+  .ag-ai-model-pill,
+  .ag-ai-session-item:not(.is-active),
+  .ag-ai-suggestion-btn,
+  .ag-ai-thinking-box,
+  .ag-onion-hop-card,
+  .ag-otp-page-card,
+  .ag-otp-secret,
+  .ag-services-scroll .ag-card,
+  .ag-services-scroll .ag-contact-switch-row,
+  .ag-services-scroll .ag-chip:not(.is-active),
+  .ag-services-scroll .ag-pill-btn--secondary,
+  .ag-ai-shell .ag-chip:not(.is-active) {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-services-scroll .ag-contact-field {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-services-scroll .ag-contact-field:focus {
+    border-color: var(--ag-accent);
+  }
+
+  .ag-ai-topbar,
+  .ag-ai-drawer {
+    border-bottom: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-service-card-v2:hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 35%, transparent);
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--ag-shadow) 35%, transparent);
+  }
+
+  .ag-ai-suggestion-btn:hover {
+    border-color: var(--ag-accent);
+    background: var(--ag-accent-soft);
+  }
+
+  .ag-services-scroll .ag-pill-btn,
+  .ag-services-scroll .ag-chip,
+  .ag-ai-shell .ag-chip,
+  .ag-ai-model-pill {
+    border-radius: 9999px;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease, opacity 0.14s ease;
+  }
+
+  .ag-services-scroll .ag-chip:not(.is-active):hover,
+  .ag-services-scroll .ag-pill-btn--secondary:hover,
+  .ag-ai-shell .ag-chip:not(.is-active):hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 35%, transparent);
+  }
+
+  .ag-services-scroll .ag-pill-btn--primary:hover {
+    opacity: 0.92;
+  }
 }

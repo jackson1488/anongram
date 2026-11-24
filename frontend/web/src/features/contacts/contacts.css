@@ -4,8 +4,9 @@
   max-height: 86vh;
   display: flex;
   flex-direction: column;
-  padding: 18px;
+  padding: 16px;
   gap: 12px;
+  border-radius: 24px;
 }
 
 .ag-contacts-head {
@@ -34,10 +35,11 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-radius: 20px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
 .ag-contacts-actions-card__meta {
@@ -67,27 +69,31 @@
 .ag-contacts-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   overflow-y: auto;
   min-height: 120px;
-  padding-right: 2px;
+  padding: 2px 2px 6px;
 }
 
 .ag-contact-row {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 18px;
+  padding: 12px 14px;
+  border-radius: 20px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease;
 }
 
 .ag-contact-row:hover {
   background: var(--ag-hover);
   border-color: var(--ag-accent-soft);
+}
+
+.ag-contact-row:active {
+  transform: scale(0.99);
 }
 
 .ag-contact-avatar {
@@ -145,7 +151,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 9999px;
   font-size: 10px;
   font-weight: 600;
@@ -179,7 +185,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px;
+  padding: 16px;
   border-radius: 20px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
@@ -200,13 +206,14 @@
 
 .ag-contact-field {
   width: 100%;
-  padding: 10px 14px;
-  border-radius: 16px;
+  padding: 11px 16px;
+  border-radius: 20px;
   background: var(--ag-input-bg);
   border: 1px solid var(--ag-input-border);
   color: var(--ag-text-primary);
   font-size: 14px;
   outline: none;
+  transition: border-color 0.16s ease, background-color 0.16s ease;
 }
 
 .ag-contact-field:focus {
@@ -229,11 +236,16 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
+  padding: 13px 16px;
+  border-radius: 20px;
   background: var(--ag-surface);
   border: 1px solid var(--ag-card-border);
   cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+
+.ag-contact-switch-row:hover {
+  background: var(--ag-hover);
 }
 
 .ag-contact-details-hero {
@@ -270,12 +282,103 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 42px;
-  padding: 0 18px;
+  min-height: 44px;
+  padding: 0 20px;
   border-radius: 9999px;
   font-size: 13px;
   font-weight: 600;
   background: var(--ag-danger-soft);
   color: var(--ag-danger);
-  border: 1px solid var(--ag-danger-soft);
+  border: 1px solid var(--ag-danger-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease;
+}
+
+.ag-contact-danger-btn:hover {
+  background: color-mix(in srgb, var(--ag-danger) 24%, transparent);
+}
+
+.ag-contact-danger-btn:active {
+  transform: scale(0.98);
+}
+
+/* Desktop (>=840px): Telegram Web A modal card, softened borders & capsule controls */
+@media (min-width: 840px) {
+  .ag-contacts-modal {
+    max-width: 460px;
+    max-height: 82vh;
+    padding: 20px;
+    border-radius: 24px;
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+    box-shadow: 0 20px 56px var(--ag-shadow);
+  }
+
+  .ag-contacts-list {
+    gap: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+
+  .ag-contacts-list:hover {
+    scrollbar-color: color-mix(in srgb, var(--ag-text-muted) 38%, transparent) transparent;
+  }
+
+  .ag-contacts-list::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .ag-contacts-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .ag-contacts-list::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background-color: transparent;
+  }
+
+  .ag-contacts-list:hover::-webkit-scrollbar-thumb {
+    background-color: color-mix(in srgb, var(--ag-text-muted) 38%, transparent);
+  }
+
+  .ag-contacts-actions-card,
+  .ag-contact-row,
+  .ag-contact-form-card,
+  .ag-contact-switch-row,
+  .ag-contact-avatar,
+  .ag-contacts-modal .ag-ag1-code,
+  .ag-contacts-modal .ag-search-pill,
+  .ag-contacts-modal .ag-chip:not(.is-active),
+  .ag-contacts-modal .ag-pill-btn--secondary {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-contact-field {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-contact-field:focus {
+    border-color: var(--ag-accent);
+  }
+
+  .ag-contact-row:hover,
+  .ag-contact-switch-row:hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 35%, transparent);
+  }
+
+  .ag-contacts-modal .ag-pill-btn,
+  .ag-contacts-modal .ag-chip,
+  .ag-contact-danger-btn {
+    border-radius: 9999px;
+    transition: background-color 0.16s ease, border-color 0.16s ease, transform 0.14s ease, opacity 0.14s ease;
+  }
+
+  .ag-contacts-modal .ag-chip:hover,
+  .ag-contacts-modal .ag-pill-btn--secondary:hover {
+    background: var(--ag-hover);
+    border-color: color-mix(in srgb, var(--ag-accent) 35%, transparent);
+  }
+
+  .ag-contacts-modal .ag-pill-btn--primary:hover {
+    opacity: 0.92;
+  }
 }

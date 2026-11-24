@@ -5,6 +5,7 @@ import { blockedUsersStore } from '../../user_profile/data/BlockedUsersStore';
 
 export function createTrailingBadges(thread: ChatThread): HTMLElement | null {
   const isMuted = blockedUsersStore.isMuted(thread.id);
+  const showDesktopPin = window.innerWidth >= 840 && thread.isPinned && thread.unreadCount === 0;
   const muteEl = isMuted
     ? el('span', { class: 'ag-pin-icon', style: 'opacity:0.75;' }, tgIcons.mute(13))
     : null;
@@ -12,7 +13,7 @@ export function createTrailingBadges(thread: ChatThread): HTMLElement | null {
   const badgeEl =
     thread.unreadCount > 0
       ? el('span', { class: 'ag-unread-badge' }, thread.unreadCount > 99 ? '99+' : String(thread.unreadCount))
-      : thread.isPinned
+      : showDesktopPin
         ? el('span', { class: 'ag-pin-icon' }, icons.pin(13))
         : null;
 

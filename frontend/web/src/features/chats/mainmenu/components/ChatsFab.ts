@@ -3,5 +3,10 @@ import { icons } from '../../../../core/ui/icons';
 import { mainMenuT } from '../i18n';
 
 export function createChatsFab(onClick: () => void): HTMLElement {
-  return el('button', { class: 'ag-chats-fab', title: mainMenuT().newMessage, onClick }, icons.edit(22));
+  const label = mainMenuT().newMessage;
+  return el(
+    'button',
+    { type: 'button', class: 'ag-chats-fab', title: label, 'aria-label': label, onClick },
+    icons.edit(24),
+  );
 }

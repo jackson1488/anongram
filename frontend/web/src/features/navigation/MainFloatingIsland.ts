@@ -23,16 +23,20 @@ export function createMainFloatingIsland(props: MainFloatingIslandProps): HTMLEl
     { id: 'profile', label: s.profile, icon: icons.user(20) },
   ];
 
-  const makeTab = (item: (typeof tabs)[number]) =>
-    el(
+  const makeTab = (item: (typeof tabs)[number]) => {
+    const active = props.activeTab === item.id;
+    return el(
       'button',
       {
-        class: `ag-island__tab ${props.activeTab === item.id ? 'is-active' : ''}`,
+        type: 'button',
+        class: active ? 'ag-island__tab is-active' : 'ag-island__tab',
+        'aria-current': active ? 'page' : undefined,
         onClick: () => props.onTabSelected(item.id),
       },
-      item.icon,
-      el('span', null, item.label),
+      el('span', { class: 'ag-island__icon-pill' }, item.icon),
+      el('span', { class: 'ag-island__label' }, item.label),
     );
+  };
 
   return el(
     'div',
@@ -49,11 +53,13 @@ export function createMainFloatingIsland(props: MainFloatingIslandProps): HTMLEl
     el(
       'button',
       {
+        type: 'button',
         class: 'ag-island-qr-btn',
         title: s.qrHub,
+        'aria-label': s.qrHub,
         onClick: props.onQrClick,
       },
-      icons.qr(22),
+      icons.shield(26),
     ),
   );
 }

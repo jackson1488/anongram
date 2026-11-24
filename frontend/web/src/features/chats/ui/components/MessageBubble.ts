@@ -1,7 +1,9 @@
+import { i18nStore } from '../../../../core/i18n/i18nStore';
 import { el } from '../../../../core/ui/dom';
 import { icons } from '../../../../core/ui/icons';
 import { audioPlayer } from '../../../player/audioPlayer';
 import { chatStore } from '../../chatStore';
+import { chatScreenT } from '../../i18n';
 import type { ChatMessage, MessageAttachment } from '../../models';
 import { openDocumentViewer, openMediaViewer } from '../../viewer/MediaViewerOverlay';
 
@@ -10,6 +12,8 @@ export interface BubbleContext {
   selectionMode: boolean;
   selected: boolean;
   isDesktop: boolean;
+  isGroupFirst?: boolean;
+  isGroupLast?: boolean;
   onContextMenu: (msg: ChatMessage, x: number, y: number) => void;
   onToggleSelect: (msg: ChatMessage) => void;
   onEnterSelect: (msg: ChatMessage) => void;
@@ -81,16 +85,128 @@ function renderAttachment(msg: ChatMessage, att: MessageAttachment): HTMLElement
   );
 }
 
+function makeHoverActionButton(
+  cls: string,
+  label: string,
+  icon: SVGElement,
+  onClick: (e: Event, btn: HTMLButtonElement) => void,
+): HTMLButtonElement {
+  const baseBg = 'color-mix(in srgb, var(--ag-surface) 84%, transparent)';
+  const btn = el(
+    'button',
+    {
+      type: 'button',
+      class: cls,
+      title: label,
+      'aria-label': label,
+      style: [
+        'width:28px',
+        'height:28px',
+        'border-radius:9999px',
+        'display:inline-flex',
+        'align-items:center',
+        'justify-content:center',
+        `background:${baseBg}`,
+        'border:1px solid var(--ag-island-border)',
+        'color:var(--ag-text-secondary)',
+        'backdrop-filter:blur(8px)',
+        '-webkit-backdrop-filter:blur(8px)',
+        'transition:background-color 0.12s ease,color 0.12s ease,transform 0.12s ease',
+      ].join(';'),
+    },
+    icon,
+  ) as HTMLButtonElement;
+
+  btn.addEventListener('mouseenter', () => {
+    btn.style.background = 'var(--ag-accent-soft)';
+    btn.style.color = 'var(--ag-accent)';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.style.background = baseBg;
+    btn.style.color = 'var(--ag-text-secondary)';
+  });
+  btn.addEventListener('click', (e) => onClick(e, btn));
+  return btn;
+}
+
+function createDesktopHoverActions(
+  msg: ChatMessage,
+  ctx: BubbleContext,
+): { wrap: HTMLElement; setVisible: (visible: boolean) => void } {
+  const replyLabel = i18nStore.t.chats.replyAction;
+  const moreLabel = chatScreenT().more;
+
+  const quickReplyBtn = makeHoverActionButton(
+    'ag-cs-hover-btn ag-cs-quick-reply',
+    replyLabel,
+    icons.reply(15),
+    (e) => {
+      e.stopPropagation();
+      ctx.onSwipeReply(msg);
+    },
+  );
+  const moreBtn = makeHoverActionButton(
+    'ag-cs-hover-btn ag-cs-hover-more',
+    moreLabel,
+    icons.more(15),
+    (e, btn) => {
+      e.stopPropagation();
+      const r = btn.getBoundingClientRect();
+      ctx.onContextMenu(msg, r.left, r.bottom + 4);
+    },
+  );
+
+  const wrap = el(
+    'div',
+    {
+      class: 'ag-cs-hover-actions',
+      style: [
+        'display:inline-flex',
+        'align-items:center',
+        'gap:4px',
+        'margin:0 6px',
+        'align-self:center',
+        'flex-shrink:0',
+        'opacity:0',
+        'pointer-events:none',
+        'transform:scale(0.94)',
+        'transition:opacity 0.14s ease,transform 0.14s ease',
+      ].join(';'),
+    },
+    quickReplyBtn,
+    moreBtn,
+  );
+
+  const setVisible = (visible: boolean) => {
+    wrap.style.opacity = visible ? '1' : '0';
+    wrap.style.pointerEvents = visible ? 'auto' : 'none';
+    wrap.style.transform = visible ? 'scale(1)' : 'scale(0.94)';
+  };
+
+  return { wrap, setVisible };
+}
+
 const SWIPE_TRIGGER = 56;
 const LONG_PRESS_MS = 420;
 
-/** Message row: bubble + selection check + swipe-to-reply (touch) + context menu (right-click / long-press). */
+/** Message row: bubble + grouping corners + desktop hover quick-reply + selection check + swipe/context menu. */
 export function createMessageRow(msg: ChatMessage, ctx: BubbleContext): HTMLElement {
   const dir = msg.isOutgoing ? 'is-outgoing' : 'is-incoming';
+  const isFirst = ctx.isGroupFirst ?? true;
+  const isLast = ctx.isGroupLast ?? true;
+  const groupClass =
+    isFirst && !isLast
+      ? 'is-group-first'
+      : !isFirst && !isLast
+        ? 'is-group-mid'
+        : !isFirst && isLast
+          ? 'is-group-last'
+          : '';
+  const groupSuffix = groupClass ? ` ${groupClass}` : '';
 
   const bubble = el(
     'div',
-    { class: `ag-bubble ${dir}` },
+    { class: `ag-bubble ${dir}${groupSuffix}` },
     msg.replyTo
       ? el(
           'div',
@@ -135,15 +251,32 @@ export function createMessageRow(msg: ChatMessage, ctx: BubbleContext): HTMLElem
 
   const check = el('span', { class: 'ag-cs-check' }, icons.check(14));
   const swipeIcon = el('span', { class: 'ag-cs-swipe-icon' }, icons.reply(18));
+  const hoverActions = ctx.isDesktop && !ctx.selectionMode ? createDesktopHoverActions(msg, ctx) : null;
+
+  const bubbleWrap = msg.isOutgoing
+    ? el('div', { class: 'ag-cs-bubble-wrap' }, swipeIcon, hoverActions?.wrap, bubble)
+    : el('div', { class: 'ag-cs-bubble-wrap' }, swipeIcon, bubble, hoverActions?.wrap);
+
   const row = el(
     'div',
     {
-      class: `ag-msg-row ${dir} ag-cs-row${ctx.selectionMode ? ' is-selecting' : ''}${ctx.selected ? ' is-selected' : ''}`,
+      class: `ag-msg-row ${dir}${groupSuffix} ag-cs-row${ctx.selectionMode ? ' is-selecting' : ''}${ctx.selected ? ' is-selected' : ''}`,
       'data-msg-id': msg.id,
     },
     check,
-    el('div', { class: 'ag-cs-bubble-wrap' }, swipeIcon, bubble),
+    bubbleWrap,
   );
+
+  if (hoverActions) {
+    row.addEventListener('mouseenter', () => hoverActions.setVisible(true));
+    row.addEventListener('mouseleave', () => hoverActions.setVisible(false));
+    row.addEventListener('focusin', () => hoverActions.setVisible(true));
+    row.addEventListener('focusout', (e) => {
+      if (!row.contains(e.relatedTarget as Node | null)) {
+        hoverActions.setVisible(false);
+      }
+    });
+  }
 
   // Click: selection toggle
   row.addEventListener('click', () => {
@@ -164,7 +297,7 @@ export function createMessageRow(msg: ChatMessage, ctx: BubbleContext): HTMLElem
   let tracking = false;
   let swiping = false;
   let pressTimer = 0;
-  const wrap = bubble.parentElement as HTMLElement;
+  const wrap = bubbleWrap;
   const cancelPress = () => {
     if (pressTimer) {
       window.clearTimeout(pressTimer);

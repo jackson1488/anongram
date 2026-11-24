@@ -5,12 +5,14 @@ import { tgIcons } from '../../../core/ui/icons';
 import { showToast } from '../../../core/ui/toast';
 import { draftsStore } from '../../drafts/draftsStore';
 import { audioPlayer, createMiniAudioPlayerBar } from '../../player/audioPlayer';
+import { openWallpaperPicker } from '../../wallpapers';
 import { chatStore } from '../chatStore';
 import { chatScreenT } from '../i18n';
 import type { ChatMessage, MessageAttachment, ReplyPreview } from '../models';
 import { createInChatSearchBar } from '../search/ChatSearchScreen';
 import { createUserProfileScreen } from '../user_profile/api/UserProfileScreen';
 import { blockedUsersStore } from '../user_profile/data/BlockedUsersStore';
+import { userProfileT } from '../user_profile/i18n/UserProfileI18n';
 import { createChatTopBar } from './ChatTopBar';
 import { createChatWallpaper } from './ChatWallpaper';
 import { createAttachMenu } from './components/AttachMenu';
@@ -23,6 +25,39 @@ import { closeMessageContextMenu, showMessageContextMenu } from './components/Me
 import { createPinnedMessageBar } from './components/PinnedMessageBar';
 import { createReplyBar } from './components/ReplyBar';
 import { createSelectionTopBar } from './components/SelectionTopBar';
+
+type ChatStoreExtra = typeof chatStore & {
+  clearHistory?: (chatId: string) => void;
+  deleteChat?: (chatId: string) => void;
+};
+
+function sameCalendarDay(a: ChatMessage, b: ChatMessage): boolean {
+  return new Date(a.createdAt).toDateString() === new Date(b.createdAt).toDateString();
+}
+
+function clearChatMessages(chatId: string): void {
+  const store = chatStore as ChatStoreExtra;
+  if (typeof store.clearHistory === 'function') {
+    store.clearHistory(chatId);
+    return;
+  }
+  for (const m of [...chatStore.getMessages(chatId)]) {
+    chatStore.deleteMessage(chatId, m.id);
+  }
+}
+
+function deleteChatThread(chatId: string): void {
+  const store = chatStore as ChatStoreExtra;
+  if (typeof store.deleteChat === 'function') {
+    store.deleteChat(chatId);
+    return;
+  }
+  clearChatMessages(chatId);
+  const thread = chatStore.getThread(chatId);
+  if (thread && !thread.isArchived) {
+    chatStore.toggleArchive(chatId);
+  }
+}
 
 function makeReplyPreview(msg: ChatMessage): ReplyPreview {
   return {
@@ -58,7 +93,11 @@ export function createChatRoomView(
   const pinnedSlot = el('div');
   const miniPlayer = createMiniAudioPlayerBar();
   const wallpaper = createChatWallpaper();
-  const messagesEl = el('div', { class: 'ag-messages-scroll' });
+  const messagesInner = el('div', {
+    class: 'ag-messages-inner',
+    style: 'display:flex;flex-direction:column;width:100%;max-width:720px;margin:auto auto 0;',
+  });
+  const messagesEl = el('div', { class: 'ag-messages-scroll' }, messagesInner);
   const scrollDownBtn = el(
     'button',
     {
@@ -200,35 +239,59 @@ export function createChatRoomView(
 
     const thread = chatStore.getThread(chatId);
     if (thread) {
-      headerSlot.appendChild(
-        createChatTopBar(thread, onBackMobile, {
-          onOpenProfile: () => {
-            profileOpen = !profileOpen;
+      const actions = {
+        onOpenProfile: () => {
+          profileOpen = !profileOpen;
+          renderProfile();
+        },
+        onToggleSearch: () => {
+          searchOpen = !searchOpen;
+          renderSearchBar();
+        },
+        onClearHistory: () => {
+          clearChatMessages(chatId);
+          exitSelection();
+          showToast(userProfileT().clearedHistoryToast);
+        },
+        onDeleteChat: () => {
+          if (profileOpen) {
+            profileOpen = false;
             renderProfile();
-          },
-          onToggleSearch: () => {
-            searchOpen = !searchOpen;
-            renderSearchBar();
-          },
-        }),
-      );
+          }
+          deleteChatThread(chatId);
+          draftsStore.clearDraft(chatId);
+          showToast(userProfileT().deletedChatToast);
+          onBackMobile();
+        },
+        onToggleMute: () => {
+          const nowMuted = blockedUsersStore.toggleMute(chatId);
+          const s = userProfileT();
+          showToast(nowMuted ? s.mutedToast : s.unmutedToast);
+        },
+        onOpenWallpaper: () => {
+          openWallpaperPicker();
+        },
+      };
+      headerSlot.appendChild(createChatTopBar(thread, onBackMobile, actions));
     }
   };
 
   const renderSearchBar = () => {
+    (searchSlot.firstElementChild as { __cleanup?: () => void } | null)?.__cleanup?.();
     clear(searchSlot);
     if (!searchOpen) return;
-    searchSlot.appendChild(
-      createInChatSearchBar(
-        chatId,
-        (msgId) => jumpToMessage(msgId),
-        () => {
-          searchOpen = false;
-          renderSearchBar();
-          composer.focus();
-        },
-      ),
+    const bar = createInChatSearchBar(
+      chatId,
+      (msgId) => jumpToMessage(msgId),
+      () => {
+        searchOpen = false;
+        renderSearchBar();
+        composer.focus();
+      },
     );
+    searchSlot.appendChild(bar);
+    const inp = bar.querySelector('.ag-inchat-search__input') as HTMLInputElement | null;
+    inp?.focus();
   };
 
   const renderProfile = () => {
@@ -352,24 +415,32 @@ export function createChatRoomView(
     const prevScrollTop = messagesEl.scrollTop;
     forceScrollBottom = false;
 
-    clear(messagesEl);
+    clear(messagesInner);
     const messages = chatStore.getMessages(chatId);
     const isDesktop = window.innerWidth >= 840;
     let lastDay = '';
 
-    for (const msg of messages) {
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
       const dayKey = new Date(msg.createdAt).toDateString();
       if (dayKey !== lastDay) {
         lastDay = dayKey;
-        messagesEl.appendChild(createDateChip(msg.createdAt));
+        messagesInner.appendChild(createDateChip(msg.createdAt));
       }
 
-      messagesEl.appendChild(
+      const prev = i > 0 ? messages[i - 1] : null;
+      const next = i < messages.length - 1 ? messages[i + 1] : null;
+      const isGroupFirst = !(prev && prev.isOutgoing === msg.isOutgoing && sameCalendarDay(prev, msg));
+      const isGroupLast = !(next && next.isOutgoing === msg.isOutgoing && sameCalendarDay(msg, next));
+
+      messagesInner.appendChild(
         createMessageRow(msg, {
           chatId,
           selectionMode,
           selected: selectedIds.has(msg.id),
           isDesktop,
+          isGroupFirst,
+          isGroupLast,
           onContextMenu: openMenuFor,
           onToggleSelect: (m) => {
             if (selectedIds.has(m.id)) selectedIds.delete(m.id);
@@ -470,7 +541,10 @@ export function createChatRoomView(
     renderMessages();
   });
 
-  const unsubBlocked = blockedUsersStore.subscribe(renderBlockedDock);
+  const unsubBlocked = blockedUsersStore.subscribe(() => {
+    renderHeader();
+    renderBlockedDock();
+  });
 
   let audioKey = `${audioPlayer.currentTrack?.id ?? ''}|${audioPlayer.playing}`;
   const unsubAudio = audioPlayer.subscribe(() => {
@@ -509,6 +583,10 @@ export function createChatRoomView(
     unsubBlocked();
     unsubAudio();
     unsubI18n();
+    (wallpaper as unknown as { __cleanup?: () => void }).__cleanup?.();
+    (miniPlayer as unknown as { __cleanup?: () => void }).__cleanup?.();
+    (pinnedSlot.firstElementChild as unknown as { __cleanup?: () => void } | null)?.__cleanup?.();
+    (searchSlot.firstElementChild as unknown as { __cleanup?: () => void } | null)?.__cleanup?.();
     closeMessageContextMenu();
   };
 

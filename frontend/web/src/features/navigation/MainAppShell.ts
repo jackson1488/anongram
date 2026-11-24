@@ -43,7 +43,7 @@ type Cleanable = HTMLElement & {
 
 /**
  * Responsive shell mirroring Android MainAppShell.kt:
- *  - Mobile (<840px): AppHeader + 4-tab MainFloatingIsland with elevated QR button,
+ *  - Mobile (<840px): AppHeader on Services/Profile + 4-tab MainFloatingIsland with elevated Stealth button,
  *    and AnimationEngine-driven detail overlays with swipe-back gesture.
  *  - Desktop (>=840px): Telegram Web two-pane layout with DesktopSidebarMenu.
  */
@@ -65,6 +65,21 @@ export function createAppShell(): HTMLElement {
   let detailScreen: TransitionScreen | null = null;
   let detailSwipeCleanup: (() => void) | null = null;
   let isClosingDetail = false;
+  let escHandledByChild = false;
+
+  const SELF_CLOSING_OVERLAY_SELECTOR = [
+    '.ag-menu-backdrop',
+    '.ag-cs-menu-layer',
+    '.ag-overlay.is-open',
+    '.ag-up-sheet-backdrop',
+    '.ag-fwd-modal-backdrop',
+    '.ag-pl-overlay',
+    '.ag-wp-overlay',
+    '.ag-dv-overlay',
+    '.ag-mv-overlay',
+    '.ag-cam-overlay',
+    '.ag-inchat-search',
+  ].join(',');
 
   const isDesktop = () => window.innerWidth >= 840;
 
@@ -85,10 +100,13 @@ export function createAppShell(): HTMLElement {
   };
 
   const closeMobileDetail = () => {
-    if (!detailScreen || isClosingDetail) {
+    if (isClosingDetail) return;
+    if (!detailScreen) {
       if (mobileChatOpen || mobileSettingsOpen) {
         mobileChatOpen = false;
         mobileSettingsOpen = false;
+        cleanupRight?.();
+        cleanupRight = null;
         teardownDetailOverlay();
       }
       return;
@@ -98,13 +116,13 @@ export function createAppShell(): HTMLElement {
     void closeOverlay(screen, () => {
       if (detailScreen === screen) {
         teardownDetailOverlay();
+        cleanupRight?.();
+        cleanupRight = null;
+        mobileChatOpen = false;
+        mobileSettingsOpen = false;
       } else {
         screen.el.remove();
       }
-      cleanupRight?.();
-      cleanupRight = null;
-      mobileChatOpen = false;
-      mobileSettingsOpen = false;
     });
   };
 
@@ -298,7 +316,7 @@ export function createAppShell(): HTMLElement {
           el('div', { class: 'ag-chat-header__title' }, titles[activeTab]),
         ),
       );
-    } else if (!desktop) {
+    } else if (!desktop && (activeTab === 'services' || activeTab === 'profile')) {
       const header = createAppHeader() as Cleanable;
       cleanupHeader = header.__cleanup ?? null;
       leftPane.appendChild(header);
@@ -366,6 +384,108 @@ export function createAppShell(): HTMLElement {
     }
   };
 
+  const tryClearSearchInput = (selector: string, typing: boolean): boolean => {
+    const input = root.querySelector<HTMLInputElement>(selector);
+    if (!input || input.getClientRects().length === 0) return false;
+    const focused = document.activeElement === input;
+    if (!focused && (input.value.length === 0 || typing)) return false;
+    if (input.value.length > 0) {
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    if (focused) input.blur();
+    return true;
+  };
+
+  const handleEscape = (e: KeyboardEvent, typing: boolean): void => {
+    const childHandled = escHandledByChild;
+    escHandledByChild = false;
+    if (e.defaultPrevented || childHandled) return;
+
+    const scrim = document.querySelector('.ag-pop-scrim');
+    if (scrim) {
+      scrim.remove();
+      e.preventDefault();
+      return;
+    }
+
+    const modals = document.querySelectorAll<HTMLElement>('.ag-modal-overlay');
+    const topModal = modals[modals.length - 1];
+    if (topModal) {
+      topModal.dispatchEvent(new MouseEvent('click', { bubbles: false }));
+      if (!topModal.isConnected) {
+        e.preventDefault();
+        return;
+      }
+    }
+
+    const profileCloseBtn = root.querySelector<HTMLButtonElement>(
+      '.ag-user-profile .ag-up-topbar > .ag-up-topbar__btn:first-child',
+    );
+    if (profileCloseBtn) {
+      profileCloseBtn.click();
+      e.preventDefault();
+      return;
+    }
+
+    if (mobileChatOpen || mobileSettingsOpen) {
+      closeMobileDetail();
+      e.preventDefault();
+      return;
+    }
+
+    if (
+      tryClearSearchInput('.ag-mm .ag-search-row input', typing) ||
+      tryClearSearchInput('.ag-archive-search-wrap input', typing)
+    ) {
+      e.preventDefault();
+      return;
+    }
+
+    if (isDesktop() && activeTab === 'settings' && settingsRoute === 'search') {
+      settingsRoute = 'chatAppearance';
+      render();
+      e.preventDefault();
+      return;
+    }
+
+    const archiveBackBtn = root.querySelector<HTMLButtonElement>('.ag-archive-header .ag-icon-btn');
+    if (archiveBackBtn && archiveBackBtn.getClientRects().length > 0 && !typing) {
+      archiveBackBtn.click();
+      e.preventDefault();
+      return;
+    }
+
+    const servicesBackBtn = root.querySelector<HTMLButtonElement>(
+      '.ag-left-pane > .ag-list-pane > .ag-chat-header > .ag-icon-btn:first-child, .ag-left-pane > .ag-list-pane > .ag-ai-shell .ag-ai-topbar .ag-icon-btn:first-child',
+    );
+    if (servicesBackBtn && servicesBackBtn.getClientRects().length > 0 && !typing) {
+      servicesBackBtn.click();
+      e.preventDefault();
+      return;
+    }
+
+    if (isDesktop() && activeChatId && !typing) {
+      activeChatId = null;
+      mountRight();
+      chatListRef?.__refresh?.();
+      e.preventDefault();
+      return;
+    }
+
+    if (isDesktop() && activeTab === 'settings' && settingsRoute !== 'chatAppearance' && !typing) {
+      settingsRoute = 'chatAppearance';
+      render();
+      e.preventDefault();
+    }
+  };
+
+  const onKeyDownCapture = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      escHandledByChild = Boolean(document.querySelector(SELF_CLOSING_OVERLAY_SELECTOR));
+    }
+  };
+
   const onKeyDown = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null;
     const typing =
@@ -383,18 +503,7 @@ export function createAppShell(): HTMLElement {
     }
 
     if (e.key === 'Escape') {
-      const scrim = document.querySelector('.ag-pop-scrim');
-      if (scrim) {
-        scrim.remove();
-        return;
-      }
-      if (mobileChatOpen || mobileSettingsOpen) {
-        closeMobileDetail();
-      } else if (isDesktop() && activeChatId && !typing) {
-        activeChatId = null;
-        mountRight();
-        chatListRef?.__refresh?.();
-      }
+      handleEscape(e, typing);
       return;
     }
 
@@ -423,6 +532,7 @@ export function createAppShell(): HTMLElement {
     }
   };
 
+  window.addEventListener('keydown', onKeyDownCapture, true);
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('resize', onResize);
   const unsubI18n = i18nStore.subscribe(render);
@@ -431,6 +541,7 @@ export function createAppShell(): HTMLElement {
   render();
 
   (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
+    window.removeEventListener('keydown', onKeyDownCapture, true);
     window.removeEventListener('keydown', onKeyDown);
     window.removeEventListener('resize', onResize);
     unsubI18n();

@@ -117,8 +117,39 @@ function bestOnColor(bg: RgbColor): RgbColor {
     : lightText;
 }
 
-function blendHalf(a: RgbColor, b: RgbColor): RgbColor {
-  return rgb((a.r + b.r) * 0.5, (a.g + b.g) * 0.5, (a.b + b.b) * 0.5, 1);
+function bestOnGradient(a: RgbColor, b: RgbColor): RgbColor {
+  const darkText = rgb(10 / 255, 12 / 255, 16 / 255);
+  const lightText = rgb(1, 1, 1);
+  const darkMin = Math.min(contrastRatio(a, darkText), contrastRatio(b, darkText));
+  const lightMin = Math.min(contrastRatio(a, lightText), contrastRatio(b, lightText));
+  return darkMin >= lightMin ? darkText : lightText;
+}
+
+/** Adjusts HSL lightness monotonically so non-mono accents stay legible against `bg`. */
+function tuneAccent(
+  hue: number,
+  sat: number,
+  initialL: number,
+  isDark: boolean,
+  isMono: boolean,
+  bg: RgbColor,
+): { color: RgbColor; lightness: number } {
+  let l = initialL;
+  let color = hslToRgb(hue, sat, l);
+  if (isMono) return { color, lightness: l };
+
+  if (isDark) {
+    while (contrastRatio(color, bg) < 3.8 && l < 0.68) {
+      l = Math.min(0.68, l + 0.015);
+      color = hslToRgb(hue, sat, l);
+    }
+  } else {
+    while (contrastRatio(color, bg) < 4.5 && l > 0.27) {
+      l = Math.max(0.27, l - 0.01);
+      color = hslToRgb(hue, sat, l);
+    }
+  }
+  return { color, lightness: l };
 }
 
 export function buildScheme(
@@ -196,28 +227,31 @@ export function buildScheme(
     ? rgb(4 / 255, 5 / 255, 8 / 255, 0.8)
     : rgb(16 / 255, 20 / 255, 28 / 255, 0.53);
 
-  const borderAlpha =
-    isDark && spec.tintMode === 'FULL_OS'
-      ? 0.24
-      : isDark
-        ? 0.14
-        : spec.tintMode === 'FULL_OS'
-          ? 0.22
-          : 0.14;
+  // Subtle tonal borders that separate surfaces cleanly without harsh wireframes.
+  const isFullOs = spec.tintMode === 'FULL_OS';
+  const borderAlpha = isFullOs ? (isDark ? 0.14 : 0.15) : isDark ? 0.1 : 0.11;
+  const borderSat = effSat * (isDark ? 0.36 : 0.38);
 
   const cardBorder = isDark
-    ? hslToRgb(hue, effSat * 0.7, 0.78, borderAlpha)
-    : hslToRgb(hue, effSat * 0.55, 0.32, borderAlpha);
+    ? hslToRgb(hue, borderSat, 0.74, borderAlpha)
+    : hslToRgb(hue, borderSat, 0.3, borderAlpha);
 
+  const islandAlpha = Math.min(0.2, borderAlpha + 0.03);
   const islandBorder = isDark
-    ? hslToRgb(hue, effSat * 0.75, 0.8, Math.min(0.32, borderAlpha + 0.04))
-    : hslToRgb(hue, effSat * 0.6, 0.3, Math.min(0.28, borderAlpha + 0.04));
+    ? hslToRgb(hue, effSat * 0.42, 0.76, islandAlpha)
+    : hslToRgb(hue, effSat * 0.42, 0.28, islandAlpha);
 
   const accentSat = isMono ? 0 : Math.max(0.55, effSat);
-  const accentL = isDark ? (isMono ? 0.93 : 0.59) : isMono ? 0.12 : 0.44;
-  const accentDimL = isDark ? (isMono ? 0.72 : 0.48) : isMono ? 0.26 : 0.36;
-
-  const accent = hslToRgb(hue, accentSat, accentL);
+  const baseAccentL = isDark ? (isMono ? 0.93 : 0.59) : isMono ? 0.12 : 0.4;
+  const tunedAccent = tuneAccent(hue, accentSat, baseAccentL, isDark, isMono, background);
+  const accent = tunedAccent.color;
+  const accentDimL = isDark
+    ? isMono
+      ? 0.72
+      : Math.max(0.42, tunedAccent.lightness - 0.11)
+    : isMono
+      ? 0.26
+      : Math.max(0.2, tunedAccent.lightness - 0.08);
   const accentDim = hslToRgb((hue + 12) % 360, accentSat * 0.92, accentDimL);
   const accentSoft = withAlpha(accent, isDark ? 0.17 : 0.13);
   const onAccent = bestOnColor(accent);
@@ -237,8 +271,8 @@ export function buildScheme(
 
   const incomingBubbleBg = hslToRgb(hue, cardSat, incomingL);
   const incomingBubbleBorder = isDark
-    ? hslToRgb(hue, effSat * 0.6, 0.75, 0.13)
-    : hslToRgb(hue, effSat * 0.5, 0.32, 0.15);
+    ? hslToRgb(hue, effSat * 0.36, 0.74, isFullOs ? 0.12 : 0.1)
+    : hslToRgb(hue, effSat * 0.35, 0.3, isFullOs ? 0.13 : 0.11);
   const incomingText = textPrimary;
 
   let outgoingStart: RgbColor;
@@ -247,18 +281,33 @@ export function buildScheme(
   let outgoingText: RgbColor;
 
   if (spec.bubbleStyle === 'GRADIENT') {
-    outgoingStart = hslToRgb(
-      hue,
-      isMono ? 0 : Math.max(0.54, effSat),
-      isDark ? (isMono ? 0.88 : 0.5) : isMono ? 0.14 : 0.46,
-    );
-    outgoingEnd = hslToRgb(
-      (hue + 14) % 360,
-      isMono ? 0 : Math.max(0.48, effSat),
-      isDark ? (isMono ? 0.72 : 0.39) : isMono ? 0.24 : 0.38,
-    );
-    outgoingBorder = rgb(1, 1, 1, isDark ? 0.16 : 0.1);
-    outgoingText = bestOnColor(blendHalf(outgoingStart, outgoingEnd));
+    const satS = isMono ? 0 : Math.max(0.54, effSat);
+    const satE = isMono ? 0 : Math.max(0.48, effSat);
+    let lS = isDark ? (isMono ? 0.88 : 0.47) : isMono ? 0.14 : 0.42;
+    let lE = isDark ? (isMono ? 0.72 : 0.39) : isMono ? 0.24 : 0.35;
+    outgoingStart = hslToRgb(hue, satS, lS);
+    outgoingEnd = hslToRgb((hue + 14) % 360, satE, lE);
+    outgoingText = bestOnGradient(outgoingStart, outgoingEnd);
+
+    if (!isMono) {
+      const useWhite = outgoingText.r > 0.5;
+      let guard = 0;
+      while (
+        Math.min(contrastRatio(outgoingStart, outgoingText), contrastRatio(outgoingEnd, outgoingText)) < 4.5 &&
+        guard++ < 12
+      ) {
+        if (useWhite) {
+          if (contrastRatio(outgoingStart, outgoingText) < 4.5) lS = Math.max(0.28, lS - 0.02);
+          if (contrastRatio(outgoingEnd, outgoingText) < 4.5) lE = Math.max(0.24, lE - 0.02);
+        } else {
+          if (contrastRatio(outgoingStart, outgoingText) < 4.5) lS = Math.min(0.62, lS + 0.02);
+          if (contrastRatio(outgoingEnd, outgoingText) < 4.5) lE = Math.min(0.54, lE + 0.02);
+        }
+        outgoingStart = hslToRgb(hue, satS, lS);
+        outgoingEnd = hslToRgb((hue + 14) % 360, satE, lE);
+      }
+    }
+    outgoingBorder = rgb(1, 1, 1, isDark ? 0.09 : 0.08);
   } else if (spec.bubbleStyle === 'TINTED') {
     const tintL = isDark
       ? spec.tintMode === 'FULL_OS'
@@ -266,7 +315,9 @@ export function buildScheme(
         : spec.tintMode === 'MONOCHROME'
           ? 0.2
           : 0.23
-      : 0.855;
+      : isMono
+        ? 0.86
+        : 0.855;
     const tintSat = isMono ? 0 : Math.max(0.36, effSat * 0.68);
     outgoingStart = hslToRgb(hue, tintSat, tintL);
     outgoingEnd = hslToRgb(
@@ -274,7 +325,7 @@ export function buildScheme(
       tintSat * 0.9,
       Math.max(0.14, tintL - 0.03),
     );
-    outgoingBorder = withAlpha(accent, isDark ? 0.44 : 0.38);
+    outgoingBorder = withAlpha(accent, isDark ? 0.13 : 0.14);
     outgoingText = textPrimary;
   } else {
     outgoingStart = islandBg;

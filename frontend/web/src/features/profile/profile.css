@@ -1,8 +1,8 @@
 .ag-profile-scroll {
-  padding: 8px 14px 96px;
+  padding: 12px 16px 100px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .ag-profile-hero {
@@ -13,6 +13,7 @@
   border-radius: 20px;
   background: var(--ag-card);
   border: 1px solid var(--ag-card-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
 .ag-profile-badge-icon {
@@ -61,6 +62,7 @@
   border-radius: 18px;
   background: var(--ag-card);
   border: 1px solid var(--ag-card-border);
+  transition: background-color 0.16s ease, border-color 0.16s ease;
 }
 
 .ag-profile-row__title {
@@ -75,6 +77,11 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
+.ag-profile-scroll .ag-ag1-code {
+  width: 100%;
+  word-break: break-all;
+}
+
 .ag-profile-logout-btn {
   display: flex;
   align-items: center;
@@ -82,17 +89,55 @@
   gap: 8px;
   width: 100%;
   min-height: 46px;
-  padding: 0 18px;
-  border-radius: 20px;
+  padding: 0 20px;
+  border-radius: 9999px;
   font-size: 13px;
   font-weight: 600;
   background: var(--ag-danger-soft);
   color: var(--ag-danger);
-  border: 1px solid var(--ag-danger-soft);
-  margin-top: 6px;
-  transition: transform 0.14s ease, opacity 0.14s ease;
+  border: 1px solid var(--ag-danger-border);
+  margin-top: 4px;
+  transition: transform 0.14s ease, background-color 0.16s ease, border-color 0.16s ease, opacity 0.14s ease;
+}
+
+.ag-profile-logout-btn:hover {
+  opacity: 0.92;
 }
 
 .ag-profile-logout-btn:active {
   transform: scale(0.98);
+}
+
+/* Desktop (>=840px): Telegram Web A softened borders, hover transitions, capsule buttons */
+@media (min-width: 840px) {
+  .ag-profile-scroll {
+    padding: 12px 14px 24px;
+    gap: 10px;
+  }
+
+  .ag-profile-hero,
+  .ag-profile-row,
+  .ag-profile-scroll .ag-settings-card,
+  .ag-profile-scroll .ag-ag1-code {
+    border: 1px solid color-mix(in srgb, var(--ag-divider) 65%, transparent);
+  }
+
+  .ag-profile-hero,
+  .ag-profile-row,
+  .ag-profile-scroll .ag-settings-card {
+    box-shadow: 0 2px 10px color-mix(in srgb, var(--ag-shadow) 35%, transparent);
+  }
+
+  .ag-profile-row:hover {
+    background: var(--ag-hover);
+  }
+
+  .ag-profile-scroll .ag-pill-btn {
+    border-radius: 9999px;
+    transition: background-color 0.16s ease, transform 0.14s ease, opacity 0.14s ease;
+  }
+
+  .ag-profile-scroll .ag-pill-btn--primary:hover {
+    opacity: 0.92;
+  }
 }

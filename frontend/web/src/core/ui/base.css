@@ -110,8 +110,18 @@ button {
   padding: 0 16px;
   border-radius: 9999px;
   background: var(--ag-input-bg);
-  border: 1px solid var(--ag-input-border);
+  border: 1px solid transparent;
   color: var(--ag-text-primary);
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.ag-search-pill:focus-within {
+  border-color: var(--ag-accent-dim);
+}
+
+.ag-search-pill > svg {
+  color: var(--ag-text-muted);
+  flex-shrink: 0;
 }
 
 .ag-search-pill input {
