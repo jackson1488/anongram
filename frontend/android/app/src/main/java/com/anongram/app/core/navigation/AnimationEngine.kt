@@ -67,14 +67,16 @@ fun Modifier.applyAnonGramTransition(
             effectiveType != TransitionType.SPRING_SWIPE &&
             effectiveType != TransitionType.CARD_STACK_PEEK &&
             effectiveType != TransitionType.PREDICTIVE_BACK &&
+            effectiveType != TransitionType.SMOOTH_SLIDE &&
             effectiveType != TransitionType.PARTICLE_DISSOLVE
         ) {
-            val cardScale = (1f - progress * 0.14f).coerceIn(0.82f, 1f)
+            val safeProgress = progress.coerceAtLeast(0f)
+            val cardScale = (1f - safeProgress * 0.14f).coerceIn(0.82f, 1f)
             scaleX *= cardScale
             scaleY *= cardScale
-            shape = androidx.compose.foundation.shape.RoundedCornerShape((progress * 28f).dp)
-            clip = progress > 0.01f
-            shadowElevation = progress * 16.dp.toPx()
+            shape = androidx.compose.foundation.shape.RoundedCornerShape((safeProgress * 28f).dp)
+            clip = safeProgress > 0.01f
+            shadowElevation = safeProgress * 16.dp.toPx()
         }
     }
 }

@@ -20,15 +20,17 @@ class SmoothSlideStyle : ITransitionStyle {
         config: NavigationTransitionConfig,
         density: Float
     ) {
+        val safeProgress = progress.coerceAtLeast(0f)
         val edgeDir = if (config.swipeEdge == 1) -1f else 1f
         val yOffsetFactor = (config.touchYFraction - 0.5f).coerceIn(-0.5f, 0.5f)
-        val scale = (1f - progress * 0.12f).coerceIn(0.86f, 1f)
+        val scale = (1f - safeProgress * 0.12f).coerceIn(0.86f, 1f)
         scaleX = scale
         scaleY = scale
-        shape = RoundedCornerShape((progress * 24f).dp)
-        clip = progress > 0.01f
-        shadowElevation = progress * 14.dp.toPx()
-        translationY = yOffsetFactor * progress * size.height * 0.04f
+        val corner = (safeProgress * 84f).coerceIn(0f, 32f)
+        shape = RoundedCornerShape(corner.dp)
+        clip = safeProgress > 0.01f
+        shadowElevation = (safeProgress * 18f).coerceAtMost(18f).dp.toPx()
+        translationY = yOffsetFactor * safeProgress * size.height * 0.04f
         translationX = edgeDir * progress * size.width
         alpha = 1f
     }
