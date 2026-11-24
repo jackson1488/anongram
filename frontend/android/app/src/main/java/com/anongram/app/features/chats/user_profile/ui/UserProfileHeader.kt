@@ -57,7 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
+import com.anongram.app.core.ui.AnonGramGlassHeaderBackdrop
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.user_profile.i18n.UserProfileStrings
@@ -93,22 +93,21 @@ internal fun UserProfileTopOverlayBar(
         label = "profileHeaderCollapse"
     )
 
-    val bgModifier = if (collapseAlpha > 0.05f) {
-        Modifier.anonGramProgressiveHeaderBlur(
-            hazeState = hazeState,
-            glassBlurEnabled = true,
-            scrollFraction = collapseAlpha
-        )
-    } else {
-        Modifier
-    }
+    Box(modifier = modifier.fillMaxWidth()) {
+        if (collapseAlpha > 0.05f) {
+            AnonGramGlassHeaderBackdrop(
+                hazeState = hazeState,
+                glassBlurEnabled = true,
+                scrollFraction = collapseAlpha,
+                modifier = Modifier.matchParentSize()
+            )
+        }
 
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(bgModifier)
-            .safeStatusBarPadding()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .safeStatusBarPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -255,6 +254,7 @@ internal fun UserProfileTopOverlayBar(
                 )
                 overflowMenu()
             }
+        }
         }
     }
 }

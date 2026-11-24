@@ -42,7 +42,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
+import com.anongram.app.core.ui.AnonGramGlassHeaderColumn
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import dev.chrisbanes.haze.HazeProgressive
@@ -310,17 +310,11 @@ fun SettingsMainScreen(
 
         // 2. Закреплённая сверху полупрозрачная шапка с прогрессивным матовым стеклом (Telegram Progressive Blur):
         // Блюр плавно растворяется к нижнему краю до 0%, поэтому граница шапки абсолютно незаметна.
-        val headerBackgroundModifier = Modifier.anonGramProgressiveHeaderBlur(
+        AnonGramGlassHeaderColumn(
             hazeState = hazeState,
             glassBlurEnabled = animState.glassBlurEnabled,
-            scrollFraction = animatedHeaderAlpha
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .then(headerBackgroundModifier)
+            scrollFraction = animatedHeaderAlpha,
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Box(
                 modifier = Modifier

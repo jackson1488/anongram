@@ -56,8 +56,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramGlassHeaderColumn
 import com.anongram.app.core.ui.AnonGramScreenSurface
-import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.archive.i18n.ArchiveI18n
 import com.anongram.app.features.chats.common.IChatSession
@@ -128,11 +128,6 @@ fun ArchiveScreen(
     val animatedHeaderAlpha by animateFloatAsState(
         targetValue = if (isScrolled) 1f else 0f,
         label = "archiveHeaderAlpha"
-    )
-    val headerBackgroundModifier = Modifier.anonGramProgressiveHeaderBlur(
-        hazeState = hazeState,
-        glassBlurEnabled = animState.glassBlurEnabled,
-        scrollFraction = animatedHeaderAlpha
     )
 
     BackHandler(enabled = isInfoSheetOpen || state.isSelection) {
@@ -230,12 +225,12 @@ fun ArchiveScreen(
             }
         }
 
-        // 2. Парящая прозрачная шапка с бесшовным блюром
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .then(headerBackgroundModifier)
+        // 2. Парящая прозрачная шапка с бесшовным матовым стеклом
+        AnonGramGlassHeaderColumn(
+            hazeState = hazeState,
+            glassBlurEnabled = animState.glassBlurEnabled,
+            scrollFraction = animatedHeaderAlpha,
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
             if (state.isSelection) {
                 SelectionTopBar(

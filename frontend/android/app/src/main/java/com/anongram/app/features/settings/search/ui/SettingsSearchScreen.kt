@@ -37,8 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramGlassHeaderColumn
 import com.anongram.app.core.ui.AnonGramScreenSurface
-import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.navigation.SettingsRoute
 import com.anongram.app.features.settings.search.domain.SettingsSearchEngine
@@ -200,17 +200,11 @@ fun SettingsSearchScreen(
                 }
             }
 
-            val topBarModifier = Modifier.anonGramProgressiveHeaderBlur(
+            AnonGramGlassHeaderColumn(
                 hazeState = hazeState,
                 glassBlurEnabled = animState.glassBlurEnabled,
-                scrollFraction = 0.5f
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .then(topBarModifier)
+                scrollFraction = 0.5f,
+                modifier = Modifier.align(Alignment.TopCenter)
             ) {
                 SettingsSearchTopBar(
                     query = query,

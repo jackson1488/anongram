@@ -1,62 +1,72 @@
 package com.anongram.app.core.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.theme.ThemeTintMode
-import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 
 /**
- * Единый бесшовный прогрессивный блюр для плавающих шапок AnonGram.
+ * Фоновый слой бесшовного матового стекла для плавающих шапок AnonGram.
  *
- * В светлой теме использует молочный тон `scheme.surface`.
- * В тёмной теме (включая кастомные и Ч/Б темы) осветляет тон матового стекла
- * от `scheme.card` + лёгкий акцент темы, чтобы блюр не превращался в глухую чёрную полосу.
+ * Использует стандартный `hazeEffect` (без `HazeProgressive`, который на тёмных темах
+ * давал чёрную полосу сверху) и плавно растворяет нижний край через `BlendMode.DstIn`.
  */
 @Composable
-fun Modifier.anonGramProgressiveHeaderBlur(
+fun AnonGramGlassHeaderBackdrop(
     hazeState: HazeState,
     glassBlurEnabled: Boolean,
-    scrollFraction: Float
-): Modifier {
+    scrollFraction: Float,
+    modifier: Modifier = Modifier
+) {
     val scheme = LocalAnonGramScheme.current
     val fraction = scrollFraction.coerceIn(0f, 1f)
-    val isMono = scheme.spec.tintMode == ThemeTintMode.MONOCHROME
 
-    val glassTint = if (scheme.isDark) {
-        val base = lerp(scheme.card, scheme.accent, if (isMono) 0f else 0.10f)
-        val lifted = lerp(base, Color.White, 0.08f)
-        lifted.copy(alpha = 0.16f + 0.10f * fraction)
+    val tintColor = if (scheme.isDark) {
+        scheme.surface.copy(alpha = 0.28f + 0.16f * fraction)
     } else {
-        scheme.surface.copy(alpha = 0.38f + 0.14f * fraction)
+        scheme.surface.copy(alpha = 0.40f + 0.16f * fraction)
     }
 
-    val blurModifier = if (glassBlurEnabled) {
-        Modifier.hazeEffect(
-            state = hazeState,
-            style = HazeStyle(
-                backgroundColor = Color.Transparent,
-                tint = HazeTint(color = glassTint),
-                blurRadius = 22.dp,
-                noiseFactor = 0.02f
+    val backdropModifier = if (glassBlurEnabled) {
+        modifier
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .hazeEffect(
+                state = hazeState,
+                style = HazeStyle(
+                    backgroundColor = scheme.background,
+                    tint = HazeTint(color = tintColor),
+                    blurRadius = 18.dp,
+                    noiseFactor = 0.02f
+                )
             )
-        ) {
-            progressive = HazeProgressive.verticalGradient(
-                startIntensity = 1f,
-                endIntensity = 0f
-            )
-        }
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        0.0f to Color.Black,
+                        0.68f to Color.Black,
+                        1.0f to Color.Transparent
+                    ),
+                    blendMode = BlendMode.DstIn
+                )
+            }
     } else {
-        Modifier.background(
+        modifier.background(
             Brush.verticalGradient(
                 colors = listOf(
                     scheme.surface.copy(alpha = 0.90f + 0.08f * fraction),
@@ -66,5 +76,31 @@ fun Modifier.anonGramProgressiveHeaderBlur(
             )
         )
     }
-    return this.then(blurModifier)
+
+    Box(modifier = backdropModifier)
+}
+
+/**
+ * Контейнер шапки с бесшовным матовым фоном [AnonGramGlassHeaderBackdrop] позади контента.
+ */
+@Composable
+fun AnonGramGlassHeaderColumn(
+    hazeState: HazeState,
+    glassBlurEnabled: Boolean,
+    scrollFraction: Float,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        AnonGramGlassHeaderBackdrop(
+            hazeState = hazeState,
+            glassBlurEnabled = glassBlurEnabled,
+            scrollFraction = scrollFraction,
+            modifier = Modifier.matchParentSize()
+        )
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            content = content
+        )
+    }
 }

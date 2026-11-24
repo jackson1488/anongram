@@ -63,8 +63,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.navigation.PhysicsSprings
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.AnonGramGlassHeaderColumn
 import com.anongram.app.core.ui.AnonGramScreenSurface
-import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
 import com.anongram.app.features.chats.archive.i18n.ArchiveI18n
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.common.timeLabel
@@ -312,11 +312,6 @@ fun ChatsMainMenuScreen(
         targetValue = if (isScrolled) 1f else 0f,
         label = "chatsHeaderAlpha"
     )
-    val headerBackgroundModifier = Modifier.anonGramProgressiveHeaderBlur(
-        hazeState = hazeState,
-        glassBlurEnabled = animState.glassBlurEnabled,
-        scrollFraction = animatedHeaderAlpha
-    )
 
     AnonGramScreenSurface(
         modifier = modifier,
@@ -533,12 +528,12 @@ fun ChatsMainMenuScreen(
             }
         }
 
-        // 2. Закреплённая сверху прозрачная шапка с бесшовным прогрессивным блюром
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .then(headerBackgroundModifier)
+        // 2. Закреплённая сверху прозрачная шапка с бесшовным матовым стеклом
+        AnonGramGlassHeaderColumn(
+            hazeState = hazeState,
+            glassBlurEnabled = animState.glassBlurEnabled,
+            scrollFraction = animatedHeaderAlpha,
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
             if (state.isSelection) {
                 SelectionTopBar(

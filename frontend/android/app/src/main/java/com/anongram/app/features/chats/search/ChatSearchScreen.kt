@@ -52,7 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
+import com.anongram.app.core.ui.AnonGramGlassHeaderColumn
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.ui.accentColor
@@ -95,12 +95,6 @@ fun ChatSearchScreen(
         } catch (_: Exception) { }
     }
 
-    val topBarBackgroundModifier = Modifier.anonGramProgressiveHeaderBlur(
-        hazeState = hazeState,
-        glassBlurEnabled = animState.glassBlurEnabled,
-        scrollFraction = 0.5f
-    )
-
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -142,11 +136,11 @@ fun ChatSearchScreen(
         }
 
         // 2. Парящая панель поиска в стиле Telegram с бесшовным блюром
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .then(topBarBackgroundModifier)
+        AnonGramGlassHeaderColumn(
+            hazeState = hazeState,
+            glassBlurEnabled = animState.glassBlurEnabled,
+            scrollFraction = 0.5f,
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Row(
                 modifier = Modifier

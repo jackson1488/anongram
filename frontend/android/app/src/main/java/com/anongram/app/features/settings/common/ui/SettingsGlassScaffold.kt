@@ -40,7 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeNavigationBarPadding
-import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
+import com.anongram.app.core.ui.AnonGramGlassHeaderColumn
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import dev.chrisbanes.haze.HazeProgressive
@@ -144,12 +144,6 @@ fun SettingsGlassScaffold(
         label = "settingsSubHeaderAlpha"
     )
 
-    val headerBackgroundModifier = Modifier.anonGramProgressiveHeaderBlur(
-        hazeState = hazeState,
-        glassBlurEnabled = animState.glassBlurEnabled,
-        scrollFraction = animatedHeaderAlpha
-    )
-
     val scaffoldBgBrush = com.anongram.app.core.theme.rememberRainbowBackgroundBrush(scheme)
     Box(
         modifier = modifier
@@ -175,12 +169,12 @@ fun SettingsGlassScaffold(
             )
         }
 
-        // 2. Парящая прозрачная шапка с бесшовным прогрессивным блюром и стеклянными кнопками
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .then(headerBackgroundModifier)
+        // 2. Парящая прозрачная шапка с бесшовным матовым стеклом и стеклянными кнопками
+        AnonGramGlassHeaderColumn(
+            hazeState = hazeState,
+            glassBlurEnabled = animState.glassBlurEnabled,
+            scrollFraction = animatedHeaderAlpha,
+            modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Box(
                 modifier = Modifier
