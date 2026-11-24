@@ -18,6 +18,7 @@ class PredictiveBackStackStyle : ITransitionStyle {
         density: Float
     ) {
         val towardEdgeDir = if (config.swipeEdge == 1) 1f else -1f
+        val inwardDir = -towardEdgeDir
         val yOffsetFactor = (config.touchYFraction - 0.5f).coerceIn(-0.5f, 0.5f)
         val scale = (1f - progress * 0.18f).coerceIn(0.80f, 1f)
         scaleX = scale
@@ -27,10 +28,19 @@ class PredictiveBackStackStyle : ITransitionStyle {
         shadowElevation = progress * 18.dp.toPx()
         translationY = yOffsetFactor * progress * size.height * 0.06f
 
+        val holdFraction = 0.22f
         if (config.isPredictiveHolding) {
-            translationX = towardEdgeDir * progress * size.width * 0.14f
+            translationX = inwardDir * progress * size.width * holdFraction
         } else {
-            translationX = towardEdgeDir * progress * size.width
+            val releaseP = config.predictiveReleaseProgress.coerceIn(0f, 0.9f)
+            val exitT = if (releaseP > 0.001f) {
+                ((progress - releaseP) / (1f - releaseP)).coerceIn(0f, 1f)
+            } else {
+                progress.coerceIn(0f, 1f)
+            }
+            val startX = inwardDir * releaseP * size.width * holdFraction
+            val endX = towardEdgeDir * size.width * 1.05f
+            translationX = startX + (endX - startX) * exitT
         }
         alpha = 1f
     }

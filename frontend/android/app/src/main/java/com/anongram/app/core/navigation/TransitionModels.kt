@@ -66,6 +66,7 @@ data class NavigationTransitionConfig(
     val swipeEdge: Int = 0,
     val touchYFraction: Float = 0.5f,
     val isPredictiveHolding: Boolean = false,
+    val predictiveReleaseProgress: Float = 0f,
     val isSystemGestureActive: Boolean = false
 ) {
     val effectiveDurationMs: Int

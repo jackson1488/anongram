@@ -80,12 +80,14 @@ fun SettingsNavHost(
     var predictiveSwipeEdge by remember { mutableStateOf(0) }
     var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
     var isPredictiveHolding by remember { mutableStateOf(false) }
+    var predictiveReleaseProgress by remember { mutableStateOf(0f) }
     var isSystemGestureActive by remember { mutableStateOf(false) }
-    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, isSystemGestureActive) {
+    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, predictiveReleaseProgress, isSystemGestureActive) {
         animState.toNavigationTransitionConfig().copy(
             swipeEdge = predictiveSwipeEdge,
             touchYFraction = predictiveTouchYFraction,
             isPredictiveHolding = isPredictiveHolding,
+            predictiveReleaseProgress = predictiveReleaseProgress,
             isSystemGestureActive = isSystemGestureActive
         )
     }
@@ -161,6 +163,7 @@ fun SettingsNavHost(
                 isSystemGestureActive = false
                 predictiveSwipeEdge = 0
                 predictiveTouchYFraction = 0.5f
+                predictiveReleaseProgress = 0f
                 underlayRoute = null
                 onSubScreenVisibilityChange((backStack.lastOrNull() ?: SettingsRoute.Main) != SettingsRoute.Main)
             }
@@ -188,6 +191,7 @@ fun SettingsNavHost(
             isSystemGestureActive = false
             predictiveSwipeEdge = 0
             predictiveTouchYFraction = 0.5f
+            predictiveReleaseProgress = 0f
             underlayRoute = null
         }
     }
@@ -204,6 +208,7 @@ fun SettingsNavHost(
         underlayRoute = backStack[backStack.lastIndex - 1]
         isExiting = true
         isPredictiveHolding = true
+        predictiveReleaseProgress = 0f
         isSystemGestureActive = true
         val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         try {
@@ -212,9 +217,11 @@ fun SettingsNavHost(
                 predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
                 transitionProgress.snapTo(event.progress.coerceIn(0f, 1f) * 0.34f)
             }
+            predictiveReleaseProgress = transitionProgress.value
             isPredictiveHolding = false
             popBack()
         } catch (_: CancellationException) {
+            predictiveReleaseProgress = transitionProgress.value
             isPredictiveHolding = false
             cancelBackGesture()
         }

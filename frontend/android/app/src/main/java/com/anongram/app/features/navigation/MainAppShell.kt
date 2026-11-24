@@ -109,12 +109,14 @@ fun MainAppShell(
     var predictiveSwipeEdge by remember { mutableStateOf(0) }
     var predictiveTouchYFraction by remember { mutableStateOf(0.5f) }
     var isPredictiveHolding by remember { mutableStateOf(false) }
+    var predictiveReleaseProgress by remember { mutableStateOf(0f) }
     var isSystemGestureActive by remember { mutableStateOf(false) }
-    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, isSystemGestureActive) {
+    val navConfig = remember(animState, predictiveSwipeEdge, predictiveTouchYFraction, isPredictiveHolding, predictiveReleaseProgress, isSystemGestureActive) {
         animState.toNavigationTransitionConfig().copy(
             swipeEdge = predictiveSwipeEdge,
             touchYFraction = predictiveTouchYFraction,
             isPredictiveHolding = isPredictiveHolding,
+            predictiveReleaseProgress = predictiveReleaseProgress,
             isSystemGestureActive = isSystemGestureActive
         )
     }
@@ -272,6 +274,7 @@ fun MainAppShell(
             isSystemGestureActive = false
             predictiveSwipeEdge = 0
             predictiveTouchYFraction = 0.5f
+            predictiveReleaseProgress = 0f
         }
     }
     val isPureSwipeOrParallax = (navConfig.transitionType == TransitionType.SPRING_SWIPE ||
@@ -303,6 +306,7 @@ fun MainAppShell(
         val screenH = context.resources.displayMetrics.heightPixels.toFloat().coerceAtLeast(1f)
         setExiting(true)
         isPredictiveHolding = true
+        predictiveReleaseProgress = 0f
         isSystemGestureActive = true
         try {
             backEvents.collect { event ->
@@ -310,15 +314,18 @@ fun MainAppShell(
                 predictiveTouchYFraction = (event.touchY / screenH).coerceIn(0f, 1f)
                 activeProgress.snapTo(event.progress.coerceIn(0f, 1f) * 0.34f)
             }
+            predictiveReleaseProgress = activeProgress.value
             isPredictiveHolding = false
             onFinish()
         } catch (_: CancellationException) {
+            predictiveReleaseProgress = activeProgress.value
             isPredictiveHolding = false
             scope.snapBackOverlay(activeProgress, navConfig) {
                 setExiting(false)
                 isSystemGestureActive = false
                 predictiveSwipeEdge = 0
                 predictiveTouchYFraction = 0.5f
+                predictiveReleaseProgress = 0f
             }
         }
     }
