@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.ui.accentColor
@@ -94,32 +95,11 @@ fun ChatSearchScreen(
         } catch (_: Exception) { }
     }
 
-    val topBarBackgroundModifier = if (animState.glassBlurEnabled) {
-        Modifier.hazeEffect(
-            state = hazeState,
-            style = HazeStyle(
-                backgroundColor = scheme.background,
-                tint = HazeTint(scheme.surface.copy(alpha = if (scheme.isDark) 0.34f else 0.44f)),
-                blurRadius = 22.dp,
-                noiseFactor = 0.02f
-            )
-        ) {
-            progressive = HazeProgressive.verticalGradient(
-                startIntensity = 1f,
-                endIntensity = 0f
-            )
-        }
-    } else {
-        Modifier.background(
-            Brush.verticalGradient(
-                colors = listOf(
-                    scheme.surface.copy(alpha = 0.92f),
-                    scheme.background.copy(alpha = 0.65f),
-                    Color.Transparent
-                )
-            )
-        )
-    }
+    val topBarBackgroundModifier = Modifier.anonGramProgressiveHeaderBlur(
+        hazeState = hazeState,
+        glassBlurEnabled = animState.glassBlurEnabled,
+        scrollFraction = 0.5f
+    )
 
     Box(
         modifier = modifier

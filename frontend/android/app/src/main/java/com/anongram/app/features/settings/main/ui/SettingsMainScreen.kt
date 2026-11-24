@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.modules.i18n.ModulesI18n
 import dev.chrisbanes.haze.HazeProgressive
@@ -309,39 +310,11 @@ fun SettingsMainScreen(
 
         // 2. Закреплённая сверху полупрозрачная шапка с прогрессивным матовым стеклом (Telegram Progressive Blur):
         // Блюр плавно растворяется к нижнему краю до 0%, поэтому граница шапки абсолютно незаметна.
-        val glassTintAlpha = if (scheme.isDark) {
-            0.30f + 0.14f * animatedHeaderAlpha
-        } else {
-            0.40f + 0.16f * animatedHeaderAlpha
-        }
-        val headerBackgroundModifier = if (animState.glassBlurEnabled) {
-            Modifier.hazeEffect(
-                state = hazeState,
-                style = HazeStyle(
-                    backgroundColor = scheme.background,
-                    tint = HazeTint(
-                        color = scheme.surface.copy(alpha = glassTintAlpha)
-                    ),
-                    blurRadius = 22.dp,
-                    noiseFactor = 0.02f
-                )
-            ) {
-                progressive = HazeProgressive.verticalGradient(
-                    startIntensity = 1f,
-                    endIntensity = 0f
-                )
-            }
-        } else {
-            Modifier.background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        scheme.surface.copy(alpha = 0.90f + 0.08f * animatedHeaderAlpha),
-                        scheme.background.copy(alpha = 0.60f + 0.25f * animatedHeaderAlpha),
-                        Color.Transparent
-                    )
-                )
-            )
-        }
+        val headerBackgroundModifier = Modifier.anonGramProgressiveHeaderBlur(
+            hazeState = hazeState,
+            glassBlurEnabled = animState.glassBlurEnabled,
+            scrollFraction = animatedHeaderAlpha
+        )
 
         Column(
             modifier = Modifier

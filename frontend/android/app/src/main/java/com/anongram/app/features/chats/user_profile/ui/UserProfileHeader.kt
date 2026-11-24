@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.ui.anonGramProgressiveHeaderBlur
 import com.anongram.app.core.ui.safeStatusBarPadding
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.user_profile.i18n.UserProfileStrings
@@ -93,20 +94,11 @@ internal fun UserProfileTopOverlayBar(
     )
 
     val bgModifier = if (collapseAlpha > 0.05f) {
-        Modifier.hazeEffect(
-            state = hazeState,
-            style = HazeStyle(
-                backgroundColor = scheme.background.copy(alpha = 0.35f * collapseAlpha),
-                tint = HazeTint(color = scheme.surface.copy(alpha = 0.55f * collapseAlpha)),
-                blurRadius = 22.dp,
-                noiseFactor = 0.02f
-            )
-        ) {
-            progressive = HazeProgressive.verticalGradient(
-                startIntensity = 1f,
-                endIntensity = 0f
-            )
-        }
+        Modifier.anonGramProgressiveHeaderBlur(
+            hazeState = hazeState,
+            glassBlurEnabled = true,
+            scrollFraction = collapseAlpha
+        )
     } else {
         Modifier
     }

@@ -121,9 +121,9 @@ fun AnonGramTheme(
         androidx.compose.runtime.LaunchedEffect(scheme.id, scheme.isDark) {
             val window = (view.context as Activity).window
             @Suppress("DEPRECATION")
-            window.statusBarColor = scheme.background.toArgb()
+            window.statusBarColor = Color.Transparent.toArgb()
             @Suppress("DEPRECATION")
-            window.navigationBarColor = scheme.background.toArgb()
+            window.navigationBarColor = Color.Transparent.toArgb()
             val controllerInsets = WindowCompat.getInsetsController(window, view)
             controllerInsets.isAppearanceLightStatusBars = !scheme.isDark
             controllerInsets.isAppearanceLightNavigationBars = !scheme.isDark
