@@ -115,22 +115,46 @@ fun ThemeSelectorCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(24.dp))
             .background(activeTheme.card)
-            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(20.dp))
+            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(24.dp))
             .padding(16.dp)
     ) {
-        Text(
-            text = strings.themeCardTitle,
-            color = activeTheme.textPrimary,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = strings.themeCardSubtitle,
-            color = activeTheme.textSecondary,
-            fontSize = 12.sp
-        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(CircleShape)
+                    .background(activeTheme.accentSoft)
+                    .border(1.dp, activeTheme.accent.copy(alpha = 0.25f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Palette,
+                    contentDescription = null,
+                    tint = activeTheme.accent,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = strings.themeCardTitle,
+                    color = activeTheme.textPrimary,
+                    fontSize = 15.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = strings.themeCardSubtitle,
+                    color = activeTheme.textSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(14.dp))
 
@@ -139,13 +163,13 @@ fun ThemeSelectorCard(
 
         Spacer(modifier = Modifier.height(14.dp))
 
-        // Вкладки: Пресеты | Цветовой круг | Мои темы
+        // Вкладки-капсулы: Пресеты | Цветовой круг | Мои темы
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(14.dp))
+                .clip(RoundedCornerShape(50))
                 .background(activeTheme.surface)
-                .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(14.dp))
+                .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(50))
                 .padding(4.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -158,13 +182,13 @@ fun ThemeSelectorCard(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
+                        .clip(RoundedCornerShape(50))
                         .background(if (isSelected) activeTheme.accent else Color.Transparent)
                         .clickable {
                             activeTab = tab
                             statusMessage = null
                         }
-                        .padding(vertical = 8.dp),
+                        .padding(vertical = 9.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -265,182 +289,308 @@ fun ThemeSelectorCard(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                // Цветовой круг + HEX + контраст
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                // Цветовой круг + HEX + контраст + быстрые акценты + Радуга
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(activeTheme.surface)
+                        .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(22.dp))
+                        .padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    HsvColorWheel(
-                        hue = draftSpec.hue,
-                        saturation = draftSpec.saturation,
-                        onColorChange = { newHue, newSat ->
-                            val nextTint = if (draftSpec.tintMode == ThemeTintMode.MONOCHROME) {
-                                ThemeTintMode.FULL_OS
-                            } else {
-                                draftSpec.tintMode
-                            }
-                            applyDraft(
-                                draftSpec.copy(
-                                    hue = newHue,
-                                    saturation = newSat,
-                                    tintMode = nextTint
-                                )
-                            )
-                        },
-                        wheelSize = 166.dp
-                    )
-
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
                     ) {
-                        val hex = remember(activeTheme.accent) {
-                            String.format(Locale.US, "#%06X", activeTheme.accent.toArgb() and 0xFFFFFF)
-                        }
-                        val contrast = remember(activeTheme.background, activeTheme.textPrimary) {
-                            ThemePaletteEngine.contrastRatio(activeTheme.background, activeTheme.textPrimary)
-                        }
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(activeTheme.surface)
-                                .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(12.dp))
-                                .padding(10.dp)
-                        ) {
-                            Text(
-                                text = strings.themeAccentHex,
-                                color = activeTheme.textMuted,
-                                fontSize = 11.sp
-                            )
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(16.dp)
-                                        .clip(CircleShape)
-                                        .background(activeTheme.accent)
+                        HsvColorWheel(
+                            hue = draftSpec.hue,
+                            saturation = draftSpec.saturation,
+                            onColorChange = { newHue, newSat ->
+                                val nextTint = if (draftSpec.tintMode == ThemeTintMode.MONOCHROME) {
+                                    ThemeTintMode.FULL_OS
+                                } else {
+                                    draftSpec.tintMode
+                                }
+                                applyDraft(
+                                    draftSpec.copy(
+                                        hue = newHue,
+                                        saturation = newSat,
+                                        tintMode = nextTint
+                                    )
                                 )
+                            },
+                            wheelSize = 158.dp
+                        )
+
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            val hex = remember(activeTheme.accent) {
+                                String.format(Locale.US, "#%06X", activeTheme.accent.toArgb() and 0xFFFFFF)
+                            }
+                            val contrast = remember(activeTheme.background, activeTheme.textPrimary) {
+                                ThemePaletteEngine.contrastRatio(activeTheme.background, activeTheme.textPrimary)
+                            }
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(activeTheme.card)
+                                    .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(18.dp))
+                                    .padding(11.dp)
+                            ) {
                                 Text(
-                                    text = hex,
-                                    color = activeTheme.textPrimary,
-                                    fontFamily = FontFamily.Monospace,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold
+                                    text = strings.themeAccentHex,
+                                    color = activeTheme.textMuted,
+                                    fontSize = 11.sp
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(16.dp)
+                                            .clip(CircleShape)
+                                            .background(
+                                                if (activeTheme.isRainbow) {
+                                                    Brush.sweepGradient(AnonGramThemes.rainbowColors)
+                                                } else {
+                                                    Brush.linearGradient(listOf(activeTheme.accent, activeTheme.accent))
+                                                }
+                                            )
+                                    )
+                                    Text(
+                                        text = hex,
+                                        color = activeTheme.textPrimary,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "WCAG ${String.format(Locale.US, "%.1f", contrast)}:1 ✓",
+                                    color = activeTheme.accent,
+                                    fontSize = 11.5.sp,
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "WCAG ${String.format(Locale.US, "%.1f", contrast)}:1 ✓",
-                                color = activeTheme.accent,
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        }
 
-                        // Кнопка копирования кода AG1:...
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = activeTheme.surface,
-                            border = BorderStroke(1.dp, activeTheme.cardBorder),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable {
-                                    clipboard.setText(AnnotatedString(draftSpec.encode()))
-                                    statusMessage = strings.themeCodeCopied
-                                }
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                            // Кнопка копирования кода AG1:...
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = activeTheme.card,
+                                border = BorderStroke(1.dp, activeTheme.cardBorder),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(50))
+                                    .clickable {
+                                        clipboard.setText(AnnotatedString(draftSpec.encode()))
+                                        statusMessage = strings.themeCodeCopied
+                                    }
                             ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.ContentCopy,
-                                    contentDescription = null,
-                                    tint = activeTheme.accent,
-                                    modifier = Modifier.size(15.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = strings.themeCopyCode,
-                                    color = activeTheme.textPrimary,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.ContentCopy,
+                                        contentDescription = null,
+                                        tint = activeTheme.accent,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text(
+                                        text = strings.themeCopyCode,
+                                        color = activeTheme.textPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                    // Быстрые акценты + Радуга
+                    Text(
+                        text = strings.themeQuickColors,
+                        color = activeTheme.textSecondary,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Кнопка Радуга
+                        val rainbowSelected = activeTheme.isRainbow
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .then(
+                                    if (rainbowSelected) Modifier.border(2.dp, activeTheme.textPrimary, CircleShape)
+                                    else Modifier.border(1.dp, activeTheme.cardBorder, CircleShape)
+                                )
+                                .padding(if (rainbowSelected) 3.dp else 0.dp)
+                                .clip(CircleShape)
+                                .background(Brush.sweepGradient(AnonGramThemes.rainbowColors))
+                                .clickable {
+                                    val target = if (draftSpec.polarity == ThemePolarity.DARK) {
+                                        AnonGramThemes.RainbowOsDark
+                                    } else {
+                                        AnonGramThemes.RainbowOsLight
+                                    }
+                                    draftSpec = target.spec
+                                    onThemeSelect(target.id)
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (rainbowSelected) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = strings.themeRainbow,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
+                        }
 
-                // Глубина цвета экрана (Ч/Б -> Акцент -> Мягкая -> Как ОС)
-                Text(
-                    text = strings.themeTintDepth,
-                    color = activeTheme.textSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    listOf(
-                        ThemeTintMode.MONOCHROME to strings.themeTintMonochrome,
-                        ThemeTintMode.AMOLED_ACCENT to strings.themeTintAmoled,
-                        ThemeTintMode.SOFT_OS to strings.themeTintSoftOs,
-                        ThemeTintMode.FULL_OS to strings.themeTintFullOs
-                    ).forEach { (mode, label) ->
-                        val selected = draftSpec.tintMode == mode
-                        OptionPill(
-                            label = label,
-                            selected = selected,
-                            scheme = activeTheme,
-                            modifier = Modifier.weight(1f),
-                            onClick = { applyDraft(draftSpec.copy(tintMode = mode)) }
+                        val quickHues = listOf(
+                            8f to Color(0xFFFF6B57),
+                            38f to Color(0xFFFFB020),
+                            154f to Color(0xFF10B981),
+                            186f to Color(0xFF00E5FF),
+                            238f to Color(0xFF6366F1),
+                            272f to Color(0xFFA855F7),
+                            336f to Color(0xFFF43F5E)
                         )
+                        quickHues.forEach { (h, swatchColor) ->
+                            val selected = !activeTheme.isRainbow &&
+                                draftSpec.tintMode != ThemeTintMode.MONOCHROME &&
+                                kotlin.math.abs(draftSpec.hue - h) < 8f
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .then(
+                                        if (selected) Modifier.border(2.dp, activeTheme.textPrimary, CircleShape)
+                                        else Modifier.border(1.dp, activeTheme.cardBorder, CircleShape)
+                                    )
+                                    .padding(if (selected) 3.dp else 0.dp)
+                                    .clip(CircleShape)
+                                    .background(swatchColor)
+                                    .clickable {
+                                        val nextTint = if (draftSpec.tintMode == ThemeTintMode.MONOCHROME) {
+                                            ThemeTintMode.FULL_OS
+                                        } else {
+                                            draftSpec.tintMode
+                                        }
+                                        applyDraft(
+                                            draftSpec.copy(
+                                                hue = h,
+                                                saturation = 0.88f,
+                                                tintMode = nextTint
+                                            )
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (selected) {
+                                    Icon(
+                                        imageVector = Icons.Filled.Check,
+                                        contentDescription = null,
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Стиль пузырей
-                Text(
-                    text = strings.themeBubbleStyle,
-                    color = activeTheme.textSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // Глубина цвета экрана (Ч/Б -> Акцент -> Мягкая -> Как ОС)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(activeTheme.surface)
+                        .border(0.8.dp, activeTheme.cardBorder, RoundedCornerShape(20.dp))
+                        .padding(12.dp)
                 ) {
-                    listOf(
-                        BubbleColorStyle.GRADIENT to strings.themeBubbleGradient,
-                        BubbleColorStyle.TINTED to strings.themeBubbleTinted,
-                        BubbleColorStyle.OUTLINE to strings.themeBubbleOutline
-                    ).forEach { (style, label) ->
-                        val selected = draftSpec.bubbleStyle == style
-                        OptionPill(
-                            label = label,
-                            selected = selected,
-                            scheme = activeTheme,
-                            modifier = Modifier.weight(1f),
-                            onClick = { applyDraft(draftSpec.copy(bubbleStyle = style)) }
-                        )
+                    Text(
+                        text = strings.themeTintDepth,
+                        color = activeTheme.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            ThemeTintMode.MONOCHROME to strings.themeTintMonochrome,
+                            ThemeTintMode.AMOLED_ACCENT to strings.themeTintAmoled,
+                            ThemeTintMode.SOFT_OS to strings.themeTintSoftOs,
+                            ThemeTintMode.FULL_OS to strings.themeTintFullOs
+                        ).forEach { (mode, label) ->
+                            val selected = draftSpec.tintMode == mode
+                            OptionPill(
+                                label = label,
+                                selected = selected,
+                                scheme = activeTheme,
+                                modifier = Modifier.weight(1f),
+                                onClick = { applyDraft(draftSpec.copy(tintMode = mode)) }
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Стиль пузырей
+                    Text(
+                        text = strings.themeBubbleStyle,
+                        color = activeTheme.textSecondary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(
+                            BubbleColorStyle.GRADIENT to strings.themeBubbleGradient,
+                            BubbleColorStyle.TINTED to strings.themeBubbleTinted,
+                            BubbleColorStyle.OUTLINE to strings.themeBubbleOutline
+                        ).forEach { (style, label) ->
+                            val selected = draftSpec.bubbleStyle == style
+                            OptionPill(
+                                label = label,
+                                selected = selected,
+                                scheme = activeTheme,
+                                modifier = Modifier.weight(1f),
+                                onClick = { applyDraft(draftSpec.copy(bubbleStyle = style)) }
+                            )
+                        }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Сохранение в «Мои темы»
                 Row(
@@ -451,10 +601,10 @@ fun ThemeSelectorCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(50))
                             .background(activeTheme.surface)
-                            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(50))
+                            .padding(horizontal = 16.dp, vertical = 11.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         if (customName.isEmpty()) {
@@ -475,10 +625,10 @@ fun ThemeSelectorCard(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(50),
                         color = activeTheme.accent,
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(50))
                             .clickable {
                                 val saved = controller?.saveCustomTheme(customName, draftSpec)
                                 if (saved != null) {
@@ -488,7 +638,7 @@ fun ThemeSelectorCard(
                             }
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -514,10 +664,10 @@ fun ThemeSelectorCard(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
+                            .clip(RoundedCornerShape(20.dp))
                             .background(activeTheme.surface)
-                            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(14.dp))
-                            .padding(16.dp),
+                            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(20.dp))
+                            .padding(18.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
@@ -573,10 +723,10 @@ fun ThemeSelectorCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(50))
                             .background(activeTheme.surface)
-                            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .border(1.dp, activeTheme.cardBorder, RoundedCornerShape(50))
+                            .padding(horizontal = 16.dp, vertical = 11.dp),
                         contentAlignment = Alignment.CenterStart
                     ) {
                         if (importCodeInput.isEmpty()) {
@@ -602,11 +752,11 @@ fun ThemeSelectorCard(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(50),
                         color = activeTheme.accentSoft,
                         border = BorderStroke(1.dp, activeTheme.accent.copy(alpha = 0.5f)),
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
+                            .clip(RoundedCornerShape(50))
                             .clickable {
                                 val ok = controller?.importThemeCode(importCodeInput) == true
                                 statusMessage = if (ok) {
@@ -622,7 +772,7 @@ fun ThemeSelectorCard(
                             color = activeTheme.accent,
                             fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp)
                         )
                     }
                 }
@@ -656,9 +806,9 @@ private fun LiveChatThemeMiniPreview(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(20.dp))
             .background(animBg)
-            .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
+            .border(1.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -666,9 +816,9 @@ private fun LiveChatThemeMiniPreview(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .background(animIsland)
-                .border(1.dp, scheme.islandBorder, RoundedCornerShape(12.dp))
+                .border(1.dp, scheme.islandBorder, RoundedCornerShape(14.dp))
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -678,7 +828,13 @@ private fun LiveChatThemeMiniPreview(
                     modifier = Modifier
                         .size(22.dp)
                         .clip(CircleShape)
-                        .background(animAccent),
+                        .background(
+                            if (scheme.isRainbow) {
+                                Brush.sweepGradient(AnonGramThemes.rainbowColors)
+                            } else {
+                                Brush.linearGradient(listOf(animAccent, animAccent))
+                            }
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("A", color = scheme.onAccent, fontSize = 11.sp, fontWeight = FontWeight.Bold)
@@ -703,9 +859,9 @@ private fun LiveChatThemeMiniPreview(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
             Column(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp, 14.dp, 14.dp, 3.dp))
+                    .clip(RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp))
                     .background(animInBubble)
-                    .border(1.dp, scheme.incomingBubbleBorder, RoundedCornerShape(14.dp, 14.dp, 14.dp, 3.dp))
+                    .border(1.dp, scheme.incomingBubbleBorder, RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp))
                     .padding(horizontal = 11.dp, vertical = 7.dp)
             ) {
                 Row(
@@ -742,12 +898,18 @@ private fun LiveChatThemeMiniPreview(
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(14.dp, 14.dp, 3.dp, 14.dp))
-                    .background(Brush.linearGradient(listOf(animOutStart, animOutEnd)))
+                    .clip(RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp))
+                    .background(
+                        if (scheme.isRainbow) {
+                            Brush.horizontalGradient(listOf(animOutStart, Color(0xFF8B5CF6), animOutEnd))
+                        } else {
+                            Brush.linearGradient(listOf(animOutStart, animOutEnd))
+                        }
+                    )
                     .border(
                         1.dp,
                         scheme.outgoingBubbleBorder,
-                        RoundedCornerShape(14.dp, 14.dp, 3.dp, 14.dp)
+                        RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
                     )
                     .padding(horizontal = 12.dp, vertical = 7.dp)
             ) {
@@ -803,14 +965,14 @@ private fun PolarityChip(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(50),
         color = if (selected) scheme.accentSoft else scheme.surface,
         border = BorderStroke(
             width = if (selected) 1.5.dp else 1.dp,
             color = if (selected) scheme.accent else scheme.cardBorder
         ),
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(50))
             .clickable(onClick = onClick)
     ) {
         Row(
@@ -844,15 +1006,15 @@ private fun OptionPill(
     onClick: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(10.dp),
-        color = if (selected) scheme.accent else scheme.surface,
+        shape = RoundedCornerShape(50),
+        color = if (selected) scheme.accent else scheme.card,
         border = BorderStroke(1.dp, if (selected) scheme.accent else scheme.cardBorder),
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(50))
             .clickable(onClick = onClick)
     ) {
         Box(
-            modifier = Modifier.padding(vertical = 7.dp, horizontal = 4.dp),
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -876,6 +1038,7 @@ private fun ThemeItemRow(
     onDelete: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val strings = LocalInputStrings.current
     val animatedBorderColor by animateColorAsState(
         targetValue = if (isSelected) theme.accent else activeScheme.cardBorder,
         animationSpec = tween(durationMillis = 220),
@@ -890,28 +1053,40 @@ private fun ThemeItemRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(18.dp))
             .background(animatedBackground)
             .border(
                 width = if (isSelected) 1.5.dp else 0.8.dp,
                 color = animatedBorderColor,
-                shape = RoundedCornerShape(14.dp)
+                shape = RoundedCornerShape(18.dp)
             )
             .clickable(onClick = onSelect)
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Двухцветный превью-кружок: фон темы внутри, акцентная обводка
+        // Двухцветный или радужный превью-кружок
         Box(
             modifier = Modifier
-                .size(34.dp)
+                .size(36.dp)
                 .clip(CircleShape)
                 .background(
-                    Brush.linearGradient(
-                        colors = listOf(theme.background, theme.outgoingBubbleStart)
-                    )
+                    if (theme.isRainbow) {
+                        Brush.sweepGradient(AnonGramThemes.rainbowColors)
+                    } else {
+                        Brush.linearGradient(
+                            colors = listOf(theme.background, theme.outgoingBubbleStart)
+                        )
+                    }
                 )
-                .border(2.5.dp, theme.accent, CircleShape)
+                .border(
+                    width = 2.5.dp,
+                    brush = if (theme.isRainbow) {
+                        Brush.linearGradient(listOf(Color(0xFFEC4899), Color(0xFF06B6D4)))
+                    } else {
+                        Brush.linearGradient(listOf(theme.accent, theme.accent))
+                    },
+                    shape = CircleShape
+                )
         )
 
         Spacer(modifier = Modifier.width(12.dp))
@@ -926,7 +1101,7 @@ private fun ThemeItemRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = if (theme.isDark) "Dark" else "Light",
+                text = if (theme.isDark) strings.themePolarityDark else strings.themePolarityLight,
                 color = activeScheme.textMuted,
                 fontSize = 11.sp
             )

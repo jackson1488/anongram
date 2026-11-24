@@ -19,6 +19,7 @@ data class AnonGramScheme(
     val accent: Color,
     val accentDim: Color,
     val isDark: Boolean = true,
+    val isRainbow: Boolean = false,
     val spec: ThemeSpec = ThemeSpec(),
     val background: Color = Color(0xFF05070A),
     val surface: Color = Color(0xFF0A0F18),
@@ -165,8 +166,65 @@ object AnonGramThemes {
         "aurora_os_light", "Аврора ОС (Светлая)", ThemePolarity.LIGHT, ThemeTintMode.FULL_OS, BubbleColorStyle.GRADIENT, 170f, 0.82f
     )
 
+    val rainbowColors: List<Color> = listOf(
+        Color(0xFFFF4D6D),
+        Color(0xFFFFB703),
+        Color(0xFF10B981),
+        Color(0xFF06B6D4),
+        Color(0xFF8B5CF6),
+        Color(0xFFEC4899)
+    )
+
+    val RainbowOsDark = ThemePaletteEngine.buildScheme(
+        id = "rainbow_os_dark",
+        displayName = "Радуга ОС (Тёмная)",
+        spec = ThemeSpec(
+            polarity = ThemePolarity.DARK,
+            tintMode = ThemeTintMode.FULL_OS,
+            bubbleStyle = BubbleColorStyle.GRADIENT,
+            hue = 290f,
+            saturation = 0.90f
+        )
+    ).copy(
+        isRainbow = true,
+        accent = Color(0xFFE040FB),
+        accentDim = Color(0xFFB832D6),
+        accentSoft = Color(0x2AE040FB),
+        outgoingBubbleStart = Color(0xFFEC4899),
+        outgoingBubbleEnd = Color(0xFF06B6D4),
+        outgoingBubbleBorder = Color(0x6638BDF8),
+        outgoingText = Color(0xFFFFFFFF),
+        selectedBubbleBg = Color(0xFF4C1D95),
+        selectedGlow = Color(0xFF00E5FF)
+    )
+
+    val RainbowOsLight = ThemePaletteEngine.buildScheme(
+        id = "rainbow_os_light",
+        displayName = "Радуга ОС (Светлая)",
+        spec = ThemeSpec(
+            polarity = ThemePolarity.LIGHT,
+            tintMode = ThemeTintMode.FULL_OS,
+            bubbleStyle = BubbleColorStyle.GRADIENT,
+            hue = 290f,
+            saturation = 0.86f
+        )
+    ).copy(
+        isRainbow = true,
+        accent = Color(0xFFC026D3),
+        accentDim = Color(0xFF9333EA),
+        accentSoft = Color(0x22C026D3),
+        outgoingBubbleStart = Color(0xFFEC4899),
+        outgoingBubbleEnd = Color(0xFF0EA5E9),
+        outgoingBubbleBorder = Color(0x5538BDF8),
+        outgoingText = Color(0xFFFFFFFF),
+        selectedBubbleBg = Color(0xFFE9D5FF),
+        selectedGlow = Color(0xFF0EA5E9)
+    )
+
     val all: List<AnonGramScheme> = listOf(
         CyberStealth,
+        RainbowOsDark,
+        RainbowOsLight,
         AuroraOsDark,
         AuroraOsLight,
         MonochromeNoir,

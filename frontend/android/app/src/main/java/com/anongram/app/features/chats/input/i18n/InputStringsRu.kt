@@ -200,6 +200,8 @@ object InputStringsRu : InputI18nStrings {
     override val themeCardSubtitle: String = "Готовые палитры (Ч/Б, Светлые, ОС-цвета) и настройка по цветовому кругу"
     override val themePolarityDark: String = "Тёмная"
     override val themePolarityLight: String = "Светлая"
+    override val themeRainbow: String = "Радуга"
+    override val themeQuickColors: String = "Быстрые акценты"
     override val themeTabPresets: String = "Пресеты"
     override val themeTabWheel: String = "Цветовой круг"
     override val themeTabSaved: String = "Мои темы"

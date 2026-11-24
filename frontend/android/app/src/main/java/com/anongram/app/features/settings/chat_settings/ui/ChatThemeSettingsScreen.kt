@@ -165,7 +165,17 @@ fun ChatThemeSettingsScreen(
                         modifier = Modifier
                             .fillMaxWidth(0.78f)
                             .clip(RoundedCornerShape(18.dp, 18.dp, 6.dp, 18.dp))
-                            .background(scheme.accent)
+                            .background(
+                                if (scheme.isRainbow) {
+                                    Brush.horizontalGradient(
+                                        listOf(scheme.outgoingBubbleStart, Color(0xFF8B5CF6), scheme.outgoingBubbleEnd)
+                                    )
+                                } else {
+                                    Brush.horizontalGradient(
+                                        listOf(scheme.outgoingBubbleStart, scheme.outgoingBubbleEnd)
+                                    )
+                                }
+                            )
                             .padding(horizontal = 12.dp, vertical = 9.dp)
                     ) {
                         Text(
@@ -252,7 +262,13 @@ fun ChatThemeSettingsScreen(
                                     modifier = Modifier
                                         .size(if (selected) 32.dp else 38.dp)
                                         .clip(CircleShape)
-                                        .background(t.accent)
+                                        .background(
+                                            if (t.isRainbow) {
+                                                Brush.sweepGradient(AnonGramThemes.rainbowColors)
+                                            } else {
+                                                Brush.linearGradient(listOf(t.accent, t.accent))
+                                            }
+                                        )
                                         .border(1.dp, t.background, CircleShape)
                                 )
                             }
@@ -329,6 +345,14 @@ fun ChatThemeSettingsScreen(
                 currentSpec = scheme.spec,
                 onSelectSpec = { newSpec ->
                     controller?.applyCustomSpec(newSpec, "Full OS")
+                },
+                onSelectRainbow = { polarity ->
+                    val target = if (polarity == com.anongram.app.core.theme.ThemePolarity.DARK) {
+                        AnonGramThemes.RainbowOsDark
+                    } else {
+                        AnonGramThemes.RainbowOsLight
+                    }
+                    onThemeSelect(target.id)
                 },
                 onReset = {
                     AnonGramThemes.all.firstOrNull()?.let { onThemeSelect(it.id) }
