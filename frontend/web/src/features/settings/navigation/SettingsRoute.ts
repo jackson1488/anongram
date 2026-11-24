@@ -12,4 +12,8 @@ export type SettingsRoute =
   | 'devices'
   | 'battery'
   | 'language'
-  | 'modules';
+  | 'modules'
+  | 'moduleVoice'
+  | 'moduleTranslation'
+  | 'moduleLocalAi'
+  | 'moduleFonts';

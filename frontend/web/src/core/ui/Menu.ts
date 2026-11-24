@@ -38,8 +38,10 @@ export function openMenu(anchor: HTMLElement | null, items: MenuItem[], opts: Me
     const row = el(
       'button',
       {
+        type: 'button',
         class: 'ag-menu-item' + (it.danger ? ' is-danger' : '') + (it.checked ? ' is-checked' : ''),
         role: 'menuitem',
+        'aria-checked': it.checked !== undefined ? String(it.checked) : undefined,
         disabled: it.disabled,
         onclick: (e: Event) => {
           e.stopPropagation();
@@ -57,30 +59,51 @@ export function openMenu(anchor: HTMLElement | null, items: MenuItem[], opts: Me
 
   const vw = window.innerWidth;
   const vh = window.innerHeight;
+  const pad = 8;
+  const gap = 6;
   const mw = menu.offsetWidth;
   const mh = menu.offsetHeight;
   let x: number;
   let y: number;
+  let originX: 'left' | 'right' = opts.align === 'left' ? 'left' : 'right';
+  let originY: 'top' | 'bottom' = 'top';
+
   if (anchor) {
     const r = anchor.getBoundingClientRect();
     x = opts.align === 'left' ? r.left : r.right - mw;
-    y = r.bottom + 4;
-    if (y + mh > vh - 8) y = Math.max(8, r.top - mh - 4);
+    const spaceBelow = vh - r.bottom - pad;
+    const spaceAbove = r.top - pad;
+    const flipUp = spaceBelow < mh + gap && spaceAbove > spaceBelow;
+    y = flipUp ? r.top - mh - gap : r.bottom + gap;
+    originY = flipUp ? 'bottom' : 'top';
   } else {
-    x = opts.x ?? 0;
-    y = opts.y ?? 0;
+    const rawX = opts.x ?? pad;
+    const rawY = opts.y ?? pad;
+    const flipLeft = rawX + mw > vw - pad && rawX - mw >= pad;
+    const flipUp = rawY + mh > vh - pad && rawY - mh >= pad;
+    x = flipLeft ? rawX - mw : rawX;
+    y = flipUp ? rawY - mh : rawY;
+    originX = flipLeft ? 'right' : 'left';
+    originY = flipUp ? 'bottom' : 'top';
   }
-  x = Math.min(Math.max(8, x), Math.max(8, vw - mw - 8));
-  y = Math.min(Math.max(8, y), Math.max(8, vh - mh - 8));
-  menu.style.left = `${x}px`;
-  menu.style.top = `${y}px`;
+
+  x = Math.min(Math.max(pad, x), Math.max(pad, vw - mw - pad));
+  y = Math.min(Math.max(pad, y), Math.max(pad, vh - mh - pad));
+  menu.style.left = `${Math.round(x)}px`;
+  menu.style.top = `${Math.round(y)}px`;
+  menu.style.transformOrigin = `${originY} ${originX}`;
   requestAnimationFrame(() => menu.classList.add('is-open'));
 
   const onKey = (e: KeyboardEvent) => {
     if (e.key === 'Escape') close();
   };
+  const onResize = () => close();
   document.addEventListener('keydown', onKey);
-  backdrop.addEventListener('mousedown', (e) => {
+  window.addEventListener('resize', onResize, { passive: true });
+  backdrop.addEventListener('pointerdown', (e) => {
+    if (e.target === backdrop && e.pointerType === 'mouse') close();
+  });
+  backdrop.addEventListener('click', (e) => {
     if (e.target === backdrop) close();
   });
   backdrop.addEventListener('contextmenu', (e) => {
@@ -92,6 +115,7 @@ export function openMenu(anchor: HTMLElement | null, items: MenuItem[], opts: Me
     if (closeCurrent !== close) return;
     closeCurrent = null;
     document.removeEventListener('keydown', onKey);
+    window.removeEventListener('resize', onResize);
     backdrop.remove();
     opts.onClose?.();
   }

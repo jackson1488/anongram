@@ -1,7 +1,8 @@
 import { i18nStore } from '../../../../core/i18n/i18nStore';
 import { kvStore } from '../../../../core/storage/kvStore';
 import { clear, el } from '../../../../core/ui/dom';
-import { icons } from '../../../../core/ui/icons';
+import { icons, tgIcons } from '../../../../core/ui/icons';
+import { showToast } from '../../../../core/ui/toast';
 import { chatStore } from '../../chatStore';
 import { chatScreenT } from '../../i18n';
 import type { ChatMessage } from '../../models';
@@ -77,8 +78,25 @@ export const pinnedMessageStore = new PinnedMessageStore();
 function formatPinnedSnippet(msg: ChatMessage): string {
   const text = msg.text.trim();
   if (text) return text;
-  if (msg.attachment?.title) return msg.attachment.title;
+  const att = msg.attachment;
+  if (att) {
+    const cs = chatScreenT();
+    if (att.type === 'voice') return att.title.trim() || cs.voiceMessage;
+    if (att.type === 'video_circle') return att.title.trim() || cs.videoCircle;
+    if (att.title.trim()) return att.title.trim();
+  }
   return msg.senderName;
+}
+
+function scrollPinnedFallback(root: HTMLElement, messageId: string): void {
+  const room = root.closest('.ag-chat-room') ?? document;
+  const target = room.querySelector<HTMLElement>(`[data-msg-id="${CSS.escape(messageId)}"]`);
+  if (!target) return;
+  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  target.classList.remove('is-flash');
+  void target.offsetWidth;
+  target.classList.add('is-flash');
+  window.setTimeout(() => target.classList.remove('is-flash'), 1200);
 }
 
 /**
@@ -87,24 +105,56 @@ function formatPinnedSnippet(msg: ChatMessage): string {
  */
 export function createPinnedMessageBar(
   chatId: string,
-  onJumpToMessage: (messageId: string) => void,
+  onJumpToMessage?: (messageId: string) => void,
+  onUnpin?: () => void,
 ): HTMLElement {
   const root = el('div', { class: 'ag-pinned-bar', style: 'display:none;' });
+  let currentMsgId: string | null = null;
+
+  const jumpToCurrent = () => {
+    if (!currentMsgId) return;
+    if (onJumpToMessage) {
+      onJumpToMessage(currentMsgId);
+    } else {
+      scrollPinnedFallback(root, currentMsgId);
+    }
+  };
+
+  root.addEventListener('click', () => {
+    jumpToCurrent();
+  });
 
   const render = () => {
     clear(root);
     const msg = pinnedMessageStore.getPinnedMessage(chatId);
     if (!msg) {
+      currentMsgId = null;
       root.style.display = 'none';
       return;
     }
+    currentMsgId = msg.id;
     root.style.display = 'flex';
     const cs = chatScreenT();
+
     const body = el(
       'div',
       {
         class: 'ag-pinned-bar__body',
-        onClick: () => onJumpToMessage(msg.id),
+        role: 'button',
+        tabindex: 0,
+        title: cs.jumpToPinned,
+        'aria-label': cs.jumpToPinned,
+        onClick: (e: Event) => {
+          e.stopPropagation();
+          jumpToCurrent();
+        },
+        onKeyDown: (e: Event) => {
+          const ke = e as KeyboardEvent;
+          if (ke.key === 'Enter' || ke.key === ' ') {
+            ke.preventDefault();
+            jumpToCurrent();
+          }
+        },
       },
       el('strong', { class: 'ag-pinned-bar__title' }, cs.pinnedMessage),
       el('span', { class: 'ag-pinned-bar__snippet' }, formatPinnedSnippet(msg)),
@@ -113,18 +163,33 @@ export function createPinnedMessageBar(
     const unpinBtn = el(
       'button',
       {
+        type: 'button',
         class: 'ag-icon-btn ag-pinned-bar__unpin',
         title: cs.unpinMessage,
+        'aria-label': cs.unpinMessage,
         onClick: (e: Event) => {
           e.stopPropagation();
           pinnedMessageStore.unpin(chatId);
+          showToast(cs.unpinnedToast);
+          onUnpin?.();
         },
       },
-      icons.close(16),
+      tgIcons.pinOff(16),
     );
 
     root.append(
-      el('span', { class: 'ag-pinned-bar__ico', onClick: () => onJumpToMessage(msg.id) }, icons.pin(16)),
+      el(
+        'span',
+        {
+          class: 'ag-pinned-bar__ico',
+          title: cs.jumpToPinned,
+          onClick: (e: Event) => {
+            e.stopPropagation();
+            jumpToCurrent();
+          },
+        },
+        icons.pin(16),
+      ),
       body,
       unpinBtn,
     );

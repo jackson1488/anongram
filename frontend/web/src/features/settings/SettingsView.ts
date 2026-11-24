@@ -9,13 +9,18 @@ import { createDataStorageSettingsScreen } from './data_storage/DataStorageSetti
 import { createDevicesSettingsScreen } from './devices/DevicesSettingsScreen';
 import { createLanguageSettingsScreen } from './language/LanguageSettingsScreen';
 import { createSettingsListPane } from './main/SettingsMainScreen';
+import { createFontsModuleSettingsScreen } from './modules/FontsModuleSettingsScreen';
+import { createLocalAiModuleSettingsScreen } from './modules/LocalAiModuleSettingsScreen';
 import { createModulesSettingsScreen } from './modules/ModulesSettingsScreen';
+import { createTranslationModuleSettingsScreen } from './modules/TranslationModuleSettingsScreen';
+import { createVoiceModuleSettingsScreen } from './modules/VoiceModuleSettingsScreen';
 import type { SettingsRoute } from './navigation/SettingsRoute';
 import { createNotificationsSettingsScreen } from './notifications/NotificationsSettingsScreen';
 import { createPrivacySecuritySettingsScreen } from './privacy/PrivacySecuritySettingsScreen';
 import { createMyQrCodeScreen } from './qr/MyQrCodeScreen';
 import { createSettingsSearchScreen } from './search/SettingsSearchScreen';
 import { createSecuritySettingsScreen } from './security/SecuritySettingsScreen';
+import { SettingsI18n } from './i18n';
 import { settingsStore } from './settingsStore';
 
 export type { SettingsRoute };
@@ -27,6 +32,7 @@ export function createSettingsDetailView(
   onBackMobile: () => void,
 ): HTMLElement {
   const root = el('div', { class: 'ag-settings-detail' });
+  let screenCleanup: (() => void) | null = null;
 
   const build = (): HTMLElement | null => {
     switch (route) {
@@ -41,15 +47,22 @@ export function createSettingsDetailView(
       case 'dataStorage': return createDataStorageSettingsScreen();
       case 'animations': return createAnimationsSettingsScreen();
       case 'battery': return createBatterySettingsScreen();
-      case 'modules': return createModulesSettingsScreen();
+      case 'modules': return createModulesSettingsScreen(onNavigate);
+      case 'moduleVoice': return createVoiceModuleSettingsScreen();
+      case 'moduleTranslation': return createTranslationModuleSettingsScreen();
+      case 'moduleLocalAi': return createLocalAiModuleSettingsScreen();
+      case 'moduleFonts': return createFontsModuleSettingsScreen();
       case 'devices': return createDevicesSettingsScreen();
       default: return null;
     }
   };
 
   const render = () => {
+    screenCleanup?.();
+    screenCleanup = null;
     clear(root);
     const t = i18nStore.t;
+    const s = SettingsI18n.current;
     const titles: Record<SettingsRoute, string> = {
       main: t.settings.title,
       search: t.common.search,
@@ -65,10 +78,22 @@ export function createSettingsDetailView(
       battery: t.settings.battery,
       language: t.settings.language,
       modules: t.settings.modules,
+      moduleVoice: s.modulesVoiceTitle,
+      moduleTranslation: s.modulesTranslationTitle,
+      moduleLocalAi: s.modulesLocalAiTitle,
+      moduleFonts: s.modulesFontsTitle,
     };
 
+    const isModuleSubRoute =
+      route === 'moduleVoice' ||
+      route === 'moduleTranslation' ||
+      route === 'moduleLocalAi' ||
+      route === 'moduleFonts';
+
     const handleBack = () => {
-      if (window.innerWidth >= 840) {
+      if (isModuleSubRoute) {
+        onNavigate('modules');
+      } else if (window.innerWidth >= 840) {
         onNavigate('chatAppearance');
       } else {
         onBackMobile();
@@ -90,7 +115,10 @@ export function createSettingsDetailView(
     );
     const body = el('div', { class: 'ag-settings-scroll' });
     const screen = build();
-    if (screen) body.appendChild(screen);
+    if (screen) {
+      screenCleanup = (screen as unknown as { __cleanup?: () => void }).__cleanup ?? null;
+      body.appendChild(screen);
+    }
     root.appendChild(body);
   };
 
@@ -99,6 +127,10 @@ export function createSettingsDetailView(
   void settingsStore;
   render();
 
-  (root as unknown as { __cleanup?: () => void }).__cleanup = () => u1();
+  (root as unknown as { __cleanup?: () => void }).__cleanup = () => {
+    u1();
+    screenCleanup?.();
+    screenCleanup = null;
+  };
   return root;
 }

@@ -1,5 +1,9 @@
 import { clear, el } from '../../../../core/ui/dom';
 import { icons, tgIcons } from '../../../../core/ui/icons';
+import { audioPlayer, type PlayerTrack } from '../../../player/audioPlayer';
+import { openExternalLink } from '../../links/InAppBrowserHost';
+import type { MessageAttachment } from '../../models';
+import { openDocumentViewer, openMediaViewer } from '../../viewer/MediaViewerOverlay';
 import type { UserProfileStrings } from '../i18n/UserProfileI18n';
 import {
   formatDurationSec,
@@ -33,12 +37,26 @@ function tabLabel(tab: UserProfileTab, strings: UserProfileStrings, buckets: Use
   }
 }
 
+function toMediaAttachment(item: UserProfileMediaItem): MessageAttachment {
+  return (
+    item.message.attachment ?? {
+      type: item.isVideoCircle ? 'video_circle' : 'photo',
+      title: item.title,
+      previewUrl: item.previewUrl,
+      durationSec: item.durationSec,
+      isVideo: item.isVideo,
+    }
+  );
+}
+
 function renderMediaGrid(items: UserProfileMediaItem[], emptyText: string): HTMLElement {
   if (items.length === 0) {
     return el('div', { class: 'ag-up-empty' }, emptyText);
   }
+  const gallery = items.map(toMediaAttachment);
   const grid = el('div', { class: 'ag-up-media-grid' });
-  for (const item of items) {
+
+  items.forEach((item, idx) => {
     const thumb = item.previewUrl
       ? el('img', { class: 'ag-up-media-tile__img', src: item.previewUrl, alt: item.title, loading: 'lazy' })
       : el(
@@ -54,16 +72,21 @@ function renderMediaGrid(items: UserProfileMediaItem[], emptyText: string): HTML
 
     grid.appendChild(
       el(
-        'div',
+        'button',
         {
+          type: 'button',
           class: 'ag-up-media-tile' + (item.isVideoCircle ? ' is-circle' : ''),
+          style: 'cursor:pointer;min-width:0;',
           title: item.title,
+          'aria-label': item.title,
+          onClick: () => openMediaViewer(gallery[idx], gallery, idx, item.message),
         },
         thumb,
         badge,
       ),
     );
-  }
+  });
+
   return grid;
 }
 
@@ -76,10 +99,21 @@ function renderFilesList(items: UserProfileFileItem[], emptyText: string): HTMLE
     const meta = [item.fileSizeLabel, item.subtitle, item.message.timestamp]
       .filter(Boolean)
       .join(' • ');
+    const attachment: MessageAttachment = item.message.attachment ?? {
+      type: 'file',
+      title: item.title,
+      subtitle: item.subtitle,
+      fileSizeLabel: item.fileSizeLabel,
+    };
     list.appendChild(
       el(
-        'div',
-        { class: 'ag-up-list-row' },
+        'button',
+        {
+          type: 'button',
+          class: 'ag-up-list-row',
+          title: item.title,
+          onClick: () => openDocumentViewer(attachment, item.message),
+        },
         el('div', { class: 'ag-up-list-row__icon' }, tgIcons.file(18)),
         el(
           'div',
@@ -107,6 +141,11 @@ function renderLinksList(items: UserProfileLinkItem[], emptyText: string): HTMLE
           href: item.url,
           target: '_blank',
           rel: 'noopener noreferrer',
+          title: item.url,
+          onClick: (e: Event) => {
+            e.preventDefault();
+            openExternalLink(item.url);
+          },
         },
         el('div', { class: 'ag-up-list-row__icon' }, tgIcons.link(18)),
         el(
@@ -126,23 +165,37 @@ function renderVoiceList(items: UserProfileAudioItem[], emptyText: string): HTML
     return el('div', { class: 'ag-up-empty' }, emptyText);
   }
   const list = el('div', { class: 'ag-up-list' });
-  let playingId: string | null = null;
+  const tracks: PlayerTrack[] = items.map((item) => ({
+    id: item.message.id,
+    title: item.title,
+    subtitle:
+      (item.isVoice ? item.message.senderName : item.subtitle) ||
+      item.message.senderName ||
+      formatDurationSec(item.durationSec),
+    durationSec: item.durationSec ?? item.message.attachment?.durationSec ?? 24,
+    url: item.message.attachment?.previewUrl,
+  }));
 
   const rebuild = () => {
     clear(list);
-    for (const item of items) {
-      const isPlaying = playingId === item.message.id;
-      const dur = formatDurationSec(item.durationSec);
-      const sub = [dur, item.message.senderName, item.message.timestamp].filter(Boolean).join(' • ');
+    items.forEach((item, idx) => {
+      const track = tracks[idx];
+      const isCurrent = audioPlayer.currentTrack?.id === item.message.id;
+      const isPlaying = isCurrent && audioPlayer.playing;
+      const dur = formatDurationSec(track.durationSec);
+      const authorOrArtist = item.isVoice
+        ? item.message.senderName
+        : item.subtitle || item.message.senderName;
+      const sub = [dur, authorOrArtist, item.message.timestamp].filter(Boolean).join(' • ');
+
       list.appendChild(
         el(
           'button',
           {
+            type: 'button',
             class: 'ag-up-list-row' + (isPlaying ? ' is-playing' : ''),
-            onClick: () => {
-              playingId = isPlaying ? null : item.message.id;
-              rebuild();
-            },
+            'aria-pressed': isPlaying ? 'true' : 'false',
+            onClick: () => audioPlayer.toggleTrack(track, tracks),
           },
           el(
             'div',
@@ -157,9 +210,29 @@ function renderVoiceList(items: UserProfileAudioItem[], emptyText: string): HTML
           ),
         ),
       );
-    }
+    });
   };
+
   rebuild();
+
+  let audioKey = `${audioPlayer.currentTrack?.id ?? ''}|${audioPlayer.playing}`;
+  let wasConnected = false;
+  queueMicrotask(() => {
+    if (list.isConnected) wasConnected = true;
+  });
+  const unsub = audioPlayer.subscribe(() => {
+    if (list.isConnected) {
+      wasConnected = true;
+    } else if (wasConnected) {
+      unsub();
+      return;
+    }
+    const nextKey = `${audioPlayer.currentTrack?.id ?? ''}|${audioPlayer.playing}`;
+    if (nextKey === audioKey) return;
+    audioKey = nextKey;
+    rebuild();
+  });
+
   return list;
 }
 
@@ -168,11 +241,14 @@ export function createUserProfileMediaTabs(props: UserProfileMediaTabsProps): HT
 
   const tabBar = el(
     'div',
-    { class: 'ag-up-tabs' },
+    { class: 'ag-up-tabs', role: 'tablist' },
     ...ALL_TABS.map((tab) =>
       el(
         'button',
         {
+          type: 'button',
+          role: 'tab',
+          'aria-selected': String(tab === activeTab),
           class: 'ag-up-tab' + (tab === activeTab ? ' is-active' : ''),
           onClick: () => onSelectTab(tab),
         },

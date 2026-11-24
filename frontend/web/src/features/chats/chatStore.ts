@@ -2,6 +2,7 @@ import { i18nStore } from '../../core/i18n/i18nStore';
 import type { AppLanguage } from '../../core/i18n/types';
 import { kvStore } from '../../core/storage/kvStore';
 import { draftsStore } from '../drafts/draftsStore';
+import { blockedUsersStore } from './user_profile/data/BlockedUsersStore';
 import {
   type ChatMessage,
   type ChatPreviewResult,
@@ -1074,6 +1075,92 @@ class ChatStore {
         t.id === chatId ? { ...t, lastMessageEpochMs: nextLast.createdAt } : t,
       );
     }
+    this.persist();
+    this.emit();
+  }
+
+  /** Updates an existing message's text, marks it as edited, and refreshes previews/replies. */
+  editMessage(chatId: string, messageId: string, newText: string): void {
+    const list = this.messagesMap[chatId];
+    if (!list) return;
+    const idx = list.findIndex((m) => m.id === messageId);
+    if (idx === -1) return;
+
+    const existing = list[idx];
+    const trimmed = newText.trim();
+    if (!trimmed && !existing.attachment) return;
+    if (existing.text === trimmed) return;
+
+    const updated: ChatMessage = {
+      ...existing,
+      text: trimmed,
+      isEdited: true,
+      replyTo: existing.replyTo ? { ...existing.replyTo } : undefined,
+    };
+
+    const replySnippet =
+      trimmed ||
+      getAttachmentFallbackLabel(updated.attachment, i18nStore.language) ||
+      '📎';
+
+    const nextList = list.map((m, i) => {
+      if (i === idx) return updated;
+      if (m.replyTo?.messageId === messageId) {
+        return {
+          ...m,
+          replyTo: {
+            ...m.replyTo,
+            snippet: replySnippet,
+          },
+        };
+      }
+      return m;
+    });
+
+    this.messagesMap = {
+      ...this.messagesMap,
+      [chatId]: nextList,
+    };
+
+    if (idx === list.length - 1) {
+      this.threadList = this.threadList.map((t) =>
+        t.id === chatId ? { ...t, lastMessageEpochMs: updated.createdAt } : t,
+      );
+    }
+
+    this.persist();
+    this.emit();
+  }
+
+  /** Purges messages older than the chat's configured auto-delete duration. */
+  purgeExpiredAutoDelete(chatId: string): void {
+    const config = blockedUsersStore.getAutoDelete(chatId);
+    const durationSeconds = config.seconds;
+    if (config.preset === 'off' || durationSeconds <= 0) return;
+
+    const list = this.messagesMap[chatId];
+    if (!list || list.length === 0) return;
+
+    const cutoff = Date.now() - durationSeconds * 1000;
+    const nextList = list.filter((m) => m.createdAt >= cutoff);
+    if (nextList.length === list.length) return;
+
+    this.messagesMap = {
+      ...this.messagesMap,
+      [chatId]: nextList,
+    };
+
+    const nextLast = nextList[nextList.length - 1];
+    this.threadList = this.threadList.map((t) =>
+      t.id === chatId
+        ? {
+            ...t,
+            lastMessageEpochMs: nextLast ? nextLast.createdAt : t.lastMessageEpochMs,
+            unreadCount: nextList.length === 0 ? 0 : Math.min(t.unreadCount, nextList.length),
+          }
+        : t,
+    );
+
     this.persist();
     this.emit();
   }

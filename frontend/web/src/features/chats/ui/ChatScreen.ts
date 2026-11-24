@@ -5,11 +5,14 @@ import { tgIcons } from '../../../core/ui/icons';
 import { showToast } from '../../../core/ui/toast';
 import { draftsStore } from '../../drafts/draftsStore';
 import { audioPlayer, createMiniAudioPlayerBar } from '../../player/audioPlayer';
+import { settingsStore } from '../../settings/settingsStore';
 import { openWallpaperPicker } from '../../wallpapers';
 import { chatStore } from '../chatStore';
 import { chatScreenT } from '../i18n';
+import { openExternalLink } from '../links/InAppBrowserHost';
 import type { ChatMessage, MessageAttachment, ReplyPreview } from '../models';
 import { createInChatSearchBar } from '../search/ChatSearchScreen';
+import { localMessageTranslator as localTranslator } from '../tools/translate/LocalMessageTranslator';
 import { createUserProfileScreen } from '../user_profile/api/UserProfileScreen';
 import { blockedUsersStore } from '../user_profile/data/BlockedUsersStore';
 import { userProfileT } from '../user_profile/i18n/UserProfileI18n';
@@ -18,6 +21,7 @@ import { createChatWallpaper } from './ChatWallpaper';
 import { createAttachMenu } from './components/AttachMenu';
 import { createComposer } from './components/Composer';
 import { createDateChip } from './components/DateChip';
+import { openDeleteMessageDialog } from './components/DeleteMessageDialog';
 import { createEmojiPanel } from './components/EmojiPanel';
 import { openForwardModal } from './components/ForwardModal';
 import { createMessageRow } from './components/MessageBubble';
@@ -71,6 +75,7 @@ export function createChatRoomView(
   chatId: string,
   onBackMobile: () => void,
 ): HTMLElement {
+  chatStore.purgeExpiredAutoDelete(chatId);
   chatStore.markRead(chatId);
 
   const initialDraft = draftsStore.getDraft(chatId);
@@ -80,6 +85,7 @@ export function createChatRoomView(
     if (orig) replyTarget = makeReplyPreview(orig);
   }
 
+  let editingMessage: ChatMessage | null = null;
   let openPanel: 'none' | 'emoji' | 'attach' = 'none';
   let selectionMode = false;
   let searchOpen = false;
@@ -119,12 +125,97 @@ export function createChatRoomView(
     draftsStore.setDraft(chatId, text, replyTarget?.messageId, replyTarget?.snippet);
   };
 
+  const getEditTitle = (): string =>
+    i18nStore.language === 'ru' ? 'Редактирование' : 'Edit message';
+
+  const restoreDraftAfterEdit = () => {
+    const saved = draftsStore.getDraft(chatId);
+    composer.setText(saved?.text ?? '');
+    if (!replyTarget && saved?.replyToMessageId) {
+      const orig = chatStore.getMessages(chatId).find((m) => m.id === saved.replyToMessageId);
+      if (orig) {
+        replyTarget = makeReplyPreview(orig);
+        renderReply();
+      }
+    }
+  };
+
+  const cancelEditing = () => {
+    if (!editingMessage) return;
+    editingMessage = null;
+    composer.clearEditing();
+    restoreDraftAfterEdit();
+  };
+
+  const startEditing = (msg: ChatMessage) => {
+    if (blockedUsersStore.isBlocked(chatId) || !msg.isOutgoing || !msg.text.trim()) return;
+    editingMessage = msg;
+    replyTarget = null;
+    renderReply();
+    composer.setEditing(getEditTitle(), msg.text);
+    composer.focus();
+  };
+
+  const sendRecordedMedia = (
+    type: 'voice' | 'video_circle',
+    durationSec: number,
+    previewUrl?: string,
+  ) => {
+    if (blockedUsersStore.isBlocked(chatId)) return;
+    if (editingMessage) {
+      editingMessage = null;
+      composer.clearEditing();
+    }
+    const title =
+      type === 'voice' ? i18nStore.t.input.attachVoice : i18nStore.t.input.attachVideoCircle;
+    chatStore.sendMessage(chatId, '', replyTarget ?? undefined, {
+      type,
+      title,
+      durationSec,
+      previewUrl,
+    });
+    replyTarget = null;
+    openPanel = 'none';
+    forceScrollBottom = true;
+    draftsStore.clearReplyTarget(chatId);
+    renderReply();
+    renderDrawer();
+  };
+
+  const confirmDeleteMessages = (msgs: ChatMessage[], afterDelete?: () => void) => {
+    if (!msgs.length) return;
+    const thread = chatStore.getThread(chatId);
+    const canDeleteForAll = !thread?.isSavedMessages && msgs.every((m) => m.isOutgoing);
+    openDeleteMessageDialog(msgs.length, canDeleteForAll, (_forEveryone) => {
+      for (const m of msgs) {
+        chatStore.deleteMessage(chatId, m.id);
+      }
+      showToast(chatScreenT().deletedToast(msgs.length));
+      afterDelete?.();
+    });
+  };
+
   // Composer is created once and kept mounted so the input never loses focus on typing or sending.
   const composer = createComposer({
     initialText: initialDraft?.text ?? '',
-    onTextChange: (text) => syncDraft(text),
+    onTextChange: (text) => {
+      if (!editingMessage) syncDraft(text);
+    },
     onSend: (text) => {
       if (blockedUsersStore.isBlocked(chatId)) return;
+      if (editingMessage) {
+        const target = editingMessage;
+        editingMessage = null;
+        composer.clearEditing();
+        chatStore.editMessage(chatId, target.id, text);
+        if (localTranslator.getMessageTranslation(target.id) !== null) {
+          localTranslator.clearMessageTranslation(target.id);
+        }
+        restoreDraftAfterEdit();
+        openPanel = 'none';
+        renderDrawer();
+        return;
+      }
       chatStore.sendMessage(chatId, text, replyTarget ?? undefined);
       replyTarget = null;
       openPanel = 'none';
@@ -133,17 +224,14 @@ export function createChatRoomView(
       renderReply();
       renderDrawer();
     },
-    onVoice: () => {
-      if (blockedUsersStore.isBlocked(chatId)) return;
-      chatStore.sendMessage(chatId, '', replyTarget ?? undefined, {
-        type: 'voice',
-        title: i18nStore.t.input.attachVoice,
-        durationSec: 12,
-      });
-      replyTarget = null;
-      forceScrollBottom = true;
-      renderReply();
+    onCancelEdit: () => {
+      editingMessage = null;
+      restoreDraftAfterEdit();
     },
+    onVoice: () => sendRecordedMedia('voice', 12),
+    onSendVoiceRecorded: (dataUrl, durationSec) => sendRecordedMedia('voice', durationSec, dataUrl),
+    onSendVideoCircleRecorded: (dataUrl, durationSec) =>
+      sendRecordedMedia('video_circle', durationSec, dataUrl),
     onToggleAttach: () => {
       if (blockedUsersStore.isBlocked(chatId)) return;
       openPanel = openPanel === 'attach' ? 'none' : 'attach';
@@ -205,6 +293,7 @@ export function createChatRoomView(
           onClose: exitSelection,
           onReply: () => {
             if (selected.length !== 1) return;
+            cancelEditing();
             replyTarget = makeReplyPreview(selected[0]);
             exitSelection();
             renderReply();
@@ -226,12 +315,7 @@ export function createChatRoomView(
             if (!selected.length) return;
             openForwardModal(selected, exitSelection);
           },
-          onDelete: () => {
-            const count = selected.length;
-            for (const m of selected) chatStore.deleteMessage(chatId, m.id);
-            showToast(chatScreenT().deletedToast(count));
-            exitSelection();
-          },
+          onDelete: () => confirmDeleteMessages(selected, exitSelection),
         }),
       );
       return;
@@ -340,6 +424,10 @@ export function createChatRoomView(
           (em) => composer.insertText(em),
           (st) => {
             if (blockedUsersStore.isBlocked(chatId)) return;
+            if (editingMessage) {
+              editingMessage = null;
+              composer.clearEditing();
+            }
             chatStore.sendMessage(chatId, st, replyTarget ?? undefined);
             replyTarget = null;
             openPanel = 'none';
@@ -355,6 +443,10 @@ export function createChatRoomView(
         createAttachMenu({
           send: (att: MessageAttachment) => {
             if (blockedUsersStore.isBlocked(chatId)) return;
+            if (editingMessage) {
+              editingMessage = null;
+              composer.clearEditing();
+            }
             const text = composer.getText();
             chatStore.sendMessage(chatId, text, replyTarget ?? undefined, att);
             composer.setText('');
@@ -386,9 +478,12 @@ export function createChatRoomView(
   };
 
   const openMenuFor = (msg: ChatMessage, x: number, y: number) => {
+    const canEdit = msg.isOutgoing && Boolean(msg.text.trim());
+    const canTranslate = Boolean(msg.text.trim()) && settingsStore.all.showTranslateButton;
     showMessageContextMenu(msg, x, y, {
       onReact: (em) => chatStore.toggleReaction(chatId, msg.id, em),
       onReply: () => {
+        cancelEditing();
         replyTarget = makeReplyPreview(msg);
         syncDraft(composer.getText());
         renderReply();
@@ -399,6 +494,27 @@ export function createChatRoomView(
         await copyToClipboard(msg.text);
         showToast(i18nStore.t.common.copied);
       },
+      onEdit: canEdit ? () => startEditing(msg) : undefined,
+      onTranslate: canTranslate
+        ? () => {
+            if (localTranslator.getMessageTranslation(msg.id) !== null) {
+              localTranslator.clearMessageTranslation(msg.id);
+              return;
+            }
+            void localTranslator
+              .translateMessage(msg.id, msg.text)
+              .then(() => {
+                renderMessages();
+              })
+              .catch(() => {
+                showToast(
+                  i18nStore.language === 'ru'
+                    ? 'Не удалось перевести сообщение'
+                    : 'Failed to translate message',
+                );
+              });
+          }
+        : undefined,
       onForward: () => openForwardModal([msg]),
       onSelect: () => {
         selectionMode = true;
@@ -406,7 +522,7 @@ export function createChatRoomView(
         renderHeader();
         renderMessages();
       },
-      onDelete: () => chatStore.deleteMessage(chatId, msg.id),
+      onDelete: () => confirmDeleteMessages([msg]),
     });
   };
 
@@ -456,12 +572,31 @@ export function createChatRoomView(
             renderMessages();
           },
           onSwipeReply: (m) => {
+            cancelEditing();
             replyTarget = makeReplyPreview(m);
             syncDraft(composer.getText());
             renderReply();
             composer.focus();
           },
           onReplyJump: jumpToMessage,
+          onTranscribeVoice: (m) => {
+            if (localTranslator.isVoiceTranscribing(m.id)) return;
+            const durationSec = m.attachment?.durationSec ?? 12;
+            const lang = i18nStore.language === 'ru' ? 'ru' : 'en';
+            void localTranslator
+              .transcribeVoice(m.id, durationSec, m.attachment?.previewUrl, lang)
+              .then(() => {
+                renderMessages();
+              })
+              .catch(() => {
+                showToast(
+                  i18nStore.language === 'ru'
+                    ? 'Не удалось расшифровать голосовое'
+                    : 'Failed to transcribe voice message',
+                );
+              });
+          },
+          onOpenLink: (url) => openExternalLink(url),
         }),
       );
     }
@@ -536,12 +671,37 @@ export function createChatRoomView(
     blockedSlot.appendChild(banner);
   };
 
+  const autoTranslateIncomingMessages = () => {
+    if (!settingsStore.all.autoTranslateIncoming) return;
+    const configuredTarget = localTranslator.getTargetLang();
+    const effectiveTarget =
+      !configuredTarget || configuredTarget === 'auto' ? i18nStore.language : configuredTarget;
+    for (const msg of chatStore.getMessages(chatId)) {
+      if (msg.isOutgoing || !msg.text.trim()) continue;
+      if (localTranslator.getMessageTranslation(msg.id) !== null) continue;
+      if (localTranslator.isMessageTranslating(msg.id)) continue;
+      if (localTranslator.detectLanguage(msg.text) === effectiveTarget) continue;
+      void localTranslator.translateMessage(msg.id, msg.text, effectiveTarget);
+    }
+  };
+
   const unsubChats = chatStore.subscribe(() => {
+    if (
+      editingMessage &&
+      !chatStore.getMessages(chatId).some((m) => m.id === editingMessage!.id)
+    ) {
+      cancelEditing();
+    }
     renderHeader();
     renderMessages();
+    autoTranslateIncomingMessages();
   });
 
   const unsubBlocked = blockedUsersStore.subscribe(() => {
+    chatStore.purgeExpiredAutoDelete(chatId);
+    if (blockedUsersStore.isBlocked(chatId)) {
+      cancelEditing();
+    }
     renderHeader();
     renderBlockedDock();
   });
@@ -565,6 +725,16 @@ export function createChatRoomView(
     renderMessages();
     renderDrawer();
     renderBlockedDock();
+    autoTranslateIncomingMessages();
+  });
+
+  const unsubTranslator = localTranslator.subscribe(() => {
+    renderMessages();
+  });
+
+  const unsubSettings = settingsStore.subscribe(() => {
+    autoTranslateIncomingMessages();
+    renderMessages();
   });
 
   renderHeader();
@@ -572,6 +742,7 @@ export function createChatRoomView(
   renderMessages();
   renderDrawer();
   renderBlockedDock();
+  autoTranslateIncomingMessages();
   requestAnimationFrame(scrollToBottomNow);
 
   if (window.innerWidth >= 840 && !blockedUsersStore.isBlocked(chatId)) {
@@ -583,6 +754,8 @@ export function createChatRoomView(
     unsubBlocked();
     unsubAudio();
     unsubI18n();
+    unsubTranslator();
+    unsubSettings();
     (wallpaper as unknown as { __cleanup?: () => void }).__cleanup?.();
     (miniPlayer as unknown as { __cleanup?: () => void }).__cleanup?.();
     (pinnedSlot.firstElementChild as unknown as { __cleanup?: () => void } | null)?.__cleanup?.();

@@ -1,16 +1,36 @@
 import { copyToClipboard, el } from '../../../../core/ui/dom';
 import { icons, tgIcons } from '../../../../core/ui/icons';
 import { showToast } from '../../../../core/ui/toast';
+import { blockedUsersStore } from '../data/BlockedUsersStore';
 import type { UserProfileStrings } from '../i18n/UserProfileI18n';
 import type { AutoDeleteConfig, PeerCryptoMetadata } from '../model/UserProfileModels';
+import { openAutoDeleteCustomSheet } from './AutoDeleteCustomSheet';
 
 export interface UserProfileInfoCardProps {
+  chatId?: string;
   meta: PeerCryptoMetadata;
   autoDelete: AutoDeleteConfig;
   isMuted: boolean;
   strings: UserProfileStrings;
-  onOpenAutoDelete: () => void;
-  onToggleNotifications: () => void;
+  onOpenAutoDelete?: () => void;
+  onToggleNotifications?: () => void;
+}
+
+async function copyTextReliable(value: string): Promise<boolean> {
+  if (await copyToClipboard(value)) return true;
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
 function createCopyRow(
@@ -23,9 +43,10 @@ function createCopyRow(
   return el(
     'button',
     {
+      type: 'button',
       class: 'ag-up-info-row',
       onClick: () => {
-        void copyToClipboard(value).then((ok) => {
+        void copyTextReliable(value).then((ok) => {
           if (ok) showToast(copiedToast);
         });
       },
@@ -42,13 +63,27 @@ function createCopyRow(
 }
 
 export function createUserProfileInfoCard(props: UserProfileInfoCardProps): HTMLElement {
-  const { meta, autoDelete, isMuted, strings, onOpenAutoDelete, onToggleNotifications } = props;
+  const { chatId, meta, autoDelete, isMuted, strings, onOpenAutoDelete, onToggleNotifications } = props;
 
   const autoDeleteRow = el(
     'button',
     {
+      type: 'button',
       class: 'ag-up-info-row',
-      onClick: onOpenAutoDelete,
+      onClick: () => {
+        if (onOpenAutoDelete) {
+          onOpenAutoDelete();
+        } else if (chatId) {
+          openAutoDeleteCustomSheet({
+            current: blockedUsersStore.getAutoDelete(chatId),
+            strings,
+            onApply: (cfg) => {
+              blockedUsersStore.setAutoDelete(chatId, cfg);
+              showToast(strings.autoDeleteUpdatedToast);
+            },
+          });
+        }
+      },
     },
     el('span', { class: 'ag-up-info-row__icon' }, tgIcons.clock(18)),
     el(
@@ -63,10 +98,18 @@ export function createUserProfileInfoCard(props: UserProfileInfoCardProps): HTML
   const notificationsRow = el(
     'button',
     {
+      type: 'button',
       class: 'ag-up-info-row',
       role: 'switch',
       'aria-checked': String(!isMuted),
-      onClick: onToggleNotifications,
+      onClick: () => {
+        if (onToggleNotifications) {
+          onToggleNotifications();
+        } else if (chatId) {
+          const nowMuted = blockedUsersStore.toggleMute(chatId);
+          showToast(nowMuted ? strings.mutedToast : strings.unmutedToast);
+        }
+      },
     },
     el(
       'span',

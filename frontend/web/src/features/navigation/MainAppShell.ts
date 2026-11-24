@@ -7,6 +7,7 @@ import {
   swipeBackGesture,
   type TransitionScreen,
 } from '../../core/navigation/AnimationEngine';
+import { backHistory } from '../../core/navigation/BackHistory';
 import {
   defaultNavigationConfig,
   type NavigationTransitionConfig,
@@ -100,6 +101,7 @@ export function createAppShell(): HTMLElement {
   };
 
   const closeMobileDetail = () => {
+    backHistory.remove('shell:mobile-detail');
     if (isClosingDetail) return;
     if (!detailScreen) {
       if (mobileChatOpen || mobileSettingsOpen) {
@@ -154,12 +156,28 @@ export function createAppShell(): HTMLElement {
       },
     });
 
+    backHistory.push({
+      id: 'shell:mobile-detail',
+      tag: 'overlay',
+      onBack: () => closeMobileDetail(),
+    });
+
     void openOverlay(screen, () => {
       root.appendChild(screen.el);
     });
   };
 
   const goTab = (tab: MainTab) => {
+    backHistory.remove('shell:mobile-detail');
+    if (tab !== 'chats') {
+      backHistory.push({
+        id: 'shell:tab',
+        tag: 'tab',
+        onBack: () => goTab('chats'),
+      });
+    } else {
+      backHistory.remove('shell:tab');
+    }
     activeTab = tab;
     mobileChatOpen = false;
     mobileSettingsOpen = false;

@@ -1,0 +1,465 @@
+/* Input Voice & Video Circle Recording styles — strictly uses --ag-* CSS variables (ZERO hardcoded hex or rgb/rgba). */
+
+@keyframes ag-rec-pulse {
+  from {
+    opacity: 0.32;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+}
+
+/* ---- VoiceRecordingBar (1:1 Android VoiceRecordingBar.kt) ---- */
+.ag-voice-rec-wrap {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ag-voice-rec-notice {
+  position: absolute;
+  left: 8px;
+  bottom: calc(100% + 8px);
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 16px);
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--ag-banner-bg) 96%, transparent);
+  border: 1px solid var(--ag-island-border);
+  color: var(--ag-text-secondary);
+  font-size: 11.5px;
+  font-weight: 500;
+  box-shadow: 0 6px 18px var(--ag-shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ag-voice-rec-notice[hidden] {
+  display: none;
+}
+
+.ag-voice-rec-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 48px;
+  padding: 0 4px 0 16px;
+  gap: 10px;
+  border-radius: 24px;
+  background: var(--ag-island-bg);
+  border: 1px solid var(--ag-island-border);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--ag-shadow) 36%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.ag-voice-rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: var(--ag-danger);
+  flex-shrink: 0;
+  animation: ag-rec-pulse 0.55s ease-in-out infinite alternate;
+}
+
+.ag-voice-rec-timer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ag-text-primary);
+  min-width: 40px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.ag-voice-rec-eq {
+  flex: 1;
+  min-width: 28px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  overflow: hidden;
+  padding: 0 4px;
+}
+
+.ag-voice-rec-eq-bar {
+  width: 2.5px;
+  height: 20px;
+  border-radius: 9999px;
+  background: var(--ag-accent);
+  transform-origin: center;
+  transform: scaleY(0.18);
+  opacity: 0.65;
+  transition: transform 0.08s ease-out, opacity 0.1s ease-out;
+  will-change: transform;
+}
+
+.ag-voice-rec-cancel {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--ag-accent);
+  background: transparent;
+  flex-shrink: 0;
+  transition: background-color 0.14s ease, transform 0.12s ease;
+}
+
+.ag-voice-rec-cancel:hover {
+  background: var(--ag-accent-soft);
+}
+
+.ag-voice-rec-cancel:active {
+  transform: scale(0.96);
+}
+
+.ag-voice-rec-send-wrap {
+  position: relative;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ag-voice-rec-send-halo {
+  position: absolute;
+  width: 64px;
+  height: 64px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--ag-accent) 30%, transparent);
+  pointer-events: none;
+  transition: transform 0.09s ease-out;
+}
+
+.ag-voice-rec-send {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  border-radius: 9999px;
+  background: var(--ag-accent);
+  color: var(--ag-on-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ag-accent) 42%, transparent);
+  transition: transform 0.12s ease, filter 0.14s ease;
+}
+
+.ag-voice-rec-send:hover {
+  filter: brightness(1.06);
+}
+
+.ag-voice-rec-send:active {
+  transform: scale(0.94);
+}
+
+/* ---- VideoCircleRecordOverlay (1:1 Android VideoCircleRecordOverlay.kt) ---- */
+.ag-vc-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: max(20px, env(safe-area-inset-top, 0px)) 16px max(24px, env(safe-area-inset-bottom, 0px));
+  background: var(--ag-overlay-scrim);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  user-select: none;
+  touch-action: none;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.ag-vc-overlay.is-open {
+  opacity: 1;
+}
+
+.ag-vc-top {
+  width: 100%;
+  max-width: 520px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.ag-vc-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--ag-island-bg) 88%, transparent);
+  border: 1px solid var(--ag-island-border);
+  color: var(--ag-text-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px var(--ag-shadow);
+}
+
+.ag-vc-status-pill.is-fallback {
+  color: var(--ag-text-secondary);
+  border-color: var(--ag-warning-border);
+  background: color-mix(in srgb, var(--ag-banner-bg) 92%, transparent);
+}
+
+.ag-vc-center {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  min-height: 0;
+}
+
+.ag-vc-stage {
+  position: relative;
+  width: min(340px, 80vw, 54vh);
+  height: min(340px, 80vw, 54vh);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ag-vc-halo-outer,
+.ag-vc-halo-inner {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.ag-vc-halo-outer {
+  inset: -12px;
+  background: color-mix(in srgb, var(--ag-text-primary) 7%, transparent);
+}
+
+.ag-vc-halo-inner {
+  inset: -5px;
+  background: color-mix(in srgb, var(--ag-text-primary) 11%, transparent);
+}
+
+.ag-vc-progress-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.ag-vc-progress-track {
+  fill: none;
+  stroke: color-mix(in srgb, var(--ag-text-primary) 18%, transparent);
+  stroke-width: 2.2;
+}
+
+.ag-vc-progress-arc {
+  fill: none;
+  stroke: var(--ag-accent);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+  transition: stroke-dashoffset 0.25s linear;
+}
+
+.ag-vc-circle {
+  position: relative;
+  width: calc(100% - 14px);
+  height: calc(100% - 14px);
+  border-radius: 9999px;
+  overflow: hidden;
+  background: var(--ag-surface);
+  box-shadow: 0 18px 48px var(--ag-shadow);
+  z-index: 2;
+  cursor: pointer;
+}
+
+.ag-vc-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ag-vc-video.is-mirrored {
+  transform: scaleX(-1);
+}
+
+.ag-vc-video[hidden],
+.ag-vc-canvas[hidden] {
+  display: none;
+}
+
+.ag-vc-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.ag-vc-focus-ring {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  margin-left: -28px;
+  margin-top: -28px;
+  border-radius: 9999px;
+  border: 2px solid var(--ag-on-accent);
+  box-shadow: 0 0 12px var(--ag-shadow);
+  pointer-events: none;
+  opacity: 0.9;
+  transform: scale(1.1);
+  transition: transform 0.6s ease-out, opacity 0.6s ease-out;
+}
+
+.ag-vc-focus-ring.is-fading {
+  opacity: 0;
+  transform: scale(0.65);
+}
+
+.ag-vc-timer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--ag-island-bg) 92%, transparent);
+  border: 1px solid var(--ag-island-border);
+  box-shadow: 0 6px 18px var(--ag-shadow);
+}
+
+.ag-vc-timer-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ag-text-primary);
+}
+
+.ag-vc-controls {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 4px 0;
+}
+
+.ag-vc-pill-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--ag-island-bg) 88%, transparent);
+  border: 1px solid var(--ag-island-border);
+  box-shadow: 0 6px 20px var(--ag-shadow);
+}
+
+.ag-vc-ctrl-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ag-text-primary);
+  background: transparent;
+  transition: background-color 0.14s ease, color 0.14s ease, transform 0.12s ease;
+}
+
+.ag-vc-ctrl-btn:hover {
+  background: var(--ag-hover);
+}
+
+.ag-vc-ctrl-btn:active {
+  transform: scale(0.92);
+}
+
+.ag-vc-ctrl-btn.is-locked {
+  background: var(--ag-accent-soft);
+  color: var(--ag-accent);
+}
+
+.ag-vc-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ag-vc-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--ag-island-bg) 90%, transparent);
+  border: 1px solid var(--ag-island-border);
+  color: var(--ag-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 6px 20px var(--ag-shadow);
+  transition: background-color 0.14s ease, transform 0.12s ease;
+}
+
+.ag-vc-cancel-btn:hover {
+  background: var(--ag-danger-soft);
+  border-color: var(--ag-danger-border);
+  color: var(--ag-danger);
+}
+
+.ag-vc-cancel-btn:active {
+  transform: scale(0.95);
+}
+
+.ag-vc-send-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 9999px;
+  background: var(--ag-accent);
+  color: var(--ag-on-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 0 6px color-mix(in srgb, var(--ag-accent) 26%, transparent),
+    0 10px 26px var(--ag-shadow);
+  transition: transform 0.12s ease, filter 0.14s ease;
+}
+
+.ag-vc-send-btn:hover {
+  filter: brightness(1.06);
+}
+
+.ag-vc-send-btn:active {
+  transform: scale(0.94);
+}
