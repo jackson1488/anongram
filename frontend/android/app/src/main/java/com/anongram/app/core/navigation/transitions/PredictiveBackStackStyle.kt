@@ -17,9 +17,9 @@ class PredictiveBackStackStyle : ITransitionStyle {
         config: NavigationTransitionConfig,
         density: Float
     ) {
-        val edgeDir = if (config.swipeEdge == 1) -1f else 1f
+        val towardEdgeDir = if (config.swipeEdge == 1) 1f else -1f
         val yOffsetFactor = (config.touchYFraction - 0.5f).coerceIn(-0.5f, 0.5f)
-        val scale = (1f - progress * 0.16f).coerceIn(0.80f, 1f)
+        val scale = (1f - progress * 0.18f).coerceIn(0.80f, 1f)
         scaleX = scale
         scaleY = scale
         shape = RoundedCornerShape((progress * 28f).dp)
@@ -27,7 +27,11 @@ class PredictiveBackStackStyle : ITransitionStyle {
         shadowElevation = progress * 18.dp.toPx()
         translationY = yOffsetFactor * progress * size.height * 0.06f
 
-        translationX = edgeDir * progress * size.width
+        if (config.isPredictiveHolding) {
+            translationX = towardEdgeDir * progress * size.width * 0.14f
+        } else {
+            translationX = towardEdgeDir * progress * size.width
+        }
         alpha = 1f
     }
 }

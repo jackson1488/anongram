@@ -69,7 +69,8 @@ private val BaseTransitionTypes = listOf(
     TransitionType.SPRING_SWIPE,
     TransitionType.CUPERTINO_PARALLAX,
     TransitionType.CARD_STACK_PEEK,
-    TransitionType.PREDICTIVE_BACK
+    TransitionType.PREDICTIVE_BACK,
+    TransitionType.SMOOTH_SLIDE
 )
 
 private val EffectTransitionTypes = listOf(
@@ -166,6 +167,24 @@ fun ScreenTransitionsSettingsScreen(
                 StyleInlineController(
                     type = TransitionType.PREDICTIVE_BACK,
                     isSelected = state.isBasePredictiveActive && !state.isBaseSwipeActive && !state.isBaseParallaxActive,
+                    state = state,
+                    strings = strings
+                )
+
+                ComboToggleRow(
+                    title = strings.transSmoothSlideTitle,
+                    description = strings.transSmoothSlideDesc,
+                    checked = state.screenTransitionType == TransitionType.SMOOTH_SLIDE,
+                    onCheckedChange = { enabled ->
+                        AnimationsSettingsStore.setScreenTransitionType(
+                            context,
+                            if (enabled) TransitionType.SMOOTH_SLIDE else TransitionType.SPRING_SWIPE
+                        )
+                    }
+                )
+                StyleInlineController(
+                    type = TransitionType.SMOOTH_SLIDE,
+                    isSelected = state.screenTransitionType == TransitionType.SMOOTH_SLIDE,
                     state = state,
                     strings = strings
                 )
@@ -672,6 +691,7 @@ internal fun resolveTransitionLabels(
     TransitionType.PARTICLE_DISSOLVE -> strings.transParticleTitle to strings.transParticleDesc
     TransitionType.CARD_STACK_PEEK -> strings.transCardStackTitle to strings.transCardStackDesc
     TransitionType.PREDICTIVE_BACK -> strings.transPredictiveBackTitle to strings.transPredictiveBackDesc
+    TransitionType.SMOOTH_SLIDE -> strings.transSmoothSlideTitle to strings.transSmoothSlideDesc
     TransitionType.INSTANT -> strings.transInstantTitle to strings.transInstantDesc
 }
 

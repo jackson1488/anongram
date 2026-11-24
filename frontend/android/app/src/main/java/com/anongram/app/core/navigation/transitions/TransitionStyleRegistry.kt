@@ -19,6 +19,7 @@ object TransitionStyleRegistry {
         ParticleDissolveStyle(),
         CardStackPeekStyle(),
         PredictiveBackStackStyle(),
+        SmoothSlideStyle(),
         InstantStyle()
     ).associateBy { it.type }
 

@@ -89,7 +89,7 @@ fun ThemeRevealHost(
                 applyTheme()
                 revealProgress.animateTo(
                     targetValue = 1f,
-                    animationSpec = tween(durationMillis = 440, easing = FastOutSlowInEasing)
+                    animationSpec = tween(durationMillis = 720, easing = FastOutSlowInEasing)
                 )
                 oldSnapshot = null
             }

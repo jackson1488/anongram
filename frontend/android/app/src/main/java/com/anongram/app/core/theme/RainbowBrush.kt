@@ -19,23 +19,23 @@ import androidx.compose.ui.graphics.TileMode
 import kotlinx.coroutines.delay
 
 private val RainbowDarkBgStops = listOf(
-    Color(0xFF2B0B1A), // Красный
-    Color(0xFF2B1609), // Оранжевый
-    Color(0xFF241E08), // Жёлтый
-    Color(0xFF072319), // Зелёный
-    Color(0xFF06202C), // Голубой
-    Color(0xFF0D1934), // Синий
-    Color(0xFF1F0E34)  // Фиолетовый
+    Color(0xFF541034), // Красный
+    Color(0xFF5A280B), // Оранжевый
+    Color(0xFF473808), // Жёлтый
+    Color(0xFF0A4732), // Зелёный
+    Color(0xFF093E56), // Голубой
+    Color(0xFF172F61), // Синий
+    Color(0xFF3A1A69)  // Фиолетовый
 )
 
 private val RainbowLightBgStops = listOf(
-    Color(0xFFFFD4DF), // Красный
-    Color(0xFFFFE3C8), // Оранжевый
-    Color(0xFFFFF3BE), // Жёлтый
-    Color(0xFFCCF7E2), // Зелёный
-    Color(0xFFC8EEFF), // Голубой
-    Color(0xFFD4E2FF), // Синий
-    Color(0xFFE7D6FF)  // Фиолетовый
+    Color(0xFFFFA8C0), // Красный
+    Color(0xFFFFC294), // Оранжевый
+    Color(0xFFFFDF85), // Жёлтый
+    Color(0xFF96F0C4), // Зелёный
+    Color(0xFF94E2FF), // Голубой
+    Color(0xFFA8C4FF), // Синий
+    Color(0xFFD0A8FF)  // Фиолетовый
 )
 
 /**

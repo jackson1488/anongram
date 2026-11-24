@@ -294,7 +294,8 @@ object AnimationsSettingsStore {
         val isBaseType = type == TransitionType.SPRING_SWIPE ||
             type == TransitionType.CUPERTINO_PARALLAX ||
             type == TransitionType.CARD_STACK_PEEK ||
-            type == TransitionType.PREDICTIVE_BACK
+            type == TransitionType.PREDICTIVE_BACK ||
+            type == TransitionType.SMOOTH_SLIDE
         val editor = prefs(context).edit().putString(KEY_SCREEN_TRANSITION_TYPE, type.name)
         if (!isBaseType) {
             editor.putBoolean(KEY_COMBO_MINI_CARD, false)

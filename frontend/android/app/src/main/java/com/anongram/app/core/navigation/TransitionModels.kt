@@ -13,7 +13,8 @@ enum class TransitionType {
     WINDMILL,            // Rotation around top-left corner
     PARTICLE_DISSOLVE,   // Screen dissolves/reassembles from particles
     CARD_STACK_PEEK,     // Shrinks into floating card with 30dp radius
-    PREDICTIVE_BACK,     // Android 14+ Predictive Back gesture exit
+    PREDICTIVE_BACK,     // Android 14+ Predictive Back gesture exit (mini-card toward pulled edge)
+    SMOOTH_SLIDE,        // Smooth full-width slide off-screen without fadeout
     INSTANT;             // 0 ms turbo mode for maximum speed and stealth
 
     val isBidirectional: Boolean
@@ -28,6 +29,7 @@ enum class TransitionType {
             ROTATION_SPIN,
             CARD_STACK_PEEK,
             PREDICTIVE_BACK,
+            SMOOTH_SLIDE,
             INSTANT -> false
         }
 }
