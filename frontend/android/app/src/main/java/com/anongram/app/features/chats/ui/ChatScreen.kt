@@ -385,8 +385,8 @@ fun ChatScreen(
 
         if (isPeerBlocked) {
             val lang by com.anongram.app.core.i18n.LanguageSettingsStore.language.collectAsState()
-            val profileStrings = remember(lang) {
-                com.anongram.app.features.chats.user_profile.i18n.UserProfileI18n.forLanguage(lang)
+            val unblockLabel = remember(lang) {
+                com.anongram.app.features.chats.user_profile.i18n.UserProfileI18n.forLanguage(lang).unblockButton
             }
             Box(
                 modifier = Modifier
@@ -396,55 +396,24 @@ fun ChatScreen(
                     .safeNavigationBarPadding()
                     .padding(horizontal = 12.dp, vertical = 10.dp)
             ) {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(scheme.islandBg.copy(alpha = 0.94f))
-                        .border(0.9.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(26.dp))
+                        .background(scheme.card.copy(alpha = 0.78f))
+                        .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(26.dp))
+                        .clickable {
+                            com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.unblock(context, session.id)
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(Color(0x26EF4444)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        androidx.compose.material3.Icon(
-                            imageVector = androidx.compose.material.icons.Icons.Outlined.Block,
-                            contentDescription = null,
-                            tint = Color(0xFFEF4444),
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
                     Text(
-                        text = profileStrings.menuBlock,
-                        color = scheme.textSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
+                        text = unblockLabel,
+                        color = scheme.accent,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(50))
-                            .background(Color(0x26EF4444))
-                            .border(1.dp, Color(0x66EF4444), RoundedCornerShape(50))
-                            .clickable {
-                                com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.unblock(context, session.id)
-                            }
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = profileStrings.unblockButton,
-                            color = Color(0xFFEF4444),
-                            fontSize = 13.5.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
                 }
             }
         } else {
