@@ -162,6 +162,7 @@ fun GalleryTab(
     isFullscreen: Boolean = false,
     onOpenViewer: ((List<GalleryMedia>, Int) -> Unit)? = null,
     onAlbumsLoaded: ((List<GalleryAlbum>) -> Unit)? = null,
+    showSelectionCircles: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -338,6 +339,7 @@ fun GalleryTab(
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                                                 onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
+                                                showSelectionCircles = showSelectionCircles,
                                                 modifier = Modifier.weight(1f).fillMaxHeight()
                                             )
                                         } else {
@@ -362,6 +364,7 @@ fun GalleryTab(
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                                                 onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
+                                                showSelectionCircles = showSelectionCircles,
                                                 modifier = Modifier.weight(1f).fillMaxHeight()
                                             )
                                         } else {
@@ -386,6 +389,7 @@ fun GalleryTab(
                         isSelected = isSelected,
                         selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                         deferDecode = isDraggingThumb,
+                        showSelectionCircles = showSelectionCircles,
                         onOpenViewer = {
                             if (originalIndex >= 0) {
                                 openViewerHelper(originalIndex)
@@ -656,6 +660,7 @@ private fun GalleryItemTile(
     onOpenViewer: () -> Unit,
     onToggleSelect: () -> Unit,
     deferDecode: Boolean = false,
+    showSelectionCircles: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -729,28 +734,30 @@ private fun GalleryItemTile(
         }
 
         // Кружок выбора в правом верхнем углу (ТЗ, шаг 9: ТОЛЬКО выбирает/снимает выбор)
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(6.dp)
-                .size(24.dp)
-                .clip(CircleShape)
-                .background(if (isSelected) scheme.accent else Color(0x66000000))
-                .border(
-                    width = 1.5.dp,
-                    color = if (isSelected) scheme.accent else Color.White,
-                    shape = CircleShape
-                )
-                .clickable { onToggleSelect() },
-            contentAlignment = Alignment.Center
-        ) {
-            if (isSelected) {
-                Text(
-                    text = selectionNumber.toString(),
-                    color = scheme.onAccent,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
-                )
+        if (showSelectionCircles) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(6.dp)
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .background(if (isSelected) scheme.accent else Color(0x66000000))
+                    .border(
+                        width = 1.5.dp,
+                        color = if (isSelected) scheme.accent else Color.White,
+                        shape = CircleShape
+                    )
+                    .clickable { onToggleSelect() },
+                contentAlignment = Alignment.Center
+            ) {
+                if (isSelected) {
+                    Text(
+                        text = selectionNumber.toString(),
+                        color = scheme.onAccent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

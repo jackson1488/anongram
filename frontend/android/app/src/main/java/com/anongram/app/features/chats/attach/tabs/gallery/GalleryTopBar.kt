@@ -56,7 +56,8 @@ internal fun BoxScope.GalleryFloatingTopBar(
     onOpenPreviewOrder: () -> Unit,
     onLaunchSystemChooser: (Intent) -> Unit,
     onToggleSpoiler: () -> Unit,
-    onSendHd: () -> Unit
+    onSendHd: () -> Unit,
+    showSendInHd: Boolean = true
 ) {
     val scheme = LocalAnonGramScheme.current
     val displayAlbumTitle = if (
@@ -165,16 +166,18 @@ internal fun BoxScope.GalleryFloatingTopBar(
                         }
                     )
                 }
-                DropdownMenuItem(
-                    text = { Text(attachStrings.sendInHd, color = scheme.textPrimary, fontSize = 14.5.sp) },
-                    onClick = {
-                        isTopBarMenuOpen = false
-                        onSendHd()
-                    },
-                    leadingIcon = {
-                        Icon(Icons.Default.HighQuality, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
-                    }
-                )
+                if (showSendInHd) {
+                    DropdownMenuItem(
+                        text = { Text(attachStrings.sendInHd, color = scheme.textPrimary, fontSize = 14.5.sp) },
+                        onClick = {
+                            isTopBarMenuOpen = false
+                            onSendHd()
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.HighQuality, contentDescription = null, tint = scheme.textPrimary, modifier = Modifier.size(20.dp))
+                        }
+                    )
+                }
             }
         },
         centerContent = {

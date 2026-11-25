@@ -1,7 +1,10 @@
 package com.anongram.app.features.wallpapers.ui.components
 
+import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.LocalOverscrollConfiguration
 import androidx.compose.foundation.background
@@ -36,21 +39,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.features.camera.api.CameraScreen
 import com.anongram.app.features.chats.attach.AttachTab
-import com.anongram.app.features.chats.attach.components.AttachHeaderScrim
-import com.anongram.app.features.chats.attach.components.AttachTopBar
 import com.anongram.app.features.chats.attach.i18n.AttachI18n
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
 import com.anongram.app.features.chats.attach.state.rememberAttachSheetDragState
 import com.anongram.app.features.chats.attach.state.rememberAttachSheetState
-import com.anongram.app.features.camera.api.CameraScreen
-import com.anongram.app.features.chats.attach.tabs.gallery.ALL_MEDIA_ALBUM_ID
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryFloatingTopBar
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryTab
 
 /**
- * Шторка выбора фото для обоев, унаследованная от модуля вложений (`features/chats/attach`):
- * та же плавная физика открытия/перетаскивания, та же плавающая шапка и камера,
- * но без нижней панели вкладок и мультивыбора — тап по фото или съёмка сразу передаёт Uri.
+ * Шторка выбора фото для обоев на базе компонентов модуля вложений (`features/chats/attach`):
+ * та же плавная физика открытия/перетаскивания, та же плавающая шапка (`GalleryFloatingTopBar`)
+ * с учётом статус-бара, выбором альбомов и меню «⋮», но без нижней панели вкладок и без кружков
+ * мультивыбора на фото — тап по фото или съёмка с камеры сразу передаёт Uri.
  */
 @Composable
 fun CustomGalleryPickerSheet(
@@ -62,6 +64,18 @@ fun CustomGalleryPickerSheet(
     val appLanguage by LanguageSettingsStore.language.collectAsState()
     val attachStrings = remember(appLanguage) { AttachI18n.forLanguage(appLanguage) }
     val context = LocalContext.current
+
+    val systemChooserLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK && result.data != null) {
+            val data = result.data
+            val pickedUri = data?.data ?: data?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+            if (pickedUri != null) {
+                onPickUri(pickedUri)
+            }
+        }
+    }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
         val totalHeightPx = constraints.maxHeight.toFloat()
@@ -158,6 +172,7 @@ fun CustomGalleryPickerSheet(
                                 list.getOrNull(idx)?.uri?.let(onPickUri)
                             },
                             onAlbumsLoaded = { sheetState.availableAlbums = it },
+                            showSelectionCircles = false,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -191,37 +206,22 @@ fun CustomGalleryPickerSheet(
                     )
                 }
 
-                // Плавающая шапка при раскрытии шторки (95%)
+                // Штатная плавающая шапка Галереи (с учётом статус-бара, альбомами и меню ⋮)
                 if (dragState.isExpanded95) {
                     val topBarAlpha = ((totalHeightPx * 0.05f - dragState.offsetPx) / (totalHeightPx * 0.05f)).coerceIn(0f, 1f)
-                    val displayAlbumTitle = if (
-                        sheetState.selectedAlbum == ALL_MEDIA_ALBUM_ID ||
-                        sheetState.selectedAlbum == "Все медиа" ||
-                        sheetState.selectedAlbum == "Галерея" ||
-                        sheetState.selectedAlbum == "Все" ||
-                        sheetState.selectedAlbum.isBlank()
-                    ) {
-                        attachStrings.tabGallery
-                    } else {
-                        sheetState.selectedAlbum
-                    }
-
-                    AttachHeaderScrim(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .zIndex(9f)
-                            .graphicsLayer { alpha = topBarAlpha }
-                    )
-
-                    AttachTopBar(
-                        title = displayAlbumTitle,
+                    GalleryFloatingTopBar(
+                        selectedAlbum = sheetState.selectedAlbum,
+                        selectedMedia = emptyList(),
+                        attachStrings = attachStrings,
+                        topBarAlpha = topBarAlpha,
+                        isAlbumsSheetOpen = sheetState.isAlbumsSheetOpen,
+                        onToggleAlbumsSheet = { sheetState.isAlbumsSheetOpen = !sheetState.isAlbumsSheetOpen },
                         onBack = { dragState.requestDismiss() },
-                        hasActionMenu = false,
-                        hasSearchToggle = false,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .zIndex(10f)
-                            .graphicsLayer { alpha = topBarAlpha }
+                        onOpenPreviewOrder = {},
+                        onLaunchSystemChooser = { systemChooserLauncher.launch(it) },
+                        onToggleSpoiler = {},
+                        onSendHd = {},
+                        showSendInHd = false
                     )
                 }
             }
