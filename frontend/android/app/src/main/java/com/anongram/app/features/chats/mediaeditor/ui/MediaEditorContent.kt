@@ -94,7 +94,7 @@ import com.anongram.app.features.chats.mediaeditor.engine.PhotoFilterEngine
 import com.anongram.app.features.chats.mediaeditor.i18n.MediaEditorI18n
 import com.anongram.app.features.chats.mediaeditor.model.BrushType
 import com.anongram.app.features.chats.mediaeditor.model.PhotoEditState
-import com.anongram.app.features.chats.mediaeditor.model.TextOverlayLayer
+import com.anongram.app.features.chats.mediaeditor.model.TextLayerItem
 import com.anongram.app.features.chats.mediaeditor.model.VideoQuality
 import com.anongram.app.features.chats.mediaeditor.ui.adjust.AdjustSubTab
 import com.anongram.app.features.chats.mediaeditor.ui.adjust.AdjustmentsPanel
@@ -991,7 +991,7 @@ fun MediaEditorContent(
 private fun EditorPhotoPreview(
     item: EditableMediaItem,
     editState: PhotoEditState,
-    onTapTextLayer: ((TextOverlayLayer) -> Unit)? = null,
+    onTapTextLayer: ((TextLayerItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -1026,23 +1026,54 @@ private fun EditorPhotoPreview(
                 runCatching {
                     val bmp = img.asAndroidBitmap()
                     val composite = bmp.copy(Bitmap.Config.ARGB_8888, true)
-                    val nonBlur = editState.strokes.filter { it.type != BrushType.BLUR }
+                    val w = composite.width
+                    val h = composite.height
+                    val minDim = minOf(w, h).toFloat().coerceAtLeast(1f)
+                    val nonBlur = editState.strokes.filter { it.type != BrushType.BLUR && it.points.isNotEmpty() }
                     if (nonBlur.isNotEmpty()) {
-                        val canvas = android.graphics.Canvas(composite)
-                        PhotoFilterEngine.renderStrokesOnCanvas(
-                            canvas = canvas,
-                            width = composite.width,
-                            height = composite.height,
-                            strokes = nonBlur,
-                            sourceBitmapForBlur = null
-                        )
+                        val strokeBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                        val sc = android.graphics.Canvas(strokeBmp)
+                        for (st in nonBlur) {
+                            val spx = (st.strokeWidthNorm * minDim).coerceAtLeast(3f)
+                            val path = android.graphics.Path().apply {
+                                val first = st.points.first()
+                                moveTo(first.x * w, first.y * h)
+                                if (st.points.size == 1) {
+                                    lineTo(first.x * w + 0.5f, first.y * h + 0.5f)
+                                } else {
+                                    for (i in 1 until st.points.size) {
+                                        val prev = st.points[i - 1]
+                                        val curr = st.points[i]
+                                        val midX = (prev.x + curr.x) * 0.5f * w
+                                        val midY = (prev.y + curr.y) * 0.5f * h
+                                        quadTo(prev.x * w, prev.y * h, midX, midY)
+                                    }
+                                    val last = st.points.last()
+                                    lineTo(last.x * w, last.y * h)
+                                }
+                            }
+                            val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+                                style = android.graphics.Paint.Style.STROKE
+                                strokeCap = if (st.type == BrushType.MARKER) android.graphics.Paint.Cap.SQUARE else android.graphics.Paint.Cap.ROUND
+                                strokeJoin = android.graphics.Paint.Join.ROUND
+                                strokeWidth = if (st.type == BrushType.MARKER) spx * 1.5f else spx
+                                if (st.type == BrushType.ERASER) {
+                                    xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+                                } else {
+                                    color = st.colorArgb.toInt()
+                                    if (st.type == BrushType.MARKER) alpha = 135
+                                }
+                            }
+                            sc.drawPath(path, paint)
+                        }
+                        android.graphics.Canvas(composite).drawBitmap(strokeBmp, 0f, 0f, null)
                     }
-                    val px = IntArray(composite.width * composite.height)
-                    composite.getPixels(px, 0, composite.width, 0, 0, composite.width, composite.height)
-                    val pass1 = PhotoFilterEngine.fastBoxBlur(px, composite.width, composite.height, radius = 20)
-                    val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, composite.width, composite.height, radius = 20)
-                    val out = Bitmap.createBitmap(composite.width, composite.height, Bitmap.Config.ARGB_8888)
-                    out.setPixels(pass2, 0, composite.width, 0, 0, composite.width, composite.height)
+                    val px = IntArray(w * h)
+                    composite.getPixels(px, 0, w, 0, 0, w, h)
+                    val pass1 = PhotoFilterEngine.fastBoxBlur(px, w, h, radius = 20)
+                    val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, w, h, radius = 20)
+                    val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                    out.setPixels(pass2, 0, w, 0, 0, w, h)
                     out
                 }.getOrNull()
             }
