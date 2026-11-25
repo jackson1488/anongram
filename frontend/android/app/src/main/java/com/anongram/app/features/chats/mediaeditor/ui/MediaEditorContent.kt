@@ -92,6 +92,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -338,9 +340,9 @@ fun MediaEditorContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .androidx.compose.ui.layout.onGloballyPositioned { coords ->
+            .onGloballyPositioned { coords ->
                 if (coords.isAttached) {
-                    editorRootBounds = coords.androidx.compose.ui.layout.boundsInRoot()
+                    editorRootBounds = coords.boundsInRoot()
                 }
             }
             .background(Color.Black.copy(alpha = dragBgAlpha))
