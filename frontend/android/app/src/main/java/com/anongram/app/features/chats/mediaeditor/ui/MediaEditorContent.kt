@@ -13,6 +13,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -237,7 +238,7 @@ fun MediaEditorContent(
                 .then(
                     if (editorMode == EditorMode.MAIN && !showFontsModuleScreen) {
                         Modifier.pointerInput(Unit) {
-                            androidx.compose.foundation.gestures.detectVerticalDragGestures(
+                            detectVerticalDragGestures(
                                 onDragEnd = {
                                     if (kotlin.math.abs(verticalDragOffsetY) > 150.dp.toPx()) {
                                         verticalDragOffsetY = 0f
