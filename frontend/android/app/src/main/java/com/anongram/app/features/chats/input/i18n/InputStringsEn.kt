@@ -238,6 +238,18 @@ object InputStringsEn : InputI18nStrings {
     override val themeFilterDark: String = "Dark"
     override val themeFilterLight: String = "Light"
 
+    override val chatWallpapersTitle: String = "Chat Wallpapers"
+    override val chatWallpapersSubtitle: String = "Patterned backgrounds, gallery photos & effects"
+    override val chatWallpapersGalleryBtn: String = "Choose Photo"
+    override val chatWallpapersResetBtn: String = "Reset"
+    override val chatWallpapersNoneBtn: String = "No Wallpaper"
+    override val chatWallpapersPresetsTitle: String = "Patterns & Gradients"
+    override val chatWallpapersEffectsTitle: String = "Effects"
+    override val chatWallpapersDimLabel: String = "Dimming"
+    override val chatWallpapersBlurLabel: String = "Blur"
+    override val chatWallpapersMotionLabel: String = "Motion (Parallax)"
+    override val chatWallpapersStatusPhoto: String = "Custom Photo"
+
     override val selectionCut: String = "Cut"
     override val selectionCopy: String = "Copy"
     override val selectionPaste: String = "Paste"

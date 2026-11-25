@@ -258,6 +258,19 @@ interface InputI18nStrings {
     val themeFilterDark: String
     val themeFilterLight: String
 
+    // Раздел «Обои чата»
+    val chatWallpapersTitle: String
+    val chatWallpapersSubtitle: String
+    val chatWallpapersGalleryBtn: String
+    val chatWallpapersResetBtn: String
+    val chatWallpapersNoneBtn: String
+    val chatWallpapersPresetsTitle: String
+    val chatWallpapersEffectsTitle: String
+    val chatWallpapersDimLabel: String
+    val chatWallpapersBlurLabel: String
+    val chatWallpapersMotionLabel: String
+    val chatWallpapersStatusPhoto: String
+
     // Меню выделения и форматирования текста в поле ввода
     val selectionCut: String
     val selectionCopy: String

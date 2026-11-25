@@ -111,9 +111,14 @@ fun WallpaperBackground(
 
             is WallpaperSource.Theme -> {
                 val preset = ThemePreset.find(source.themeId)
+                val themeModifier = if (resolved.blur && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    motionModifier.blur(18.dp)
+                } else {
+                    motionModifier
+                }
                 ThemePatternCanvas(
                     preset = preset,
-                    modifier = motionModifier
+                    modifier = themeModifier
                 )
             }
 
@@ -204,9 +209,36 @@ fun ThemePatternCanvas(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
-    val dotColor = if (scheme.isDark) Color.White.copy(alpha = 0.06f) else Color.Black.copy(alpha = 0.06f)
+    val dotColor = if (scheme.isDark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.07f)
+    val gradientStops = when {
+        preset.adaptsToTheme && scheme.isRainbow -> {
+            com.anongram.app.core.theme.AnonGramThemes.rainbowColors.map {
+                it.copy(alpha = if (scheme.isDark) 0.42f else 0.34f)
+            }
+        }
+        preset.adaptsToTheme -> listOf(
+            scheme.accent.copy(alpha = if (scheme.isDark) 0.36f else 0.24f),
+            scheme.accentDim.copy(alpha = if (scheme.isDark) 0.32f else 0.20f),
+            scheme.background
+        )
+        else -> listOf(
+            preset.primaryColor.copy(alpha = 0.92f),
+            preset.secondaryColor.copy(alpha = 0.88f),
+            preset.tertiaryColor.copy(alpha = 0.86f)
+        )
+    }
+    val overlayColor = if (scheme.isDark) Color(0x3806090E) else Color(0x38FFFFFF)
+
     Canvas(modifier = modifier.fillMaxSize()) {
         drawRect(color = scheme.background)
+        drawRect(
+            brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                colors = gradientStops,
+                start = Offset(0f, 0f),
+                end = Offset(size.width, size.height)
+            )
+        )
+        drawRect(color = overlayColor)
 
         when (preset.patternStyle) {
             0 -> {

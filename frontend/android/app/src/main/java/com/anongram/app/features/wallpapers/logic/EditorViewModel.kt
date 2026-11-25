@@ -92,7 +92,7 @@ class EditorViewModel(
             _uiState.update { it.copy(isSaving = true) }
             val wallpaper = Wallpaper(
                 id = UUID.randomUUID().toString(),
-                chatId = chatId,
+                chatId = if (chatId == "__common__") null else chatId,
                 source = WallpaperSource.Photo(path),
                 dim = s.dim,
                 blur = s.blur,

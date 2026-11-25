@@ -238,6 +238,18 @@ object InputStringsRu : InputI18nStrings {
     override val themeFilterDark: String = "Тёмные"
     override val themeFilterLight: String = "Светлые"
 
+    override val chatWallpapersTitle: String = "Обои чата"
+    override val chatWallpapersSubtitle: String = "Модные узоры, фото из галереи и эффекты"
+    override val chatWallpapersGalleryBtn: String = "Из галереи"
+    override val chatWallpapersResetBtn: String = "Сбросить"
+    override val chatWallpapersNoneBtn: String = "Без обоев"
+    override val chatWallpapersPresetsTitle: String = "Узоры и градиенты"
+    override val chatWallpapersEffectsTitle: String = "Эффекты"
+    override val chatWallpapersDimLabel: String = "Затемнение"
+    override val chatWallpapersBlurLabel: String = "Размытие"
+    override val chatWallpapersMotionLabel: String = "Движение (параллакс)"
+    override val chatWallpapersStatusPhoto: String = "Своё фото"
+
     override val selectionCut: String = "Вырезать"
     override val selectionCopy: String = "Копировать"
     override val selectionPaste: String = "Вставить"

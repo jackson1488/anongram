@@ -19,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Wallpaper
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +52,7 @@ fun ChatAppearanceSettingsScreen(
     onThemeSelect: (String) -> Unit,
     onBack: () -> Unit,
     onOpenChatTheme: () -> Unit = {},
+    onOpenChatWallpapers: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -105,6 +107,54 @@ fun ChatAppearanceSettingsScreen(
                     )
                     Text(
                         text = strings.chatThemeSubtitle,
+                        color = scheme.textSecondary,
+                        fontSize = 12.5.sp
+                    )
+                }
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = scheme.textMuted,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Кнопка перехода в отдельный раздел «Обои чата»
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(22.dp))
+                    .background(scheme.card)
+                    .clickable(onClick = onOpenChatWallpapers)
+                    .padding(horizontal = 14.dp, vertical = 13.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp))
+                        .background(scheme.accent.copy(alpha = 0.18f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Wallpaper,
+                        contentDescription = null,
+                        tint = scheme.accent,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.size(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = strings.chatWallpapersTitle,
+                        color = scheme.textPrimary,
+                        fontSize = 15.5.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        text = strings.chatWallpapersSubtitle,
                         color = scheme.textSecondary,
                         fontSize = 12.5.sp
                     )

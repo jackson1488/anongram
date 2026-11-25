@@ -11,6 +11,7 @@ sealed interface SettingsRoute {
     data object Account : SettingsRoute
     data object ChatSettings : SettingsRoute
     data object ChatTheme : SettingsRoute
+    data object ChatWallpapers : SettingsRoute
     data object Privacy : SettingsRoute
     data object Security : SettingsRoute
     data object Notifications : SettingsRoute

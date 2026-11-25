@@ -1,9 +1,6 @@
 package com.anongram.app.features.wallpapers.ui
 
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +36,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -53,9 +53,10 @@ import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.wallpapers.logic.CuratedPhoto
 import com.anongram.app.features.wallpapers.logic.PhotoPickerViewModel
+import com.anongram.app.features.wallpapers.ui.components.CustomGalleryPickerSheet
 
 /**
- * Экран выбора фона из фото или галереи устройства.
+ * Экран выбора фона из фото или кастомной шторки галереи устройства.
  *
  * @param viewModel ViewModel экрана выбора фото.
  * @param onBack Нажатие назад (возврат к выбору темы).
@@ -71,17 +72,7 @@ fun PhotoPickerScreen(
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val state by viewModel.uiState.collectAsState()
-
-    // Системный Photo Picker без необходимости запрашивать опасные разрешения
-    val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri != null) {
-            viewModel.importFromUri(context, uri) { path ->
-                onPhotoSelected(path)
-            }
-        }
-    }
+    var showGallerySheet by remember { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -121,7 +112,7 @@ fun PhotoPickerScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Карточка открытия системной галереи
+            // Карточка открытия кастомной шторки галереи
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -130,11 +121,7 @@ fun PhotoPickerScreen(
                     .clip(RoundedCornerShape(16.dp))
                     .background(scheme.card)
                     .border(1.dp, scheme.cardBorder, RoundedCornerShape(16.dp))
-                    .clickable {
-                        photoPickerLauncher.launch(
-                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                        )
-                    }
+                    .clickable { showGallerySheet = true }
                     .padding(16.dp)
             ) {
                 Box(
@@ -269,6 +256,18 @@ fun PhotoPickerScreen(
                     )
                 }
             }
+        }
+
+        if (showGallerySheet) {
+            CustomGalleryPickerSheet(
+                onPickUri = { uri ->
+                    showGallerySheet = false
+                    viewModel.importFromUri(context, uri) { path ->
+                        onPhotoSelected(path)
+                    }
+                },
+                onDismiss = { showGallerySheet = false }
+            )
         }
 
         // Индикатор загрузки / обработки фото
