@@ -7,6 +7,9 @@ import android.net.Uri
 import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
@@ -39,16 +42,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CropRotate
 import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Videocam
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -57,7 +56,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -76,6 +74,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -95,12 +94,14 @@ import com.anongram.app.features.chats.mediaeditor.engine.PhotoFilterEngine
 import com.anongram.app.features.chats.mediaeditor.i18n.MediaEditorI18n
 import com.anongram.app.features.chats.mediaeditor.model.BrushType
 import com.anongram.app.features.chats.mediaeditor.model.PhotoEditState
+import com.anongram.app.features.chats.mediaeditor.model.TextOverlayLayer
 import com.anongram.app.features.chats.mediaeditor.model.VideoQuality
 import com.anongram.app.features.chats.mediaeditor.ui.adjust.AdjustSubTab
 import com.anongram.app.features.chats.mediaeditor.ui.adjust.AdjustmentsPanel
 import com.anongram.app.features.chats.mediaeditor.ui.adjust.BlurOverlayControl
 import com.anongram.app.features.chats.mediaeditor.ui.adjust.ToneCurvesOverlay
 import com.anongram.app.features.chats.mediaeditor.ui.crop.CropRotatePanel
+import com.anongram.app.features.chats.mediaeditor.ui.paint.PaintModeTab
 import com.anongram.app.features.chats.mediaeditor.ui.paint.PaintOverlayPanel
 import com.anongram.app.features.chats.mediaeditor.ui.paint.StrokesPreviewCanvas
 import com.anongram.app.features.chats.mediaeditor.ui.text.TextLayersCanvasOverlay
@@ -111,6 +112,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 
 private enum class EditorMode {
     MAIN,
@@ -127,6 +129,9 @@ fun MediaEditorContent(
     onSend: (List<EditedMedia>) -> Unit,
     onAddMore: () -> Unit,
     onBack: () -> Unit,
+    initialIndex: Int = 0,
+    selectedIds: List<String> = emptyList(),
+    onToggleSelectItem: ((EditableMediaItem) -> Unit)? = null,
     onSaveOnly: ((List<EditedMedia>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -143,7 +148,8 @@ fun MediaEditorContent(
     val currentItems = remember(items) {
         mutableStateListOf<EditableMediaItem>().apply { addAll(items) }
     }
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { currentItems.size })
+    val safeInitialPage = initialIndex.coerceIn(0, (currentItems.size - 1).coerceAtLeast(0))
+    val pagerState = rememberPagerState(initialPage = safeInitialPage, pageCount = { currentItems.size })
     val currentIndex = pagerState.currentPage.coerceIn(0, currentItems.lastIndex)
     val activeItem = currentItems[currentIndex]
 
@@ -151,11 +157,13 @@ fun MediaEditorContent(
     var adjustSubTab by remember { mutableStateOf(AdjustSubTab.SLIDERS) }
     var draftEditState by remember { mutableStateOf(PhotoEditState()) }
 
+    var paintInitialTab by remember { mutableStateOf(PaintModeTab.DRAWING) }
+    var paintInitialTextId by remember { mutableStateOf<String?>(null) }
+
     var showThumbnailsStrip by remember { mutableStateOf(false) }
     var showTtlMenu by remember { mutableStateOf(false) }
     var showVideoQualityMenu by remember { mutableStateOf(false) }
     var showFontsModuleScreen by remember { mutableStateOf(false) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
 
     // 2-second auto-disappearing HD toast trigger
@@ -171,6 +179,37 @@ fun MediaEditorContent(
 
     var isVideoPlaying by remember(activeItem.id) { mutableStateOf(true) }
     var verticalDragOffsetY by remember { mutableStateOf(0f) }
+    var isClosingAnimated by remember { mutableStateOf(false) }
+
+    val closeScale by animateFloatAsState(
+        targetValue = if (isClosingAnimated) {
+            0.35f
+        } else {
+            (1f - abs(verticalDragOffsetY) / 1400f).coerceIn(0.58f, 1f)
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "editorCloseScale"
+    )
+    val closeAlpha by animateFloatAsState(
+        targetValue = if (isClosingAnimated) {
+            0f
+        } else {
+            (1f - abs(verticalDragOffsetY) / 900f).coerceIn(0.18f, 1f)
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "editorCloseAlpha"
+    )
+
+    val adjustBottomPadding by animateDpAsState(
+        targetValue = if (editorMode == EditorMode.ADJUST) 235.dp else 0.dp,
+        animationSpec = tween(durationMillis = 220),
+        label = "adjustPhotoShrink"
+    )
+    val adjustTopPadding by animateDpAsState(
+        targetValue = if (editorMode == EditorMode.ADJUST) 24.dp else 0.dp,
+        animationSpec = tween(durationMillis = 220),
+        label = "adjustPhotoTopPad"
+    )
 
     // Lock system/engine swipeBackGesture while MediaEditor is active
     DisposableEffect(Unit) {
@@ -181,20 +220,11 @@ fun MediaEditorContent(
         }
     }
 
-    val hasUnsavedChanges = currentItems.any { item ->
-        item.editState.crop.isModified ||
-            item.editState.hasAnyAdjustments ||
-            item.editState.hasAnyPaintOrText ||
-            item.coverUri != null ||
-            item.isMuted ||
-            item.trimStartMs > 0L ||
-            item.trimEndMs > 0L
-    }
-
-    fun requestBack() {
-        if (hasUnsavedChanges) {
-            showDiscardDialog = true
-        } else {
+    fun triggerAnimatedClose() {
+        if (isClosingAnimated) return
+        isClosingAnimated = true
+        scope.launch {
+            delay(190L)
             onBack()
         }
     }
@@ -208,16 +238,25 @@ fun MediaEditorContent(
         }
     }
 
-    fun updateCurrentItem(transform: (EditableMediaItem) -> EditableMediaItem) {
+    fun updateCurrentItem(transform: (EditableMediaItem) -> EditableMediaItem): EditableMediaItem {
         val updated = transform(currentItems[currentIndex])
         currentItems[currentIndex] = updated
+        return updated
+    }
+
+    fun autoSaveSingleItem(updatedItem: EditableMediaItem) {
+        val saveCb = onSaveOnly ?: return
+        scope.launch {
+            val exported = BitmapExportRenderer.exportAll(context, listOf(updatedItem))
+            saveCb(exported)
+        }
     }
 
     BackHandler(enabled = !showFontsModuleScreen) {
         if (editorMode != EditorMode.MAIN) {
             editorMode = EditorMode.MAIN
         } else {
-            requestBack()
+            triggerAnimatedClose()
         }
     }
     BackHandler(enabled = showFontsModuleScreen) {
@@ -227,22 +266,28 @@ fun MediaEditorContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(Color.Black.copy(alpha = closeAlpha))
     ) {
-        // Fullscreen Pager (floating controls sit on top; left/right photo swipe and vertical drag-to-close work in MAIN mode)
+        // Fullscreen Pager (left/right swipe across all gallery media in MAIN mode; vertical drag-to-close)
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = editorMode == EditorMode.MAIN && !showFontsModuleScreen && currentItems.size > 1,
             modifier = Modifier
                 .fillMaxSize()
+                .padding(top = adjustTopPadding, bottom = adjustBottomPadding)
+                .graphicsLayer {
+                    translationY = verticalDragOffsetY
+                    scaleX = closeScale
+                    scaleY = closeScale
+                    alpha = closeAlpha
+                }
                 .then(
                     if (editorMode == EditorMode.MAIN && !showFontsModuleScreen) {
                         Modifier.pointerInput(Unit) {
                             detectVerticalDragGestures(
                                 onDragEnd = {
-                                    if (kotlin.math.abs(verticalDragOffsetY) > 150.dp.toPx()) {
-                                        verticalDragOffsetY = 0f
-                                        requestBack()
+                                    if (abs(verticalDragOffsetY) > 130.dp.toPx()) {
+                                        triggerAnimatedClose()
                                     } else {
                                         verticalDragOffsetY = 0f
                                     }
@@ -283,15 +328,23 @@ fun MediaEditorContent(
                     EditorPhotoPreview(
                         item = item,
                         editState = previewState,
+                        onTapTextLayer = if (page == currentIndex && editorMode == EditorMode.MAIN) {
+                            { tappedLayer ->
+                                draftEditState = activeItem.editState
+                                paintInitialTab = PaintModeTab.TEXT
+                                paintInitialTextId = tappedLayer.id
+                                editorMode = EditorMode.PAINT
+                            }
+                        } else null,
                         modifier = Modifier.fillMaxSize()
                     )
                 }
             }
         }
 
-        // Mode: MAIN UI Chrome (matching Telegram screenshots 1 & 6)
-        if (editorMode == EditorMode.MAIN) {
-            // Compact Top Bar: ← Title on left, (1) and purple (✓) on right
+        // Mode: MAIN UI Chrome
+        if (editorMode == EditorMode.MAIN && !isClosingAnimated) {
+            // Compact Top Bar: ← Title on left, Selection Circle (1) on right (no extra purple checkmark)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -306,7 +359,7 @@ fun MediaEditorContent(
                     modifier = Modifier.weight(1f)
                 ) {
                     IconButton(
-                        onClick = { requestBack() },
+                        onClick = { triggerAnimatedClose() },
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
@@ -329,64 +382,46 @@ fun MediaEditorContent(
                     )
                 }
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                // Selection circle on top-right (toggles selection in gallery or shows index)
+                val selectedIdx = selectedIds.indexOf(activeItem.id)
+                val isSelectedInGallery = selectedIdx >= 0
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(
+                            when {
+                                onToggleSelectItem != null && isSelectedInGallery -> scheme.accent
+                                onToggleSelectItem != null -> Color.Black.copy(alpha = 0.35f)
+                                else -> scheme.islandBg
+                            }
+                        )
+                        .border(1.5.dp, Color.White, CircleShape)
+                        .clickable {
+                            if (onToggleSelectItem != null) {
+                                onToggleSelectItem(activeItem)
+                            } else if (currentItems.size > 1) {
+                                showThumbnailsStrip = !showThumbnailsStrip
+                            }
+                        },
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Selection / Counter circle (1)
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(scheme.islandBg)
-                            .border(1.5.dp, Color.White, CircleShape)
-                            .clickable {
-                                if (currentItems.size > 1) {
-                                    showThumbnailsStrip = !showThumbnailsStrip
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
+                    if (onToggleSelectItem != null) {
+                        if (isSelectedInGallery) {
+                            Text(
+                                text = "${selectedIdx + 1}",
+                                color = scheme.onAccent,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    } else {
                         Text(
                             text = if (currentItems.size > 1) "${currentIndex + 1}" else "1",
                             color = Color.White,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
                         )
-                    }
-
-                    // Purple Checkmark circle (✓)
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(scheme.accent)
-                            .clickable {
-                                if (!isExporting) {
-                                    isExporting = true
-                                    scope.launch {
-                                        val results = BitmapExportRenderer.exportAll(context, currentItems)
-                                        isExporting = false
-                                        (onSaveOnly ?: onSend)(results)
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (isExporting) {
-                            CircularProgressIndicator(
-                                color = scheme.onAccent,
-                                strokeWidth = 2.dp,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        } else {
-                            Icon(
-                                imageVector = Icons.Default.Check,
-                                contentDescription = strings.confirm,
-                                tint = scheme.onAccent,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
                     }
                 }
             }
@@ -428,7 +463,7 @@ fun MediaEditorContent(
                 }
             }
 
-            // Compact Bottom Controls (matching Screenshots 1 & 6)
+            // Compact Bottom Controls
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -448,9 +483,13 @@ fun MediaEditorContent(
                         isPlaying = isVideoPlaying,
                         isMuted = activeItem.isMuted,
                         onTogglePlay = { isVideoPlaying = !isVideoPlaying },
-                        onToggleMute = { updateCurrentItem { it.copy(isMuted = !it.isMuted) } },
+                        onToggleMute = {
+                            val updated = updateCurrentItem { it.copy(isMuted = !it.isMuted) }
+                            autoSaveSingleItem(updated)
+                        },
                         onTrimChange = { startMs, endMs ->
-                            updateCurrentItem { it.copy(trimStartMs = startMs, trimEndMs = endMs) }
+                            val updated = updateCurrentItem { it.copy(trimStartMs = startMs, trimEndMs = endMs) }
+                            autoSaveSingleItem(updated)
                         },
                         onOpenCoverPicker = { editorMode = EditorMode.VIDEO_COVER }
                     )
@@ -522,7 +561,10 @@ fun MediaEditorContent(
 
                     BasicTextField(
                         value = activeItem.caption,
-                        onValueChange = { newCap -> updateCurrentItem { it.copy(caption = newCap) } },
+                        onValueChange = { newCap ->
+                            val updated = updateCurrentItem { it.copy(caption = newCap) }
+                            autoSaveSingleItem(updated)
+                        },
                         textStyle = TextStyle(
                             color = scheme.textPrimary,
                             fontSize = 14.sp
@@ -606,7 +648,8 @@ fun MediaEditorContent(
                                         }
                                     },
                                     onClick = {
-                                        updateCurrentItem { it.copy(ttl = ttlVal) }
+                                        val updated = updateCurrentItem { it.copy(ttl = ttlVal) }
+                                        autoSaveSingleItem(updated)
                                         showTtlMenu = false
                                     }
                                 )
@@ -669,6 +712,8 @@ fun MediaEditorContent(
                                 .clip(CircleShape)
                                 .clickable(enabled = !activeItem.isVideo) {
                                     draftEditState = activeItem.editState
+                                    paintInitialTab = PaintModeTab.DRAWING
+                                    paintInitialTextId = null
                                     editorMode = EditorMode.PAINT
                                 },
                             contentAlignment = Alignment.Center
@@ -700,7 +745,8 @@ fun MediaEditorContent(
                                             showVideoQualityMenu = true
                                         } else {
                                             val nextHd = !activeItem.hd
-                                            updateCurrentItem { it.copy(hd = nextHd) }
+                                            val updated = updateCurrentItem { it.copy(hd = nextHd) }
+                                            autoSaveSingleItem(updated)
                                             if (nextHd) hdToastTrigger += 1
                                         }
                                     }
@@ -744,7 +790,8 @@ fun MediaEditorContent(
                                                 )
                                             },
                                             onClick = {
-                                                updateCurrentItem { it.copy(videoQuality = q) }
+                                                val updated = updateCurrentItem { it.copy(videoQuality = q) }
+                                                autoSaveSingleItem(updated)
                                                 showVideoQualityMenu = false
                                             }
                                         )
@@ -789,7 +836,15 @@ fun MediaEditorContent(
                                 if (!isExporting) {
                                     isExporting = true
                                     scope.launch {
-                                        val results = BitmapExportRenderer.exportAll(context, currentItems)
+                                        val itemsToExport = when {
+                                            selectedIds.isNotEmpty() -> {
+                                                val byId = currentItems.associateBy { it.id }
+                                                selectedIds.mapNotNull { byId[it] }.ifEmpty { listOf(activeItem) }
+                                            }
+                                            onToggleSelectItem != null -> listOf(activeItem)
+                                            else -> currentItems.toList()
+                                        }
+                                        val results = BitmapExportRenderer.exportAll(context, itemsToExport)
                                         isExporting = false
                                         onSend(results)
                                     }
@@ -822,12 +877,13 @@ fun MediaEditorContent(
                 bitmap = activeRawBitmap?.asImageBitmap(),
                 initialTransform = draftEditState.crop,
                 onApply = { newCrop ->
-                    updateCurrentItem {
+                    val updated = updateCurrentItem {
                         it.copy(
                             rotationDegrees = newCrop.baseRotation90,
                             editState = it.editState.copy(crop = newCrop)
                         )
                     }
+                    autoSaveSingleItem(updated)
                     editorMode = EditorMode.MAIN
                 },
                 onCancel = { editorMode = EditorMode.MAIN }
@@ -843,7 +899,7 @@ fun MediaEditorContent(
                         onBlurChange = { draftEditState = draftEditState.copy(blur = it) },
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(bottom = 220.dp)
+                            .padding(bottom = 235.dp)
                     )
                 } else if (adjustSubTab == AdjustSubTab.CURVES) {
                     ToneCurvesOverlay(
@@ -851,8 +907,8 @@ fun MediaEditorContent(
                         onCurvesChange = { draftEditState = draftEditState.copy(curves = it) },
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 24.dp, vertical = 80.dp)
-                            .padding(bottom = 180.dp)
+                            .padding(horizontal = 24.dp, vertical = 60.dp)
+                            .padding(bottom = 195.dp)
                     )
                 }
 
@@ -867,7 +923,8 @@ fun MediaEditorContent(
                     onCurvesChange = { draftEditState = draftEditState.copy(curves = it) },
                     onCancel = { editorMode = EditorMode.MAIN },
                     onDone = {
-                        updateCurrentItem { it.copy(editState = draftEditState) }
+                        val updated = updateCurrentItem { it.copy(editState = draftEditState) }
+                        autoSaveSingleItem(updated)
                         editorMode = EditorMode.MAIN
                     },
                     modifier = Modifier.align(Alignment.BottomCenter)
@@ -890,10 +947,13 @@ fun MediaEditorContent(
                 previewBitmap = transformedPreview,
                 initialStrokes = activeItem.editState.strokes,
                 initialTextLayers = activeItem.editState.textLayers,
+                initialTab = paintInitialTab,
+                initialSelectedTextId = paintInitialTextId,
                 onApply = { strokes, texts ->
-                    updateCurrentItem {
+                    val updated = updateCurrentItem {
                         it.copy(editState = it.editState.copy(strokes = strokes, textLayers = texts))
                     }
+                    autoSaveSingleItem(updated)
                     editorMode = EditorMode.MAIN
                 },
                 onCancel = { editorMode = EditorMode.MAIN },
@@ -909,7 +969,8 @@ fun MediaEditorContent(
                 initialCoverUri = activeItem.coverUri,
                 initialCoverTimeMs = activeItem.coverTimeMs,
                 onSaveCover = { uri, timeMs ->
-                    updateCurrentItem { it.copy(coverUri = uri, coverTimeMs = timeMs) }
+                    val updated = updateCurrentItem { it.copy(coverUri = uri, coverTimeMs = timeMs) }
+                    autoSaveSingleItem(updated)
                     editorMode = EditorMode.MAIN
                 },
                 onCancel = { editorMode = EditorMode.MAIN }
@@ -923,47 +984,6 @@ fun MediaEditorContent(
                 modifier = Modifier.fillMaxSize()
             )
         }
-
-        // Discard unsaved edits dialog
-        if (showDiscardDialog) {
-            AlertDialog(
-                onDismissRequest = { showDiscardDialog = false },
-                containerColor = scheme.card,
-                shape = RoundedCornerShape(22.dp),
-                title = {
-                    Text(
-                        text = strings.discardTitle,
-                        color = scheme.textPrimary,
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                text = {
-                    Text(
-                        text = strings.discardMessage,
-                        color = scheme.textSecondary,
-                        fontSize = 14.sp
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showDiscardDialog = false
-                            onBack()
-                        },
-                        shape = RoundedCornerShape(20.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF453A))
-                    ) {
-                        Text(strings.discardConfirm, color = Color.White, fontWeight = FontWeight.SemiBold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDiscardDialog = false }) {
-                        Text(strings.cancel, color = scheme.textSecondary)
-                    }
-                }
-            )
-        }
     }
 }
 
@@ -971,6 +991,7 @@ fun MediaEditorContent(
 private fun EditorPhotoPreview(
     item: EditableMediaItem,
     editState: PhotoEditState,
+    onTapTextLayer: ((TextOverlayLayer) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -998,17 +1019,30 @@ private fun EditorPhotoPreview(
         renderedBitmap = processed
     }
 
+    // Composite non-blur strokes before blurring so blur strokes blur both the photo and earlier drawings
     val blurredBitmap = remember(renderedBitmap, editState.strokes) {
         if (editState.strokes.any { it.type == BrushType.BLUR }) {
             renderedBitmap?.let { img ->
                 runCatching {
                     val bmp = img.asAndroidBitmap()
-                    val px = IntArray(bmp.width * bmp.height)
-                    bmp.getPixels(px, 0, bmp.width, 0, 0, bmp.width, bmp.height)
-                    val pass1 = PhotoFilterEngine.fastBoxBlur(px, bmp.width, bmp.height, radius = 20)
-                    val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, bmp.width, bmp.height, radius = 20)
-                    val out = Bitmap.createBitmap(bmp.width, bmp.height, Bitmap.Config.ARGB_8888)
-                    out.setPixels(pass2, 0, bmp.width, 0, 0, bmp.width, bmp.height)
+                    val composite = bmp.copy(Bitmap.Config.ARGB_8888, true)
+                    val nonBlur = editState.strokes.filter { it.type != BrushType.BLUR }
+                    if (nonBlur.isNotEmpty()) {
+                        val canvas = android.graphics.Canvas(composite)
+                        PhotoFilterEngine.renderStrokesOnCanvas(
+                            canvas = canvas,
+                            width = composite.width,
+                            height = composite.height,
+                            strokes = nonBlur,
+                            sourceBitmapForBlur = null
+                        )
+                    }
+                    val px = IntArray(composite.width * composite.height)
+                    composite.getPixels(px, 0, composite.width, 0, 0, composite.width, composite.height)
+                    val pass1 = PhotoFilterEngine.fastBoxBlur(px, composite.width, composite.height, radius = 20)
+                    val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, composite.width, composite.height, radius = 20)
+                    val out = Bitmap.createBitmap(composite.width, composite.height, Bitmap.Config.ARGB_8888)
+                    out.setPixels(pass2, 0, composite.width, 0, 0, composite.width, composite.height)
                     out
                 }.getOrNull()
             }
@@ -1037,10 +1071,12 @@ private fun EditorPhotoPreview(
                         layers = editState.textLayers,
                         selectedLayerId = null,
                         interactive = false,
+                        isTypingText = false,
                         onSelectLayer = {},
                         onUpdateLayer = {},
                         onDeleteLayer = {},
                         onEditLayerText = {},
+                        onTapLayerInPreviewMode = onTapTextLayer,
                         modifier = Modifier.fillMaxSize()
                     )
                 }

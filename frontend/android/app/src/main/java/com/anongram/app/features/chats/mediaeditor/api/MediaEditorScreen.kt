@@ -1,5 +1,6 @@
 package com.anongram.app.features.chats.mediaeditor.api
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.anongram.app.features.chats.mediaeditor.ui.MediaEditorContent
@@ -14,12 +15,18 @@ fun MediaEditorScreen(
     onSend: (List<EditedMedia>) -> Unit,
     onAddMore: () -> Unit,
     onBack: () -> Unit,
+    initialIndex: Int = 0,
+    selectedIds: List<String> = emptyList(),
+    onToggleSelectItem: ((EditableMediaItem) -> Unit)? = null,
     onSaveOnly: ((List<EditedMedia>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     MediaEditorContent(
         items = items,
+        initialIndex = initialIndex,
         recipientName = recipientName,
+        selectedIds = selectedIds,
+        onToggleSelectItem = onToggleSelectItem,
         onSend = onSend,
         onAddMore = onAddMore,
         onBack = onBack,

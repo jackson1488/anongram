@@ -369,10 +369,9 @@ fun AttachSheetContent(
                                     isFullscreen = dragState.isFull,
                                     onOpenViewer = { list, idx ->
                                         sheetState.isAlbumsSheetOpen = false
-                                        val tapped = list.getOrNull(idx)
-                                        if (tapped != null) {
-                                            val resolved = sheetState.selectedMedia.firstOrNull { it.uri == tapped.uri } ?: tapped
-                                            sheetState.editorItems = listOf(
+                                        if (list.isNotEmpty()) {
+                                            sheetState.editorItems = list.map { m ->
+                                                val resolved = sheetState.selectedMedia.firstOrNull { it.uri == m.uri } ?: m
                                                 com.anongram.app.features.chats.mediaeditor.api.EditableMediaItem(
                                                     id = resolved.uri.toString(),
                                                     uri = resolved.effectiveUri,
@@ -380,7 +379,8 @@ fun AttachSheetContent(
                                                     durationMs = resolved.durationMs,
                                                     caption = sheetState.captionText
                                                 )
-                                            )
+                                            }
+                                            sheetState.editorInitialIndex = idx.coerceIn(0, list.lastIndex)
                                             sheetState.isEditorOpen = true
                                         }
                                     },

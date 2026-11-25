@@ -59,6 +59,7 @@ internal class AttachSheetState(
     var isMoreMenuOpen by mutableStateOf(false)
     var isAttachEmojiOpen by mutableStateOf(false)
     var editorItems by mutableStateOf<List<EditableMediaItem>>(emptyList())
+    var editorInitialIndex by mutableStateOf(0)
 
     val totalSelectedCount by derivedStateOf {
         selectedMedia.size + selectedFiles.size + selectedTracks.size + selectedContacts.size

@@ -79,10 +79,13 @@ fun TextLayersCanvasOverlay(
     layers: List<TextLayerItem>,
     selectedLayerId: String?,
     interactive: Boolean,
+    isTypingText: Boolean = false,
+    onTypingTextChange: (Boolean) -> Unit = {},
     onSelectLayer: (String?) -> Unit,
     onUpdateLayer: (TextLayerItem) -> Unit,
     onDeleteLayer: (String) -> Unit,
     onEditLayerText: (TextLayerItem) -> Unit,
+    onTapLayerInPreviewMode: ((TextLayerItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -90,11 +93,11 @@ fun TextLayersCanvasOverlay(
     val keyboardController = LocalSoftwareKeyboardController.current
     val currentLayers by rememberUpdatedState(layers)
     val currentSelectedId by rememberUpdatedState(selectedLayerId)
+    val currentIsTyping by rememberUpdatedState(isTypingText)
+    val currentOnTypingChange by rememberUpdatedState(onTypingTextChange)
     val currentOnUpdate by rememberUpdatedState(onUpdateLayer)
     val currentOnSelect by rememberUpdatedState(onSelectLayer)
-
-    // requestFocusVersion increments whenever user taps on a text layer to edit its text again
-    var focusTrigger by remember { mutableStateOf(0) }
+    val currentOnTapPreview by rememberUpdatedState(onTapLayerInPreviewMode)
 
     BoxWithConstraints(
         modifier = modifier
@@ -110,11 +113,20 @@ fun TextLayersCanvasOverlay(
                                     hypot(tapOffset.x - l.normX * w, tapOffset.y - l.normY * h) < 115.dp.toPx()
                                 }
                                 if (hit != null) {
-                                    currentOnSelect(hit.id)
-                                    focusTrigger += 1
-                                    keyboardController?.show()
+                                    if (currentSelectedId == hit.id && !currentIsTyping) {
+                                        // Second tap on selected text -> enter typing mode to change text!
+                                        currentOnTypingChange(true)
+                                        keyboardController?.show()
+                                    } else {
+                                        currentOnSelect(hit.id)
+                                        if (hit.text.isEmpty()) {
+                                            currentOnTypingChange(true)
+                                            keyboardController?.show()
+                                        }
+                                    }
                                 } else {
-                                    // Tap outside unfocuses keyboard so user can freely pinch/scale/drag
+                                    // Tap outside unfocuses keyboard so user can freely move/scale/rotate
+                                    currentOnTypingChange(false)
                                     focusManager.clearFocus()
                                     keyboardController?.hide()
                                 }
@@ -131,7 +143,7 @@ fun TextLayersCanvasOverlay(
                                     active.copy(
                                         normX = (active.normX + pan.x / w).coerceIn(0.08f, 0.92f),
                                         normY = (active.normY + pan.y / h).coerceIn(0.08f, 0.92f),
-                                        scale = (active.scale * zoom).coerceIn(0.45f, 4.0f),
+                                        scale = (active.scale * zoom).coerceIn(0.35f, 4.5f),
                                         rotationDegrees = (active.rotationDegrees + rotation) % 360f
                                     )
                                 )
@@ -149,16 +161,18 @@ fun TextLayersCanvasOverlay(
                 layer = layer,
                 isSelected = isSelected,
                 interactive = interactive,
-                focusTrigger = focusTrigger,
+                isTyping = isSelected && isTypingText,
                 boxW = boxW,
                 boxH = boxH,
-                onSelectAndFocus = {
-                    onSelectLayer(layer.id)
-                    focusTrigger += 1
-                    keyboardController?.show()
-                },
-                onScaleDelta = { deltaScale ->
-                    onUpdateLayer(layer.copy(scale = (layer.scale + deltaScale).coerceIn(0.45f, 4.0f)))
+                onTapLayer = {
+                    if (!interactive) {
+                        currentOnTapPreview?.invoke(layer)
+                    } else if (isSelected && !isTypingText) {
+                        onTypingTextChange(true)
+                        keyboardController?.show()
+                    } else {
+                        onSelectLayer(layer.id)
+                    }
                 },
                 onTextChange = { newText -> onUpdateLayer(layer.copy(text = newText)) }
             )
@@ -171,11 +185,10 @@ private fun TextLayerItemView(
     layer: TextLayerItem,
     isSelected: Boolean,
     interactive: Boolean,
-    focusTrigger: Int,
+    isTyping: Boolean,
     boxW: Float,
     boxH: Float,
-    onSelectAndFocus: () -> Unit,
-    onScaleDelta: (Float) -> Unit,
+    onTapLayer: () -> Unit,
     onTextChange: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -184,8 +197,8 @@ private fun TextLayerItemView(
     val layerColor = EditorPalette.colorFromArgb(layer.colorArgb)
     val focusRequester = remember { FocusRequester() }
 
-    LaunchedEffect(isSelected, focusTrigger) {
-        if (isSelected && interactive) {
+    LaunchedEffect(isTyping) {
+        if (isTyping && interactive) {
             runCatching { focusRequester.requestFocus() }
         }
     }
@@ -246,7 +259,7 @@ private fun TextLayerItemView(
                 .widthIn(min = 120.dp, max = 280.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(bgColor)
-                .clickable(enabled = interactive) { onSelectAndFocus() }
+                .clickable { onTapLayer() }
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
@@ -259,7 +272,7 @@ private fun TextLayerItemView(
                 textAlign = textAlign
             )
 
-            if (interactive && isSelected) {
+            if (interactive && isTyping) {
                 BasicTextField(
                     value = layer.text,
                     onValueChange = onTextChange,
@@ -278,10 +291,10 @@ private fun TextLayerItemView(
                         }
                     }
                 )
-            } else if (layer.text.isNotBlank()) {
+            } else {
                 Text(
-                    text = layer.text,
-                    style = style
+                    text = layer.text.ifEmpty { strings.textPlaceholder },
+                    style = if (layer.text.isEmpty()) style.copy(color = Color.White.copy(alpha = 0.55f)) else style
                 )
             }
         }
@@ -323,7 +336,6 @@ fun TextControlsBar(
                 onOpenFullPicker = onOpenFullColorPicker
             )
         } else {
-            // Single compact capsule above keyboard (matching Telegram screenshot 3)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -340,7 +352,6 @@ fun TextControlsBar(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Color circle -> animates into 2x7 palette grid
                     Box(
                         modifier = Modifier
                             .size(28.dp)
@@ -350,7 +361,6 @@ fun TextControlsBar(
                             .clickable { showColorGrid = true }
                     )
 
-                    // Alignment icon
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -377,7 +387,6 @@ fun TextControlsBar(
                         )
                     }
 
-                    // Style [A]
                     Box(
                         modifier = Modifier
                             .size(28.dp)
@@ -403,7 +412,6 @@ fun TextControlsBar(
                         )
                     }
 
-                    // (+) button to add another text layer on the same photo
                     Box(
                         modifier = Modifier
                             .size(28.dp)
@@ -421,7 +429,6 @@ fun TextControlsBar(
                     }
                 }
 
-                // Font selector pill on the right: [Roboto ⌄]
                 Box {
                     Row(
                         modifier = Modifier

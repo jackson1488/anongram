@@ -9,6 +9,8 @@ import android.graphics.Path
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Shader
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
@@ -70,6 +73,8 @@ import com.anongram.app.features.chats.mediaeditor.model.EditorPalette
 import com.anongram.app.features.chats.mediaeditor.model.TextLayerItem
 import com.anongram.app.features.chats.mediaeditor.ui.text.TextControlsBar
 import com.anongram.app.features.chats.mediaeditor.ui.text.TextLayersCanvasOverlay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -85,6 +90,8 @@ fun PaintOverlayPanel(
     previewBitmap: ImageBitmap?,
     initialStrokes: List<BrushStroke>,
     initialTextLayers: List<TextLayerItem>,
+    initialTab: PaintModeTab = PaintModeTab.DRAWING,
+    initialSelectedTextId: String? = null,
     onApply: (List<BrushStroke>, List<TextLayerItem>) -> Unit,
     onCancel: () -> Unit,
     onOpenDownloadFonts: () -> Unit,
@@ -95,9 +102,9 @@ fun PaintOverlayPanel(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    var activeTab by remember { mutableStateOf(PaintModeTab.DRAWING) }
+    var activeTab by remember(initialTab) { mutableStateOf(initialTab) }
     var selectedBrush by remember { mutableStateOf(BrushType.PEN) }
-    var selectedColorArgb by remember { mutableLongStateOf(EditorPalette.quickColors[0]) } // Red
+    var selectedColorArgb by remember { mutableLongStateOf(EditorPalette.quickColors[0]) }
     var strokeWidthNorm by remember { mutableFloatStateOf(0.022f) }
     var isAdjustingBrushSize by remember { mutableStateOf(false) }
     var showFullColorPicker by remember { mutableStateOf(false) }
@@ -108,18 +115,57 @@ fun PaintOverlayPanel(
     var activePoints by remember { mutableStateOf<List<Offset>>(emptyList()) }
 
     val textLayers = remember(initialTextLayers) {
-        mutableStateListOf<TextLayerItem>().apply { addAll(initialTextLayers) }
+        mutableStateListOf<TextLayerItem>().apply {
+            addAll(initialTextLayers)
+            if (initialTab == PaintModeTab.TEXT && isEmpty()) {
+                add(TextLayerItem(text = ""))
+            }
+        }
     }
-    var selectedTextId by remember { mutableStateOf<String?>(textLayers.lastOrNull()?.id) }
+    var selectedTextId by remember(initialSelectedTextId) {
+        mutableStateOf<String?>(initialSelectedTextId ?: textLayers.lastOrNull()?.id)
+    }
+    var isTypingText by remember(initialTab) {
+        mutableStateOf(initialTab == PaintModeTab.TEXT)
+    }
 
-    val blurredBitmap = remember(previewBitmap) {
-        previewBitmap?.let { img ->
+    // Dynamically composite previewBitmap + current strokes so BLUR brush in the same session blurs any drawn lines too!
+    var blurredBitmap by remember(previewBitmap) { mutableStateOf<Bitmap?>(null) }
+    val committedStrokesSnapshot = strokes.toList()
+    LaunchedEffect(previewBitmap, committedStrokesSnapshot.size) {
+        val img = previewBitmap ?: return@LaunchedEffect
+        blurredBitmap = withContext(Dispatchers.Default) {
             runCatching {
-                val bmp = img.asAndroidBitmap()
-                val w = bmp.width
-                val h = bmp.height
+                val base = img.asAndroidBitmap().copy(Bitmap.Config.ARGB_8888, true)
+                val w = base.width
+                val h = base.height
+                val minDim = minOf(w, h).toFloat().coerceAtLeast(1f)
+                // Draw any non-blur strokes onto base before blurring so BLUR brush blurs them too
+                if (committedStrokesSnapshot.isNotEmpty()) {
+                    val strokeBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                    val sc = android.graphics.Canvas(strokeBmp)
+                    for (st in committedStrokesSnapshot) {
+                        if (st.points.isEmpty() || st.type == BrushType.BLUR) continue
+                        val spx = (st.strokeWidthNorm * minDim).coerceAtLeast(3f)
+                        val p = buildNativePath(st, w.toFloat(), h.toFloat())
+                        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                            style = Paint.Style.STROKE
+                            strokeCap = if (st.type == BrushType.MARKER) Paint.Cap.SQUARE else Paint.Cap.ROUND
+                            strokeJoin = Paint.Join.ROUND
+                            strokeWidth = if (st.type == BrushType.MARKER) spx * 1.5f else spx
+                            if (st.type == BrushType.ERASER) {
+                                xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
+                            } else {
+                                color = st.colorArgb.toInt()
+                                if (st.type == BrushType.MARKER) alpha = 135
+                            }
+                        }
+                        sc.drawPath(p, paint)
+                    }
+                    android.graphics.Canvas(base).drawBitmap(strokeBmp, 0f, 0f, null)
+                }
                 val px = IntArray(w * h)
-                bmp.getPixels(px, 0, w, 0, 0, w, h)
+                base.getPixels(px, 0, w, 0, 0, w, h)
                 val pass1 = PhotoFilterEngine.fastBoxBlur(px, w, h, radius = 22)
                 val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, w, h, radius = 22)
                 val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -129,14 +175,31 @@ fun PaintOverlayPanel(
         }
     }
 
+    // Smoothly shrink photo into top area when bottom controls or full color picker sheet is open
+    val animatedTopPad by animateDpAsState(
+        targetValue = 50.dp,
+        animationSpec = tween(220),
+        label = "paintTopPad"
+    )
+    val animatedBottomPad by animateDpAsState(
+        targetValue = if (showFullColorPicker) 370.dp else 118.dp,
+        animationSpec = tween(240),
+        label = "paintBottomPad"
+    )
+
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // 1. Fullscreen Photo + Strokes + Text Canvas
+        // 1. Photo + Strokes + Text Canvas (smoothly shrinks into top area above editing controls / color sheet)
         Box(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .imePadding()
+                .padding(top = animatedTopPad, bottom = animatedBottomPad, start = 8.dp, end = 8.dp),
             contentAlignment = Alignment.Center
         ) {
             if (previewBitmap != null) {
@@ -158,8 +221,8 @@ fun PaintOverlayPanel(
                 )
             } else null
 
-            val allStrokesToRender = remember(strokes.toList(), currentStrokePreview) {
-                if (currentStrokePreview != null) strokes + currentStrokePreview else strokes.toList()
+            val allStrokesToRender = remember(committedStrokesSnapshot, currentStrokePreview) {
+                if (currentStrokePreview != null) committedStrokesSnapshot + currentStrokePreview else committedStrokesSnapshot
             }
 
             StrokesPreviewCanvas(
@@ -207,11 +270,13 @@ fun PaintOverlayPanel(
                     )
             )
 
-            // Interactive Text Layers (always visible; interactive in TEXT tab or on tap)
+            // Interactive Text Layers
             TextLayersCanvasOverlay(
                 layers = textLayers,
                 selectedLayerId = selectedTextId,
                 interactive = activeTab == PaintModeTab.TEXT,
+                isTypingText = isTypingText,
+                onTypingTextChange = { isTypingText = it },
                 onSelectLayer = { id ->
                     selectedTextId = id
                     if (id != null && activeTab != PaintModeTab.TEXT) {
@@ -229,6 +294,7 @@ fun PaintOverlayPanel(
                 onEditLayerText = { layer ->
                     selectedTextId = layer.id
                     activeTab = PaintModeTab.TEXT
+                    isTypingText = true
                 }
             )
 
@@ -246,18 +312,18 @@ fun PaintOverlayPanel(
             }
         }
 
-        // 2. Floating Top Bar: Undo (↩) & Clear All (Очистить всё)
+        // 2. Top Bar: Undo (↩) & Clear All (or in Text typing mode: Clear & Done to finish typing and enter move/scale mode!)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.Black.copy(alpha = 0.65f), Color.Transparent)
+                        listOf(Color.Black.copy(alpha = 0.72f), Color.Transparent)
                     )
                 )
                 .statusBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -279,29 +345,53 @@ fun PaintOverlayPanel(
                 )
             }
 
-            Text(
-                text = strings.clearAll,
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(18.dp))
-                    .clickable {
-                        if (activeTab == PaintModeTab.DRAWING) {
-                            strokes.clear()
-                        } else {
-                            textLayers.clear()
-                            val fresh = TextLayerItem(text = "", colorArgb = selectedColorArgb)
-                            textLayers.add(fresh)
-                            selectedTextId = fresh.id
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = strings.clearAll,
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable {
+                            if (activeTab == PaintModeTab.DRAWING) {
+                                strokes.clear()
+                            } else {
+                                textLayers.clear()
+                                val fresh = TextLayerItem(text = "", colorArgb = selectedColorArgb)
+                                textLayers.add(fresh)
+                                selectedTextId = fresh.id
+                                isTypingText = true
+                            }
                         }
-                    }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+
+                // When typing text with keyboard open, top-right "Готово" finishes typing so you can move/scale the text!
+                if (activeTab == PaintModeTab.TEXT && isTypingText) {
+                    Text(
+                        text = strings.confirm,
+                        color = scheme.accent,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable {
+                                isTypingText = false
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+            }
         }
 
-        // 3. Vertical Tapered Wedge Slider on the Left Edge (matching screenshots 5 & 6)
-        if (activeTab == PaintModeTab.DRAWING) {
+        // 3. Vertical Tapered Wedge Slider on the Left Edge
+        if (activeTab == PaintModeTab.DRAWING && !showFullColorPicker) {
             VerticalTaperedBrushSlider(
                 strokeWidthNorm = strokeWidthNorm,
                 onStrokeWidthChange = { strokeWidthNorm = it },
@@ -310,23 +400,23 @@ fun PaintOverlayPanel(
                     .align(Alignment.CenterStart)
                     .padding(start = 6.dp)
                     .width(28.dp)
-                    .height(220.dp)
+                    .height(210.dp)
             )
         }
 
-        // 4. Floating Bottom Controls Bar
+        // 4. Bottom Controls Bar
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.80f), Color.Black.copy(alpha = 0.95f))
+                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.85f), Color.Black.copy(alpha = 0.96f))
                     )
                 )
                 .navigationBarsPadding()
                 .imePadding()
-                .padding(top = 10.dp, bottom = 6.dp)
+                .padding(top = 8.dp, bottom = 6.dp)
         ) {
             if (activeTab == PaintModeTab.DRAWING) {
                 BrushControlsBar(
@@ -352,6 +442,8 @@ fun PaintOverlayPanel(
                         val added = TextLayerItem(text = "", colorArgb = selectedColorArgb)
                         textLayers.add(added)
                         selectedTextId = added.id
+                        isTypingText = true
+                        keyboardController?.show()
                     },
                     onUpdateLayer = { updated ->
                         val idx = textLayers.indexOfFirst { it.id == updated.id }
@@ -399,12 +491,16 @@ fun PaintOverlayPanel(
                                 .clickable {
                                     activeTab = tab
                                     if (tab == PaintModeTab.DRAWING) {
+                                        isTypingText = false
                                         focusManager.clearFocus()
                                         keyboardController?.hide()
-                                    } else if (textLayers.isEmpty()) {
-                                        val added = TextLayerItem(text = "", colorArgb = selectedColorArgb)
-                                        textLayers.add(added)
-                                        selectedTextId = added.id
+                                    } else {
+                                        if (textLayers.isEmpty()) {
+                                            val added = TextLayerItem(text = "", colorArgb = selectedColorArgb)
+                                            textLayers.add(added)
+                                            selectedTextId = added.id
+                                        }
+                                        isTypingText = true
                                     }
                                 }
                                 .padding(horizontal = 10.dp, vertical = 6.dp)
@@ -414,6 +510,7 @@ fun PaintOverlayPanel(
 
                 IconButton(
                     onClick = {
+                        isTypingText = false
                         focusManager.clearFocus()
                         keyboardController?.hide()
                         val cleanTexts = textLayers.filter { it.text.isNotBlank() }
@@ -453,9 +550,6 @@ fun PaintOverlayPanel(
     }
 }
 
-/**
- * Вертикальный клиновидный слайдер толщины кисти слева (как в Telegram на скриншотах 5 и 6).
- */
 @Composable
 private fun VerticalTaperedBrushSlider(
     strokeWidthNorm: Float,
@@ -556,7 +650,6 @@ fun StrokesPreviewCanvas(
 
                 when (stroke.type) {
                     BrushType.BLUR -> {
-                        // First blur any existing strokes drawn BEFORE this blur stroke, then draw the blurred photo shader
                         val softBlurPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
                             style = Paint.Style.STROKE
                             strokeCap = Paint.Cap.ROUND

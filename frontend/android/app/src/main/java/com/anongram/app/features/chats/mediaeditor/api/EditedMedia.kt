@@ -19,5 +19,6 @@ data class EditedMedia(
     val trimEndMs: Long = 0L,
     val isMuted: Boolean = false,
     val coverUri: Uri? = null,
-    val quality: String = "HD"
+    val quality: String = "HD",
+    val originalId: String = ""
 )

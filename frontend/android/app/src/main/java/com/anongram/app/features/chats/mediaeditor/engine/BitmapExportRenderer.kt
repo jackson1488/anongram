@@ -72,7 +72,8 @@ object BitmapExportRenderer {
             trimEndMs = item.trimEndMs,
             isMuted = item.isMuted,
             coverUri = item.coverUri,
-            quality = item.videoQuality.label
+            quality = item.videoQuality.label,
+            originalId = item.id
         )
     }
 
@@ -125,7 +126,8 @@ object BitmapExportRenderer {
             ttl = item.ttl,
             width = outWidth,
             height = outHeight,
-            quality = if (item.hd) "HD" else "SD"
+            quality = if (item.hd) "HD" else "SD",
+            originalId = item.id
         )
     }
 
