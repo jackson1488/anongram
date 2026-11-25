@@ -228,11 +228,13 @@ fun CustomGalleryPickerSheet(
 
             if (sheetState.isCameraOpen) {
                 CameraScreen(
-                    onBack = { sheetState.isCameraOpen = false },
-                    onMediaCaptured = { uri, _ ->
+                    onResult = { captured ->
                         sheetState.isCameraOpen = false
-                        onPickUri(uri)
+                        if (!captured.isVideo) {
+                            onPickUri(captured.uri)
+                        }
                     },
+                    onClose = { sheetState.isCameraOpen = false },
                     modifier = Modifier
                         .fillMaxSize()
                         .zIndex(20f)
