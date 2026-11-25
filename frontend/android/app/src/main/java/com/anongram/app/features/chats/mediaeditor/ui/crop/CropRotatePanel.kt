@@ -1,5 +1,7 @@
 package com.anongram.app.features.chats.mediaeditor.ui.crop
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,14 +23,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Flip
-import androidx.compose.material.icons.filled.RotateRight
+import androidx.compose.material.icons.filled.Rotate90DegreesCcw
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,16 +40,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -56,11 +61,11 @@ import com.anongram.app.features.chats.mediaeditor.model.CropRect
 import com.anongram.app.features.chats.mediaeditor.model.CropTransform
 import kotlin.math.abs
 import kotlin.math.cos
-import kotlin.math.roundToInt
+import kotlin.math.pow
 import kotlin.math.sin
 
 private enum class DragTarget {
-    NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, MOVE
+    NONE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT, LEFT, RIGHT, TOP, BOTTOM, MOVE
 }
 
 @Composable
@@ -73,48 +78,61 @@ fun CropRotatePanel(
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = MediaEditorI18n.current
+    val density = LocalDensity.current
 
     var draft by remember(initialTransform) { mutableStateOf(initialTransform) }
+    var cumulativeRotation90 by remember(initialTransform) {
+        mutableFloatStateOf(initialTransform.baseRotation90.toFloat())
+    }
     var isDraggingCrop by remember { mutableStateOf(false) }
+    var isDraggingWheel by remember { mutableStateOf(false) }
     var boxSize by remember { mutableStateOf(IntSize.Zero) }
 
-    Column(
+    val animatedBaseRotation by animateFloatAsState(
+        targetValue = cumulativeRotation90,
+        animationSpec = tween(durationMillis = 240),
+        label = "cropBaseRotation90"
+    )
+    val animatedMirrorScale by animateFloatAsState(
+        targetValue = if (draft.mirrorHorizontal) -1f else 1f,
+        animationSpec = tween(durationMillis = 220),
+        label = "cropMirrorScale"
+    )
+
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Black)
-            .statusBarsPadding()
-            .navigationBarsPadding()
     ) {
-        // Preview & Interactive Crop Frame
+        // Fullscreen Crop Workspace with slim edge margin and space for bottom floating controls
         Box(
             modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp)
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 108.dp)
                 .onSizeChanged { boxSize = it },
             contentAlignment = Alignment.Center
         ) {
-            if (bitmap != null) {
+            if (bitmap != null && boxSize.width > 0 && boxSize.height > 0) {
                 val aspect = bitmap.width.toFloat() / bitmap.height.toFloat().coerceAtLeast(1f)
                 val swapped = (draft.baseRotation90 / 90) % 2 != 0
                 val displayAspect = if (swapped) 1f / aspect else aspect
 
-                // Compute fitted media rect inside boxSize
                 val fittedRect = remember(boxSize, displayAspect) {
                     computeFittedRect(boxSize, displayAspect)
                 }
 
                 val rad = Math.toRadians(abs(draft.straightenDegrees).toDouble())
                 val autoZoom = (cos(rad) + sin(rad) * maxOf(displayAspect, 1f / displayAspect)).toFloat()
-                    .coerceIn(1f, 1.8f)
+                    .coerceIn(1f, 1.85f)
 
                 Box(
                     modifier = Modifier
                         .size(
-                            width = (fittedRect.width / androidx.compose.ui.platform.LocalDensity.current.density).dp,
-                            height = (fittedRect.height / androidx.compose.ui.platform.LocalDensity.current.density).dp
+                            width = with(density) { fittedRect.width.toDp() },
+                            height = with(density) { fittedRect.height.toDp() }
                         )
-                        .clip(RoundedCornerShape(2.dp))
                 ) {
                     Image(
                         bitmap = bitmap,
@@ -123,14 +141,15 @@ fun CropRotatePanel(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                rotationZ = draft.totalRotationDegrees
-                                scaleX = (if (draft.mirrorHorizontal) -1f else 1f) * autoZoom
+                                rotationZ = animatedBaseRotation + draft.straightenDegrees
+                                scaleX = animatedMirrorScale * autoZoom
                                 scaleY = autoZoom
                             }
                     )
 
-                    // Crop overlay canvas
+                    val currentDraft by rememberUpdatedState(draft)
                     var activeHandle by remember { mutableStateOf(DragTarget.NONE) }
+
                     Canvas(
                         modifier = Modifier
                             .fillMaxSize()
@@ -139,7 +158,7 @@ fun CropRotatePanel(
                                     onDragStart = { offset ->
                                         val w = size.width.toFloat().coerceAtLeast(1f)
                                         val h = size.height.toFloat().coerceAtLeast(1f)
-                                        val r = draft.cropRect
+                                        val r = currentDraft.cropRect
                                         val l = r.left * w
                                         val t = r.top * h
                                         val ri = r.right * w
@@ -151,6 +170,10 @@ fun CropRotatePanel(
                                             (offset - Offset(ri, t)).getDistance() <= hitR -> DragTarget.TOP_RIGHT
                                             (offset - Offset(l, b)).getDistance() <= hitR -> DragTarget.BOTTOM_LEFT
                                             (offset - Offset(ri, b)).getDistance() <= hitR -> DragTarget.BOTTOM_RIGHT
+                                            abs(offset.x - l) <= hitR && offset.y in t..b -> DragTarget.LEFT
+                                            abs(offset.x - ri) <= hitR && offset.y in t..b -> DragTarget.RIGHT
+                                            abs(offset.y - t) <= hitR && offset.x in l..ri -> DragTarget.TOP
+                                            abs(offset.y - b) <= hitR && offset.x in l..ri -> DragTarget.BOTTOM
                                             offset.x in l..ri && offset.y in t..b -> DragTarget.MOVE
                                             else -> DragTarget.NONE
                                         }
@@ -163,8 +186,8 @@ fun CropRotatePanel(
                                         val h = size.height.toFloat().coerceAtLeast(1f)
                                         val dx = dragAmount.x / w
                                         val dy = dragAmount.y / h
-                                        val cur = draft.cropRect
-                                        val minSize = 0.15f
+                                        val cur = currentDraft.cropRect
+                                        val minSize = 0.14f
 
                                         val next = when (activeHandle) {
                                             DragTarget.TOP_LEFT -> cur.copy(
@@ -183,6 +206,18 @@ fun CropRotatePanel(
                                                 right = (cur.right + dx).coerceIn(cur.left + minSize, 1f),
                                                 bottom = (cur.bottom + dy).coerceIn(cur.top + minSize, 1f)
                                             )
+                                            DragTarget.LEFT -> cur.copy(
+                                                left = (cur.left + dx).coerceIn(0f, cur.right - minSize)
+                                            )
+                                            DragTarget.RIGHT -> cur.copy(
+                                                right = (cur.right + dx).coerceIn(cur.left + minSize, 1f)
+                                            )
+                                            DragTarget.TOP -> cur.copy(
+                                                top = (cur.top + dy).coerceIn(0f, cur.bottom - minSize)
+                                            )
+                                            DragTarget.BOTTOM -> cur.copy(
+                                                bottom = (cur.bottom + dy).coerceIn(cur.top + minSize, 1f)
+                                            )
                                             DragTarget.MOVE -> {
                                                 val cw = cur.width
                                                 val ch = cur.height
@@ -192,7 +227,7 @@ fun CropRotatePanel(
                                             }
                                             DragTarget.NONE -> cur
                                         }
-                                        draft = draft.copy(cropRect = next)
+                                        draft = currentDraft.copy(cropRect = next)
                                     },
                                     onDragEnd = {
                                         activeHandle = DragTarget.NONE
@@ -214,15 +249,15 @@ fun CropRotatePanel(
                         val b = cr.bottom * h
 
                         // Dimmed outside regions
-                        val dim = Color.Black.copy(alpha = 0.60f)
+                        val dim = Color.Black.copy(alpha = 0.58f)
                         drawRect(dim, Offset.Zero, Size(w, t))
                         drawRect(dim, Offset(0f, b), Size(w, h - b))
                         drawRect(dim, Offset(0f, t), Size(l, b - t))
                         drawRect(dim, Offset(r, t), Size(w - r, b - t))
 
-                        // 3x3 Rule-of-thirds grid while dragging
-                        if (isDraggingCrop) {
-                            val gridColor = Color.White.copy(alpha = 0.55f)
+                        // 3x3 grid while dragging crop or rotating wheel
+                        if (isDraggingCrop || isDraggingWheel) {
+                            val gridColor = Color.White.copy(alpha = 0.45f)
                             val cw = r - l
                             val ch = b - t
                             for (i in 1..2) {
@@ -233,25 +268,21 @@ fun CropRotatePanel(
                             }
                         }
 
-                        // White border
+                        // Thin white crop frame border
                         drawRect(
-                            color = Color.White,
+                            color = Color.White.copy(alpha = 0.85f),
                             topLeft = Offset(l, t),
                             size = Size(r - l, b - t),
-                            style = Stroke(width = 1.5.dp.toPx())
+                            style = Stroke(width = 1.2.dp.toPx())
                         )
 
-                        // Thick L-shaped corner handles
-                        val handleLen = 18.dp.toPx()
+                        // Bold L-shaped white corner handles
+                        val handleLen = 20.dp.toPx()
                         val handleStroke = 3.5.dp.toPx()
                         val cornerPath = Path().apply {
-                            // Top-left
                             moveTo(l, t + handleLen); lineTo(l, t); lineTo(l + handleLen, t)
-                            // Top-right
                             moveTo(r - handleLen, t); lineTo(r, t); lineTo(r, t + handleLen)
-                            // Bottom-left
                             moveTo(l, b - handleLen); lineTo(l, b); lineTo(l + handleLen, b)
-                            // Bottom-right
                             moveTo(r - handleLen, b); lineTo(r, b); lineTo(r, b - handleLen)
                         }
                         drawPath(
@@ -264,23 +295,33 @@ fun CropRotatePanel(
             }
         }
 
-        // Mirror (left) + Degree Ruler -45..+45 (center) + Rotate 90 (right)
+        // Seamless bottom gradient + floating 3D drum wheel & bottom action bar
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(scheme.surface.copy(alpha = 0.96f))
-                .padding(top = 10.dp, bottom = 6.dp),
+                .align(Alignment.BottomCenter)
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.72f),
+                            Color.Black.copy(alpha = 0.94f)
+                        )
+                    )
+                )
+                .navigationBarsPadding()
+                .padding(top = 14.dp, bottom = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val angleFormatted = String.format("%.1f°", draft.straightenDegrees).replace('.', ',')
             Text(
                 text = angleFormatted,
-                color = if (abs(draft.straightenDegrees) > 0.05f) scheme.accent else scheme.textPrimary,
-                fontSize = 13.sp,
+                color = if (abs(draft.straightenDegrees) > 0.05f) Color.White else Color.White.copy(alpha = 0.75f),
+                fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(2.dp))
 
             Row(
                 modifier = Modifier
@@ -291,144 +332,177 @@ fun CropRotatePanel(
                 // Mirror on the LEFT
                 IconButton(
                     onClick = { draft = draft.copy(mirrorHorizontal = !draft.mirrorHorizontal) },
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(if (draft.mirrorHorizontal) scheme.accent.copy(alpha = 0.18f) else Color.Transparent)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Flip,
                         contentDescription = strings.mirror,
-                        tint = if (draft.mirrorHorizontal) scheme.accent else scheme.textPrimary
+                        tint = if (draft.mirrorHorizontal) scheme.accent else Color.White
                     )
                 }
 
-                // Degree ruler -45°..+45° in the CENTER
-                StraightenRuler(
+                // 3D Cylindrical Drum Wheel (-45°..+45°) in the CENTER
+                StraightenDrumWheel3D(
                     degrees = draft.straightenDegrees,
-                    onDegreesChange = { draft = draft.copy(straightenDegrees = it) },
-                    accentColor = scheme.accent,
-                    tickColor = scheme.textMuted,
+                    onDegreesChange = { newDeg ->
+                        draft = draft.copy(straightenDegrees = newDeg)
+                    },
+                    onDragStateChange = { isDraggingWheel = it },
+                    accentColor = Color(0xFF3897F0),
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp)
-                        .padding(horizontal = 8.dp)
+                        .height(38.dp)
+                        .padding(horizontal = 6.dp)
                 )
 
                 // Rotate 90° on the RIGHT
                 IconButton(
                     onClick = {
-                        draft = draft.copy(baseRotation90 = (draft.baseRotation90 + 90) % 360)
+                        cumulativeRotation90 -= 90f
+                        val next90 = ((draft.baseRotation90 - 90) % 360 + 360) % 360
+                        draft = draft.copy(baseRotation90 = next90)
                     },
-                    modifier = Modifier.size(42.dp)
+                    modifier = Modifier.size(40.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.RotateRight,
+                        imageVector = Icons.Default.Rotate90DegreesCcw,
                         contentDescription = strings.rotate90,
-                        tint = if (draft.baseRotation90 != 0) scheme.accent else scheme.textPrimary
+                        tint = if (draft.baseRotation90 != 0) scheme.accent else Color.White
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Bottom bar: ОТМЕНА | СБРОС | ГОТОВО
+            // Bottom row: ОТМЕНА | СБРОС | ГОТОВО
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                    .padding(horizontal = 18.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = strings.cancel,
-                    color = scheme.textSecondary,
-                    fontSize = 14.sp,
+                    color = Color.White,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(18.dp))
                         .clickable { onCancel() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 )
 
-                Text(
-                    text = strings.reset,
-                    color = if (draft.isModified) scheme.textPrimary else scheme.textMuted,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .clickable(enabled = draft.isModified) { draft = CropTransform() }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                )
+                if (draft.isModified) {
+                    Text(
+                        text = strings.reset,
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(18.dp))
+                            .clickable {
+                                cumulativeRotation90 = 0f
+                                draft = CropTransform()
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(1.dp))
+                }
 
                 Text(
                     text = strings.done,
                     color = scheme.accent,
-                    fontSize = 14.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
+                        .clip(RoundedCornerShape(18.dp))
                         .clickable { onApply(draft) }
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
         }
     }
 }
 
+/**
+ * 3D цилиндрический барабан градусов (-45°..+45°) в стиле Telegram:
+ * Деления проецируются по цилиндру через sin(θ) и cos(θ), сжимаясь и уходя в перспективу к краям.
+ */
 @Composable
-private fun StraightenRuler(
+private fun StraightenDrumWheel3D(
     degrees: Float,
     onDegreesChange: (Float) -> Unit,
+    onDragStateChange: (Boolean) -> Unit,
     accentColor: Color,
-    tickColor: Color,
     modifier: Modifier = Modifier
 ) {
+    val currentDegrees by rememberUpdatedState(degrees)
+    val currentOnChange by rememberUpdatedState(onDegreesChange)
+    val currentOnDragState by rememberUpdatedState(onDragStateChange)
+
     Canvas(
         modifier = modifier
             .pointerInput(Unit) {
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    val deltaDeg = -(dragAmount.x / size.width.toFloat().coerceAtLeast(1f)) * 45f
-                    val next = (degrees + deltaDeg).coerceIn(-45f, 45f)
-                    val snapped = if (abs(next) < 0.6f) 0f else (next * 10f).roundToInt() / 10f
-                    onDegreesChange(snapped)
-                }
+                detectDragGestures(
+                    onDragStart = { currentOnDragState(true) },
+                    onDragEnd = { currentOnDragState(false) },
+                    onDragCancel = { currentOnDragState(false) },
+                    onDrag = { change, dragAmount ->
+                        change.consume()
+                        val w = size.width.toFloat().coerceAtLeast(1f)
+                        val deltaDeg = -(dragAmount.x / w) * 42f
+                        val rawNext = (currentDegrees + deltaDeg).coerceIn(-45f, 45f)
+                        val next = if (abs(rawNext) < 0.25f && abs(currentDegrees) >= 0.25f) 0f else rawNext
+                        currentOnChange(next)
+                    }
+                )
             }
     ) {
         val w = size.width
         val h = size.height
         val cx = w * 0.5f
-        val pxPerDeg = w / 46f
+        val drumRadius = w * 0.49f
+        val visibleSpanDeg = 32f
 
-        for (deg in -45..45 step 2) {
-            val x = cx + (deg - degrees) * pxPerDeg
-            if (x < 4f || x > w - 4f) continue
-            val isMajor = deg % 10 == 0
+        for (deg in -45..45 step 1) {
+            if (deg % 2 != 0 && deg != 0) continue
+            val relDeg = deg - degrees
+            if (abs(relDeg) > visibleSpanDeg) continue
+
+            // Cylindrical angle theta in [-PI*0.46 .. +PI*0.46]
+            val theta = (relDeg / visibleSpanDeg) * (Math.PI.toFloat() * 0.46f)
+            val sinT = sin(theta)
+            val cosT = cos(theta).coerceIn(0f, 1f)
+
+            val x = cx + drumRadius * sinT
             val isZero = deg == 0
-            val lineH = when {
-                isZero -> h * 0.62f
-                isMajor -> h * 0.45f
-                else -> h * 0.25f
+            val isBetweenZeroAndCurrent = (deg >= minOf(0f, degrees) && deg <= maxOf(0f, degrees))
+
+            // 3D perspective scaling on height, width, and alpha
+            val baseH = if (isZero) h * 0.56f else h * 0.36f
+            val lineH = baseH * (0.55f + 0.45f * cosT)
+            val alpha = cosT.pow(1.45f).coerceIn(0.08f, 1f)
+
+            val tickColor = when {
+                isZero || isBetweenZeroAndCurrent -> accentColor.copy(alpha = alpha)
+                else -> Color.White.copy(alpha = alpha * 0.78f)
             }
-            val alpha = (1f - abs(x - cx) / (w * 0.52f)).coerceIn(0.15f, 1f)
-            val color = if (isZero) accentColor.copy(alpha = alpha) else tickColor.copy(alpha = alpha)
+
             drawLine(
-                color = color,
+                color = tickColor,
                 start = Offset(x, (h - lineH) / 2f),
                 end = Offset(x, (h + lineH) / 2f),
-                strokeWidth = if (isZero || isMajor) 2.dp.toPx() else 1.2.dp.toPx(),
+                strokeWidth = (if (isZero) 2.2.dp.toPx() else 1.3.dp.toPx()) * (0.6f + 0.4f * cosT),
                 cap = StrokeCap.Round
             )
         }
 
-        // Fixed center indicator needle
+        // Fixed center indicator bar (current angle needle)
         drawLine(
             color = accentColor,
-            start = Offset(cx, h * 0.12f),
-            end = Offset(cx, h * 0.88f),
-            strokeWidth = 2.5.dp.toPx(),
+            start = Offset(cx, h * 0.16f),
+            end = Offset(cx, h * 0.84f),
+            strokeWidth = 2.6.dp.toPx(),
             cap = StrokeCap.Round
         )
     }

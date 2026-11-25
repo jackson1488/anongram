@@ -1,12 +1,14 @@
 package com.anongram.app.features.chats.mediaeditor.ui.paint
 
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,8 +25,6 @@ import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.Create
 import androidx.compose.material.icons.rounded.Highlight
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,15 +47,13 @@ fun BrushControlsBar(
     onSelectBrush: (BrushType) -> Unit,
     selectedColorArgb: Long,
     onSelectColor: (Long) -> Unit,
-    strokeWidthNorm: Float,
-    onStrokeWidthChange: (Float) -> Unit,
+    onOpenFullColorPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = MediaEditorI18n.current
 
-    var showColorPalette by remember { mutableStateOf(false) }
-    var showSizeSlider by remember { mutableStateOf(false) }
+    var showColorGrid by remember { mutableStateOf(false) }
 
     val brushes: List<Triple<BrushType, String, ImageVector>> = listOf(
         Triple(BrushType.PEN, strings.brushPen, Icons.Rounded.Create),
@@ -66,100 +64,77 @@ fun BrushControlsBar(
         Triple(BrushType.ERASER, strings.brushEraser, Icons.Rounded.CleaningServices)
     )
 
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        AnimatedVisibility(visible = showColorPalette) {
+    AnimatedContent(
+        targetState = showColorGrid,
+        transitionSpec = { fadeIn() togetherWith fadeOut() },
+        label = "brushOrPaletteCapsule",
+        modifier = modifier.fillMaxWidth()
+    ) { isGrid ->
+        if (isGrid) {
             ColorPaletteBar(
                 selectedColorArgb = selectedColorArgb,
-                onSelectColor = {
-                    onSelectColor(it)
-                    showColorPalette = false
-                }
+                onSelectColor = { onSelectColor(it) },
+                onBackToBrushes = { showColorGrid = false },
+                onOpenFullPicker = onOpenFullColorPicker
             )
-        }
-
-        AnimatedVisibility(visible = showSizeSlider) {
-            Slider(
-                value = strokeWidthNorm,
-                onValueChange = onStrokeWidthChange,
-                valueRange = 0.005f..0.055f,
-                colors = SliderDefaults.colors(
-                    thumbColor = scheme.accent,
-                    activeTrackColor = scheme.accent,
-                    inactiveTrackColor = scheme.textMuted.copy(alpha = 0.25f)
-                ),
+        } else {
+            // Single compact capsule: [Color circle] [Pen] [Arrow] [Marker] [Neon] [Blur] [Eraser] [+]
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 12.dp)
-            )
-        }
-
-        // Single compact capsule: [Color circle] [Pen] [Arrow] [Marker] [Neon] [Blur] [Eraser] [+]
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(46.dp)
-                .clip(RoundedCornerShape(23.dp))
-                .background(scheme.islandBg)
-                .border(1.dp, scheme.islandBorder, RoundedCornerShape(23.dp))
-                .padding(horizontal = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Active color circle button
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .clip(CircleShape)
-                    .background(EditorPalette.colorFromArgb(selectedColorArgb))
-                    .border(2.dp, Color.White, CircleShape)
-                    .clickable {
-                        showColorPalette = !showColorPalette
-                        if (showColorPalette) showSizeSlider = false
-                    }
-            )
-
-            brushes.forEach { (type, label, icon) ->
-                val selected = type == selectedBrush
+                    .height(48.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
+                    .padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Active color circle button -> animates into 2x7 palette grid
                 Box(
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(28.dp)
                         .clip(CircleShape)
-                        .background(if (selected) scheme.card else Color.Transparent)
-                        .clickable { onSelectBrush(type) },
+                        .background(EditorPalette.colorFromArgb(selectedColorArgb))
+                        .border(2.dp, Color.White, CircleShape)
+                        .clickable { showColorGrid = true }
+                )
+
+                brushes.forEach { (type, label, icon) ->
+                    val selected = type == selectedBrush
+                    Box(
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(CircleShape)
+                            .background(if (selected) scheme.card else Color.Transparent)
+                            .clickable { onSelectBrush(type) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = label,
+                            tint = if (selected) Color.White else scheme.textSecondary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+                }
+
+                // (+) opens full 3-tab color picker sheet
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable { onOpenFullColorPicker() },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = icon,
-                        contentDescription = label,
-                        tint = if (selected) scheme.accent else scheme.textPrimary,
-                        modifier = Modifier.size(19.dp)
+                        imageVector = Icons.Default.Add,
+                        contentDescription = strings.customColor,
+                        tint = scheme.textPrimary,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            }
-
-            // Thickness (+) button
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(if (showSizeSlider) scheme.accent.copy(alpha = 0.2f) else Color.Transparent)
-                    .clickable {
-                        showSizeSlider = !showSizeSlider
-                        if (showSizeSlider) showColorPalette = false
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = strings.brushSize,
-                    tint = if (showSizeSlider) scheme.accent else scheme.textPrimary,
-                    modifier = Modifier.size(20.dp)
-                )
             }
         }
     }

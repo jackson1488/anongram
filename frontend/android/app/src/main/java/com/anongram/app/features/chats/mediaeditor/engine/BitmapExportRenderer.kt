@@ -217,16 +217,26 @@ object BitmapExportRenderer {
 
             when (stroke.type) {
                 BrushType.BLUR -> {
-                    if (blurredShader != null) {
-                        val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                            style = Paint.Style.STROKE
-                            strokeCap = Paint.Cap.ROUND
-                            strokeJoin = Paint.Join.ROUND
-                            strokeWidth = strokePx * 2.2f
-                            shader = blurredShader
-                        }
-                        strokeCanvas.drawPath(path, p)
+                    // Composite current baseBitmap + any strokes drawn so far, blur it, and paint onto strokeCanvas
+                    val compositeBmp = baseBitmap.copy(Bitmap.Config.ARGB_8888, true)
+                    Canvas(compositeBmp).drawBitmap(strokeLayer, 0f, 0f, null)
+                    val px = IntArray(w * h)
+                    compositeBmp.getPixels(px, 0, w, 0, 0, w, h)
+                    val pass1 = PhotoFilterEngine.fastBoxBlur(px, w, h, radius = 22)
+                    val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, w, h, radius = 22)
+                    val blurredComposite = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                    blurredComposite.setPixels(pass2, 0, w, 0, 0, w, h)
+                    val dynamicShader = BitmapShader(blurredComposite, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+
+                    val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                        style = Paint.Style.STROKE
+                        strokeCap = Paint.Cap.ROUND
+                        strokeJoin = Paint.Join.ROUND
+                        strokeWidth = strokePx * 2.2f
+                        shader = dynamicShader
+                        maskFilter = BlurMaskFilter((strokePx * 0.45f).coerceAtLeast(4f), BlurMaskFilter.Blur.NORMAL)
                     }
+                    strokeCanvas.drawPath(path, p)
                 }
                 BrushType.ERASER -> {
                     val p = Paint(Paint.ANTI_ALIAS_FLAG).apply {

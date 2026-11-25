@@ -81,6 +81,12 @@ fun Modifier.applyAnonGramTransition(
     }
 }
 
+object SwipeBackGestureLock {
+    @Volatile
+    var lockCount: Int = 0
+    val isLocked: Boolean get() = lockCount > 0
+}
+
 /**
  * Жест «назад» 1:1 свайпом слева направо из любой точки экрана.
  * Не перехватывает вертикальный скролл и свайпы справа налево (например, ответ на сообщение).
@@ -96,6 +102,7 @@ fun Modifier.swipeBackGesture(
         val touchSlop = viewConfiguration.touchSlop
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
+            if (SwipeBackGestureLock.isLocked) return@awaitEachGesture
             var totalDx = 0f
             var totalDy = 0f
             var tracking = false
@@ -103,6 +110,7 @@ fun Modifier.swipeBackGesture(
 
             while (true) {
                 val event = awaitPointerEvent()
+                if (SwipeBackGestureLock.isLocked) break
                 val change = event.changes.firstOrNull { it.id == down.id } ?: break
                 if (!change.pressed) {
                     if (tracking) {
@@ -117,7 +125,7 @@ fun Modifier.swipeBackGesture(
                 totalDy += delta.y
 
                 if (!tracking && !rejected) {
-                    if (change.isConsumed) {
+                    if (change.isConsumed || SwipeBackGestureLock.isLocked) {
                         rejected = true
                     } else if (abs(totalDy) > touchSlop && abs(totalDy) > abs(totalDx)) {
                         rejected = true

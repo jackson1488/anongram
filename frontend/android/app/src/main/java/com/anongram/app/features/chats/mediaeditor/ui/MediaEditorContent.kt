@@ -75,6 +75,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -168,6 +169,16 @@ fun MediaEditorContent(
     }
 
     var isVideoPlaying by remember(activeItem.id) { mutableStateOf(true) }
+    var verticalDragOffsetY by remember { mutableStateOf(0f) }
+
+    // Lock system/engine swipeBackGesture while MediaEditor is active
+    DisposableEffect(Unit) {
+        com.anongram.app.core.navigation.SwipeBackGestureLock.lockCount += 1
+        onDispose {
+            com.anongram.app.core.navigation.SwipeBackGestureLock.lockCount =
+                (com.anongram.app.core.navigation.SwipeBackGestureLock.lockCount - 1).coerceAtLeast(0)
+        }
+    }
 
     val hasUnsavedChanges = currentItems.any { item ->
         item.editState.crop.isModified ||
@@ -201,7 +212,6 @@ fun MediaEditorContent(
         currentItems[currentIndex] = updated
     }
 
-    // Native Back gesture only (all swipe gestures disabled)
     BackHandler(enabled = !showFontsModuleScreen) {
         if (editorMode != EditorMode.MAIN) {
             editorMode = EditorMode.MAIN
@@ -218,15 +228,32 @@ fun MediaEditorContent(
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Main Pager with swipe disabled (userScrollEnabled = false)
+        // Fullscreen Pager (floating controls sit on top; left/right photo swipe and vertical drag-to-close work in MAIN mode)
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = false,
+            userScrollEnabled = editorMode == EditorMode.MAIN && !showFontsModuleScreen && currentItems.size > 1,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(
-                    top = if (editorMode == EditorMode.MAIN) 56.dp else 0.dp,
-                    bottom = if (editorMode == EditorMode.MAIN) 116.dp else 0.dp
+                .then(
+                    if (editorMode == EditorMode.MAIN && !showFontsModuleScreen) {
+                        Modifier.pointerInput(Unit) {
+                            androidx.compose.foundation.gestures.detectVerticalDragGestures(
+                                onDragEnd = {
+                                    if (kotlin.math.abs(verticalDragOffsetY) > 150.dp.toPx()) {
+                                        verticalDragOffsetY = 0f
+                                        requestBack()
+                                    } else {
+                                        verticalDragOffsetY = 0f
+                                    }
+                                },
+                                onDragCancel = { verticalDragOffsetY = 0f },
+                                onVerticalDrag = { change, dragAmount ->
+                                    change.consume()
+                                    verticalDragOffsetY += dragAmount
+                                }
+                            )
+                        }
+                    } else Modifier
                 )
         ) { page ->
             val item = currentItems[page]
@@ -237,7 +264,9 @@ fun MediaEditorContent(
             }
 
             Box(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(vertical = 0.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (item.isVideo) {
@@ -681,7 +710,7 @@ fun MediaEditorContent(
                                     text = if (activeItem.isVideo) {
                                         activeItem.videoQuality.label
                                     } else {
-                                        strings.hdLabel
+                                        if (activeItem.hd) strings.hdLabel else strings.sdLabel
                                     },
                                     color = if (activeItem.isVideo || activeItem.hd) scheme.accent else scheme.textPrimary,
                                     fontSize = 11.sp,

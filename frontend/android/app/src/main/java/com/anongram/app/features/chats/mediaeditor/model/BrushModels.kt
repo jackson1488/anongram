@@ -23,21 +23,24 @@ data class BrushStroke(
 )
 
 object EditorPalette {
+    // Top row (7) + Bottom row (7) matching Telegram 2x7 palette capsule
     val quickColors: List<Long> = listOf(
-        0xFFFFFFFF, // White
-        0xFF000000, // Black
+        // Row 1
         0xFFFF3B30, // Red
         0xFFFF9500, // Orange
-        0xFFFFCC00, // Yellow
+        0xFFFFD60A, // Yellow
         0xFF34C759, // Green
-        0xFF00C7BE, // Teal
-        0xFF32ADE6, // Cyan
-        0xFF007AFF, // Blue
-        0xFF5856D6, // Indigo
-        0xFFAF52DE, // Purple
-        0xFFFF2D55, // Pink
-        0xFFA2845E, // Brown
-        0xFF8E8E93  // Gray
+        0xFF64D2FF, // Cyan
+        0xFF0A84FF, // Blue
+        0xFFBF5AF2, // Purple
+        // Row 2
+        0xFF000000, // Black
+        0xFFFFFFFF, // White
+        0xFFD4A373, // Tan
+        0xFF70A1FF, // Light Blue
+        0xFFA29BFE, // Lavender
+        0xFFE899B8, // Pink
+        0xFFB8E994  // Light Green
     )
 
     fun colorFromArgb(argb: Long): Color = Color(argb.toInt())

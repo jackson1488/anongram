@@ -3,8 +3,8 @@ package com.anongram.app.features.chats.mediaeditor.ui.adjust
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,19 +12,27 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.outlined.BlurCircular
+import androidx.compose.material.icons.outlined.LinearScale
+import androidx.compose.material.icons.outlined.Remove
+import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,7 +54,6 @@ enum class AdjustSubTab {
 }
 
 private enum class SliderParam(val min: Float, val max: Float) {
-    SMOOTH_SKIN(0f, 1f),
     ENHANCE(0f, 1f),
     EXPOSURE(-1f, 1f),
     CONTRAST(-1f, 1f),
@@ -57,7 +64,8 @@ private enum class SliderParam(val min: Float, val max: Float) {
     SHADOWS(-1f, 1f),
     VIGNETTE(0f, 1f),
     GRAIN(0f, 1f),
-    SHARPEN(0f, 1f)
+    SHARPEN(0f, 1f),
+    SMOOTH_SKIN(0f, 1f)
 }
 
 @Composable
@@ -76,85 +84,70 @@ fun AdjustmentsPanel(
 ) {
     val scheme = LocalAnonGramScheme.current
     val strings = MediaEditorI18n.current
-    var selectedSlider by remember { mutableStateOf(SliderParam.EXPOSURE) }
 
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(scheme.surface.copy(alpha = 0.96f))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.86f),
+                        Color.Black.copy(alpha = 0.96f)
+                    )
+                )
+            )
             .navigationBarsPadding()
-            .padding(top = 10.dp, bottom = 8.dp)
+            .padding(top = 14.dp, bottom = 6.dp)
     ) {
         when (activeTab) {
             AdjustSubTab.SLIDERS -> {
-                val curVal = getParamValue(adjustments, selectedSlider)
-                val displayNum = (curVal * 100f).roundToInt()
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(190.dp)
+                        .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = labelForParam(selectedSlider, strings),
-                        color = scheme.textPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Text(
-                        text = if (displayNum > 0) "+$displayNum" else "$displayNum",
-                        color = if (displayNum != 0) scheme.accent else scheme.textMuted,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                Slider(
-                    value = curVal,
-                    onValueChange = { v -> onAdjustmentsChange(setParamValue(adjustments, selectedSlider, v)) },
-                    valueRange = selectedSlider.min..selectedSlider.max,
-                    colors = SliderDefaults.colors(
-                        thumbColor = scheme.accent,
-                        activeTrackColor = scheme.accent,
-                        inactiveTrackColor = scheme.textMuted.copy(alpha = 0.25f)
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                )
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 14.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
                     SliderParam.entries.forEach { param ->
-                        val isSelected = param == selectedSlider
-                        val valNonZero = kotlin.math.abs(getParamValue(adjustments, param)) > 0.01f
-                        Text(
-                            text = labelForParam(param, strings),
-                            color = when {
-                                isSelected -> scheme.onAccent
-                                valNonZero -> scheme.accent
-                                else -> scheme.textSecondary
-                            },
-                            fontSize = 12.sp,
-                            fontWeight = if (isSelected || valNonZero) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(
-                                    when {
-                                        isSelected -> scheme.accent
-                                        valNonZero -> scheme.accent.copy(alpha = 0.14f)
-                                        else -> scheme.card
-                                    }
+                        val curVal = getParamValue(adjustments, param)
+                        val displayNum = (curVal * 100f).roundToInt()
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = labelForParam(param, strings),
+                                    color = Color.White,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium
                                 )
-                                .clickable { selectedSlider = param }
-                                .padding(horizontal = 14.dp, vertical = 7.dp)
-                        )
+                                Text(
+                                    text = if (displayNum > 0) "+$displayNum" else "$displayNum",
+                                    color = if (displayNum != 0) scheme.accent else scheme.textMuted,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Slider(
+                                value = curVal,
+                                onValueChange = { v ->
+                                    onAdjustmentsChange(setParamValue(adjustments, param, v))
+                                },
+                                valueRange = param.min..param.max,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = scheme.accent,
+                                    activeTrackColor = scheme.accent,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.22f)
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(32.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -163,39 +156,41 @@ fun AdjustmentsPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally)
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     listOf(
-                        BlurMode.OFF to strings.blurOff,
-                        BlurMode.RADIAL to strings.blurRadial,
-                        BlurMode.LINEAR to strings.blurLinear
-                    ).forEach { (mode, label) ->
+                        Triple(BlurMode.OFF, strings.blurOff, Icons.Outlined.Remove),
+                        Triple(BlurMode.RADIAL, strings.blurRadial, Icons.Outlined.BlurCircular),
+                        Triple(BlurMode.LINEAR, strings.blurLinear, Icons.Outlined.LinearScale)
+                    ).forEach { (mode, label, icon) ->
                         val selected = blur.mode == mode
-                        Text(
-                            text = label,
-                            color = if (selected) scheme.onAccent else scheme.textPrimary,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (selected) scheme.accent else scheme.card)
+                                .clip(RoundedCornerShape(14.dp))
                                 .clickable { onBlurChange(blur.copy(mode = mode)) }
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                        ) {
+                            Icon(
+                                imageVector = icon,
+                                contentDescription = label,
+                                tint = if (selected) scheme.accent else Color.White,
+                                modifier = Modifier.size(26.dp)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = label,
+                                color = if (selected) scheme.accent else Color.White,
+                                fontSize = 12.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
                     }
                 }
 
                 if (blur.mode != BlurMode.OFF) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(strings.blurIntensity, color = scheme.textSecondary, fontSize = 12.sp)
-                        Text("${(blur.intensity * 100).roundToInt()}%", color = scheme.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                    }
                     Slider(
                         value = blur.intensity,
                         onValueChange = { onBlurChange(blur.copy(intensity = it)) },
@@ -203,125 +198,125 @@ fun AdjustmentsPanel(
                         colors = SliderDefaults.colors(
                             thumbColor = scheme.accent,
                             activeTrackColor = scheme.accent,
-                            inactiveTrackColor = scheme.textMuted.copy(alpha = 0.25f)
+                            inactiveTrackColor = Color.White.copy(alpha = 0.22f)
                         ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 24.dp)
                     )
                 }
             }
 
             AdjustSubTab.CURVES -> {
+                // 4 circular radio indicators with labels below (matching Telegram screenshot 2)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(
-                            CurveChannel.ALL to strings.curveAll,
-                            CurveChannel.RED to strings.curveRed,
-                            CurveChannel.GREEN to strings.curveGreen,
-                            CurveChannel.BLUE to strings.curveBlue
-                        ).forEach { (ch, label) ->
-                            val selected = curves.activeChannel == ch
-                            val chipAccent = when (ch) {
-                                CurveChannel.ALL -> scheme.accent
-                                CurveChannel.RED -> Color(0xFFFF453A)
-                                CurveChannel.GREEN -> Color(0xFF32D74B)
-                                CurveChannel.BLUE -> Color(0xFF0A84FF)
+                    listOf(
+                        Triple(CurveChannel.ALL, strings.curveAll, Color.White),
+                        Triple(CurveChannel.RED, strings.curveRed, Color(0xFFFF453A)),
+                        Triple(CurveChannel.GREEN, strings.curveGreen, Color(0xFF32D74B)),
+                        Triple(CurveChannel.BLUE, strings.curveBlue, Color(0xFF0A84FF))
+                    ).forEach { (ch, label, chColor) ->
+                        val selected = curves.activeChannel == ch
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .clickable { onCurvesChange(curves.copy(activeChannel = ch)) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .border(2.dp, chColor, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (selected) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(11.dp)
+                                            .clip(CircleShape)
+                                            .background(chColor)
+                                    )
+                                }
                             }
+                            Spacer(modifier = Modifier.height(6.dp))
                             Text(
                                 text = label,
-                                color = if (selected) scheme.onAccent else scheme.textPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(20.dp))
-                                    .background(if (selected) chipAccent else scheme.card)
-                                    .clickable { onCurvesChange(curves.copy(activeChannel = ch)) }
-                                    .padding(horizontal = 12.dp, vertical = 7.dp)
+                                color = chColor,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                             )
                         }
                     }
-
-                    Text(
-                        text = strings.curveResetChannel,
-                        color = scheme.textSecondary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
-                            .clickable {
-                                onCurvesChange(
-                                    curves.withPoints(curves.activeChannel, ToneCurvesState.defaultPoints)
-                                )
-                            }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-        // Sub-tabs: Sliders | Blur | Curves
+        // Bottom row: ОТМЕНА | [Tune]  [Droplet]  [Curves] | ГОТОВО
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            listOf(
-                AdjustSubTab.SLIDERS to strings.tabSliders,
-                AdjustSubTab.BLUR to strings.tabBlur,
-                AdjustSubTab.CURVES to strings.tabCurves
-            ).forEach { (tab, title) ->
-                val selected = activeTab == tab
-                Text(
-                    text = title,
-                    color = if (selected) scheme.accent else scheme.textSecondary,
-                    fontSize = 13.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(20.dp))
-                        .clickable { onTabChange(tab) }
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
-                )
-            }
-        }
-
-        // Bottom Cancel / Done
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
+                .padding(horizontal = 18.dp, vertical = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = strings.cancel,
-                color = scheme.textSecondary,
-                fontSize = 14.sp,
+                color = Color.White,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .clickable { onCancel() }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             )
+
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(26.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                listOf(
+                    AdjustSubTab.SLIDERS to Icons.Default.Tune,
+                    AdjustSubTab.BLUR to Icons.Outlined.WaterDrop,
+                    AdjustSubTab.CURVES to Icons.Outlined.ShowChart
+                ).forEach { (tab, icon) ->
+                    val selected = activeTab == tab
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(if (selected) scheme.accent.copy(alpha = 0.16f) else Color.Transparent)
+                            .clickable { onTabChange(tab) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (selected) scheme.accent else Color.White,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+            }
+
             Text(
                 text = strings.done,
                 color = scheme.accent,
-                fontSize = 14.sp,
+                fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
+                    .clip(RoundedCornerShape(18.dp))
                     .clickable { onDone() }
-                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
             )
         }
     }
