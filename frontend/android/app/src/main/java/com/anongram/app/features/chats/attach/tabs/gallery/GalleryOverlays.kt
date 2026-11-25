@@ -38,8 +38,8 @@ import com.anongram.app.features.chats.attach.AttachTab
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
 import com.anongram.app.features.chats.attach.state.AttachSheetDragState
 import com.anongram.app.features.chats.attach.state.AttachSheetState
-import com.anongram.app.features.mediaeditor.api.EditableMediaItem
-import com.anongram.app.features.mediaeditor.api.MediaEditorScreen
+import com.anongram.app.features.chats.mediaeditor.api.EditableMediaItem
+import com.anongram.app.features.chats.mediaeditor.api.MediaEditorScreen
 
 @Composable
 internal fun GalleryOverlays(

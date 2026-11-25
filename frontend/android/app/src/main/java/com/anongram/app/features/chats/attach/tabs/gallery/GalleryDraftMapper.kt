@@ -3,7 +3,7 @@ package com.anongram.app.features.chats.attach.tabs.gallery
 import android.content.Context
 import com.anongram.app.features.chats.attach.api.AttachmentDraft
 import com.anongram.app.features.chats.attach.tabs.files.getFileMetadataHelper
-import com.anongram.app.features.mediaeditor.api.EditedMedia
+import com.anongram.app.features.chats.mediaeditor.api.EditedMedia
 
 internal fun buildGalleryMediaDrafts(
     context: Context,

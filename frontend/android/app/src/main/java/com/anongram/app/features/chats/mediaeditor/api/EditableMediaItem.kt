@@ -1,12 +1,11 @@
-package com.anongram.app.features.mediaeditor.api
+package com.anongram.app.features.chats.mediaeditor.api
 
 import android.net.Uri
 import com.anongram.app.features.chats.attach.api.MediaTtl
+import com.anongram.app.features.chats.mediaeditor.model.PhotoEditState
+import com.anongram.app.features.chats.mediaeditor.model.VideoQuality
 import java.util.UUID
 
-/**
- * Элемент для редактирования в редакторе медиа (ТЗ, mediaeditor: items).
- */
 data class EditableMediaItem(
     val id: String = UUID.randomUUID().toString(),
     val uri: Uri,
@@ -19,5 +18,11 @@ data class EditableMediaItem(
     val contrast: Float = 1f,
     val saturation: Float = 1f,
     val trimStartMs: Long = 0L,
-    val trimEndMs: Long = 0L
+    val trimEndMs: Long = 0L,
+    val durationMs: Long = 0L,
+    val isMuted: Boolean = false,
+    val videoQuality: VideoQuality = VideoQuality.HD_720,
+    val coverUri: Uri? = null,
+    val coverTimeMs: Long? = null,
+    val editState: PhotoEditState = PhotoEditState()
 )

@@ -120,7 +120,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.features.chats.attach.components.PartialAccessBanner
 import com.anongram.app.features.chats.attach.components.PermissionDeniedView
-import com.anongram.app.features.mediaeditor.api.EditableMediaItem
+import com.anongram.app.features.chats.mediaeditor.api.EditableMediaItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

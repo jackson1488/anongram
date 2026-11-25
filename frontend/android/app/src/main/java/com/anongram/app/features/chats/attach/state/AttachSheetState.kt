@@ -19,7 +19,7 @@ import com.anongram.app.features.chats.attach.tabs.gallery.GalleryAlbum
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
 import com.anongram.app.features.chats.attach.tabs.gallery.buildGalleryMediaDrafts
 import com.anongram.app.features.contacts.common.Contact
-import com.anongram.app.features.mediaeditor.api.EditableMediaItem
+import com.anongram.app.features.chats.mediaeditor.api.EditableMediaItem
 import com.anongram.app.features.player.api.Track
 
 @Stable
