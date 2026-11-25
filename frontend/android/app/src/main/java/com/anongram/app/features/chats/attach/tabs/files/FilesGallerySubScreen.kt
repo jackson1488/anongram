@@ -200,10 +200,7 @@ fun FilesGallerySubScreen(
                     FilesGalleryGridItem(
                         media = media,
                         selectionNumber = selectedMedia.indexOfFirst { it.uri == media.uri } + 1,
-                        onClick = { onToggleMedia(media) },
-                        modifier = Modifier.onGloballyPositioned {
-                            dragSelectController.tileBounds[media.uri.toString()] = it.boundsInRoot()
-                        }
+                        onClick = { onToggleMedia(media) }
                     )
                 }
             }

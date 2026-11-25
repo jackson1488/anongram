@@ -306,7 +306,8 @@ fun GalleryTab(
                                 controller = dragSelectController,
                                 items = filteredMedia,
                                 selectedMedia = selectedMedia,
-                                onToggleSelectMedia = onToggleSelectMedia
+                                onToggleSelectMedia = onToggleSelectMedia,
+                                hasCameraHeaderRow = true
                             ),
                         contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp),
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
@@ -357,9 +358,6 @@ fun GalleryTab(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .fillMaxHeight()
-                                                    .onGloballyPositioned {
-                                                        dragSelectController.tileBounds[effectiveMedia.uri.toString()] = it.boundsInRoot()
-                                                    }
                                             )
                                         } else {
                                             Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
@@ -387,9 +385,6 @@ fun GalleryTab(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .fillMaxHeight()
-                                                    .onGloballyPositioned {
-                                                        dragSelectController.tileBounds[effectiveMedia.uri.toString()] = it.boundsInRoot()
-                                                    }
                                             )
                                         } else {
                                             Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
@@ -421,9 +416,6 @@ fun GalleryTab(
                         },
                         onToggleSelect = {
                             onToggleSelectMedia(effectiveMedia)
-                        },
-                        modifier = Modifier.onGloballyPositioned {
-                            dragSelectController.tileBounds[effectiveMedia.uri.toString()] = it.boundsInRoot()
                         }
                     )
                 }
