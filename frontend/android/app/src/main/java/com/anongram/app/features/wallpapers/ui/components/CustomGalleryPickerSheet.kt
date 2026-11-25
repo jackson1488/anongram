@@ -43,8 +43,8 @@ import com.anongram.app.features.chats.attach.i18n.AttachI18n
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
 import com.anongram.app.features.chats.attach.state.rememberAttachSheetDragState
 import com.anongram.app.features.chats.attach.state.rememberAttachSheetState
+import com.anongram.app.features.camera.api.CameraScreen
 import com.anongram.app.features.chats.attach.tabs.gallery.ALL_MEDIA_ALBUM_ID
-import com.anongram.app.features.chats.attach.tabs.gallery.CameraScreen
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryTab
 
 /**
