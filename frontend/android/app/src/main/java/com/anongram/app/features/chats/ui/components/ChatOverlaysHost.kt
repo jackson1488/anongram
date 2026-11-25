@@ -435,7 +435,7 @@ private fun ChatInputAndMediaOverlays(
                 onBack = { viewerEditTarget = null },
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(120f)
+                    .zIndex(400f)
             )
         }
     }
@@ -481,7 +481,7 @@ private fun ChatInputAndMediaOverlays(
                 onBack = { onCloseEditMediaEditor() },
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(120f)
+                    .zIndex(400f)
             )
         }
     }

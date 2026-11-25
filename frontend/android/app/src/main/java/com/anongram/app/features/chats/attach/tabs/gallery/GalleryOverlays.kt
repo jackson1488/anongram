@@ -209,7 +209,9 @@ internal fun GalleryOverlays(
             },
             onAddMore = { sheetState.isEditorOpen = false },
             onBack = { sheetState.isEditorOpen = false },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(150f)
         )
     }
 }

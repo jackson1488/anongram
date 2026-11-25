@@ -27,10 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.automirrored.rounded.VolumeUp
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -87,12 +84,12 @@ fun VideoTimelineBar(
                 val durStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                 val totalMs = (durStr?.toLongOrNull() ?: durationMs).coerceAtLeast(1000L)
                 detectedDurationMs = totalMs
-                val count = 8
+                val count = 12
                 val extracted = (0 until count).mapNotNull { idx ->
                     val timeUs = (totalMs * idx / count) * 1000L
                     retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
                         ?.let { bmp ->
-                            Bitmap.createScaledBitmap(bmp, 96, 96, true).asImageBitmap()
+                            Bitmap.createScaledBitmap(bmp, 72, 72, true).asImageBitmap()
                         }
                 }
                 frames = extracted
@@ -108,101 +105,74 @@ fun VideoTimelineBar(
     val effectiveStart = trimStartMs.coerceIn(0L, (effectiveEnd - 500L).coerceAtLeast(0L))
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp))
-            .background(scheme.islandBg.copy(alpha = 0.92f))
-            .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+        modifier = modifier.fillMaxWidth()
     ) {
-        // Top controls: Play/Pause, Mute, Duration, Change Cover >
+        // Row above strip: Mute circle on left, "Изменить обложку >" pill centered
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onTogglePlay,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(scheme.card)
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                        contentDescription = null,
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(8.dp))
-
-                IconButton(
-                    onClick = onToggleMute,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .background(if (isMuted) scheme.accent.copy(alpha = 0.18f) else scheme.card)
-                ) {
-                    Icon(
-                        imageVector = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
-                        contentDescription = if (isMuted) strings.unmuteVideo else strings.muteVideo,
-                        tint = if (isMuted) scheme.accent else scheme.textPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Text(
-                    text = "${formatDuration(effectiveStart)} – ${formatDuration(effectiveEnd)}",
-                    color = scheme.textSecondary,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+            Box(
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, CircleShape)
+                    .clickable { onToggleMute() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isMuted) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+                    contentDescription = if (isMuted) strings.unmuteVideo else strings.muteVideo,
+                    tint = if (isMuted) scheme.accent else scheme.textPrimary,
+                    modifier = Modifier.size(17.dp)
                 )
             }
 
             Text(
                 text = strings.changeCover,
-                color = scheme.accent,
+                color = scheme.textPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
                     .clip(RoundedCornerShape(16.dp))
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
                     .clickable { onOpenCoverPicker() }
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
+                    .padding(horizontal = 12.dp, vertical = 5.dp)
             )
+
+            Spacer(modifier = Modifier.size(32.dp))
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
 
-        // Frame strip with draggable trim handles
+        // Compact white-bordered frame timeline strip (36.dp)
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(44.dp)
-                .clip(RoundedCornerShape(10.dp))
+                .height(36.dp)
+                .clip(RoundedCornerShape(8.dp))
                 .background(scheme.card)
         ) {
             val density = LocalDensity.current
             val totalWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
-            val startFrac = (effectiveStart.toFloat() / effectiveDuration).coerceIn(0f, 0.95f)
-            val endFrac = (effectiveEnd.toFloat() / effectiveDuration).coerceIn(startFrac + 0.05f, 1f)
+            val startFrac = (effectiveStart.toFloat() / effectiveDuration).coerceIn(0f, 0.94f)
+            val endFrac = (effectiveEnd.toFloat() / effectiveDuration).coerceIn(startFrac + 0.06f, 1f)
 
             Row(modifier = Modifier.fillMaxSize()) {
-                if (frames.isNotEmpty()) {
-                    frames.forEach { frame ->
-                        Image(
-                            bitmap = frame,
-                            contentDescription = null,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight()
-                        )
-                    }
+                frames.forEach { frame ->
+                    Image(
+                        bitmap = frame,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                    )
                 }
             }
 
@@ -211,25 +181,36 @@ fun VideoTimelineBar(
                 modifier = Modifier
                     .fillMaxHeight()
                     .width(with(density) { (startFrac * totalWidthPx).toDp() })
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(Color.Black.copy(alpha = 0.65f))
             )
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
                     .fillMaxHeight()
                     .width(with(density) { ((1f - endFrac) * totalWidthPx).toDp() })
-                    .background(Color.Black.copy(alpha = 0.6f))
+                    .background(Color.Black.copy(alpha = 0.65f))
             )
 
-            // Left trim handle
-            val handleWidthPx = with(density) { 14.dp.toPx() }
+            // Active trim window border
+            val trimLeftDp = with(density) { (startFrac * totalWidthPx).toDp() }
+            val trimWidthDp = with(density) { ((endFrac - startFrac) * totalWidthPx).coerceAtLeast(20f).toDp() }
+            Box(
+                modifier = Modifier
+                    .offset(x = trimLeftDp)
+                    .width(trimWidthDp)
+                    .fillMaxHeight()
+                    .border(2.dp, Color.White, RoundedCornerShape(6.dp))
+            )
+
+            // Left white handle with dark slot
+            val handleWidthPx = with(density) { 11.dp.toPx() }
             Box(
                 modifier = Modifier
                     .offset { IntOffset((startFrac * (totalWidthPx - handleWidthPx)).roundToInt(), 0) }
-                    .width(14.dp)
+                    .width(11.dp)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(scheme.accent)
+                    .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp))
+                    .background(Color.White)
                     .pointerInput(effectiveDuration, effectiveEnd) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
@@ -237,17 +218,26 @@ fun VideoTimelineBar(
                             val nextStart = (effectiveStart + deltaMs).coerceIn(0L, (effectiveEnd - 500L).coerceAtLeast(0L))
                             onTrimChange(nextStart, effectiveEnd)
                         }
-                    }
-            )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(12.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                )
+            }
 
-            // Right trim handle
+            // Right white handle with dark slot
             Box(
                 modifier = Modifier
                     .offset { IntOffset(((endFrac * totalWidthPx) - handleWidthPx).coerceAtLeast(0f).roundToInt(), 0) }
-                    .width(14.dp)
+                    .width(11.dp)
                     .fillMaxHeight()
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(scheme.accent)
+                    .clip(RoundedCornerShape(topEnd = 6.dp, bottomEnd = 6.dp))
+                    .background(Color.White)
                     .pointerInput(effectiveDuration, effectiveStart) {
                         detectDragGestures { change, dragAmount ->
                             change.consume()
@@ -255,15 +245,17 @@ fun VideoTimelineBar(
                             val nextEnd = (effectiveEnd + deltaMs).coerceIn((effectiveStart + 500L).coerceAtMost(effectiveDuration), effectiveDuration)
                             onTrimChange(effectiveStart, nextEnd)
                         }
-                    }
-            )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(2.dp)
+                        .height(12.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.6f))
+                )
+            }
         }
     }
-}
-
-private fun formatDuration(ms: Long): String {
-    val totalSec = (ms / 1000L).coerceAtLeast(0L)
-    val min = totalSec / 60
-    val sec = totalSec % 60
-    return "%d:%02d".format(min, sec)
 }

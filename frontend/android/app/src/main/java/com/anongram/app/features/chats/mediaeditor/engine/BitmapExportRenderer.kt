@@ -194,18 +194,19 @@ object BitmapExportRenderer {
         val canvas = Canvas(mutable)
         val minDim = minOf(w, h).toFloat().coerceAtLeast(1f)
 
-        // Prepare blurred version of baseBitmap if any BLUR brush stroke exists
+        // Prepare strongly blurred version of baseBitmap if any BLUR brush stroke exists
         var blurredShader: BitmapShader? = null
         if (state.strokes.any { it.type == BrushType.BLUR }) {
             val pixels = IntArray(w * h)
             baseBitmap.getPixels(pixels, 0, w, 0, 0, w, h)
-            val blurredPixels = PhotoFilterEngine.fastBoxBlur(pixels, w, h, radius = 16)
+            val pass1 = PhotoFilterEngine.fastBoxBlur(pixels, w, h, radius = 22)
+            val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, w, h, radius = 22)
             val blurredBmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-            blurredBmp.setPixels(blurredPixels, 0, w, 0, 0, w, h)
+            blurredBmp.setPixels(pass2, 0, w, 0, 0, w, h)
             blurredShader = BitmapShader(blurredBmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
         }
 
-        // Layer for non-blur strokes so ERASER only erases strokes, not the underlying photo
+        // Unified stroke layer (all brushes including BLUR are drawn here so ERASER erases BLUR too)
         val strokeLayer = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val strokeCanvas = Canvas(strokeLayer)
 
@@ -221,10 +222,10 @@ object BitmapExportRenderer {
                             style = Paint.Style.STROKE
                             strokeCap = Paint.Cap.ROUND
                             strokeJoin = Paint.Join.ROUND
-                            strokeWidth = strokePx * 1.6f
+                            strokeWidth = strokePx * 2.2f
                             shader = blurredShader
                         }
-                        canvas.drawPath(path, p)
+                        strokeCanvas.drawPath(path, p)
                     }
                 }
                 BrushType.ERASER -> {

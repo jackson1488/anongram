@@ -369,8 +369,20 @@ fun AttachSheetContent(
                                     isFullscreen = dragState.isFull,
                                     onOpenViewer = { list, idx ->
                                         sheetState.isAlbumsSheetOpen = false
-                                        sheetState.viewingMediaList = list
-                                        sheetState.viewingMediaIndex = idx
+                                        val tapped = list.getOrNull(idx)
+                                        if (tapped != null) {
+                                            val resolved = sheetState.selectedMedia.firstOrNull { it.uri == tapped.uri } ?: tapped
+                                            sheetState.editorItems = listOf(
+                                                com.anongram.app.features.chats.mediaeditor.api.EditableMediaItem(
+                                                    id = resolved.uri.toString(),
+                                                    uri = resolved.effectiveUri,
+                                                    isVideo = resolved.isVideo,
+                                                    durationMs = resolved.durationMs,
+                                                    caption = sheetState.captionText
+                                                )
+                                            )
+                                            sheetState.isEditorOpen = true
+                                        }
                                     },
                                     onAlbumsLoaded = { sheetState.availableAlbums = it },
                                     modifier = Modifier.fillMaxSize()

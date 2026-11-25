@@ -3,6 +3,7 @@ package com.anongram.app.features.chats.mediaeditor.ui.paint
 import android.graphics.Bitmap
 import android.graphics.BitmapShader
 import android.graphics.BlurMaskFilter
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PorterDuff
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -64,7 +66,6 @@ import com.anongram.app.features.chats.mediaeditor.model.BrushType
 import com.anongram.app.features.chats.mediaeditor.model.EditorPalette
 import com.anongram.app.features.chats.mediaeditor.model.TextLayerItem
 import com.anongram.app.features.chats.mediaeditor.ui.text.TextControlsBar
-import com.anongram.app.features.chats.mediaeditor.ui.text.TextInputEditorDialog
 import com.anongram.app.features.chats.mediaeditor.ui.text.TextLayersCanvasOverlay
 import java.util.UUID
 import kotlin.math.atan2
@@ -92,7 +93,7 @@ fun PaintOverlayPanel(
     var activeTab by remember { mutableStateOf(PaintModeTab.DRAWING) }
     var selectedBrush by remember { mutableStateOf(BrushType.PEN) }
     var selectedColorArgb by remember { mutableLongStateOf(EditorPalette.quickColors[2]) } // Red
-    var strokeWidthNorm by remember { mutableFloatStateOf(0.015f) }
+    var strokeWidthNorm by remember { mutableFloatStateOf(0.018f) }
 
     val strokes = remember(initialStrokes) {
         mutableStateListOf<BrushStroke>().apply { addAll(initialStrokes) }
@@ -103,11 +104,9 @@ fun PaintOverlayPanel(
         mutableStateListOf<TextLayerItem>().apply { addAll(initialTextLayers) }
     }
     var selectedTextId by remember { mutableStateOf<String?>(textLayers.lastOrNull()?.id) }
-    var editingTextLayer by remember { mutableStateOf<TextLayerItem?>(null) }
-    var isAddingNewText by remember { mutableStateOf(false) }
 
-    // Precompute blurred bitmap for live Blur Brush preview
-    val blurredShader = remember(previewBitmap) {
+    // Precompute strongly blurred bitmap (2-pass radius 20) for real live Blur Brush preview
+    val blurredBitmap = remember(previewBitmap) {
         previewBitmap?.let { img ->
             runCatching {
                 val bmp = img.asAndroidBitmap()
@@ -115,10 +114,11 @@ fun PaintOverlayPanel(
                 val h = bmp.height
                 val px = IntArray(w * h)
                 bmp.getPixels(px, 0, w, 0, 0, w, h)
-                val blurredPx = PhotoFilterEngine.fastBoxBlur(px, w, h, radius = 14)
+                val pass1 = PhotoFilterEngine.fastBoxBlur(px, w, h, radius = 20)
+                val pass2 = PhotoFilterEngine.fastBoxBlur(pass1, w, h, radius = 20)
                 val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                out.setPixels(blurredPx, 0, w, 0, 0, w, h)
-                BitmapShader(out, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP)
+                out.setPixels(pass2, 0, w, 0, 0, w, h)
+                out
             }.getOrNull()
         }
     }
@@ -129,72 +129,83 @@ fun PaintOverlayPanel(
             .background(Color.Black)
             .statusBarsPadding()
             .navigationBarsPadding()
+            .imePadding()
     ) {
-        // Top bar: Undo & Clear all
+        // Top bar: Undo & Clear all (or Clear & Done in Text tab as in Screenshot 3)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(
-                onClick = {
-                    if (activeTab == PaintModeTab.DRAWING && strokes.isNotEmpty()) {
-                        strokes.removeAt(strokes.lastIndex)
-                    } else if (activeTab == PaintModeTab.TEXT && textLayers.isNotEmpty()) {
-                        textLayers.removeAt(textLayers.lastIndex)
-                        selectedTextId = textLayers.lastOrNull()?.id
-                    }
-                },
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(scheme.islandBg.copy(alpha = 0.85f))
-            ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.Undo,
-                    contentDescription = strings.undo,
-                    tint = scheme.textPrimary
+            if (activeTab == PaintModeTab.TEXT) {
+                Text(
+                    text = strings.clearAll,
+                    color = scheme.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable {
+                            textLayers.clear()
+                            val fresh = TextLayerItem(text = "", colorArgb = selectedColorArgb)
+                            textLayers.add(fresh)
+                            selectedTextId = fresh.id
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+
+                Text(
+                    text = strings.confirm,
+                    color = scheme.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable {
+                            val cleanTexts = textLayers.filter { it.text.isNotBlank() }
+                            onApply(strokes.toList(), cleanTexts)
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+            } else {
+                IconButton(
+                    onClick = {
+                        if (strokes.isNotEmpty()) {
+                            strokes.removeAt(strokes.lastIndex)
+                        }
+                    },
+                    modifier = Modifier.size(38.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Undo,
+                        contentDescription = strings.undo,
+                        tint = scheme.textPrimary
+                    )
+                }
+
+                Text(
+                    text = strings.clearAll,
+                    color = scheme.textPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(18.dp))
+                        .clickable { strokes.clear() }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
-
-            Text(
-                text = strings.clearAll,
-                color = scheme.textPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(scheme.islandBg.copy(alpha = 0.85f))
-                    .clickable {
-                        if (activeTab == PaintModeTab.DRAWING) {
-                            strokes.clear()
-                        } else {
-                            textLayers.clear()
-                            selectedTextId = null
-                        }
-                    }
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-            )
         }
 
         // Media + Drawing + Text Canvas
         Box(
             modifier = Modifier
                 .weight(1f)
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
+                .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            val aspect = if (previewBitmap != null && previewBitmap.height > 0) {
-                previewBitmap.width.toFloat() / previewBitmap.height.toFloat()
-            } else 1f
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
                 if (previewBitmap != null) {
                     Image(
                         bitmap = previewBitmap,
@@ -204,7 +215,6 @@ fun PaintOverlayPanel(
                     )
                 }
 
-                // Strokes Canvas
                 val currentStrokePreview = if (activePoints.isNotEmpty()) {
                     BrushStroke(
                         id = "active",
@@ -221,7 +231,7 @@ fun PaintOverlayPanel(
 
                 StrokesPreviewCanvas(
                     strokes = allStrokesToRender,
-                    blurredShader = blurredShader,
+                    blurredBitmap = blurredBitmap,
                     modifier = Modifier
                         .fillMaxSize()
                         .then(
@@ -264,7 +274,7 @@ fun PaintOverlayPanel(
                         )
                 )
 
-                // Text Layers Overlay
+                // Inline Text Layers Overlay (no dialog window!)
                 TextLayersCanvasOverlay(
                     layers = textLayers,
                     selectedLayerId = selectedTextId,
@@ -279,34 +289,32 @@ fun PaintOverlayPanel(
                         if (selectedTextId == id) selectedTextId = textLayers.lastOrNull()?.id
                     },
                     onEditLayerText = { layer ->
-                        editingTextLayer = layer
-                        isAddingNewText = false
+                        selectedTextId = layer.id
                     }
                 )
             }
         }
 
-        // Bottom Controls Panel (NO Stickers — only РИСУНОК | ТЕКСТ)
+        // Bottom Controls Panel
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(scheme.surface.copy(alpha = 0.96f))
+                .background(Color.Black)
                 .padding(top = 6.dp, bottom = 6.dp)
         ) {
             if (activeTab == PaintModeTab.DRAWING) {
-                ColorPaletteBar(
-                    selectedColorArgb = selectedColorArgb,
-                    onSelectColor = { selectedColorArgb = it }
-                )
                 BrushControlsBar(
                     selectedBrush = selectedBrush,
                     onSelectBrush = { selectedBrush = it },
+                    selectedColorArgb = selectedColorArgb,
+                    onSelectColor = { selectedColorArgb = it },
                     strokeWidthNorm = strokeWidthNorm,
                     onStrokeWidthChange = { strokeWidthNorm = it }
                 )
             } else {
                 val selectedLayer = textLayers.firstOrNull { it.id == selectedTextId }
-                ColorPaletteBar(
+                TextControlsBar(
+                    selectedLayer = selectedLayer,
                     selectedColorArgb = selectedLayer?.colorArgb ?: selectedColorArgb,
                     onSelectColor = { argb ->
                         selectedColorArgb = argb
@@ -314,13 +322,11 @@ fun PaintOverlayPanel(
                             val idx = textLayers.indexOfFirst { it.id == l.id }
                             if (idx >= 0) textLayers[idx] = l.copy(colorArgb = argb)
                         }
-                    }
-                )
-                TextControlsBar(
-                    selectedLayer = selectedLayer,
+                    },
                     onAddNewText = {
-                        isAddingNewText = true
-                        editingTextLayer = TextLayerItem(text = "", colorArgb = selectedColorArgb)
+                        val added = TextLayerItem(text = "", colorArgb = selectedColorArgb)
+                        textLayers.add(added)
+                        selectedTextId = added.id
                     },
                     onUpdateLayer = { updated ->
                         val idx = textLayers.indexOfFirst { it.id == updated.id }
@@ -330,30 +336,27 @@ fun PaintOverlayPanel(
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // Bottom row: ✕ | [РИСУНОК | ТЕКСТ] | ✓
+            // Bottom row: ✕ | РИСУНОК | ТЕКСТ | ✓
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onCancel) {
+                IconButton(onClick = onCancel, modifier = Modifier.size(38.dp)) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = strings.cancel,
-                        tint = scheme.textPrimary
+                        tint = Color.White
                     )
                 }
 
                 Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(scheme.card)
-                        .padding(4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     listOf(
                         PaintModeTab.DRAWING to strings.tabDrawing,
@@ -362,68 +365,68 @@ fun PaintOverlayPanel(
                         val selected = activeTab == tab
                         Text(
                             text = title,
-                            color = if (selected) scheme.onAccent else scheme.textSecondary,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
+                            color = if (selected) Color.White else scheme.textMuted,
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
                             modifier = Modifier
-                                .clip(RoundedCornerShape(18.dp))
-                                .background(if (selected) scheme.accent else Color.Transparent)
+                                .clip(RoundedCornerShape(16.dp))
                                 .clickable {
                                     activeTab = tab
                                     if (tab == PaintModeTab.TEXT && textLayers.isEmpty()) {
-                                        isAddingNewText = true
-                                        editingTextLayer = TextLayerItem(text = "", colorArgb = selectedColorArgb)
+                                        val added = TextLayerItem(text = "", colorArgb = selectedColorArgb)
+                                        textLayers.add(added)
+                                        selectedTextId = added.id
                                     }
                                 }
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         )
                     }
                 }
 
                 IconButton(
-                    onClick = { onApply(strokes.toList(), textLayers.toList()) }
+                    onClick = {
+                        val cleanTexts = textLayers.filter { it.text.isNotBlank() }
+                        onApply(strokes.toList(), cleanTexts)
+                    },
+                    modifier = Modifier.size(38.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = strings.done,
-                        tint = scheme.accent
+                        tint = Color.White
                     )
                 }
             }
         }
-    }
-
-    editingTextLayer?.let { target ->
-        TextInputEditorDialog(
-            initialText = target.text,
-            onConfirm = { newText ->
-                if (newText.isNotBlank()) {
-                    if (isAddingNewText) {
-                        val added = target.copy(text = newText)
-                        textLayers.add(added)
-                        selectedTextId = added.id
-                    } else {
-                        val idx = textLayers.indexOfFirst { it.id == target.id }
-                        if (idx >= 0) textLayers[idx] = target.copy(text = newText)
-                    }
-                }
-                editingTextLayer = null
-            },
-            onDismiss = { editingTextLayer = null }
-        )
     }
 }
 
 @Composable
 fun StrokesPreviewCanvas(
     strokes: List<BrushStroke>,
-    blurredShader: BitmapShader? = null,
+    blurredBitmap: Bitmap? = null,
     modifier: Modifier = Modifier
 ) {
     Canvas(modifier = modifier) {
         val w = size.width
         val h = size.height
         val minDim = minOf(w, h).coerceAtLeast(1f)
+
+        // Prepare BitmapShader mapped to ContentScale.Fit bounds of the photo on screen
+        val blurredShader = blurredBitmap?.let { bmp ->
+            val bw = bmp.width.toFloat().coerceAtLeast(1f)
+            val bh = bmp.height.toFloat().coerceAtLeast(1f)
+            val scale = minOf(w / bw, h / bh)
+            val dx = (w - bw * scale) * 0.5f
+            val dy = (h - bh * scale) * 0.5f
+            val shaderMatrix = Matrix().apply {
+                setScale(scale, scale)
+                postTranslate(dx, dy)
+            }
+            BitmapShader(bmp, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP).apply {
+                setLocalMatrix(shaderMatrix)
+            }
+        }
 
         drawIntoCanvas { canvas ->
             val native = canvas.nativeCanvas
@@ -440,11 +443,11 @@ fun StrokesPreviewCanvas(
                             style = Paint.Style.STROKE
                             strokeCap = Paint.Cap.ROUND
                             strokeJoin = Paint.Join.ROUND
-                            strokeWidth = strokePx * 1.6f
+                            strokeWidth = strokePx * 2.2f
                             if (blurredShader != null) {
                                 shader = blurredShader
                             } else {
-                                color = 0x8894A3B8.toInt()
+                                color = 0x9994A3B8.toInt()
                             }
                         }
                         native.drawPath(path, paint)
@@ -454,7 +457,7 @@ fun StrokesPreviewCanvas(
                             style = Paint.Style.STROKE
                             strokeCap = Paint.Cap.ROUND
                             strokeJoin = Paint.Join.ROUND
-                            strokeWidth = strokePx * 1.3f
+                            strokeWidth = strokePx * 1.8f
                             xfermode = PorterDuffXfermode(PorterDuff.Mode.CLEAR)
                         }
                         native.drawPath(path, paint)
