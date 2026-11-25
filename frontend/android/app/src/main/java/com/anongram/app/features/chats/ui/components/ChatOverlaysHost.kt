@@ -31,6 +31,7 @@ import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
+import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.resolveSubItem
 import com.anongram.app.features.chats.messages.state.ChatMessagesUiState
 import com.anongram.app.features.chats.messages.state.ChatMessagesViewModel
@@ -411,25 +412,20 @@ private fun ChatInputAndMediaOverlays(
                 onSend = { editedList ->
                     val edited = editedList.firstOrNull()
                     if (edited != null) {
-                        if (msg.isFromMe) {
+                        val photoAtt = MessageAttachment.Photo(
+                            label = "Фото",
+                            colorSeed = 0,
+                            isVideo = false,
+                            uri = edited.uri.toString()
+                        )
+                        if (msg.direction == MessageDirection.OUTGOING) {
                             viewModel.startEdit(msg)
                             viewModel.replaceEditingAttachment(
-                                MessageAttachment.Photo(
-                                    uri = edited.uri.toString(),
-                                    isVideo = false,
-                                    caption = edited.caption
-                                ),
+                                photoAtt,
                                 edited.caption.ifBlank { null }
                             )
                         } else {
-                            viewModel.sendAttachment(
-                                MessageAttachment.Photo(
-                                    uri = edited.uri.toString(),
-                                    isVideo = false,
-                                    caption = edited.caption
-                                ),
-                                edited.caption
-                            )
+                            viewModel.sendAttachment(photoAtt, edited.caption)
                         }
                     }
                     viewerEditTarget = null
@@ -471,9 +467,10 @@ private fun ChatInputAndMediaOverlays(
                     if (edited != null) {
                         viewModel.replaceEditingAttachment(
                             MessageAttachment.Photo(
-                                uri = edited.uri.toString(),
+                                label = if (edited.isVideo) "Видео" else "Фото",
+                                colorSeed = 0,
                                 isVideo = edited.isVideo,
-                                caption = edited.caption
+                                uri = edited.uri.toString()
                             ),
                             edited.caption.ifBlank { null }
                         )
