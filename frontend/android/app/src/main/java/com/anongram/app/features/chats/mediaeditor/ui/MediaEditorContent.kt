@@ -208,12 +208,12 @@ fun MediaEditorContent(
         mutableStateOf(activeItem.coverUri == null)
     }
 
-    // Zero-lag Animatables for vertical drag and close-to-grid transition
-    val animOffsetX = remember { Animatable(0f) }
-    val animOffsetY = remember { Animatable(0f) }
-    val animScale = remember { Animatable(1f) }
-    val animBgAlpha = remember { Animatable(1f) }
-    val animCornerDp = remember { Animatable(0f) }
+    // Zero-lag synchronous float states for vertical drag and single-coroutine close-to-grid transition
+    var editorRootBounds by remember { mutableStateOf(Rect.Zero) }
+    var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var dragScale by remember { mutableFloatStateOf(1f) }
+    var dragBgAlpha by remember { mutableFloatStateOf(1f) }
     var isVerticalDragging by remember { mutableStateOf(false) }
     var isClosingAnimated by remember { mutableStateOf(false) }
 
@@ -240,41 +240,54 @@ fun MediaEditorContent(
     fun triggerAnimatedClose() {
         if (isClosingAnimated) return
         isClosingAnimated = true
+        val startX = dragOffsetX
+        val startY = dragOffsetY
+        val startScale = dragScale
+        val startAlpha = dragBgAlpha
+
+        val rootCenterX = if (editorRootBounds.width > 0f) editorRootBounds.center.x else (screenWidthPx * 0.5f)
+        val rootCenterY = if (editorRootBounds.height > 0f) editorRootBounds.center.y else (screenHeightPx * 0.5f)
         val targetRect = targetBoundsForId?.invoke(activeItem.id)
-        val targetX = if (targetRect != null && targetRect.width > 0f) {
-            targetRect.center.x - (screenWidthPx * 0.5f)
+        val endX = if (targetRect != null && targetRect.width > 0f) {
+            targetRect.center.x - rootCenterX
         } else 0f
-        val targetY = if (targetRect != null && targetRect.height > 0f) {
-            targetRect.center.y - (screenHeightPx * 0.5f)
+        val endY = if (targetRect != null && targetRect.height > 0f) {
+            targetRect.center.y - rootCenterY
         } else {
             screenHeightPx * 0.28f
         }
-        val targetScale = if (targetRect != null && targetRect.width > 0f) {
-            (targetRect.width / screenWidthPx).coerceIn(0.24f, 0.45f)
+        val endScale = if (targetRect != null && targetRect.width > 0f) {
+            (targetRect.width / screenWidthPx).coerceIn(0.24f, 0.44f)
         } else 0.32f
 
         scope.launch {
-            val spec = tween<Float>(durationMillis = 210, easing = FastOutSlowInEasing)
-            launch { animOffsetX.animateTo(targetX, spec) }
-            launch { animOffsetY.animateTo(targetY, spec) }
-            launch { animScale.animateTo(targetScale, spec) }
-            launch { animCornerDp.animateTo(22f, spec) }
-            launch { animBgAlpha.animateTo(0f, tween(durationMillis = 195)) }
-            delay(205L)
+            androidx.compose.animation.core.animate(
+                initialValue = 0f,
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+            ) { t, _ ->
+                dragOffsetX = startX + (endX - startX) * t
+                dragOffsetY = startY + (endY - startY) * t
+                dragScale = startScale + (endScale - startScale) * t
+                dragBgAlpha = (startAlpha * (1f - t)).coerceIn(0f, 1f)
+            }
             onBack()
         }
     }
 
     // Load raw bitmap for both Photos AND Videos (extracted frame for video so Crop, Paint/Text, and Adjust work on videos too!)
     var activeRawBitmap by remember(activeItem.uri, activeItem.isVideo, activeItem.coverUri, activeItem.coverTimeMs) {
-        mutableStateOf<Bitmap?>(null)
+        mutableStateOf<Bitmap?>(
+            if (!activeItem.isVideo) com.anongram.app.features.chats.attach.tabs.gallery.getCachedGalleryBitmap(activeItem.uri)
+            else activeItem.coverUri?.let { com.anongram.app.features.chats.attach.tabs.gallery.getCachedGalleryBitmap(it) }
+        )
     }
     LaunchedEffect(activeItem.uri, activeItem.isVideo, activeItem.coverUri, activeItem.coverTimeMs) {
-        activeRawBitmap = withContext(Dispatchers.IO) {
+        val loaded = withContext(Dispatchers.IO) {
             if (!activeItem.isVideo) {
-                BitmapExportRenderer.decodeBitmapWithExif(context, activeItem.uri, maxDim = 960)
+                BitmapExportRenderer.decodeBitmapWithExif(context, activeItem.uri, maxDim = 1280)
             } else if (activeItem.coverUri != null) {
-                BitmapExportRenderer.decodeBitmapWithExif(context, activeItem.coverUri, maxDim = 960)
+                BitmapExportRenderer.decodeBitmapWithExif(context, activeItem.coverUri, maxDim = 1280)
             } else {
                 val retriever = MediaMetadataRetriever()
                 try {
@@ -288,6 +301,9 @@ fun MediaEditorContent(
                     runCatching { retriever.release() }
                 }
             }
+        }
+        if (loaded != null) {
+            activeRawBitmap = loaded
         }
     }
 
@@ -322,9 +338,14 @@ fun MediaEditorContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = animBgAlpha.value))
+            .androidx.compose.ui.layout.onGloballyPositioned { coords ->
+                if (coords.isAttached) {
+                    editorRootBounds = coords.androidx.compose.ui.layout.boundsInRoot()
+                }
+            }
+            .background(Color.Black.copy(alpha = dragBgAlpha))
     ) {
-        // Fullscreen Pager (left/right swipe across all gallery media in MAIN mode; 1:1 zero-lag vertical drag-to-close)
+        // Fullscreen Pager (left/right swipe across all gallery media in MAIN mode; 1:1 synchronous zero-lag vertical drag-to-close)
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = editorMode == EditorMode.MAIN &&
@@ -336,13 +357,11 @@ fun MediaEditorContent(
                 .fillMaxSize()
                 .padding(top = adjustTopPadding, bottom = adjustBottomPadding)
                 .graphicsLayer {
-                    translationX = animOffsetX.value
-                    translationY = animOffsetY.value
-                    scaleX = animScale.value
-                    scaleY = animScale.value
-                    alpha = (animBgAlpha.value + 0.15f).coerceIn(0f, 1f)
-                    shape = RoundedCornerShape(animCornerDp.value.dp)
-                    clip = animCornerDp.value > 0.5f
+                    translationX = dragOffsetX
+                    translationY = dragOffsetY
+                    scaleX = dragScale
+                    scaleY = dragScale
+                    alpha = (dragBgAlpha + 0.25f).coerceIn(0f, 1f)
                 }
                 .then(
                     if (editorMode == EditorMode.MAIN && !showFontsModuleScreen && activePhotoZoomScale <= 1.02f) {
@@ -353,42 +372,42 @@ fun MediaEditorContent(
                                 },
                                 onDragEnd = {
                                     isVerticalDragging = false
-                                    if (abs(animOffsetY.value) > 115.dp.toPx()) {
+                                    if (abs(dragOffsetY) > 105.dp.toPx()) {
                                         triggerAnimatedClose()
                                     } else {
+                                        val sX = dragOffsetX
+                                        val sY = dragOffsetY
+                                        val sScale = dragScale
+                                        val sAlpha = dragBgAlpha
                                         scope.launch {
-                                            val springSpec = spring<Float>(
-                                                dampingRatio = Spring.DampingRatioNoBouncy,
-                                                stiffness = Spring.StiffnessMedium
-                                            )
-                                            launch { animOffsetX.animateTo(0f, springSpec) }
-                                            launch { animOffsetY.animateTo(0f, springSpec) }
-                                            launch { animScale.animateTo(1f, springSpec) }
-                                            launch { animBgAlpha.animateTo(1f, springSpec) }
-                                            launch { animCornerDp.animateTo(0f, springSpec) }
+                                            androidx.compose.animation.core.animate(
+                                                initialValue = 0f,
+                                                targetValue = 1f,
+                                                animationSpec = tween(durationMillis = 175, easing = FastOutSlowInEasing)
+                                            ) { t, _ ->
+                                                dragOffsetX = sX * (1f - t)
+                                                dragOffsetY = sY * (1f - t)
+                                                dragScale = sScale + (1f - sScale) * t
+                                                dragBgAlpha = sAlpha + (1f - sAlpha) * t
+                                            }
                                         }
                                     }
                                 },
                                 onDragCancel = {
                                     isVerticalDragging = false
-                                    scope.launch {
-                                        animOffsetX.snapTo(0f)
-                                        animOffsetY.snapTo(0f)
-                                        animScale.snapTo(1f)
-                                        animBgAlpha.snapTo(1f)
-                                        animCornerDp.snapTo(0f)
-                                    }
+                                    dragOffsetX = 0f
+                                    dragOffsetY = 0f
+                                    dragScale = 1f
+                                    dragBgAlpha = 1f
                                 },
                                 onVerticalDrag = { change, dragAmount ->
                                     change.consume()
-                                    val nextY = animOffsetY.value + dragAmount
-                                    val progress = (abs(nextY) / (screenHeightPx * 0.52f)).coerceIn(0f, 1f)
-                                    scope.launch {
-                                        animOffsetY.snapTo(nextY)
-                                        animScale.snapTo((1f - progress * 0.34f).coerceIn(0.55f, 1f))
-                                        animBgAlpha.snapTo((1f - progress * 0.82f).coerceIn(0.15f, 1f))
-                                        animCornerDp.snapTo(progress * 22f)
-                                    }
+                                    // Synchronous 1:1 update without launching any coroutine!
+                                    val nextY = dragOffsetY + dragAmount
+                                    val progress = (abs(nextY) / (screenHeightPx * 0.55f)).coerceIn(0f, 1f)
+                                    dragOffsetY = nextY
+                                    dragScale = (1f - progress * 0.35f).coerceIn(0.52f, 1f)
+                                    dragBgAlpha = (1f - progress * 0.85f).coerceIn(0.12f, 1f)
                                 }
                             )
                         }
@@ -1101,12 +1120,15 @@ private fun EditorPhotoPreview(
     onTapTextLayer: ((TextLayerItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    val scheme = LocalAnonGramScheme.current
-    val strings = MediaEditorI18n.current
     val context = LocalContext.current
 
-    var rawBitmap by remember(item.uri) { mutableStateOf<Bitmap?>(null) }
-    var renderedBitmap by remember(item.uri) { mutableStateOf<ImageBitmap?>(null) }
+    val initialCachedBmp = remember(item.uri) {
+        com.anongram.app.features.chats.attach.tabs.gallery.getCachedGalleryBitmap(item.uri)
+    }
+    var rawBitmap by remember(item.uri) { mutableStateOf<Bitmap?>(initialCachedBmp) }
+    var renderedBitmap by remember(item.uri) {
+        mutableStateOf<ImageBitmap?>(initialCachedBmp?.asImageBitmap())
+    }
 
     var zoomScale by remember(item.uri) { mutableFloatStateOf(1f) }
     var zoomOffset by remember(item.uri) { mutableStateOf(Offset.Zero) }
@@ -1128,21 +1150,30 @@ private fun EditorPhotoPreview(
     }
 
     LaunchedEffect(item.uri) {
-        rawBitmap = withContext(Dispatchers.IO) {
-            BitmapExportRenderer.decodeBitmapWithExif(context, item.uri, maxDim = 1280)
+        val fullDecoded = withContext(Dispatchers.IO) {
+            BitmapExportRenderer.decodeBitmapWithExif(context, item.uri, maxDim = 1600)
+        }
+        if (fullDecoded != null) {
+            com.anongram.app.features.chats.attach.tabs.gallery.hdBitmapCache.put(item.uri, fullDecoded)
+            rawBitmap = fullDecoded
         }
     }
 
     LaunchedEffect(rawBitmap, editState.crop, editState.adjustments, editState.blur, editState.curves) {
         val src = rawBitmap ?: return@LaunchedEffect
-        val processed = withContext(Dispatchers.Default) {
-            var work = PhotoFilterEngine.applyCropAndTransform(src, editState)
-            if (PhotoFilterEngine.needsPixelPipeline(editState)) {
-                work = PhotoFilterEngine.applyPixelPipeline(work, editState)
+        val hasEdits = editState.crop.isModified || PhotoFilterEngine.needsPixelPipeline(editState)
+        if (!hasEdits) {
+            renderedBitmap = src.asImageBitmap()
+        } else {
+            val processed = withContext(Dispatchers.Default) {
+                var work = PhotoFilterEngine.applyCropAndTransform(src, editState)
+                if (PhotoFilterEngine.needsPixelPipeline(editState)) {
+                    work = PhotoFilterEngine.applyPixelPipeline(work, editState)
+                }
+                work.asImageBitmap()
             }
-            work.asImageBitmap()
+            renderedBitmap = processed
         }
-        renderedBitmap = processed
     }
 
     // Composite non-blur strokes before blurring so blur strokes blur both the photo and earlier drawings
@@ -1302,21 +1333,6 @@ private fun EditorPhotoPreview(
                         modifier = Modifier.fillMaxSize()
                     )
                 }
-            }
-        } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Default.HighQuality,
-                    contentDescription = null,
-                    tint = scheme.accent,
-                    modifier = Modifier.size(56.dp)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = strings.loadingImage,
-                    color = scheme.textSecondary,
-                    fontSize = 14.sp
-                )
             }
         }
     }

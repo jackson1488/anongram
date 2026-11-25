@@ -98,7 +98,8 @@ private fun launchOptimisticMediaChunk(
             colorSeed = 1,
             isVideo = m.isVideo,
             uri = m.uri.toString(),
-            hasSpoiler = m.hasSpoiler
+            hasSpoiler = m.hasSpoiler,
+            coverUri = m.coverUri?.toString()
         )
     } else {
         MessageAttachment.MediaAlbum(
@@ -106,7 +107,8 @@ private fun launchOptimisticMediaChunk(
                 MessageAttachment.AlbumMediaItem(
                     uri = m.uri.toString(),
                     isVideo = m.isVideo,
-                    hasSpoiler = m.hasSpoiler
+                    hasSpoiler = m.hasSpoiler,
+                    coverUri = m.coverUri?.toString()
                 )
             },
             hasSpoiler = chunk.any { it.hasSpoiler }
@@ -167,7 +169,8 @@ private fun launchOptimisticMediaChunk(
                 colorSeed = 1,
                 isVideo = m.isVideo,
                 uri = m.uri.toString(),
-                hasSpoiler = m.hasSpoiler
+                hasSpoiler = m.hasSpoiler,
+                coverUri = m.coverUri?.toString()
             )
         } else {
             MessageAttachment.MediaAlbum(
@@ -175,7 +178,8 @@ private fun launchOptimisticMediaChunk(
                     MessageAttachment.AlbumMediaItem(
                         uri = m.uri.toString(),
                         isVideo = m.isVideo,
-                        hasSpoiler = m.hasSpoiler
+                        hasSpoiler = m.hasSpoiler,
+                        coverUri = m.coverUri?.toString()
                     )
                 },
                 hasSpoiler = results.any { it.hasSpoiler }
@@ -204,7 +208,8 @@ internal fun sendAttachDraftsToChat(
                         colorSeed = 1,
                         isVideo = m.isVideo,
                         uri = m.uri.toString(),
-                        hasSpoiler = m.hasSpoiler
+                        hasSpoiler = m.hasSpoiler,
+                        coverUri = m.coverUri?.toString()
                     ),
                     caption = chunkCaption
                 )
@@ -215,7 +220,8 @@ internal fun sendAttachDraftsToChat(
                             MessageAttachment.AlbumMediaItem(
                                 uri = m.uri.toString(),
                                 isVideo = m.isVideo,
-                                hasSpoiler = m.hasSpoiler
+                                hasSpoiler = m.hasSpoiler,
+                                coverUri = m.coverUri?.toString()
                             )
                         },
                         hasSpoiler = chunk.any { it.hasSpoiler }
@@ -234,7 +240,8 @@ internal fun sendAttachDraftsToChat(
                 colorSeed = 1,
                 isVideo = draft.isVideo,
                 uri = draft.uri.toString(),
-                hasSpoiler = draft.hasSpoiler
+                hasSpoiler = draft.hasSpoiler,
+                coverUri = draft.coverUri?.toString()
             ),
             caption = draft.caption
         )

@@ -1055,12 +1055,16 @@ private fun formatVideoTime(ms: Long): String {
     return String.format("%d:%02d", m, s)
 }
 
-private val thumbnailCache = android.util.LruCache<Uri, Bitmap>(150)
+internal val thumbnailCache = android.util.LruCache<Uri, Bitmap>(150)
 
-private val hdBitmapCache = object : android.util.LruCache<Uri, Bitmap>(
+internal val hdBitmapCache = object : android.util.LruCache<Uri, Bitmap>(
     (Runtime.getRuntime().maxMemory() / 6).toInt()
 ) {
     override fun sizeOf(key: Uri, value: Bitmap): Int = value.byteCount
+}
+
+internal fun getCachedGalleryBitmap(uri: Uri): Bitmap? {
+    return hdBitmapCache.get(uri) ?: thumbnailCache.get(uri)
 }
 
 internal fun loadMediaThumbnail(context: Context, uri: Uri): Bitmap? {

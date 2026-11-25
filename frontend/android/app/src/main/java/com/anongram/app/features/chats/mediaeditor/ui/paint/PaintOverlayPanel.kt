@@ -550,7 +550,7 @@ fun PaintOverlayPanel(
             }
         }
 
-        // 5. Full 3-Tab Color Picker Bottom Sheet (ПАЛИТРА | СПЕКТР | ШКАЛА)
+        // 5. Full 3-Tab Color Picker Bottom Sheet (ПАЛИТРА | СПЕКТР | ШКАЛА) with real-time live color application
         if (showFullColorPicker) {
             val activeLayer = textLayers.firstOrNull { it.id == selectedTextId }
             val currentColor = if (activeTab == PaintModeTab.TEXT && activeLayer != null) {
@@ -559,11 +559,18 @@ fun PaintOverlayPanel(
 
             FullColorPickerBottomSheet(
                 initialArgb = currentColor,
+                onLiveColorChange = { liveArgb ->
+                    selectedColorArgb = liveArgb
+                    if (activeTab == PaintModeTab.TEXT && activeLayer != null) {
+                        val idx = textLayers.indexOfFirst { it.id == activeLayer.id }
+                        if (idx >= 0) textLayers[idx] = textLayers[idx].copy(colorArgb = liveArgb)
+                    }
+                },
                 onConfirm = { newArgb ->
                     selectedColorArgb = newArgb
                     if (activeTab == PaintModeTab.TEXT && activeLayer != null) {
                         val idx = textLayers.indexOfFirst { it.id == activeLayer.id }
-                        if (idx >= 0) textLayers[idx] = activeLayer.copy(colorArgb = newArgb)
+                        if (idx >= 0) textLayers[idx] = textLayers[idx].copy(colorArgb = newArgb)
                     }
                     showFullColorPicker = false
                 },

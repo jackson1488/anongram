@@ -268,6 +268,8 @@ fun CameraScreenContent(
         }
     }
 
+    var showFrontScreenFlash by remember { mutableStateOf(false) }
+
     fun takePhoto() {
         if (isCapturingPhoto || isRecording) return
         val camera = cameraDeviceRef
@@ -275,7 +277,7 @@ fun CameraScreenContent(
         val session = captureSessionRef
         val tv = textureViewRef
 
-        // Fast fallback via TextureView bitmap if session isn't ready yet, or hardware JPEG capture
+        // Fast fallback via TextureView bitmap if session isn't ready yet
         if (camera == null || reader == null || session == null) {
             val fallbackBmp = tv?.bitmap
             if (fallbackBmp != null) {
@@ -284,6 +286,7 @@ fun CameraScreenContent(
                 FileOutputStream(cacheFile).use { fos ->
                     fallbackBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 94, fos)
                 }
+                com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(Uri.fromFile(cacheFile), fallbackBmp)
                 isCapturingPhoto = false
                 onResult(
                     CapturedMedia(
@@ -298,10 +301,18 @@ fun CameraScreenContent(
         }
 
         isCapturingPhoto = true
+        val frontSnapshot = isFrontCamera
+        val sensorRotSnapshot = sensorOrientation
+
+        if (frontSnapshot && flashMode != FlashMode.OFF) {
+            showFrontScreenFlash = true
+        }
+
         try {
             reader.setOnImageAvailableListener({ ir ->
                 val image = ir.acquireLatestImage() ?: run {
                     isCapturingPhoto = false
+                    showFrontScreenFlash = false
                     return@setOnImageAvailableListener
                 }
                 val buffer = image.planes[0].buffer
@@ -309,19 +320,46 @@ fun CameraScreenContent(
                 buffer.get(bytes)
                 image.close()
 
+                // Ensure upright portrait orientation and natural selfie horizontal mirror (never upside-down!)
+                val rawBmp = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                val finalBmp = if (rawBmp != null) {
+                    val m = android.graphics.Matrix()
+                    if (rawBmp.width > rawBmp.height) {
+                        m.postRotate(sensorRotSnapshot.toFloat())
+                    }
+                    if (frontSnapshot) {
+                        m.postScale(-1f, 1f)
+                    }
+                    if (!m.isIdentity) {
+                        android.graphics.Bitmap.createBitmap(rawBmp, 0, 0, rawBmp.width, rawBmp.height, m, true)
+                    } else {
+                        rawBmp
+                    }
+                } else null
+
                 val cacheFile = File(context.cacheDir, "camera_photo_${System.currentTimeMillis()}.jpg")
                 FileOutputStream(cacheFile).use { fos ->
-                    fos.write(bytes)
+                    if (finalBmp != null) {
+                        finalBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 94, fos)
+                    } else {
+                        fos.write(bytes)
+                    }
+                }
+                val fileUri = Uri.fromFile(cacheFile)
+                if (finalBmp != null) {
+                    com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(fileUri, finalBmp)
+                    com.anongram.app.features.chats.attach.tabs.gallery.hdBitmapCache.put(fileUri, finalBmp)
                 }
 
                 scope.launch {
+                    showFrontScreenFlash = false
                     isCapturingPhoto = false
                     onResult(
                         CapturedMedia(
-                            uri = Uri.fromFile(cacheFile),
+                            uri = fileUri,
                             isVideo = false,
-                            width = 1920,
-                            height = 1080
+                            width = finalBmp?.width ?: 1080,
+                            height = finalBmp?.height ?: 1920
                         )
                     )
                 }
@@ -330,16 +368,26 @@ fun CameraScreenContent(
             val captureBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
                 addTarget(reader.surface)
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                val jpegRotation = if (isFrontCamera) (360 - sensorOrientation) % 360 else sensorOrientation
-                set(CaptureRequest.JPEG_ORIENTATION, jpegRotation)
+                // Do not pass inverted JPEG_ORIENTATION; we rotate deterministically above from raw sensor dimensions
+                set(CaptureRequest.JPEG_ORIENTATION, 0)
                 when (flashMode) {
-                    FlashMode.ON -> set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_SINGLE)
-                    FlashMode.AUTO -> set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
-                    FlashMode.OFF -> set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF)
+                    FlashMode.ON -> {
+                        // Keep TORCH active during capture so the flash never turns off at the moment of shutter!
+                        set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
+                    }
+                    FlashMode.AUTO -> {
+                        set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
+                    }
+                    FlashMode.OFF -> {
+                        set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON)
+                        set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_OFF)
+                    }
                 }
             }
             session.capture(captureBuilder.build(), null, backgroundHandler)
         } catch (_: Exception) {
+            showFrontScreenFlash = false
             isCapturingPhoto = false
         }
     }
@@ -785,6 +833,15 @@ fun CameraScreenContent(
                     )
                 }
             }
+        }
+
+        // Bright white screen flash overlay when capturing front selfie with flash enabled
+        if (showFrontScreenFlash) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White.copy(alpha = 0.88f))
+            )
         }
     }
 }

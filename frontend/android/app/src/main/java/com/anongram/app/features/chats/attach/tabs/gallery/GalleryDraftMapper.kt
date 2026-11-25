@@ -31,7 +31,8 @@ internal fun buildGalleryMediaDrafts(
                 caption = itemCaption,
                 hd = hd,
                 hasSpoiler = media.hasSpoiler,
-                ungrouped = ungrouped
+                ungrouped = ungrouped,
+                coverUri = media.coverUri
             )
         }
     }
@@ -45,7 +46,8 @@ internal fun buildEditedMediaDrafts(
         isVideo = m.isVideo,
         caption = m.caption,
         hd = m.hd,
-        ttl = m.ttl
+        ttl = m.ttl,
+        coverUri = m.coverUri
     )
 }
 

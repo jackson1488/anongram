@@ -194,7 +194,9 @@ internal fun GalleryOverlays(
                 sheetState.isEditorOpen = true
             },
             onClose = { sheetState.isCameraOpen = false },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(250f)
         )
     }
 

@@ -165,6 +165,7 @@ internal fun ChatSinglePhotoSection(
                 uriString = attachment.uri,
                 isVideo = attachment.isVideo,
                 hasSpoiler = attachment.hasSpoiler,
+                coverUriString = attachment.coverUri,
                 onPhotoClick = {
                     if (isSelectionMode) onSelect() else onOpenPhotoAt(0)
                 },
@@ -633,6 +634,7 @@ internal fun ChatMediaAlbumGrid(
                                         uriString = m.uri,
                                         isVideo = m.isVideo,
                                         hasSpoiler = m.hasSpoiler,
+                                        coverUriString = m.coverUri,
                                         showSelectionBadge = isSelectionMode,
                                         isPhotoSelected = currentIdx in selectedPhotoIndices,
                                         accent = accent,
@@ -676,6 +678,7 @@ internal fun ChatRealPhotoBox(
     uriString: String,
     isVideo: Boolean,
     hasSpoiler: Boolean,
+    coverUriString: String? = null,
     showSelectionBadge: Boolean = false,
     isPhotoSelected: Boolean = false,
     accent: Color = LocalAnonGramScheme.current.accent,
@@ -691,7 +694,15 @@ internal fun ChatRealPhotoBox(
     val uploadState = MediaUploadTracker.rememberState(messageId, uriString)
     val isUploading = uploadState != null
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
-    var bitmap by remember(uriString) { mutableStateOf<ImageBitmap?>(null) }
+    val parsedCoverUri = remember(coverUriString) {
+        coverUriString?.takeIf { it.isNotBlank() }?.let { runCatching { Uri.parse(it) }.getOrNull() }
+    }
+    val thumbTargetUri = parsedCoverUri ?: parsedUri
+    var bitmap by remember(uriString, coverUriString) {
+        mutableStateOf<ImageBitmap?>(
+            thumbTargetUri?.let { com.anongram.app.features.chats.attach.tabs.gallery.getCachedGalleryBitmap(it)?.asImageBitmap() }
+        )
+    }
     var localSpoilerRevealed by remember(uriString) { mutableStateOf(false) }
     val showSpoiler = hasSpoiler && !localSpoilerRevealed
 
@@ -707,19 +718,19 @@ internal fun ChatRealPhotoBox(
     }
 
     val isScrollingState = com.anongram.app.features.chats.ui.components.LocalIsListScrollingState.current
-    LaunchedEffect(parsedUri, isVideo) {
-        if (parsedUri != null) {
+    LaunchedEffect(thumbTargetUri, isVideo) {
+        if (thumbTargetUri != null) {
             if (bitmap == null) {
-                val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
+                val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, thumbTargetUri) }
                 if (quick != null) bitmap = quick.asImageBitmap()
             }
         }
     }
     val isScrollingNow = isScrollingState.value
-    LaunchedEffect(parsedUri, isVideo, isScrollingNow) {
-        if (parsedUri != null && !isVideo && !isScrollingNow) {
+    LaunchedEffect(thumbTargetUri, isVideo, parsedCoverUri, isScrollingNow) {
+        if (thumbTargetUri != null && (!isVideo || parsedCoverUri != null) && !isScrollingNow) {
             delay(100)
-            val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, parsedUri) }
+            val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, thumbTargetUri) }
             if (hd != null) bitmap = hd.asImageBitmap()
         }
     }
@@ -785,9 +796,10 @@ internal fun ChatRealPhotoBox(
             )
         }
 
-        var allowVideoAutoplay by remember(uriString) { mutableStateOf(false) }
-        LaunchedEffect(uriString, isVideo, isUploading) {
-            if (isVideo && !isUploading) {
+        // If user explicitly set a custom cover on the video, keep their custom cover visible in the bubble instead of overwriting it with autoplay!
+        var allowVideoAutoplay by remember(uriString, coverUriString) { mutableStateOf(false) }
+        LaunchedEffect(uriString, isVideo, isUploading, parsedCoverUri) {
+            if (isVideo && !isUploading && parsedCoverUri == null) {
                 kotlinx.coroutines.delay(320L)
                 allowVideoAutoplay = true
             } else {

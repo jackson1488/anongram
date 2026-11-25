@@ -15,7 +15,8 @@ sealed interface AttachmentDraft {
         val hd: Boolean = false,
         val ttl: MediaTtl = MediaTtl.Never,
         val hasSpoiler: Boolean = false,
-        val ungrouped: Boolean = false
+        val ungrouped: Boolean = false,
+        val coverUri: Uri? = null
     ) : AttachmentDraft
 
     /** Файл любого типа без сжатия */

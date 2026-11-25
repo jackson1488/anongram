@@ -114,9 +114,8 @@ fun VideoCoverPickerOverlay(
         withContext(Dispatchers.IO) {
             if (galleryCoverUri != null) {
                 runCatching {
-                    context.contentResolver.openInputStream(galleryCoverUri!!)?.use {
-                        previewBitmap = android.graphics.BitmapFactory.decodeStream(it)
-                    }
+                    previewBitmap = com.anongram.app.features.chats.mediaeditor.engine.BitmapExportRenderer
+                        .decodeBitmapWithExif(context, galleryCoverUri!!, maxDim = 1600)
                 }
             } else {
                 val retriever = MediaMetadataRetriever()
@@ -210,7 +209,7 @@ fun VideoCoverPickerOverlay(
                 }
             }
 
-            // Bottom Filmstrip Scrubber + Save Cover Button (Telegram style)
+            // Bottom Filmstrip Scrubber + Save Cover Button (bright & un-dimmed!)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -234,7 +233,7 @@ fun VideoCoverPickerOverlay(
                     val trackWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
                     val usablePx = (trackWidthPx - thumbWidthPx).coerceAtLeast(1f)
 
-                    // Background filmstrip of frames
+                    // Bright background filmstrip of frames (no dark overlay!)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -276,15 +275,6 @@ fun VideoCoverPickerOverlay(
                             )
                         }
                     }
-
-                    // Dim overlay over background strip
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(46.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(Color.Black.copy(alpha = 0.32f))
-                    )
 
                     // Movable highlighted frame window thumb
                     val thumbOffsetX = (fraction * usablePx).roundToInt()
@@ -353,6 +343,22 @@ fun VideoCoverPickerOverlay(
                 onPickUri = { pickedUri ->
                     showGallerySheet = false
                     galleryCoverUri = pickedUri
+                    scope.launch {
+                        val savedUri = withContext(Dispatchers.IO) {
+                            val bmp = com.anongram.app.features.chats.mediaeditor.engine.BitmapExportRenderer
+                                .decodeBitmapWithExif(context, pickedUri, maxDim = 1600)
+                            if (bmp != null) {
+                                val outFile = File(context.cacheDir, "video_cover_gallery_${System.currentTimeMillis()}.jpg")
+                                FileOutputStream(outFile).use { fos ->
+                                    bmp.compress(Bitmap.CompressFormat.JPEG, 92, fos)
+                                }
+                                Uri.fromFile(outFile)
+                            } else {
+                                pickedUri
+                            }
+                        }
+                        onSaveCover(savedUri, null)
+                    }
                 },
                 onDismiss = { showGallerySheet = false },
                 modifier = Modifier.fillMaxSize()

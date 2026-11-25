@@ -426,6 +426,9 @@ private fun ChatInputAndMediaOverlays(
                             )
                         } else {
                             viewModel.sendAttachment(photoAtt, edited.caption)
+                            scope.launch {
+                                runCatching { listState.scrollToItem(0) }
+                            }
                         }
                     }
                     viewerEditTarget = null
@@ -470,7 +473,8 @@ private fun ChatInputAndMediaOverlays(
                                 label = if (edited.isVideo) "Видео" else "Фото",
                                 colorSeed = 0,
                                 isVideo = edited.isVideo,
-                                uri = edited.uri.toString()
+                                uri = edited.uri.toString(),
+                                coverUri = edited.coverUri?.toString()
                             ),
                             edited.caption.ifBlank { null }
                         )

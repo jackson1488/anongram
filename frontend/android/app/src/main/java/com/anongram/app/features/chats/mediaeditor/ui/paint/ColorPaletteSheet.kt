@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,11 +28,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.outlined.Colorize
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -179,6 +182,7 @@ fun ColorPaletteBar(
     if (showInternalFullPicker) {
         FullColorPickerBottomSheet(
             initialArgb = selectedColorArgb,
+            onLiveColorChange = { onSelectColor(it) },
             onConfirm = {
                 onSelectColor(it)
                 showInternalFullPicker = false
@@ -189,20 +193,22 @@ fun ColorPaletteBar(
 }
 
 /**
- * Полная шторка выбора цвета с 3 вкладками и свайпом (ПАЛИТРА | СПЕКТР | ШКАЛА),
- * полосой прозрачности, RGB-слайдерами и HEX-кодом.
+ * Полная шторка выбора цвета для рисования и текста с 3 вкладками и свайпом (ПАЛИТРА | СПЕКТР | ШКАЛА),
+ * живым применением цвета в реальном времени, полосой прозрачности, RGB-слайдерами и HEX-кодом.
  */
 @Composable
 fun FullColorPickerBottomSheet(
     initialArgb: Long,
+    onLiveColorChange: (Long) -> Unit = {},
     onConfirm: (Long) -> Unit,
     onDismiss: () -> Unit
 ) {
     val scheme = LocalAnonGramScheme.current
     val scope = rememberCoroutineScope()
-    val isRu = LanguageSettingsStore.language.value == AppLanguage.RU
+    val lang by LanguageSettingsStore.language.collectAsState()
+    val isRu = lang == AppLanguage.RU
 
-    val hsvInit = remember(initialArgb) {
+    val hsvInit = remember {
         FloatArray(3).also { android.graphics.Color.colorToHSV(initialArgb.toInt(), it) }
     }
     var hue by remember { mutableFloatStateOf(hsvInit[0]) }
@@ -222,6 +228,11 @@ fun FullColorPickerBottomSheet(
     val blueInt = currentRgbInt and 0xFF
     val hexString = String.format("%02X%02X%02X", redInt, greenInt, blueInt)
 
+    // Real-time live color propagation to the active drawing brush / text layer!
+    LaunchedEffect(currentLong) {
+        onLiveColorChange(currentLong)
+    }
+
     fun updateFromRgb(r: Int, g: Int, b: Int) {
         val hsv = FloatArray(3)
         android.graphics.Color.RGBToHSV(r.coerceIn(0, 255), g.coerceIn(0, 255), b.coerceIn(0, 255), hsv)
@@ -236,42 +247,69 @@ fun FullColorPickerBottomSheet(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.55f))
+            .background(Color.Black.copy(alpha = 0.45f))
             .pointerInput(Unit) {
-                detectTapGestures { onDismiss() }
+                detectTapGestures { onConfirm(currentLong) }
             },
         contentAlignment = Alignment.BottomCenter
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .background(scheme.surface)
+                .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                 .pointerInput(Unit) { detectTapGestures { /* consume */ } }
                 .navigationBarsPadding()
                 .padding(top = 10.dp, bottom = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Top handle bar
+            // Top handle bar (also swipeable left/right to switch tabs)
             Box(
                 modifier = Modifier
-                    .width(36.dp)
-                    .height(4.dp)
-                    .clip(CircleShape)
-                    .background(scheme.textMuted.copy(alpha = 0.4f))
-            )
+                    .fillMaxWidth()
+                    .height(18.dp)
+                    .pointerInput(Unit) {
+                        var accumDx = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { accumDx = 0f },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                accumDx += dragAmount
+                            },
+                            onDragEnd = {
+                                if (accumDx < -50f && pagerState.currentPage < 2) {
+                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                } else if (accumDx > 50f && pagerState.currentPage > 0) {
+                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                }
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .width(36.dp)
+                        .height(4.dp)
+                        .clip(CircleShape)
+                        .background(scheme.textMuted.copy(alpha = 0.4f))
+                )
+            }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(6.dp))
 
-            // 3 Swipeable Tabs Content
+            // 3 Swipeable Tabs Content (ПАЛИТРА | СПЕКТР | ШКАЛА)
             HorizontalPager(
                 state = pagerState,
+                userScrollEnabled = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(270.dp)
+                    .height(256.dp)
             ) { page ->
                 when (page) {
                     0 -> PaletteSwatchesGrid(
+                        selectedRgbInt = currentRgbInt,
                         onSelectColorInt = { c ->
                             updateFromRgb(
                                 (c ushr 16) and 0xFF,
@@ -284,6 +322,7 @@ fun FullColorPickerBottomSheet(
                         hue = hue,
                         sat = sat,
                         value = value,
+                        selectedColor = Color(currentRgbInt),
                         onHsvChange = { h, s, v ->
                             hue = h; sat = s; value = v
                         }
@@ -299,9 +338,9 @@ fun FullColorPickerBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
-            // Opacity checkerboard slider + current color circle on the right
+            // Opacity checkerboard slider + current color preview circle on the right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -315,12 +354,12 @@ fun FullColorPickerBottomSheet(
                     onAlphaChange = { alphaFrac = it },
                     modifier = Modifier
                         .weight(1f)
-                        .height(16.dp)
+                        .height(22.dp)
                 )
 
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
+                        .size(32.dp)
                         .clip(CircleShape)
                         .background(Color(currentRgbInt))
                         .border(2.dp, Color.White, CircleShape)
@@ -329,65 +368,94 @@ fun FullColorPickerBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Bottom row: [Pipette] | ПАЛИТРА  СПЕКТР  ШКАЛА | [✓]
+            // Clean Bottom Navigation Capsule: [✕] | ( ПАЛИТРА | СПЕКТР | ШКАЛА ) | [✓]
+            // Also supports horizontal swipe across the bottom bar to switch tabs!
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 14.dp)
+                    .pointerInput(Unit) {
+                        var accumDx = 0f
+                        detectHorizontalDragGestures(
+                            onDragStart = { accumDx = 0f },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                accumDx += dragAmount
+                            },
+                            onDragEnd = {
+                                if (accumDx < -45f && pagerState.currentPage < 2) {
+                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                } else if (accumDx > 45f && pagerState.currentPage > 0) {
+                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                }
+                            }
+                        )
+                    },
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = onDismiss, modifier = Modifier.size(36.dp)) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, CircleShape)
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Outlined.Colorize,
+                        imageVector = Icons.Default.Close,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
+                        tint = scheme.textPrimary,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
 
+                // Clean segmented capsule for the 3 tabs
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(scheme.islandBg)
+                        .border(1.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     tabTitles.forEachIndexed { idx, title ->
                         val selected = pagerState.currentPage == idx
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                        Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(10.dp))
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(if (selected) scheme.accent else Color.Transparent)
                                 .clickable {
                                     scope.launch { pagerState.animateScrollToPage(idx) }
                                 }
-                                .padding(horizontal = 6.dp, vertical = 4.dp)
+                                .padding(horizontal = 13.dp, vertical = 6.dp),
+                            contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = title,
-                                color = if (selected) Color.White else scheme.textMuted,
-                                fontSize = 12.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Box(
-                                modifier = Modifier
-                                    .width(42.dp)
-                                    .height(2.5.dp)
-                                    .clip(CircleShape)
-                                    .background(if (selected) Color.White else Color.Transparent)
+                                color = if (selected) scheme.onAccent else scheme.textSecondary,
+                                fontSize = 11.5.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
                             )
                         }
                     }
                 }
 
-                IconButton(
-                    onClick = { onConfirm(currentLong) },
-                    modifier = Modifier.size(36.dp)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(scheme.accent)
+                        .clickable { onConfirm(currentLong) },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(22.dp)
+                        tint = scheme.onAccent,
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
@@ -397,6 +465,7 @@ fun FullColorPickerBottomSheet(
 
 @Composable
 private fun PaletteSwatchesGrid(
+    selectedRgbInt: Int,
     onSelectColorInt: (Int) -> Unit
 ) {
     val cols = 12
@@ -413,7 +482,7 @@ private fun PaletteSwatchesGrid(
                     android.graphics.Color.rgb(v, v, v)
                 } else {
                     val h = hues[c]
-                    val t = r.toFloat() / (rows - 1) // 1/9 .. 1.0
+                    val t = r.toFloat() / (rows - 1)
                     val s = if (t < 0.6f) 0.95f else (1f - (t - 0.6f) * 1.35f).coerceIn(0.25f, 1f)
                     val v = if (t < 0.55f) (0.32f + t * 1.2f).coerceIn(0.3f, 1f) else 1f
                     android.graphics.Color.HSVToColor(floatArrayOf(h, s, v))
@@ -422,11 +491,12 @@ private fun PaletteSwatchesGrid(
         }
     }
 
+    // Note: PaletteSwatchesGrid uses tap to pick a cell so horizontal swipes across the grid smoothly switch between ПАЛИТРА | СПЕКТР | ШКАЛА!
     Canvas(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val c = ((offset.x / size.width) * cols).toInt().coerceIn(0, cols - 1)
@@ -434,25 +504,33 @@ private fun PaletteSwatchesGrid(
                     onSelectColorInt(gridColors[r][c])
                 }
             }
-            .pointerInput(Unit) {
-                detectDragGestures { change, _ ->
-                    change.consume()
-                    val c = ((change.position.x / size.width) * cols).toInt().coerceIn(0, cols - 1)
-                    val r = ((change.position.y / size.height) * rows).toInt().coerceIn(0, rows - 1)
-                    onSelectColorInt(gridColors[r][c])
-                }
-            }
     ) {
         val cellW = size.width / cols
         val cellH = size.height / rows
+        val selRgbNoAlpha = selectedRgbInt and 0x00FFFFFF
+        var selectedCell: Pair<Int, Int>? = null
+
         for (r in 0 until rows) {
             for (c in 0 until cols) {
+                val cellColorInt = gridColors[r][c]
                 drawRect(
-                    color = Color(gridColors[r][c]),
+                    color = Color(cellColorInt),
                     topLeft = Offset(c * cellW, r * cellH),
                     size = Size(cellW + 0.5f, cellH + 0.5f)
                 )
+                if ((cellColorInt and 0x00FFFFFF) == selRgbNoAlpha) {
+                    selectedCell = r to c
+                }
             }
+        }
+
+        selectedCell?.let { (sr, sc) ->
+            drawRect(
+                color = Color.White,
+                topLeft = Offset(sc * cellW + 1.5f, sr * cellH + 1.5f),
+                size = Size((cellW - 3f).coerceAtLeast(2f), (cellH - 3f).coerceAtLeast(2f)),
+                style = Stroke(width = 2.5.dp.toPx())
+            )
         }
     }
 }
@@ -462,6 +540,7 @@ private fun Spectrum2DPicker(
     hue: Float,
     sat: Float,
     value: Float,
+    selectedColor: Color,
     onHsvChange: (Float, Float, Float) -> Unit
 ) {
     val rainbowColors = remember {
@@ -477,7 +556,6 @@ private fun Spectrum2DPicker(
         )
     }
 
-    // Horizontal axis: 0..0.5 goes White -> Pure Hue (sat 0..1, val 1), 0.5..1.0 goes Pure Hue -> Black (sat 1, val 1..0)
     val cursorXFrac = if (value >= 0.98f) (sat * 0.5f) else (0.5f + (1f - value) * 0.5f)
     val cursorYFrac = (hue / 360f).coerceIn(0f, 1f)
 
@@ -500,16 +578,19 @@ private fun Spectrum2DPicker(
     Canvas(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 14.dp)
-            .clip(RoundedCornerShape(12.dp))
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(14.dp))
             .pointerInput(Unit) {
                 detectTapGestures { pos -> handleOffset(pos, size.width.toFloat(), size.height.toFloat()) }
             }
             .pointerInput(Unit) {
-                detectDragGestures { change, _ ->
-                    change.consume()
-                    handleOffset(change.position, size.width.toFloat(), size.height.toFloat())
-                }
+                detectDragGestures(
+                    onDragStart = { pos -> handleOffset(pos, size.width.toFloat(), size.height.toFloat()) },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        handleOffset(change.position, size.width.toFloat(), size.height.toFloat())
+                    }
+                )
             }
     ) {
         drawRect(brush = Brush.verticalGradient(rainbowColors))
@@ -521,13 +602,19 @@ private fun Spectrum2DPicker(
             )
         )
 
-        val cx = cursorXFrac * size.width
-        val cy = cursorYFrac * size.height
+        val cx = (cursorXFrac * size.width).coerceIn(14.dp.toPx(), size.width - 14.dp.toPx())
+        val cy = (cursorYFrac * size.height).coerceIn(14.dp.toPx(), size.height - 14.dp.toPx())
+        // Filled color indicator circle with crisp white ring
+        drawCircle(
+            color = selectedColor,
+            radius = 13.dp.toPx(),
+            center = Offset(cx, cy)
+        )
         drawCircle(
             color = Color.White,
-            radius = 12.dp.toPx(),
+            radius = 13.dp.toPx(),
             center = Offset(cx, cy),
-            style = Stroke(width = 2.5.dp.toPx())
+            style = Stroke(width = 3.dp.toPx())
         )
     }
 }
@@ -547,7 +634,7 @@ private fun RgbSlidersTab(
         modifier = Modifier
             .fillMaxSize()
             .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         RgbChannelSliderRow(
             label = if (isRu) "КРАСНЫЙ" else "RED",
@@ -568,7 +655,7 @@ private fun RgbSlidersTab(
             onValueChange = { onRgbChange(red, green, it) }
         )
 
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(2.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -585,10 +672,11 @@ private fun RgbSlidersTab(
             var hexDraft by remember(hexString) { mutableStateOf(hexString) }
             Box(
                 modifier = Modifier
-                    .width(84.dp)
-                    .height(36.dp)
+                    .width(86.dp)
+                    .height(34.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(scheme.card)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(10.dp))
                     .padding(horizontal = 8.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -605,7 +693,7 @@ private fun RgbSlidersTab(
                         }
                     },
                     textStyle = TextStyle(
-                        color = Color.White,
+                        color = scheme.textPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -668,7 +756,7 @@ private fun RgbChannelSliderRow(
                 )
                 val cx = (frac * size.width).coerceIn(10.dp.toPx(), size.width - 10.dp.toPx())
                 drawCircle(
-                    color = Color.Black,
+                    color = trackColor,
                     radius = 10.dp.toPx(),
                     center = Offset(cx, size.height / 2f)
                 )
@@ -682,15 +770,16 @@ private fun RgbChannelSliderRow(
 
             Box(
                 modifier = Modifier
-                    .width(56.dp)
-                    .height(34.dp)
+                    .width(54.dp)
+                    .height(32.dp)
                     .clip(RoundedCornerShape(10.dp))
-                    .background(scheme.card),
+                    .background(scheme.card)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(10.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = value.toString(),
-                    color = Color.White,
+                    color = scheme.textPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -708,7 +797,7 @@ private fun OpacityCheckerboardBar(
 ) {
     Canvas(
         modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(11.dp))
             .pointerInput(Unit) {
                 detectTapGestures { pos ->
                     onAlphaChange((pos.x / size.width.toFloat().coerceAtLeast(1f)).coerceIn(0.1f, 1f))
@@ -737,6 +826,18 @@ private fun OpacityCheckerboardBar(
             brush = Brush.horizontalGradient(
                 colors = listOf(Color.Transparent, baseColor)
             )
+        )
+        val cx = (alphaFrac.coerceIn(0f, 1f) * size.width).coerceIn(10.dp.toPx(), size.width - 10.dp.toPx())
+        drawCircle(
+            color = baseColor,
+            radius = 9.dp.toPx(),
+            center = Offset(cx, size.height / 2f)
+        )
+        drawCircle(
+            color = Color.White,
+            radius = 9.dp.toPx(),
+            center = Offset(cx, size.height / 2f),
+            style = Stroke(width = 2.2.dp.toPx())
         )
     }
 }

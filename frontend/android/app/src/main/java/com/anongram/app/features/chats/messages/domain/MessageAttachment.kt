@@ -14,14 +14,16 @@ sealed interface MessageAttachment {
         val colorSeed: Int,
         val isVideo: Boolean = false,
         val uri: String? = null,
-        val hasSpoiler: Boolean = false
+        val hasSpoiler: Boolean = false,
+        val coverUri: String? = null
     ) : MessageAttachment
 
     /** Элемент медиа-альбома (до 10 фото/видео в одном баббле чата). */
     data class AlbumMediaItem(
         val uri: String,
         val isVideo: Boolean = false,
-        val hasSpoiler: Boolean = false
+        val hasSpoiler: Boolean = false,
+        val coverUri: String? = null
     )
 
     /** Сгруппированный альбом медиа (от 2 до 10 элементов в одном сообщении чата). */

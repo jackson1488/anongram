@@ -54,10 +54,26 @@ object BitmapExportRenderer {
             context.cacheDir,
             "edited_video_${System.currentTimeMillis()}_${item.id.take(4)}.mp4"
         )
-        runCatching {
-            context.contentResolver.openInputStream(item.uri)?.use { input ->
-                FileOutputStream(targetFile).use { output ->
-                    input.copyTo(output)
+
+        val needsRemuxEdit = item.isMuted ||
+            item.trimStartMs > 0L ||
+            (item.trimEndMs > 0L && (item.durationMs <= 0L || item.trimEndMs < item.durationMs - 150L)) ||
+            item.editState.crop.baseRotation90 % 360 != 0 ||
+            item.rotationDegrees % 360 != 0
+
+        var remuxSucceeded = false
+        if (needsRemuxEdit) {
+            remuxSucceeded = runCatching {
+                remuxVideoWithEdits(context, item, targetFile)
+            }.getOrDefault(false)
+        }
+
+        if (!remuxSucceeded) {
+            runCatching {
+                context.contentResolver.openInputStream(item.uri)?.use { input ->
+                    FileOutputStream(targetFile).use { output ->
+                        input.copyTo(output)
+                    }
                 }
             }
         }
@@ -68,7 +84,7 @@ object BitmapExportRenderer {
             item.editState.hasAnyAdjustments ||
             item.editState.hasAnyPaintOrText
         var finalCoverUri = item.coverUri
-        if (hasVisualEdits) {
+        if (hasVisualEdits || item.coverUri != null) {
             runCatching {
                 val baseFrame = if (item.coverUri != null) {
                     decodeBitmapWithExif(context, item.coverUri, maxDim = 1280)
@@ -100,6 +116,8 @@ object BitmapExportRenderer {
                     }
                     if (coverFile.exists() && coverFile.length() > 0) {
                         finalCoverUri = Uri.fromFile(coverFile)
+                        // Put into gallery thumbnail cache immediately so gallery & chat bubbles see it in 0ms
+                        com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(finalCoverUri!!, working)
                     }
                 }
             }
@@ -118,6 +136,90 @@ object BitmapExportRenderer {
             quality = item.videoQuality.label,
             originalId = item.id
         )
+    }
+
+    private fun remuxVideoWithEdits(
+        context: Context,
+        item: EditableMediaItem,
+        outFile: File
+    ): Boolean {
+        val extractor = android.media.MediaExtractor()
+        var muxer: android.media.MediaMuxer? = null
+        return try {
+            extractor.setDataSource(context, item.uri, null)
+            var origRotation = 0
+            val retriever = android.media.MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(context, item.uri)
+                origRotation = retriever.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
+            } catch (_: Exception) {
+            } finally {
+                runCatching { retriever.release() }
+            }
+
+            val extraRot = if (item.editState.crop.baseRotation90 != 0) item.editState.crop.baseRotation90 else item.rotationDegrees
+            val finalRotation = ((origRotation + extraRot) % 360 + 360) % 360
+
+            muxer = android.media.MediaMuxer(outFile.absolutePath, android.media.MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            muxer.setOrientationHint(finalRotation)
+
+            val trackMap = HashMap<Int, Int>()
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(android.media.MediaFormat.KEY_MIME) ?: continue
+                if (mime.startsWith("video/")) {
+                    extractor.selectTrack(i)
+                    trackMap[i] = muxer.addTrack(format)
+                } else if (mime.startsWith("audio/") && !item.isMuted) {
+                    extractor.selectTrack(i)
+                    trackMap[i] = muxer.addTrack(format)
+                }
+            }
+
+            if (trackMap.isEmpty()) {
+                muxer.release()
+                return false
+            }
+
+            muxer.start()
+            val startUs = (item.trimStartMs.coerceAtLeast(0L)) * 1000L
+            val endUs = if (item.trimEndMs > item.trimStartMs) item.trimEndMs * 1000L else Long.MAX_VALUE
+            if (startUs > 0L) {
+                extractor.seekTo(startUs, android.media.MediaExtractor.SEEK_TO_PREVIOUS_SYNC)
+            }
+
+            val buffer = java.nio.ByteBuffer.allocate(512 * 1024)
+            val info = android.media.MediaCodec.BufferInfo()
+            var basePtsUs = -1L
+
+            while (true) {
+                info.offset = 0
+                info.size = extractor.readSampleData(buffer, 0)
+                if (info.size < 0) break
+                val sampleTimeUs = extractor.sampleTime
+                if (sampleTimeUs > endUs) break
+                if (sampleTimeUs >= startUs || basePtsUs >= 0L) {
+                    if (basePtsUs < 0L) basePtsUs = sampleTimeUs
+                    info.presentationTimeUs = (sampleTimeUs - basePtsUs).coerceAtLeast(0L)
+                    info.flags = extractor.sampleFlags
+                    val dstTrack = trackMap[extractor.sampleTrackIndex]
+                    if (dstTrack != null) {
+                        muxer.writeSampleData(dstTrack, buffer, info)
+                    }
+                }
+                extractor.advance()
+            }
+
+            muxer.stop()
+            muxer.release()
+            outFile.exists() && outFile.length() > 0L
+        } catch (_: Exception) {
+            runCatching { muxer?.release() }
+            runCatching { if (outFile.exists()) outFile.delete() }
+            false
+        } finally {
+            runCatching { extractor.release() }
+        }
     }
 
     private fun exportPhotoItem(context: Context, item: EditableMediaItem): EditedMedia {
@@ -156,6 +258,9 @@ object BitmapExportRenderer {
                 // Compress to JPEG (EXIF stripped automatically)
                 FileOutputStream(targetFile).use { fos ->
                     working.compress(Bitmap.CompressFormat.JPEG, if (item.hd) 94 else 84, fos)
+                }
+                if (targetFile.exists() && targetFile.length() > 0) {
+                    com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(Uri.fromFile(targetFile), working)
                 }
             }
         }
