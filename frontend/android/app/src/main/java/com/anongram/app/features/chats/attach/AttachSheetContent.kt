@@ -377,12 +377,16 @@ fun AttachSheetContent(
                                                     uri = resolved.effectiveUri,
                                                     isVideo = resolved.isVideo,
                                                     durationMs = resolved.durationMs,
-                                                    caption = sheetState.captionText
+                                                    caption = sheetState.captionText,
+                                                    coverUri = resolved.coverUri
                                                 )
                                             }
                                             sheetState.editorInitialIndex = idx.coerceIn(0, list.lastIndex)
                                             sheetState.isEditorOpen = true
                                         }
+                                    },
+                                    onTileBoundsChanged = { id, rect ->
+                                        sheetState.galleryTileBounds[id] = rect
                                     },
                                     onAlbumsLoaded = { sheetState.availableAlbums = it },
                                     modifier = Modifier.fillMaxSize()

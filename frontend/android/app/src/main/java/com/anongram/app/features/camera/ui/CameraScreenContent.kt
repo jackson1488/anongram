@@ -19,34 +19,43 @@ import android.view.Surface
 import android.view.TextureView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.FlashAuto
 import androidx.compose.material.icons.filled.FlashOff
 import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.rounded.FlipCameraAndroid
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -56,7 +65,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -70,20 +78,26 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.anongram.app.core.i18n.AppLanguage
+import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.permissions.PermissionUtils
 import com.anongram.app.core.theme.LocalAnonGramScheme
-import com.anongram.app.features.chats.attach.components.PermissionDeniedView
 import com.anongram.app.features.camera.api.CapturedMedia
+import com.anongram.app.features.chats.attach.components.PermissionDeniedView
+import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.roundToInt
 
 enum class FlashMode { OFF, ON, AUTO }
 
@@ -97,6 +111,9 @@ fun CameraScreenContent(
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val lang by LanguageSettingsStore.language.collectAsState()
+    val isRu = lang == AppLanguage.RU
 
     var hasCameraPermission by remember {
         mutableStateOf(PermissionUtils.hasCameraPermission(context))
@@ -114,7 +131,11 @@ fun CameraScreenContent(
 
     if (!hasCameraPermission) {
         PermissionDeniedView(
-            message = "Для работы камеры требуется разрешение на съёмку фото и видео.",
+            message = if (isRu) {
+                "Для работы камеры требуется разрешение на съёмку фото и видео."
+            } else {
+                "Camera permission is required to capture photos and videos."
+            },
             onRequestPermission = {
                 permissionLauncher.launch(
                     arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
@@ -128,9 +149,12 @@ fun CameraScreenContent(
     var isFrontCamera by remember { mutableStateOf(false) }
     var flashMode by remember { mutableStateOf(FlashMode.AUTO) }
     var isRecording by remember { mutableStateOf(false) }
+    var isRecordingLocked by remember { mutableStateOf(false) }
+    var dragUpProgress by remember { mutableFloatStateOf(0f) }
     var recordingProgress by remember { mutableFloatStateOf(0f) }
     var recordingSeconds by remember { mutableIntStateOf(0) }
     var focusPoint by remember { mutableStateOf<Offset?>(null) }
+    var isCapturingPhoto by remember { mutableStateOf(false) }
 
     var sensorOrientation by remember { mutableIntStateOf(90) }
 
@@ -180,6 +204,7 @@ fun CameraScreenContent(
             captureSessionRef = null
             cameraDeviceRef?.close()
             cameraDeviceRef = null
+            imageReaderRef?.close()
 
             val imageReader = ImageReader.newInstance(1920, 1080, ImageFormat.JPEG, 2)
             imageReaderRef = imageReader
@@ -195,6 +220,7 @@ fun CameraScreenContent(
                     try {
                         val previewRequestBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW).apply {
                             addTarget(previewSurface)
+                            set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
                             when (flashMode) {
                                 FlashMode.ON -> set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_TORCH)
                                 FlashMode.AUTO -> set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
@@ -243,13 +269,41 @@ fun CameraScreenContent(
     }
 
     fun takePhoto() {
-        val camera = cameraDeviceRef ?: return
-        val reader = imageReaderRef ?: return
-        val session = captureSessionRef ?: return
+        if (isCapturingPhoto || isRecording) return
+        val camera = cameraDeviceRef
+        val reader = imageReaderRef
+        val session = captureSessionRef
+        val tv = textureViewRef
 
+        // Fast fallback via TextureView bitmap if session isn't ready yet, or hardware JPEG capture
+        if (camera == null || reader == null || session == null) {
+            val fallbackBmp = tv?.bitmap
+            if (fallbackBmp != null) {
+                isCapturingPhoto = true
+                val cacheFile = File(context.cacheDir, "camera_photo_${System.currentTimeMillis()}.jpg")
+                FileOutputStream(cacheFile).use { fos ->
+                    fallbackBmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 94, fos)
+                }
+                isCapturingPhoto = false
+                onResult(
+                    CapturedMedia(
+                        uri = Uri.fromFile(cacheFile),
+                        isVideo = false,
+                        width = fallbackBmp.width,
+                        height = fallbackBmp.height
+                    )
+                )
+            }
+            return
+        }
+
+        isCapturingPhoto = true
         try {
             reader.setOnImageAvailableListener({ ir ->
-                val image = ir.acquireLatestImage() ?: return@setOnImageAvailableListener
+                val image = ir.acquireLatestImage() ?: run {
+                    isCapturingPhoto = false
+                    return@setOnImageAvailableListener
+                }
                 val buffer = image.planes[0].buffer
                 val bytes = ByteArray(buffer.remaining())
                 buffer.get(bytes)
@@ -261,6 +315,7 @@ fun CameraScreenContent(
                 }
 
                 scope.launch {
+                    isCapturingPhoto = false
                     onResult(
                         CapturedMedia(
                             uri = Uri.fromFile(cacheFile),
@@ -275,7 +330,8 @@ fun CameraScreenContent(
             val captureBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
                 addTarget(reader.surface)
                 set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
-                set(CaptureRequest.JPEG_ORIENTATION, sensorOrientation)
+                val jpegRotation = if (isFrontCamera) (360 - sensorOrientation) % 360 else sensorOrientation
+                set(CaptureRequest.JPEG_ORIENTATION, jpegRotation)
                 when (flashMode) {
                     FlashMode.ON -> set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_SINGLE)
                     FlashMode.AUTO -> set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
@@ -283,12 +339,16 @@ fun CameraScreenContent(
                 }
             }
             session.capture(captureBuilder.build(), null, backgroundHandler)
-        } catch (_: Exception) {}
+        } catch (_: Exception) {
+            isCapturingPhoto = false
+        }
     }
 
     fun stopVideoRecording() {
         if (!isRecording) return
         isRecording = false
+        isRecordingLocked = false
+        dragUpProgress = 0f
         recordingTimerJob?.cancel()
         recordingTimerJob = null
 
@@ -326,6 +386,8 @@ fun CameraScreenContent(
         val st = tv.surfaceTexture ?: return
 
         isRecording = true
+        isRecordingLocked = false
+        dragUpProgress = 0f
         recordingSeconds = 0
         recordingProgress = 0f
 
@@ -405,6 +467,7 @@ fun CameraScreenContent(
             }
         } catch (_: Exception) {
             isRecording = false
+            isRecordingLocked = false
             runCatching { mediaRecorderRef?.release() }
             mediaRecorderRef = null
             startCamera(tv)
@@ -468,7 +531,7 @@ fun CameraScreenContent(
         val cameraTopPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 12.dp
         val cameraBottomPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding() + 16.dp
 
-        // Top Floating Controls (отступ сверху равен высоте статус-бара + 12dp, ТЗ шаг 8)
+        // Top Floating Controls
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -491,9 +554,43 @@ fun CameraScreenContent(
                     tint = Color.White
                 )
             }
+
+            if (isRecording) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color(0xCCEF4444))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(Color.White)
+                    )
+                    Text(
+                        text = String.format("%02d:%02d", recordingSeconds / 60, recordingSeconds % 60),
+                        color = Color.White,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (isRecordingLocked) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            } else {
+                Spacer(modifier = Modifier.size(44.dp))
+            }
         }
 
-        // Bottom Controls (отступ снизу равен высоте навигационной панели + 16dp, ТЗ шаг 8)
+        // Bottom Controls
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -501,14 +598,56 @@ fun CameraScreenContent(
                 .padding(bottom = cameraBottomPadding),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Swipe-up-to-lock track indicator when holding video recording
+            AnimatedVisibility(
+                visible = isRecording && !isRecordingLocked,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                val lockSlideOffsetPx = with(density) { (-dragUpProgress * 44.dp.toPx()).roundToInt() }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .padding(bottom = 14.dp)
+                        .offset { IntOffset(0, lockSlideOffsetPx) }
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(CircleShape)
+                            .background(if (dragUpProgress > 0.85f) scheme.accent else Color(0x99000000))
+                            .border(1.5.dp, Color.White, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = if (dragUpProgress > 0.85f) Icons.Default.Lock else Icons.Default.LockOpen,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowUp,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+
             Text(
-                text = if (isRecording) "Запись: ${recordingSeconds}c (макс. 60с)" else "Нажмите для фото, удерживайте для видео",
+                text = when {
+                    isRecording && isRecordingLocked -> if (isRu) "Запись зафиксирована • нажмите ■ для остановки" else "Recording locked • tap ■ to stop"
+                    isRecording -> if (isRu) "Вверх — зафиксировать запись" else "Slide up to lock recording"
+                    else -> if (isRu) "Нажмите для фото, удерживайте для видео" else "Tap for photo, hold for video"
+                },
                 color = if (isRecording) Color(0xFFEF4444) else Color(0xCCFFFFFF),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Row(
                 modifier = Modifier
@@ -517,7 +656,7 @@ fun CameraScreenContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Внизу слева: вспышка (ТЗ, шаг 5)
+                // Flash mode button
                 IconButton(
                     onClick = {
                         flashMode = when (flashMode) {
@@ -544,23 +683,59 @@ fun CameraScreenContent(
                     )
                 }
 
-                // Big Shutter Button with Progress Ring
+                // Big Shutter Button:
+                // - Quick tap (< 230ms) -> Photo
+                // - Hold (>= 230ms) -> Video recording
+                // - Drag up >= 64.dp while holding -> Lock hands-free recording
+                // - Tap while locked -> Stop recording
+                val lockThresholdPx = with(density) { 64.dp.toPx() }
                 Box(
                     modifier = Modifier
-                        .size(80.dp)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onTap = {
-                                    if (!isRecording) {
-                                        takePhoto()
-                                    }
-                                },
-                                onPress = {
+                        .size(84.dp)
+                        .pointerInput(isRecording, isRecordingLocked) {
+                            awaitEachGesture {
+                                val down = awaitFirstDown(requireUnconsumed = false)
+                                if (isRecording && isRecordingLocked) {
+                                    // Wait for finger release to stop locked recording
+                                    do {
+                                        val ev = awaitPointerEvent()
+                                    } while (ev.changes.any { it.pressed })
+                                    stopVideoRecording()
+                                    return@awaitEachGesture
+                                }
+
+                                val downTime = System.currentTimeMillis()
+                                val startY = down.position.y
+                                var holdJobStarted = false
+                                val holdTriggerJob = scope.launch {
+                                    delay(230L)
+                                    holdJobStarted = true
                                     startVideoRecording()
-                                    tryAwaitRelease()
+                                }
+
+                                var lockedDuringHold = false
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val activeChange = event.changes.firstOrNull { it.pressed } ?: break
+                                    if (holdJobStarted && !lockedDuringHold) {
+                                        val dyUp = (startY - activeChange.position.y).coerceAtLeast(0f)
+                                        dragUpProgress = (dyUp / lockThresholdPx).coerceIn(0f, 1f)
+                                        if (dyUp >= lockThresholdPx) {
+                                            lockedDuringHold = true
+                                            isRecordingLocked = true
+                                            dragUpProgress = 0f
+                                        }
+                                    }
+                                }
+
+                                holdTriggerJob.cancel()
+                                val elapsed = System.currentTimeMillis() - downTime
+                                if (!holdJobStarted && elapsed < 230L) {
+                                    takePhoto()
+                                } else if (holdJobStarted && !lockedDuringHold) {
                                     stopVideoRecording()
                                 }
-                            )
+                            }
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -569,11 +744,11 @@ fun CameraScreenContent(
                         drawCircle(
                             color = Color(0x66FFFFFF),
                             radius = size.minDimension / 2 - 4.dp.toPx(),
-                            style = Stroke(width = 3.dp.toPx())
+                            style = Stroke(width = 3.5.dp.toPx())
                         )
                         if (isRecording) {
                             drawArc(
-                                color = scheme.accent,
+                                color = Color(0xFFEF4444),
                                 startAngle = -90f,
                                 sweepAngle = recordingProgress * 360f,
                                 useCenter = false,
@@ -582,11 +757,11 @@ fun CameraScreenContent(
                         }
                     }
 
-                    // Inner shutter button
+                    // Inner shutter button (white circle for photo/idle, red rounded square while recording)
                     Box(
                         modifier = Modifier
-                            .size(if (isRecording) 36.dp else 60.dp)
-                            .clip(if (isRecording) androidx.compose.foundation.shape.RoundedCornerShape(8.dp) else CircleShape)
+                            .size(if (isRecording) 34.dp else 62.dp)
+                            .clip(if (isRecording) RoundedCornerShape(8.dp) else CircleShape)
                             .background(if (isRecording) Color(0xFFEF4444) else Color.White)
                     )
                 }

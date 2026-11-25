@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -202,101 +203,123 @@ fun PaintOverlayPanel(
                 .padding(top = animatedTopPad, bottom = animatedBottomPad, start = 8.dp, end = 8.dp),
             contentAlignment = Alignment.Center
         ) {
-            if (previewBitmap != null) {
-                Image(
-                    bitmap = previewBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
-                )
+            val photoAspect = remember(previewBitmap) {
+                val bmp = previewBitmap
+                if (bmp != null && bmp.width > 0 && bmp.height > 0) {
+                    (bmp.width.toFloat() / bmp.height.toFloat()).coerceIn(0.2f, 5f)
+                } else {
+                    1f
+                }
             }
 
-            val currentStrokePreview = if (activePoints.isNotEmpty()) {
-                BrushStroke(
-                    id = "active",
-                    type = selectedBrush,
-                    colorArgb = selectedColorArgb,
-                    strokeWidthNorm = strokeWidthNorm,
-                    points = activePoints
-                )
-            } else null
-
-            val allStrokesToRender = remember(committedStrokesSnapshot, currentStrokePreview) {
-                if (currentStrokePreview != null) committedStrokesSnapshot + currentStrokePreview else committedStrokesSnapshot
-            }
-
-            StrokesPreviewCanvas(
-                strokes = allStrokesToRender,
-                blurredBitmap = blurredBitmap,
+            // Strictly bound drawing, blur, eraser, and text to the exact photo aspect rectangle
+            Box(
                 modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (activeTab == PaintModeTab.DRAWING) {
-                            Modifier.pointerInput(selectedBrush, selectedColorArgb, strokeWidthNorm) {
-                                detectDragGestures(
-                                    onDragStart = { offset ->
-                                        val w = size.width.toFloat().coerceAtLeast(1f)
-                                        val h = size.height.toFloat().coerceAtLeast(1f)
-                                        activePoints = listOf(Offset(offset.x / w, offset.y / h))
-                                    },
-                                    onDrag = { change, _ ->
-                                        change.consume()
-                                        val w = size.width.toFloat().coerceAtLeast(1f)
-                                        val h = size.height.toFloat().coerceAtLeast(1f)
-                                        val pt = Offset(
-                                            (change.position.x / w).coerceIn(0f, 1f),
-                                            (change.position.y / h).coerceIn(0f, 1f)
-                                        )
-                                        activePoints = activePoints + pt
-                                    },
-                                    onDragEnd = {
-                                        if (activePoints.isNotEmpty()) {
-                                            strokes.add(
-                                                BrushStroke(
-                                                    id = UUID.randomUUID().toString(),
-                                                    type = selectedBrush,
-                                                    colorArgb = selectedColorArgb,
-                                                    strokeWidthNorm = strokeWidthNorm,
-                                                    points = activePoints
+                    .aspectRatio(photoAspect, matchHeightConstraintsFirst = photoAspect < 1f)
+                    .clip(RoundedCornerShape(2.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                if (previewBitmap != null) {
+                    Image(
+                        bitmap = previewBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                val currentStrokePreview = if (activePoints.isNotEmpty()) {
+                    BrushStroke(
+                        id = "active",
+                        type = selectedBrush,
+                        colorArgb = selectedColorArgb,
+                        strokeWidthNorm = strokeWidthNorm,
+                        points = activePoints
+                    )
+                } else null
+
+                val allStrokesToRender = remember(committedStrokesSnapshot, currentStrokePreview) {
+                    if (currentStrokePreview != null) committedStrokesSnapshot + currentStrokePreview else committedStrokesSnapshot
+                }
+
+                StrokesPreviewCanvas(
+                    strokes = allStrokesToRender,
+                    blurredBitmap = blurredBitmap,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(
+                            if (activeTab == PaintModeTab.DRAWING) {
+                                Modifier.pointerInput(selectedBrush, selectedColorArgb, strokeWidthNorm) {
+                                    detectDragGestures(
+                                        onDragStart = { offset ->
+                                            val w = size.width.toFloat().coerceAtLeast(1f)
+                                            val h = size.height.toFloat().coerceAtLeast(1f)
+                                            activePoints = listOf(
+                                                Offset(
+                                                    (offset.x / w).coerceIn(0f, 1f),
+                                                    (offset.y / h).coerceIn(0f, 1f)
                                                 )
                                             )
-                                            activePoints = emptyList()
-                                        }
-                                    },
-                                    onDragCancel = { activePoints = emptyList() }
-                                )
-                            }
-                        } else Modifier
-                    )
-            )
+                                        },
+                                        onDrag = { change, _ ->
+                                            change.consume()
+                                            val w = size.width.toFloat().coerceAtLeast(1f)
+                                            val h = size.height.toFloat().coerceAtLeast(1f)
+                                            val pt = Offset(
+                                                (change.position.x / w).coerceIn(0f, 1f),
+                                                (change.position.y / h).coerceIn(0f, 1f)
+                                            )
+                                            activePoints = activePoints + pt
+                                        },
+                                        onDragEnd = {
+                                            if (activePoints.isNotEmpty()) {
+                                                strokes.add(
+                                                    BrushStroke(
+                                                        id = UUID.randomUUID().toString(),
+                                                        type = selectedBrush,
+                                                        colorArgb = selectedColorArgb,
+                                                        strokeWidthNorm = strokeWidthNorm,
+                                                        points = activePoints
+                                                    )
+                                                )
+                                                activePoints = emptyList()
+                                            }
+                                        },
+                                        onDragCancel = { activePoints = emptyList() }
+                                    )
+                                }
+                            } else Modifier
+                        )
+                )
 
-            // Interactive Text Layers
-            TextLayersCanvasOverlay(
-                layers = textLayers,
-                selectedLayerId = selectedTextId,
-                interactive = activeTab == PaintModeTab.TEXT,
-                isTypingText = isTypingText,
-                onTypingTextChange = { isTypingText = it },
-                onSelectLayer = { id ->
-                    selectedTextId = id
-                    if (id != null && activeTab != PaintModeTab.TEXT) {
+                // Interactive Text Layers
+                TextLayersCanvasOverlay(
+                    layers = textLayers,
+                    selectedLayerId = selectedTextId,
+                    interactive = activeTab == PaintModeTab.TEXT,
+                    isTypingText = isTypingText,
+                    onTypingTextChange = { isTypingText = it },
+                    onSelectLayer = { id ->
+                        selectedTextId = id
+                        if (id != null && activeTab != PaintModeTab.TEXT) {
+                            activeTab = PaintModeTab.TEXT
+                        }
+                    },
+                    onUpdateLayer = { updated ->
+                        val idx = textLayers.indexOfFirst { it.id == updated.id }
+                        if (idx >= 0) textLayers[idx] = updated
+                    },
+                    onDeleteLayer = { id ->
+                        textLayers.removeAll { it.id == id }
+                        if (selectedTextId == id) selectedTextId = textLayers.lastOrNull()?.id
+                    },
+                    onEditLayerText = { layer ->
+                        selectedTextId = layer.id
                         activeTab = PaintModeTab.TEXT
+                        isTypingText = true
                     }
-                },
-                onUpdateLayer = { updated ->
-                    val idx = textLayers.indexOfFirst { it.id == updated.id }
-                    if (idx >= 0) textLayers[idx] = updated
-                },
-                onDeleteLayer = { id ->
-                    textLayers.removeAll { it.id == id }
-                    if (selectedTextId == id) selectedTextId = textLayers.lastOrNull()?.id
-                },
-                onEditLayerText = { layer ->
-                    selectedTextId = layer.id
-                    activeTab = PaintModeTab.TEXT
-                    isTypingText = true
-                }
-            )
+                )
+            }
 
             // Center brush diameter preview circle while dragging the left vertical wedge slider
             if (isAdjustingBrushSize) {

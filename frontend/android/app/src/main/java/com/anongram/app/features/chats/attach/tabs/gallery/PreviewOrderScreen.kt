@@ -122,6 +122,7 @@ fun PreviewOrderScreen(
     onUpdateOrderAndSpoilers: (List<GalleryMedia>) -> Unit = {},
     onDiscardSelection: () -> Unit = {},
     onDismissAll: () -> Unit = {},
+    onOpenEditor: ((List<GalleryMedia>, Int) -> Unit)? = null,
     chatId: String = "",
     initialOffsetPx: Float = 0f,
     onOffsetChange: (Float) -> Unit = {},
@@ -131,6 +132,23 @@ fun PreviewOrderScreen(
     val strings = LocalAttachStrings.current
     val context = LocalContext.current
     val orderedList = remember { mutableStateListOf<GalleryMedia>().apply { addAll(initialMediaList) } }
+
+    // Sync editedUri / coverUri updates when returning from MediaEditorScreen
+    LaunchedEffect(initialMediaList) {
+        if (initialMediaList.size != orderedList.size) {
+            orderedList.clear()
+            orderedList.addAll(initialMediaList)
+        } else {
+            val byUri = initialMediaList.associateBy { it.uri }
+            for (i in orderedList.indices) {
+                val updated = byUri[orderedList[i].uri]
+                if (updated != null && updated != orderedList[i]) {
+                    orderedList[i] = updated
+                }
+            }
+        }
+    }
+
     var isMenuOpen by remember { mutableStateOf(false) }
     var isUncompressed by remember { mutableStateOf(false) }
     var isUngrouped by remember { mutableStateOf(false) }
@@ -527,7 +545,14 @@ fun PreviewOrderScreen(
                                     globalIndex = startGlobalIndex,
                                     caption = chunkCaption,
                                     draggingGlobalIdx = draggingGlobalIdx,
-                                    onPhotoClick = { viewingPhotoUri = it },
+                                    onPhotoClick = { clickedUri ->
+                                        if (onOpenEditor != null) {
+                                            val idx = orderedList.indexOfFirst { it.uri == clickedUri || it.displayUri == clickedUri }.coerceAtLeast(0)
+                                            onOpenEditor(orderedList.toList(), idx)
+                                        } else {
+                                            viewingPhotoUri = clickedUri
+                                        }
+                                    },
                                     onRemoveItem = { idx -> removeItemAt(idx) },
                                     onBoundsChanged = { idx, rect -> itemBoundsMap[idx] = rect },
                                     onDragStart = { idx, startRootPos ->
@@ -556,7 +581,14 @@ fun PreviewOrderScreen(
                                     startGlobalIndex = startGlobalIndex,
                                     caption = chunkCaption,
                                     draggingGlobalIdx = draggingGlobalIdx,
-                                    onPhotoClick = { viewingPhotoUri = it },
+                                    onPhotoClick = { clickedUri ->
+                                        if (onOpenEditor != null) {
+                                            val idx = orderedList.indexOfFirst { it.uri == clickedUri || it.displayUri == clickedUri }.coerceAtLeast(0)
+                                            onOpenEditor(orderedList.toList(), idx)
+                                        } else {
+                                            viewingPhotoUri = clickedUri
+                                        }
+                                    },
                                     onRemoveItem = { idx -> removeItemAt(idx) },
                                     onBoundsChanged = { idx, rect -> itemBoundsMap[idx] = rect },
                                     onDragStart = { idx, startRootPos ->
@@ -626,9 +658,9 @@ fun PreviewOrderScreen(
             val relX = (dragFingerRootPos.x - rootBoxOrigin.x - cardWPx / 2f).roundToInt()
             val relY = (dragFingerRootPos.y - rootBoxOrigin.y - cardHPx / 2f).roundToInt()
 
-            var dragBitmap by remember(draggedMedia.uri) { mutableStateOf<ImageBitmap?>(null) }
-            LaunchedEffect(draggedMedia.uri) {
-                val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, draggedMedia.uri) }
+            var dragBitmap by remember(draggedMedia.displayUri) { mutableStateOf<ImageBitmap?>(null) }
+            LaunchedEffect(draggedMedia.displayUri) {
+                val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, draggedMedia.displayUri) }
                 if (dragBitmap == null) dragBitmap = quick?.asImageBitmap()
             }
 
@@ -855,7 +887,7 @@ private fun AlbumBubble(
 ) {
     val scheme = LocalAnonGramScheme.current
     val bubbleShape = RoundedCornerShape(16.dp)
-    val aspects = rememberMediaAspects(mediaItems.map { it.uri.toString() to it.isVideo })
+    val aspects = rememberMediaAspects(mediaItems.map { it.displayUri.toString() to it.isVideo })
     val plan = computeAlbumLayoutPlan(aspects, targetWidthDp = 300f)
 
     // Для вертикальных альбомов 2, 3, 4 фото сужаем баббл (~86%), чтобы миниатюры оставались выраженно вертикальными;
@@ -1386,13 +1418,14 @@ private fun PreviewCollageItem(
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
-    var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
+    val displayTargetUri = media.displayUri
+    var bitmap by remember(displayTargetUri) { mutableStateOf<ImageBitmap?>(null) }
     var itemRectInRoot by remember { mutableStateOf(Rect.Zero) }
 
-    LaunchedEffect(media.uri) {
-        val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, media.uri) }
+    LaunchedEffect(displayTargetUri) {
+        val quick = withContext(Dispatchers.IO) { loadMediaThumbnail(context, displayTargetUri) }
         if (bitmap == null) bitmap = quick?.asImageBitmap()
-        val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, media.uri) }
+        val hd = withContext(Dispatchers.IO) { loadHdBitmap(context, displayTargetUri) }
         if (hd != null) bitmap = hd.asImageBitmap()
     }
 
@@ -1407,7 +1440,7 @@ private fun PreviewCollageItem(
                 alpha = if (isBeingDragged) 0.25f else 1f
             }
             .background(scheme.card)
-            .pointerInput(media.uri) {
+            .pointerInput(media.uri, displayTargetUri) {
                 detectTapGestures(
                     onTap = { onPhotoClick(media.uri) }
                 )

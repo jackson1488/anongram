@@ -2,13 +2,17 @@ package com.anongram.app.features.chats.mediaeditor.ui
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaMetadataRetriever
 import android.media.MediaPlayer
 import android.net.Uri
 import android.widget.VideoView
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -16,6 +20,11 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +32,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +57,7 @@ import androidx.compose.material.icons.filled.HighQuality
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.rounded.Brush
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -60,6 +71,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +81,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
@@ -76,8 +90,11 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -133,6 +150,7 @@ fun MediaEditorContent(
     selectedIds: List<String> = emptyList(),
     onToggleSelectItem: ((EditableMediaItem) -> Unit)? = null,
     onSaveOnly: ((List<EditedMedia>) -> Unit)? = null,
+    targetBoundsForId: ((String) -> Rect?)? = null,
     modifier: Modifier = Modifier
 ) {
     if (items.isEmpty()) {
@@ -144,6 +162,10 @@ fun MediaEditorContent(
     val strings = MediaEditorI18n.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx().coerceAtLeast(360f) }
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx().coerceAtLeast(720f) }
 
     val currentItems = remember(items) {
         mutableStateListOf<EditableMediaItem>().apply { addAll(items) }
@@ -166,6 +188,10 @@ fun MediaEditorContent(
     var showFontsModuleScreen by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
 
+    // Active page photo zoom state (1f..4f)
+    var activePhotoZoomScale by remember(activeItem.id) { mutableFloatStateOf(1f) }
+    var resetPhotoZoomSignal by remember { mutableIntStateOf(0) }
+
     // 2-second auto-disappearing HD toast trigger
     var hdToastTrigger by remember { mutableIntStateOf(0) }
     var showHdToast by remember { mutableStateOf(false) }
@@ -177,28 +203,19 @@ fun MediaEditorContent(
         }
     }
 
-    var isVideoPlaying by remember(activeItem.id) { mutableStateOf(true) }
-    var verticalDragOffsetY by remember { mutableStateOf(0f) }
-    var isClosingAnimated by remember { mutableStateOf(false) }
+    // If video has a custom cover, start paused so user sees their saved cover immediately
+    var isVideoPlaying by remember(activeItem.id, activeItem.coverUri) {
+        mutableStateOf(activeItem.coverUri == null)
+    }
 
-    val closeScale by animateFloatAsState(
-        targetValue = if (isClosingAnimated) {
-            0.35f
-        } else {
-            (1f - abs(verticalDragOffsetY) / 1400f).coerceIn(0.58f, 1f)
-        },
-        animationSpec = tween(durationMillis = 200),
-        label = "editorCloseScale"
-    )
-    val closeAlpha by animateFloatAsState(
-        targetValue = if (isClosingAnimated) {
-            0f
-        } else {
-            (1f - abs(verticalDragOffsetY) / 900f).coerceIn(0.18f, 1f)
-        },
-        animationSpec = tween(durationMillis = 200),
-        label = "editorCloseAlpha"
-    )
+    // Zero-lag Animatables for vertical drag and close-to-grid transition
+    val animOffsetX = remember { Animatable(0f) }
+    val animOffsetY = remember { Animatable(0f) }
+    val animScale = remember { Animatable(1f) }
+    val animBgAlpha = remember { Animatable(1f) }
+    val animCornerDp = remember { Animatable(0f) }
+    var isVerticalDragging by remember { mutableStateOf(false) }
+    var isClosingAnimated by remember { mutableStateOf(false) }
 
     val adjustBottomPadding by animateDpAsState(
         targetValue = if (editorMode == EditorMode.ADJUST) 235.dp else 0.dp,
@@ -223,17 +240,53 @@ fun MediaEditorContent(
     fun triggerAnimatedClose() {
         if (isClosingAnimated) return
         isClosingAnimated = true
+        val targetRect = targetBoundsForId?.invoke(activeItem.id)
+        val targetX = if (targetRect != null && targetRect.width > 0f) {
+            targetRect.center.x - (screenWidthPx * 0.5f)
+        } else 0f
+        val targetY = if (targetRect != null && targetRect.height > 0f) {
+            targetRect.center.y - (screenHeightPx * 0.5f)
+        } else {
+            screenHeightPx * 0.28f
+        }
+        val targetScale = if (targetRect != null && targetRect.width > 0f) {
+            (targetRect.width / screenWidthPx).coerceIn(0.24f, 0.45f)
+        } else 0.32f
+
         scope.launch {
-            delay(190L)
+            val spec = tween<Float>(durationMillis = 210, easing = FastOutSlowInEasing)
+            launch { animOffsetX.animateTo(targetX, spec) }
+            launch { animOffsetY.animateTo(targetY, spec) }
+            launch { animScale.animateTo(targetScale, spec) }
+            launch { animCornerDp.animateTo(22f, spec) }
+            launch { animBgAlpha.animateTo(0f, tween(durationMillis = 195)) }
+            delay(205L)
             onBack()
         }
     }
 
-    var activeRawBitmap by remember(activeItem.uri, activeItem.isVideo) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(activeItem.uri, activeItem.isVideo) {
-        if (!activeItem.isVideo) {
-            activeRawBitmap = withContext(Dispatchers.IO) {
+    // Load raw bitmap for both Photos AND Videos (extracted frame for video so Crop, Paint/Text, and Adjust work on videos too!)
+    var activeRawBitmap by remember(activeItem.uri, activeItem.isVideo, activeItem.coverUri, activeItem.coverTimeMs) {
+        mutableStateOf<Bitmap?>(null)
+    }
+    LaunchedEffect(activeItem.uri, activeItem.isVideo, activeItem.coverUri, activeItem.coverTimeMs) {
+        activeRawBitmap = withContext(Dispatchers.IO) {
+            if (!activeItem.isVideo) {
                 BitmapExportRenderer.decodeBitmapWithExif(context, activeItem.uri, maxDim = 960)
+            } else if (activeItem.coverUri != null) {
+                BitmapExportRenderer.decodeBitmapWithExif(context, activeItem.coverUri, maxDim = 960)
+            } else {
+                val retriever = MediaMetadataRetriever()
+                try {
+                    retriever.setDataSource(context, activeItem.uri)
+                    val timeUs = (activeItem.coverTimeMs ?: activeItem.trimStartMs) * 1000L
+                    retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: retriever.frameAtTime
+                } catch (_: Exception) {
+                    null
+                } finally {
+                    runCatching { retriever.release() }
+                }
             }
         }
     }
@@ -253,10 +306,13 @@ fun MediaEditorContent(
     }
 
     BackHandler(enabled = !showFontsModuleScreen) {
-        if (editorMode != EditorMode.MAIN) {
-            editorMode = EditorMode.MAIN
-        } else {
-            triggerAnimatedClose()
+        when {
+            editorMode != EditorMode.MAIN -> editorMode = EditorMode.MAIN
+            activePhotoZoomScale > 1.02f -> {
+                resetPhotoZoomSignal += 1
+                activePhotoZoomScale = 1f
+            }
+            else -> triggerAnimatedClose()
         }
     }
     BackHandler(enabled = showFontsModuleScreen) {
@@ -266,36 +322,73 @@ fun MediaEditorContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = closeAlpha))
+            .background(Color.Black.copy(alpha = animBgAlpha.value))
     ) {
-        // Fullscreen Pager (left/right swipe across all gallery media in MAIN mode; vertical drag-to-close)
+        // Fullscreen Pager (left/right swipe across all gallery media in MAIN mode; 1:1 zero-lag vertical drag-to-close)
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = editorMode == EditorMode.MAIN && !showFontsModuleScreen && currentItems.size > 1,
+            userScrollEnabled = editorMode == EditorMode.MAIN &&
+                !showFontsModuleScreen &&
+                !isVerticalDragging &&
+                activePhotoZoomScale <= 1.02f &&
+                currentItems.size > 1,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = adjustTopPadding, bottom = adjustBottomPadding)
                 .graphicsLayer {
-                    translationY = verticalDragOffsetY
-                    scaleX = closeScale
-                    scaleY = closeScale
-                    alpha = closeAlpha
+                    translationX = animOffsetX.value
+                    translationY = animOffsetY.value
+                    scaleX = animScale.value
+                    scaleY = animScale.value
+                    alpha = (animBgAlpha.value + 0.15f).coerceIn(0f, 1f)
+                    shape = RoundedCornerShape(animCornerDp.value.dp)
+                    clip = animCornerDp.value > 0.5f
                 }
                 .then(
-                    if (editorMode == EditorMode.MAIN && !showFontsModuleScreen) {
-                        Modifier.pointerInput(Unit) {
+                    if (editorMode == EditorMode.MAIN && !showFontsModuleScreen && activePhotoZoomScale <= 1.02f) {
+                        Modifier.pointerInput(activeItem.id) {
                             detectVerticalDragGestures(
+                                onDragStart = {
+                                    isVerticalDragging = true
+                                },
                                 onDragEnd = {
-                                    if (abs(verticalDragOffsetY) > 130.dp.toPx()) {
+                                    isVerticalDragging = false
+                                    if (abs(animOffsetY.value) > 115.dp.toPx()) {
                                         triggerAnimatedClose()
                                     } else {
-                                        verticalDragOffsetY = 0f
+                                        scope.launch {
+                                            val springSpec = spring<Float>(
+                                                dampingRatio = Spring.DampingRatioNoBouncy,
+                                                stiffness = Spring.StiffnessMedium
+                                            )
+                                            launch { animOffsetX.animateTo(0f, springSpec) }
+                                            launch { animOffsetY.animateTo(0f, springSpec) }
+                                            launch { animScale.animateTo(1f, springSpec) }
+                                            launch { animBgAlpha.animateTo(1f, springSpec) }
+                                            launch { animCornerDp.animateTo(0f, springSpec) }
+                                        }
                                     }
                                 },
-                                onDragCancel = { verticalDragOffsetY = 0f },
+                                onDragCancel = {
+                                    isVerticalDragging = false
+                                    scope.launch {
+                                        animOffsetX.snapTo(0f)
+                                        animOffsetY.snapTo(0f)
+                                        animScale.snapTo(1f)
+                                        animBgAlpha.snapTo(1f)
+                                        animCornerDp.snapTo(0f)
+                                    }
+                                },
                                 onVerticalDrag = { change, dragAmount ->
                                     change.consume()
-                                    verticalDragOffsetY += dragAmount
+                                    val nextY = animOffsetY.value + dragAmount
+                                    val progress = (abs(nextY) / (screenHeightPx * 0.52f)).coerceIn(0f, 1f)
+                                    scope.launch {
+                                        animOffsetY.snapTo(nextY)
+                                        animScale.snapTo((1f - progress * 0.34f).coerceIn(0.55f, 1f))
+                                        animBgAlpha.snapTo((1f - progress * 0.82f).coerceIn(0.15f, 1f))
+                                        animCornerDp.snapTo(progress * 22f)
+                                    }
                                 }
                             )
                         }
@@ -317,17 +410,27 @@ fun MediaEditorContent(
             ) {
                 if (item.isVideo) {
                     EditorVideoPreview(
-                        uri = item.uri,
+                        item = item,
+                        editState = previewState,
                         isPlaying = isVideoPlaying && page == currentIndex && editorMode == EditorMode.MAIN,
-                        isMuted = item.isMuted,
-                        trimStartMs = item.trimStartMs,
-                        trimEndMs = item.trimEndMs,
+                        onTogglePlay = { isVideoPlaying = !isVideoPlaying },
+                        onTapTextLayer = if (page == currentIndex && editorMode == EditorMode.MAIN) {
+                            { tappedLayer ->
+                                draftEditState = activeItem.editState
+                                paintInitialTab = PaintModeTab.TEXT
+                                paintInitialTextId = tappedLayer.id
+                                editorMode = EditorMode.PAINT
+                            }
+                        } else null,
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
                     EditorPhotoPreview(
                         item = item,
                         editState = previewState,
+                        enableZoom = page == currentIndex && editorMode == EditorMode.MAIN,
+                        resetZoomSignal = resetPhotoZoomSignal,
+                        onZoomScaleChange = { if (page == currentIndex) activePhotoZoomScale = it },
                         onTapTextLayer = if (page == currentIndex && editorMode == EditorMode.MAIN) {
                             { tappedLayer ->
                                 draftEditState = activeItem.editState
@@ -343,8 +446,8 @@ fun MediaEditorContent(
         }
 
         // Mode: MAIN UI Chrome
-        if (editorMode == EditorMode.MAIN && !isClosingAnimated) {
-            // Compact Top Bar: ← Title on left, Selection Circle (1) on right (no extra purple checkmark)
+        if (editorMode == EditorMode.MAIN && !isClosingAnimated && !isVerticalDragging) {
+            // Compact Top Bar: ← Title on left, Selection Circle (1) on right
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -482,6 +585,7 @@ fun MediaEditorContent(
                         trimEndMs = activeItem.trimEndMs,
                         isPlaying = isVideoPlaying,
                         isMuted = activeItem.isMuted,
+                        coverUri = activeItem.coverUri,
                         onTogglePlay = { isVideoPlaying = !isVideoPlaying },
                         onToggleMute = {
                             val updated = updateCurrentItem { it.copy(isMuted = !it.isMuted) }
@@ -491,7 +595,14 @@ fun MediaEditorContent(
                             val updated = updateCurrentItem { it.copy(trimStartMs = startMs, trimEndMs = endMs) }
                             autoSaveSingleItem(updated)
                         },
-                        onOpenCoverPicker = { editorMode = EditorMode.VIDEO_COVER }
+                        onOpenCoverPicker = {
+                            isVideoPlaying = false
+                            editorMode = EditorMode.VIDEO_COVER
+                        },
+                        onRemoveCover = {
+                            val updated = updateCurrentItem { it.copy(coverUri = null, coverTimeMs = null) }
+                            autoSaveSingleItem(updated)
+                        }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -668,6 +779,7 @@ fun MediaEditorContent(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 // Row 2: Centered compact tools pill [Crop][Brush][HD/Quality][Tune] + Send button on right
+                // Enabled for both Photos AND Videos!
                 Box(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -682,12 +794,13 @@ fun MediaEditorContent(
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Crop & Rotate
+                        // Crop & Rotate (works on both Photo and Video)
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .clickable(enabled = !activeItem.isVideo) {
+                                .clickable {
+                                    isVideoPlaying = false
                                     draftEditState = activeItem.editState
                                     editorMode = EditorMode.CROP
                                 },
@@ -696,21 +809,18 @@ fun MediaEditorContent(
                             Icon(
                                 imageVector = Icons.Default.CropRotate,
                                 contentDescription = strings.toolCrop,
-                                tint = when {
-                                    activeItem.isVideo -> scheme.textMuted
-                                    activeItem.editState.crop.isModified -> scheme.accent
-                                    else -> scheme.textPrimary
-                                },
+                                tint = if (activeItem.editState.crop.isModified) scheme.accent else scheme.textPrimary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
 
-                        // Paint & Text
+                        // Paint & Text (works on both Photo and Video)
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .clickable(enabled = !activeItem.isVideo) {
+                                .clickable {
+                                    isVideoPlaying = false
                                     draftEditState = activeItem.editState
                                     paintInitialTab = PaintModeTab.DRAWING
                                     paintInitialTextId = null
@@ -721,11 +831,7 @@ fun MediaEditorContent(
                             Icon(
                                 imageVector = Icons.Rounded.Brush,
                                 contentDescription = strings.toolBrush,
-                                tint = when {
-                                    activeItem.isVideo -> scheme.textMuted
-                                    activeItem.editState.hasAnyPaintOrText -> scheme.accent
-                                    else -> scheme.textPrimary
-                                },
+                                tint = if (activeItem.editState.hasAnyPaintOrText) scheme.accent else scheme.textPrimary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -800,12 +906,13 @@ fun MediaEditorContent(
                             }
                         }
 
-                        // Adjustments (Sliders | Blur | Curves)
+                        // Adjustments (Sliders | Blur | Curves) (works on both Photo and Video)
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
-                                .clickable(enabled = !activeItem.isVideo) {
+                                .clickable {
+                                    isVideoPlaying = false
                                     draftEditState = activeItem.editState
                                     adjustSubTab = AdjustSubTab.SLIDERS
                                     editorMode = EditorMode.ADJUST
@@ -815,11 +922,7 @@ fun MediaEditorContent(
                             Icon(
                                 imageVector = Icons.Default.Tune,
                                 contentDescription = strings.toolAdjust,
-                                tint = when {
-                                    activeItem.isVideo -> scheme.textMuted
-                                    activeItem.editState.hasAnyAdjustments -> scheme.accent
-                                    else -> scheme.textPrimary
-                                },
+                                tint = if (activeItem.editState.hasAnyAdjustments) scheme.accent else scheme.textPrimary,
                                 modifier = Modifier.size(19.dp)
                             )
                         }
@@ -871,8 +974,8 @@ fun MediaEditorContent(
             }
         }
 
-        // Mode: CROP & ROTATE
-        if (editorMode == EditorMode.CROP && !activeItem.isVideo) {
+        // Mode: CROP & ROTATE (for both Photo and Video)
+        if (editorMode == EditorMode.CROP) {
             CropRotatePanel(
                 bitmap = activeRawBitmap?.asImageBitmap(),
                 initialTransform = draftEditState.crop,
@@ -890,8 +993,8 @@ fun MediaEditorContent(
             )
         }
 
-        // Mode: ADJUST (Sliders | Blur | Curves)
-        if (editorMode == EditorMode.ADJUST && !activeItem.isVideo) {
+        // Mode: ADJUST (Sliders | Blur | Curves) (for both Photo and Video)
+        if (editorMode == EditorMode.ADJUST) {
             Box(modifier = Modifier.fillMaxSize()) {
                 if (adjustSubTab == AdjustSubTab.BLUR) {
                     BlurOverlayControl(
@@ -932,8 +1035,8 @@ fun MediaEditorContent(
             }
         }
 
-        // Mode: PAINT & TEXT
-        if (editorMode == EditorMode.PAINT && !activeItem.isVideo) {
+        // Mode: PAINT & TEXT (for both Photo and Video)
+        if (editorMode == EditorMode.PAINT) {
             val transformedPreview = remember(activeRawBitmap, activeItem.editState) {
                 activeRawBitmap?.let { raw ->
                     var w = PhotoFilterEngine.applyCropAndTransform(raw, activeItem.editState)
@@ -970,6 +1073,7 @@ fun MediaEditorContent(
                 initialCoverTimeMs = activeItem.coverTimeMs,
                 onSaveCover = { uri, timeMs ->
                     val updated = updateCurrentItem { it.copy(coverUri = uri, coverTimeMs = timeMs) }
+                    isVideoPlaying = false
                     autoSaveSingleItem(updated)
                     editorMode = EditorMode.MAIN
                 },
@@ -991,6 +1095,9 @@ fun MediaEditorContent(
 private fun EditorPhotoPreview(
     item: EditableMediaItem,
     editState: PhotoEditState,
+    enableZoom: Boolean = false,
+    resetZoomSignal: Int = 0,
+    onZoomScaleChange: (Float) -> Unit = {},
     onTapTextLayer: ((TextLayerItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -1001,9 +1108,28 @@ private fun EditorPhotoPreview(
     var rawBitmap by remember(item.uri) { mutableStateOf<Bitmap?>(null) }
     var renderedBitmap by remember(item.uri) { mutableStateOf<ImageBitmap?>(null) }
 
+    var zoomScale by remember(item.uri) { mutableFloatStateOf(1f) }
+    var zoomOffset by remember(item.uri) { mutableStateOf(Offset.Zero) }
+
+    LaunchedEffect(resetZoomSignal) {
+        if (zoomScale > 1.02f) {
+            zoomScale = 1f
+            zoomOffset = Offset.Zero
+            onZoomScaleChange(1f)
+        }
+    }
+
+    LaunchedEffect(enableZoom) {
+        if (!enableZoom && zoomScale > 1.02f) {
+            zoomScale = 1f
+            zoomOffset = Offset.Zero
+            onZoomScaleChange(1f)
+        }
+    }
+
     LaunchedEffect(item.uri) {
         rawBitmap = withContext(Dispatchers.IO) {
-            BitmapExportRenderer.decodeBitmapWithExif(context, item.uri, maxDim = 960)
+            BitmapExportRenderer.decodeBitmapWithExif(context, item.uri, maxDim = 1280)
         }
     }
 
@@ -1080,10 +1206,75 @@ private fun EditorPhotoPreview(
         } else null
     }
 
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .then(
+                if (enableZoom) {
+                    Modifier
+                        .pointerInput(item.uri) {
+                            detectTapGestures(
+                                onDoubleTap = {
+                                    val nextScale = if (zoomScale > 1.05f) 1f else 2.5f
+                                    zoomScale = nextScale
+                                    zoomOffset = Offset.Zero
+                                    onZoomScaleChange(nextScale)
+                                }
+                            )
+                        }
+                        .pointerInput(item.uri) {
+                            awaitEachGesture {
+                                awaitFirstDown(requireUnconsumed = false)
+                                do {
+                                    val event = awaitPointerEvent()
+                                    val pressedCount = event.changes.count { it.pressed }
+                                    if (pressedCount >= 2 || zoomScale > 1.02f) {
+                                        val zoomChange = event.calculateZoom()
+                                        val panChange = event.calculatePan()
+                                        val nextScale = (zoomScale * zoomChange).coerceIn(1f, 4f)
+                                        zoomScale = nextScale
+                                        onZoomScaleChange(nextScale)
+                                        if (nextScale > 1.02f) {
+                                            val maxX = (size.width * (nextScale - 1f)) * 0.5f
+                                            val maxY = (size.height * (nextScale - 1f)) * 0.5f
+                                            zoomOffset = Offset(
+                                                x = (zoomOffset.x + panChange.x).coerceIn(-maxX, maxX),
+                                                y = (zoomOffset.y + panChange.y).coerceIn(-maxY, maxY)
+                                            )
+                                            event.changes.forEach { ch ->
+                                                if (ch.positionChanged()) ch.consume()
+                                            }
+                                        } else {
+                                            zoomOffset = Offset.Zero
+                                        }
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        }
+                } else Modifier
+            ),
+        contentAlignment = Alignment.Center
+    ) {
         val img = renderedBitmap
         if (img != null) {
-            Box(modifier = Modifier.fillMaxSize()) {
+            val photoAspect = remember(img) {
+                if (img.width > 0 && img.height > 0) {
+                    (img.width.toFloat() / img.height.toFloat()).coerceIn(0.2f, 5f)
+                } else 1f
+            }
+
+            // Strictly bound Image + Strokes + Text inside the photo's aspect ratio rectangle
+            Box(
+                modifier = Modifier
+                    .aspectRatio(photoAspect, matchHeightConstraintsFirst = photoAspect < 1f)
+                    .graphicsLayer {
+                        scaleX = zoomScale
+                        scaleY = zoomScale
+                        translationX = zoomOffset.x
+                        translationY = zoomOffset.y
+                    }
+                    .clip(RoundedCornerShape(2.dp)),
+                contentAlignment = Alignment.Center
+            ) {
                 Image(
                     bitmap = img,
                     contentDescription = null,
@@ -1133,18 +1324,31 @@ private fun EditorPhotoPreview(
 
 @Composable
 private fun EditorVideoPreview(
-    uri: Uri,
+    item: EditableMediaItem,
+    editState: PhotoEditState,
     isPlaying: Boolean,
-    isMuted: Boolean,
-    trimStartMs: Long,
-    trimEndMs: Long,
+    onTogglePlay: () -> Unit,
+    onTapTextLayer: ((TextLayerItem) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var mediaPlayerRef by remember { mutableStateOf<MediaPlayer?>(null) }
     var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
 
-    LaunchedEffect(isMuted, mediaPlayerRef) {
-        val vol = if (isMuted) 0f else 1f
+    var coverBitmap by remember(item.coverUri) { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(item.coverUri) {
+        val cUri = item.coverUri
+        if (cUri != null) {
+            coverBitmap = withContext(Dispatchers.IO) {
+                BitmapExportRenderer.decodeBitmapWithExif(context, cUri, maxDim = 1280)?.asImageBitmap()
+            }
+        } else {
+            coverBitmap = null
+        }
+    }
+
+    LaunchedEffect(item.isMuted, mediaPlayerRef) {
+        val vol = if (item.isMuted) 0f else 1f
         runCatching { mediaPlayerRef?.setVolume(vol, vol) }
     }
 
@@ -1159,23 +1363,30 @@ private fun EditorVideoPreview(
         }
     }
 
-    DisposableEffect(uri) {
+    DisposableEffect(item.uri) {
         onDispose {
             runCatching { videoViewRef?.stopPlayback() }
         }
     }
 
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(
+        modifier = modifier
+            .graphicsLayer {
+                rotationZ = editState.crop.baseRotation90.toFloat() + editState.crop.straightenDegrees
+                scaleX = if (editState.crop.mirrorHorizontal) -1f else 1f
+            },
+        contentAlignment = Alignment.Center
+    ) {
         AndroidView(
             factory = { ctx ->
                 VideoView(ctx).apply {
-                    setVideoURI(uri)
+                    setVideoURI(item.uri)
                     setOnPreparedListener { mp ->
                         mediaPlayerRef = mp
                         mp.isLooping = true
-                        val vol = if (isMuted) 0f else 1f
+                        val vol = if (item.isMuted) 0f else 1f
                         mp.setVolume(vol, vol)
-                        if (trimStartMs > 0L) seekTo(trimStartMs.toInt())
+                        if (item.trimStartMs > 0L) seekTo(item.trimStartMs.toInt())
                         if (isPlaying) start()
                     }
                     videoViewRef = this
@@ -1183,6 +1394,59 @@ private fun EditorVideoPreview(
             },
             modifier = Modifier.fillMaxSize()
         )
+
+        // Show custom cover image on top of video when paused
+        if (!isPlaying && coverBitmap != null) {
+            Image(
+                bitmap = coverBitmap!!,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Render strokes and text layers applied to the video
+        if (editState.strokes.isNotEmpty()) {
+            StrokesPreviewCanvas(
+                strokes = editState.strokes,
+                blurredBitmap = null,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+        if (editState.textLayers.isNotEmpty()) {
+            TextLayersCanvasOverlay(
+                layers = editState.textLayers,
+                selectedLayerId = null,
+                interactive = false,
+                isTypingText = false,
+                onSelectLayer = {},
+                onUpdateLayer = {},
+                onDeleteLayer = {},
+                onEditLayerText = {},
+                onTapLayerInPreviewMode = onTapTextLayer,
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Play / Pause tap overlay button when paused
+        if (!isPlaying) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .border(1.5.dp, Color.White, CircleShape)
+                    .clickable { onTogglePlay() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(38.dp)
+                )
+            }
+        }
     }
 }
 

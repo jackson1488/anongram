@@ -62,6 +62,49 @@ object BitmapExportRenderer {
             }
         }
         val finalUri = if (targetFile.exists() && targetFile.length() > 0) Uri.fromFile(targetFile) else item.uri
+
+        // If user applied crop, adjustments, strokes, or text to a video, or picked a cover, bake them into coverUri
+        val hasVisualEdits = item.editState.crop.isModified ||
+            item.editState.hasAnyAdjustments ||
+            item.editState.hasAnyPaintOrText
+        var finalCoverUri = item.coverUri
+        if (hasVisualEdits) {
+            runCatching {
+                val baseFrame = if (item.coverUri != null) {
+                    decodeBitmapWithExif(context, item.coverUri, maxDim = 1280)
+                } else {
+                    val retriever = android.media.MediaMetadataRetriever()
+                    try {
+                        retriever.setDataSource(context, item.uri)
+                        val tUs = (item.coverTimeMs ?: item.trimStartMs) * 1000L
+                        retriever.getFrameAtTime(tUs, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                            ?: retriever.frameAtTime
+                    } finally {
+                        runCatching { retriever.release() }
+                    }
+                }
+                if (baseFrame != null) {
+                    var working = PhotoFilterEngine.applyCropAndTransform(baseFrame, item.editState)
+                    if (PhotoFilterEngine.needsPixelPipeline(item.editState)) {
+                        working = PhotoFilterEngine.applyPixelPipeline(working, item.editState)
+                    }
+                    if (item.editState.strokes.isNotEmpty() || item.editState.textLayers.isNotEmpty()) {
+                        working = renderOverlayLayers(context, working, item.editState)
+                    }
+                    val coverFile = File(
+                        context.cacheDir,
+                        "edited_video_cover_${System.currentTimeMillis()}_${item.id.take(4)}.jpg"
+                    )
+                    FileOutputStream(coverFile).use { fos ->
+                        working.compress(Bitmap.CompressFormat.JPEG, 92, fos)
+                    }
+                    if (coverFile.exists() && coverFile.length() > 0) {
+                        finalCoverUri = Uri.fromFile(coverFile)
+                    }
+                }
+            }
+        }
+
         return EditedMedia(
             uri = finalUri,
             isVideo = true,
@@ -71,7 +114,7 @@ object BitmapExportRenderer {
             trimStartMs = item.trimStartMs,
             trimEndMs = item.trimEndMs,
             isMuted = item.isMuted,
-            coverUri = item.coverUri,
+            coverUri = finalCoverUri,
             quality = item.videoQuality.label,
             originalId = item.id
         )

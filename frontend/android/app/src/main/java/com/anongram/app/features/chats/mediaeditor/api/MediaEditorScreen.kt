@@ -1,8 +1,8 @@
 package com.anongram.app.features.chats.mediaeditor.api
 
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import com.anongram.app.features.chats.mediaeditor.ui.MediaEditorContent
 
 /**
@@ -19,6 +19,7 @@ fun MediaEditorScreen(
     selectedIds: List<String> = emptyList(),
     onToggleSelectItem: ((EditableMediaItem) -> Unit)? = null,
     onSaveOnly: ((List<EditedMedia>) -> Unit)? = null,
+    targetBoundsForId: ((String) -> Rect?)? = null,
     modifier: Modifier = Modifier
 ) {
     MediaEditorContent(
@@ -31,6 +32,7 @@ fun MediaEditorScreen(
         onAddMore = onAddMore,
         onBack = onBack,
         onSaveOnly = onSaveOnly,
+        targetBoundsForId = targetBoundsForId,
         modifier = modifier
     )
 }

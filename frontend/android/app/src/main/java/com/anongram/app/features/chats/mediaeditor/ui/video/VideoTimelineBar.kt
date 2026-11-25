@@ -63,10 +63,12 @@ fun VideoTimelineBar(
     trimEndMs: Long,
     isPlaying: Boolean,
     isMuted: Boolean,
+    coverUri: Uri? = null,
     onTogglePlay: () -> Unit,
     onToggleMute: () -> Unit,
     onTrimChange: (startMs: Long, endMs: Long) -> Unit,
     onOpenCoverPicker: () -> Unit,
+    onRemoveCover: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -107,7 +109,7 @@ fun VideoTimelineBar(
     Column(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Row above strip: Mute circle on left, "Изменить обложку >" pill centered
+        // Row above strip: Mute circle on left, "Изменить обложку >" pill centered, and "Снять обложку" if custom cover is set
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -132,18 +134,38 @@ fun VideoTimelineBar(
                 )
             }
 
-            Text(
-                text = strings.changeCover,
-                color = scheme.textPrimary,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(scheme.islandBg)
-                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
-                    .clickable { onOpenCoverPicker() }
-                    .padding(horizontal = 12.dp, vertical = 5.dp)
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = if (coverUri != null) "✓ ${strings.changeCover}" else strings.changeCover,
+                    color = if (coverUri != null) scheme.accent else scheme.textPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(scheme.islandBg)
+                        .border(1.dp, if (coverUri != null) scheme.accent else scheme.islandBorder, RoundedCornerShape(16.dp))
+                        .clickable { onOpenCoverPicker() }
+                        .padding(horizontal = 12.dp, vertical = 5.dp)
+                )
+
+                if (coverUri != null && onRemoveCover != null) {
+                    Text(
+                        text = strings.removeCover,
+                        color = Color(0xFFFF453A),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(scheme.islandBg)
+                            .border(1.dp, Color(0x66FF453A), RoundedCornerShape(16.dp))
+                            .clickable { onRemoveCover() }
+                            .padding(horizontal = 10.dp, vertical = 5.dp)
+                    )
+                }
+            }
 
             Spacer(modifier = Modifier.size(32.dp))
         }

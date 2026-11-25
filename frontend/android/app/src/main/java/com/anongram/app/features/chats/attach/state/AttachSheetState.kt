@@ -60,6 +60,7 @@ internal class AttachSheetState(
     var isAttachEmojiOpen by mutableStateOf(false)
     var editorItems by mutableStateOf<List<EditableMediaItem>>(emptyList())
     var editorInitialIndex by mutableStateOf(0)
+    val galleryTileBounds = androidx.compose.runtime.mutableStateMapOf<String, androidx.compose.ui.geometry.Rect>()
 
     val totalSelectedCount by derivedStateOf {
         selectedMedia.size + selectedFiles.size + selectedTracks.size + selectedContacts.size

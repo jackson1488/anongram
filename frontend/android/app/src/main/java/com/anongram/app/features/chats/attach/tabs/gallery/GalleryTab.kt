@@ -138,10 +138,12 @@ data class GalleryMedia(
     val bucketName: String = "",
     val dateAdded: Long = 0L,
     val hasSpoiler: Boolean = false,
-    val editedUri: Uri? = null
+    val editedUri: Uri? = null,
+    val coverUri: Uri? = null
 ) {
     val effectiveUri: Uri get() = editedUri ?: uri
-    val isEdited: Boolean get() = editedUri != null
+    val displayUri: Uri get() = coverUri ?: editedUri ?: uri
+    val isEdited: Boolean get() = editedUri != null || coverUri != null
 }
 
 const val ALL_MEDIA_ALBUM_ID = "__all_media__"
@@ -171,6 +173,7 @@ fun GalleryTab(
     isFullscreen: Boolean = false,
     onOpenViewer: ((List<GalleryMedia>, Int) -> Unit)? = null,
     onAlbumsLoaded: ((List<GalleryAlbum>) -> Unit)? = null,
+    onTileBoundsChanged: ((String, androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     showSelectionCircles: Boolean = true,
     modifier: Modifier = Modifier
 ) {
@@ -359,6 +362,7 @@ fun GalleryTab(
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                                                 onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
+                                                onBoundsChanged = { rect -> onTileBoundsChanged?.invoke(effectiveMedia.uri.toString(), rect) },
                                                 showSelectionCircles = showSelectionCircles,
                                                 modifier = Modifier
                                                     .weight(1f)
@@ -386,6 +390,7 @@ fun GalleryTab(
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                                                 onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
+                                                onBoundsChanged = { rect -> onTileBoundsChanged?.invoke(effectiveMedia.uri.toString(), rect) },
                                                 showSelectionCircles = showSelectionCircles,
                                                 modifier = Modifier
                                                     .weight(1f)
@@ -414,6 +419,7 @@ fun GalleryTab(
                         selectionNumber = if (isSelected) selectedIndex + 1 else 0,
                         deferDecode = isDraggingThumb,
                         showSelectionCircles = showSelectionCircles,
+                        onBoundsChanged = { rect -> onTileBoundsChanged?.invoke(effectiveMedia.uri.toString(), rect) },
                         onOpenViewer = {
                             if (originalIndex >= 0) {
                                 openViewerHelper(originalIndex)
@@ -696,20 +702,22 @@ private fun GalleryItemTile(
     selectionNumber: Int,
     onOpenViewer: () -> Unit,
     onToggleSelect: () -> Unit,
+    onBoundsChanged: ((androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     deferDecode: Boolean = false,
     showSelectionCircles: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
-    var bitmap by remember(media.effectiveUri) {
-        mutableStateOf<ImageBitmap?>(thumbnailCache.get(media.effectiveUri)?.asImageBitmap())
+    val displayTargetUri = media.displayUri
+    var bitmap by remember(displayTargetUri) {
+        mutableStateOf<ImageBitmap?>(thumbnailCache.get(displayTargetUri)?.asImageBitmap())
     }
 
-    LaunchedEffect(media.effectiveUri, deferDecode) {
+    LaunchedEffect(displayTargetUri, deferDecode) {
         if (bitmap == null && !deferDecode) {
             val bmp = withContext(Dispatchers.IO) {
-                loadMediaThumbnail(context, media.effectiveUri)
+                loadMediaThumbnail(context, displayTargetUri)
             }
             bitmap = bmp?.asImageBitmap()
         }
@@ -724,6 +732,11 @@ private fun GalleryItemTile(
     Box(
         modifier = modifier
             .aspectRatio(1f)
+            .onGloballyPositioned { coords ->
+                if (coords.isAttached) {
+                    onBoundsChanged?.invoke(coords.boundsInRoot())
+                }
+            }
             .background(scheme.surface)
             .clickable { onOpenViewer() }
     ) {

@@ -131,6 +131,23 @@ internal fun GalleryOverlays(
                 sheetState.selectedMedia.clear()
                 sheetState.selectedMedia.addAll(newOrder)
             },
+            onOpenEditor = { list, idx ->
+                if (list.isNotEmpty()) {
+                    sheetState.editorItems = list.map { m ->
+                        val resolved = sheetState.selectedMedia.firstOrNull { it.uri == m.uri } ?: m
+                        EditableMediaItem(
+                            id = resolved.uri.toString(),
+                            uri = resolved.effectiveUri,
+                            isVideo = resolved.isVideo,
+                            durationMs = resolved.durationMs,
+                            caption = sheetState.captionText,
+                            coverUri = resolved.coverUri
+                        )
+                    }
+                    sheetState.editorInitialIndex = idx.coerceIn(0, list.lastIndex)
+                    sheetState.isEditorOpen = true
+                }
+            },
             onSend = { orderedMedia, isUncompressed, isUngrouped, isHd ->
                 val drafts = buildGalleryMediaDrafts(
                     context = context,
@@ -148,7 +165,7 @@ internal fun GalleryOverlays(
         )
     }
 
-    // Окно Камеры
+    // Окно Камеры: снятое фото или видео открывается в редакторе изолированно (строго 1 этот файл, без перелистывания галереи)
     if (sheetState.isCameraOpen) {
         CameraScreen(
             onResult = { media ->
@@ -156,17 +173,24 @@ internal fun GalleryOverlays(
                 val galleryMedia = GalleryMedia(
                     uri = media.uri,
                     isVideo = media.isVideo,
+                    durationMs = media.durationMs,
                     dateAdded = System.currentTimeMillis()
                 )
                 sheetState.capturedMediaList.add(0, galleryMedia)
-                sheetState.selectedMedia.add(0, galleryMedia)
+                if (sheetState.selectedMedia.none { it.uri == media.uri }) {
+                    sheetState.selectedMedia.add(0, galleryMedia)
+                }
                 sheetState.selectedTab = AttachTab.GALLERY
                 sheetState.editorItems = listOf(
                     EditableMediaItem(
+                        id = media.uri.toString(),
                         uri = media.uri,
-                        isVideo = media.isVideo
+                        isVideo = media.isVideo,
+                        durationMs = media.durationMs,
+                        caption = sheetState.captionText
                     )
                 )
+                sheetState.editorInitialIndex = 0
                 sheetState.isEditorOpen = true
             },
             onClose = { sheetState.isCameraOpen = false },
@@ -181,6 +205,7 @@ internal fun GalleryOverlays(
             initialIndex = sheetState.editorInitialIndex,
             recipientName = recipientName,
             selectedIds = sheetState.selectedMedia.map { it.uri.toString() },
+            targetBoundsForId = { id -> sheetState.galleryTileBounds[id] },
             onToggleSelectItem = { item ->
                 val existingIdx = sheetState.selectedMedia.indexOfFirst { it.uri.toString() == item.id }
                 if (existingIdx >= 0) {
@@ -193,7 +218,8 @@ internal fun GalleryOverlays(
                             isVideo = item.isVideo,
                             durationMs = item.durationMs,
                             dateAdded = System.currentTimeMillis(),
-                            editedUri = if (item.uri != origUri) item.uri else null
+                            editedUri = if (item.uri != origUri) item.uri else null,
+                            coverUri = item.coverUri
                         )
                     )
                 }
@@ -211,7 +237,10 @@ internal fun GalleryOverlays(
                     }
                     if (existingIdx >= 0) {
                         val old = sheetState.selectedMedia[existingIdx]
-                        sheetState.selectedMedia[existingIdx] = old.copy(editedUri = edited.uri)
+                        sheetState.selectedMedia[existingIdx] = old.copy(
+                            editedUri = edited.uri,
+                            coverUri = edited.coverUri
+                        )
                     } else {
                         val origUri = runCatching { android.net.Uri.parse(origUriStr) }.getOrNull() ?: edited.uri
                         sheetState.selectedMedia.add(
@@ -219,7 +248,8 @@ internal fun GalleryOverlays(
                                 uri = origUri,
                                 isVideo = edited.isVideo,
                                 dateAdded = System.currentTimeMillis(),
-                                editedUri = edited.uri
+                                editedUri = edited.uri,
+                                coverUri = edited.coverUri
                             )
                         )
                     }
