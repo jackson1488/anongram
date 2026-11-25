@@ -125,7 +125,7 @@ internal fun UserProfileOverflowMenu(
                 MenuRowItem(
                     icon = if (isBlocked) Icons.Outlined.LockOpen else Icons.Outlined.Block,
                     label = if (isBlocked) strings.menuUnblock else strings.menuBlock,
-                    tint = if (isBlocked) scheme.accent else scheme.textPrimary,
+                    tint = if (isBlocked) Color(0xFFEF4444) else scheme.textPrimary,
                     onClick = {
                         onDismiss()
                         onBlockUser()

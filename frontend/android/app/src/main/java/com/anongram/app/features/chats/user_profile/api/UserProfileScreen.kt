@@ -343,6 +343,40 @@ fun UserProfileScreen(
                     )
                 }
 
+                if (isBlocked) {
+                    item(key = "unblock_profile_card") {
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp)
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(Color(0x1FEF4444))
+                                .border(1.dp, Color(0x55EF4444), RoundedCornerShape(22.dp))
+                                .clickable {
+                                    com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.unblock(context, session.id)
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = androidx.compose.material.icons.Icons.Outlined.LockOpen,
+                                contentDescription = null,
+                                tint = Color(0xFFEF4444),
+                                modifier = Modifier.size(19.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = strings.unblockButton,
+                                color = Color(0xFFEF4444),
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
                 if (!addedToContactsLocal) {
                     item(key = "add_to_contacts") {
                         Spacer(modifier = Modifier.height(10.dp))

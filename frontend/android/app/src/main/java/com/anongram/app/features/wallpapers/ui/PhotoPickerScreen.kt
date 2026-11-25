@@ -261,8 +261,8 @@ fun PhotoPickerScreen(
         if (showGallerySheet) {
             CustomGalleryPickerSheet(
                 onPickUri = { uri ->
-                    showGallerySheet = false
                     viewModel.importFromUri(context, uri) { path ->
+                        showGallerySheet = false
                         onPhotoSelected(path)
                     }
                 },

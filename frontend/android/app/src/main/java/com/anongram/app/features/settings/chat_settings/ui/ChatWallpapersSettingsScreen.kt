@@ -461,11 +461,10 @@ fun ChatWallpapersSettingsScreen(
             }
         }
 
-        // Кастомная шторка галереи (не системная!)
+        // Кастомная шторка галереи (штатная GalleryTab с камерой и альбомами)
         if (showGallerySheet) {
             CustomGalleryPickerSheet(
                 onPickUri = { uri ->
-                    showGallerySheet = false
                     photoViewModel.importFromUri(context, uri) { path ->
                         editingPhotoPath = path
                     }
@@ -477,13 +476,16 @@ fun ChatWallpapersSettingsScreen(
         // Редактор выбранного фото (блюр, затемнение, параллакс)
         val photoPath = editingPhotoPath
         if (photoPath != null) {
-            BackHandler { editingPhotoPath = null }
             val editorViewModel = remember(photoPath, repository) {
                 EditorViewModel(
                     chatId = GLOBAL_PREVIEW_CHAT_ID,
                     repository = repository,
                     initialPhotoPath = photoPath
                 )
+            }
+            BackHandler {
+                editorViewModel.cancelPreview()
+                editingPhotoPath = null
             }
             WallpaperEditorScreen(
                 chatId = GLOBAL_PREVIEW_CHAT_ID,
@@ -493,11 +495,13 @@ fun ChatWallpapersSettingsScreen(
                     editingPhotoPath = null
                 },
                 onChangePhoto = {
+                    editorViewModel.cancelPreview()
                     editingPhotoPath = null
                     showGallerySheet = true
                 },
                 onApplied = {
                     editingPhotoPath = null
+                    showGallerySheet = false
                 },
                 modifier = Modifier
                     .fillMaxSize()

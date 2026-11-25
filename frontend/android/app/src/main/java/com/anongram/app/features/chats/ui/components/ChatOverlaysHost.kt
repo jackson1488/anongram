@@ -417,7 +417,7 @@ private fun ChatMessageActionAndSettingsOverlays(
             },
             onReply = {
                 viewModel.startReply(message)
-                inputFocusRequester.requestFocus()
+                runCatching { inputFocusRequester.requestFocus() }
                 keyboardController?.show()
             },
             onCopy = {
@@ -443,7 +443,7 @@ private fun ChatMessageActionAndSettingsOverlays(
                 viewModel.startEdit(message)
                 val att = message.attachment
                 if (att !is MessageAttachment.Voice && att !is MessageAttachment.VideoCircle) {
-                    inputFocusRequester.requestFocus()
+                    runCatching { inputFocusRequester.requestFocus() }
                     keyboardController?.show()
                 }
             },
