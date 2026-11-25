@@ -17,16 +17,16 @@ internal fun buildGalleryMediaDrafts(
     return mediaList.mapIndexed { index, media ->
         val itemCaption = if (index == mediaList.lastIndex) caption else ""
         if (uncompressed) {
-            val meta = getFileMetadataHelper(context, media.uri)
+            val meta = getFileMetadataHelper(context, media.effectiveUri)
             AttachmentDraft.File(
-                uri = media.uri,
+                uri = media.effectiveUri,
                 name = meta.name,
                 size = meta.size,
                 caption = itemCaption
             )
         } else {
             AttachmentDraft.Media(
-                uri = media.uri,
+                uri = media.effectiveUri,
                 isVideo = media.isVideo,
                 caption = itemCaption,
                 hd = hd,

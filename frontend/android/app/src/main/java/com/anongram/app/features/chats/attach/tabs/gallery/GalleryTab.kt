@@ -86,6 +86,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.UnfoldMore
+import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Videocam
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -136,8 +137,12 @@ data class GalleryMedia(
     val durationMs: Long = 0L,
     val bucketName: String = "",
     val dateAdded: Long = 0L,
-    val hasSpoiler: Boolean = false
-)
+    val hasSpoiler: Boolean = false,
+    val editedUri: Uri? = null
+) {
+    val effectiveUri: Uri get() = editedUri ?: uri
+    val isEdited: Boolean get() = editedUri != null
+}
 
 const val ALL_MEDIA_ALBUM_ID = "__all_media__"
 
@@ -455,6 +460,19 @@ fun GalleryTab(
                 onCaptionChange = onCaptionChange,
                 onSend = onSend,
                 onClose = { viewerIndex = null },
+                onEditMedia = { media ->
+                    viewerIndex = null
+                    onOpenEditor(
+                        listOf(
+                            EditableMediaItem(
+                                id = media.uri.toString(),
+                                uri = media.effectiveUri,
+                                isVideo = media.isVideo,
+                                durationMs = media.durationMs
+                            )
+                        )
+                    )
+                },
                 modifier = Modifier.fillMaxSize()
             )
         }
@@ -684,14 +702,14 @@ private fun GalleryItemTile(
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
-    var bitmap by remember(media.uri) {
-        mutableStateOf<ImageBitmap?>(thumbnailCache.get(media.uri)?.asImageBitmap())
+    var bitmap by remember(media.effectiveUri) {
+        mutableStateOf<ImageBitmap?>(thumbnailCache.get(media.effectiveUri)?.asImageBitmap())
     }
 
-    LaunchedEffect(media.uri, deferDecode) {
+    LaunchedEffect(media.effectiveUri, deferDecode) {
         if (bitmap == null && !deferDecode) {
             val bmp = withContext(Dispatchers.IO) {
-                loadMediaThumbnail(context, media.uri)
+                loadMediaThumbnail(context, media.effectiveUri)
             }
             bitmap = bmp?.asImageBitmap()
         }
@@ -734,6 +752,25 @@ private fun GalleryItemTile(
                         .fillMaxSize()
                         .background(scheme.card)
                 )
+            }
+
+            if (media.isEdited) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(5.dp)
+                        .size(22.dp)
+                        .clip(CircleShape)
+                        .background(scheme.accent),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Brush,
+                        contentDescription = null,
+                        tint = scheme.onAccent,
+                        modifier = Modifier.size(13.dp)
+                    )
+                }
             }
 
             if (media.isVideo) {
@@ -816,6 +853,7 @@ fun GalleryMediaViewer(
     onCaptionChange: (String) -> Unit,
     onSend: () -> Unit,
     onClose: () -> Unit,
+    onEditMedia: ((GalleryMedia) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     BackHandler { onClose() }
@@ -841,7 +879,8 @@ fun GalleryMediaViewer(
         ) { page ->
             val item = mediaList.getOrNull(page)
             if (item != null) {
-                GalleryMediaPageItem(media = item)
+                val resolved = selectedMedia.firstOrNull { it.uri == item.uri } ?: item
+                GalleryMediaPageItem(media = resolved)
             }
         }
 
@@ -877,6 +916,25 @@ fun GalleryMediaViewer(
             )
 
             Spacer(modifier = Modifier.weight(1f))
+
+            if (onEditMedia != null && currentMedia != null) {
+                val resolvedCurrent = selectedMedia.firstOrNull { it.uri == currentMedia.uri } ?: currentMedia
+                IconButton(
+                    onClick = { onEditMedia(resolvedCurrent) },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color(0x66000000))
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Brush,
+                        contentDescription = null,
+                        tint = if (resolvedCurrent.isEdited) scheme.accent else Color.White,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+            }
 
             // Кружок выбора
             Box(
@@ -923,16 +981,16 @@ private fun GalleryMediaPageItem(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var bitmap by remember(media.uri) { mutableStateOf<ImageBitmap?>(null) }
+    var bitmap by remember(media.effectiveUri) { mutableStateOf<ImageBitmap?>(null) }
     var isPlayingVideo by remember { mutableStateOf(false) }
 
-    LaunchedEffect(media.uri) {
+    LaunchedEffect(media.effectiveUri) {
         val bmp = withContext(Dispatchers.IO) {
             try {
                 if (media.isVideo) {
-                    loadMediaThumbnail(context, media.uri)
+                    loadMediaThumbnail(context, media.effectiveUri)
                 } else {
-                    val stream = context.contentResolver.openInputStream(media.uri)
+                    val stream = context.contentResolver.openInputStream(media.effectiveUri)
                     BitmapFactory.decodeStream(stream).also { stream?.close() }
                 }
             } catch (_: Exception) {

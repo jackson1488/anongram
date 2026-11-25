@@ -116,6 +116,7 @@ fun ChatScreen(
     var wasKeyboardOpenBeforeViewer by remember { mutableStateOf(false) }
     var forwardingMessageIds by remember { mutableStateOf<List<String>?>(null) }
     var isReplaceAttachSheetOpen by remember { mutableStateOf(false) }
+    var isEditMediaEditorOpen by remember { mutableStateOf(false) }
     var replaceInitialTab by remember { mutableStateOf(AttachTab.GALLERY) }
     var isMusicSheetOpen by remember { mutableStateOf(false) }
     var isFullEditorOpen by remember { mutableStateOf(false) }
@@ -452,6 +453,9 @@ fun ChatScreen(
                     replaceInitialTab = tab
                     isReplaceAttachSheetOpen = true
                 },
+                onEditMediaAttachment = {
+                    isEditMediaEditorOpen = true
+                },
                 onRequestRecordPermissions = { mode, perms ->
                     pendingRecordMode = mode
                     recordPermissionLauncher.launch(perms)
@@ -661,6 +665,8 @@ fun ChatScreen(
                 isReplaceAttachSheetOpen = isReplaceAttachSheetOpen,
                 replaceInitialTab = replaceInitialTab,
                 onCloseReplaceAttach = { isReplaceAttachSheetOpen = false },
+                isEditMediaEditorOpen = isEditMediaEditorOpen,
+                onCloseEditMediaEditor = { isEditMediaEditorOpen = false },
                 forwardingMessageIds = forwardingMessageIds,
                 onStartForward = { ids -> forwardingMessageIds = ids },
                 onCloseForward = { forwardingMessageIds = null },

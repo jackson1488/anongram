@@ -201,6 +201,7 @@ internal fun BoxScope.ChatInputDock(
     onOpenFullEditor: () -> Unit,
     onOpenReplyPreview: () -> Unit,
     onOpenReplaceAttach: (AttachTab) -> Unit,
+    onEditMediaAttachment: () -> Unit = {},
     onRequestRecordPermissions: (RecordMode, Array<String>) -> Unit,
     pendingForward: com.anongram.app.features.chats.tools.forward.PendingForwardState? = null,
     onPendingForwardClick: () -> Unit = {},
@@ -337,6 +338,8 @@ internal fun BoxScope.ChatInputDock(
                                 when (state.editing?.attachment) {
                                     is MessageAttachment.Voice -> viewModel.openVoiceEditTrim()
                                     is MessageAttachment.VideoCircle -> viewModel.openVideoEditTrim()
+                                    is MessageAttachment.Photo,
+                                    is MessageAttachment.MediaAlbum -> onEditMediaAttachment()
                                     else -> ChatActionBannerBus.show { it.editPhoto }
                                 }
                             },

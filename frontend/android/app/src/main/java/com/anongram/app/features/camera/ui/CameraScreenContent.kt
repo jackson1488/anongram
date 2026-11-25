@@ -132,6 +132,8 @@ fun CameraScreenContent(
     var recordingSeconds by remember { mutableIntStateOf(0) }
     var focusPoint by remember { mutableStateOf<Offset?>(null) }
 
+    var sensorOrientation by remember { mutableIntStateOf(90) }
+
     // TextureView and Camera refs
     var textureViewRef by remember { mutableStateOf<TextureView?>(null) }
     var cameraDeviceRef by remember { mutableStateOf<CameraDevice?>(null) }
@@ -148,11 +150,12 @@ fun CameraScreenContent(
 
     DisposableEffect(Unit) {
         onDispose {
+            runCatching { mediaRecorderRef?.stop() }
+            runCatching { mediaRecorderRef?.release() }
+            runCatching { captureSessionRef?.close() }
+            runCatching { cameraDeviceRef?.close() }
+            runCatching { imageReaderRef?.close() }
             backgroundThread.quitSafely()
-            captureSessionRef?.close()
-            cameraDeviceRef?.close()
-            imageReaderRef?.close()
-            mediaRecorderRef?.release()
         }
     }
 
@@ -169,6 +172,9 @@ fun CameraScreenContent(
                 val chars = cameraManager.getCameraCharacteristics(id)
                 chars.get(CameraCharacteristics.LENS_FACING) == facing
             } ?: cameraManager.cameraIdList.firstOrNull() ?: return
+
+            val chars = cameraManager.getCameraCharacteristics(cameraId)
+            sensorOrientation = chars.get(CameraCharacteristics.SENSOR_ORIENTATION) ?: 90
 
             captureSessionRef?.close()
             captureSessionRef = null
@@ -230,6 +236,12 @@ fun CameraScreenContent(
         } catch (_: Exception) {}
     }
 
+    LaunchedEffect(isFrontCamera) {
+        textureViewRef?.let { tv ->
+            if (tv.isAvailable) startCamera(tv)
+        }
+    }
+
     fun takePhoto() {
         val camera = cameraDeviceRef ?: return
         val reader = imageReaderRef ?: return
@@ -243,7 +255,6 @@ fun CameraScreenContent(
                 buffer.get(bytes)
                 image.close()
 
-                // Save to private cache without EXIF GPS tags
                 val cacheFile = File(context.cacheDir, "camera_photo_${System.currentTimeMillis()}.jpg")
                 FileOutputStream(cacheFile).use { fos ->
                     fos.write(bytes)
@@ -263,6 +274,8 @@ fun CameraScreenContent(
 
             val captureBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE).apply {
                 addTarget(reader.surface)
+                set(CaptureRequest.CONTROL_AF_MODE, CaptureRequest.CONTROL_AF_MODE_CONTINUOUS_PICTURE)
+                set(CaptureRequest.JPEG_ORIENTATION, sensorOrientation)
                 when (flashMode) {
                     FlashMode.ON -> set(CaptureRequest.FLASH_MODE, CaptureRequest.FLASH_MODE_SINGLE)
                     FlashMode.AUTO -> set(CaptureRequest.CONTROL_AE_MODE, CaptureRequest.CONTROL_AE_MODE_ON_AUTO_FLASH)
@@ -270,12 +283,7 @@ fun CameraScreenContent(
                 }
             }
             session.capture(captureBuilder.build(), null, backgroundHandler)
-        } catch (_: Exception) {
-            // Fallback mock capture to prevent blocking
-            val fallbackFile = File(context.cacheDir, "camera_photo_${System.currentTimeMillis()}.jpg")
-            fallbackFile.createNewFile()
-            onResult(CapturedMedia(uri = Uri.fromFile(fallbackFile), isVideo = false))
-        }
+        } catch (_: Exception) {}
     }
 
     fun stopVideoRecording() {
@@ -284,13 +292,18 @@ fun CameraScreenContent(
         recordingTimerJob?.cancel()
         recordingTimerJob = null
 
+        val rec = mediaRecorderRef
+        mediaRecorderRef = null
         try {
-            mediaRecorderRef?.stop()
-            mediaRecorderRef?.reset()
+            rec?.stop()
+        } catch (_: Exception) {}
+        try {
+            rec?.reset()
+            rec?.release()
         } catch (_: Exception) {}
 
         val file = currentVideoFile
-        if (file != null && file.exists()) {
+        if (file != null && file.exists() && file.length() > 0L) {
             val duration = (recordingSeconds * 1000L).coerceAtLeast(1000L)
             onResult(
                 CapturedMedia(
@@ -301,11 +314,17 @@ fun CameraScreenContent(
                     height = 720
                 )
             )
+        } else {
+            textureViewRef?.let { if (it.isAvailable) startCamera(it) }
         }
     }
 
     fun startVideoRecording() {
         if (isRecording) return
+        val camera = cameraDeviceRef ?: return
+        val tv = textureViewRef ?: return
+        val st = tv.surfaceTexture ?: return
+
         isRecording = true
         recordingSeconds = 0
         recordingProgress = 0f
@@ -313,17 +332,82 @@ fun CameraScreenContent(
         val videoFile = File(context.cacheDir, "camera_video_${System.currentTimeMillis()}.mp4")
         currentVideoFile = videoFile
 
-        recordingTimerJob = scope.launch {
-            for (sec in 1..60) {
-                delay(1000L)
-                if (!isActive) break
-                recordingSeconds = sec
-                recordingProgress = sec / 60f
-                if (sec >= 60) {
-                    stopVideoRecording()
-                    break
+        try {
+            captureSessionRef?.close()
+            captureSessionRef = null
+
+            @Suppress("DEPRECATION")
+            val recorder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                MediaRecorder()
+            }
+            recorder.apply {
+                if (hasAudioPermission) {
+                    setAudioSource(MediaRecorder.AudioSource.MIC)
+                }
+                setVideoSource(MediaRecorder.VideoSource.SURFACE)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setOutputFile(videoFile.absolutePath)
+                setVideoEncodingBitRate(6_000_000)
+                setVideoFrameRate(30)
+                setVideoSize(1280, 720)
+                setVideoEncoder(MediaRecorder.VideoEncoder.H264)
+                if (hasAudioPermission) {
+                    setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                }
+                setOrientationHint(sensorOrientation)
+                prepare()
+            }
+            mediaRecorderRef = recorder
+
+            st.setDefaultBufferSize(1280, 720)
+            val previewSurface = Surface(st)
+            val recorderSurface = recorder.surface
+
+            val recordBuilder = camera.createCaptureRequest(CameraDevice.TEMPLATE_RECORD).apply {
+                addTarget(previewSurface)
+                addTarget(recorderSurface)
+                set(CaptureRequest.CONTROL_MODE, CaptureRequest.CONTROL_MODE_AUTO)
+            }
+
+            camera.createCaptureSession(
+                listOf(previewSurface, recorderSurface),
+                object : CameraCaptureSession.StateCallback() {
+                    override fun onConfigured(session: CameraCaptureSession) {
+                        captureSessionRef = session
+                        try {
+                            session.setRepeatingRequest(recordBuilder.build(), null, backgroundHandler)
+                            recorder.start()
+                        } catch (_: Exception) {
+                            scope.launch { stopVideoRecording() }
+                        }
+                    }
+
+                    override fun onConfigureFailed(session: CameraCaptureSession) {
+                        scope.launch { stopVideoRecording() }
+                    }
+                },
+                backgroundHandler
+            )
+
+            recordingTimerJob = scope.launch {
+                for (sec in 1..60) {
+                    delay(1000L)
+                    if (!isActive) break
+                    recordingSeconds = sec
+                    recordingProgress = sec / 60f
+                    if (sec >= 60) {
+                        stopVideoRecording()
+                        break
+                    }
                 }
             }
+        } catch (_: Exception) {
+            isRecording = false
+            runCatching { mediaRecorderRef?.release() }
+            mediaRecorderRef = null
+            startCamera(tv)
         }
     }
 

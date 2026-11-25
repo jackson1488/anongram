@@ -14,6 +14,7 @@ fun MediaEditorScreen(
     onSend: (List<EditedMedia>) -> Unit,
     onAddMore: () -> Unit,
     onBack: () -> Unit,
+    onSaveOnly: ((List<EditedMedia>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     MediaEditorContent(
@@ -22,6 +23,7 @@ fun MediaEditorScreen(
         onSend = onSend,
         onAddMore = onAddMore,
         onBack = onBack,
+        onSaveOnly = onSaveOnly,
         modifier = modifier
     )
 }

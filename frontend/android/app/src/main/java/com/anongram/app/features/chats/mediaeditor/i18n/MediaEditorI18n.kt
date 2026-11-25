@@ -93,9 +93,13 @@ data class MediaEditorStrings(
     val changeCover: String,
     val chooseFromGallery: String,
     val saveCover: String,
+    val removeCover: String,
     val coverSaved: String,
     val muteVideo: String,
-    val unmuteVideo: String
+    val unmuteVideo: String,
+    val discardTitle: String,
+    val discardMessage: String,
+    val discardConfirm: String
 )
 
 private val MediaEditorStringsRu = MediaEditorStrings(
@@ -174,9 +178,13 @@ private val MediaEditorStringsRu = MediaEditorStrings(
     changeCover = "Изменить обложку >",
     chooseFromGallery = "Выбрать из галереи >",
     saveCover = "Сохранить обложку",
+    removeCover = "Снять обложку",
     coverSaved = "Обложка выбрана",
     muteVideo = "Выключить звук",
-    unmuteVideo = "Включить звук"
+    unmuteVideo = "Включить звук",
+    discardTitle = "Сбросить изменения?",
+    discardMessage = "Все несохранённые правки будут потеряны.",
+    discardConfirm = "Сбросить"
 )
 
 private val MediaEditorStringsEn = MediaEditorStrings(
@@ -255,9 +263,13 @@ private val MediaEditorStringsEn = MediaEditorStrings(
     changeCover = "Change cover >",
     chooseFromGallery = "Choose from gallery >",
     saveCover = "Save cover",
+    removeCover = "Remove cover",
     coverSaved = "Cover selected",
     muteVideo = "Mute",
-    unmuteVideo = "Unmute"
+    unmuteVideo = "Unmute",
+    discardTitle = "Discard changes?",
+    discardMessage = "All unsaved edits will be lost.",
+    discardConfirm = "Discard"
 )
 
 object MediaEditorI18n {

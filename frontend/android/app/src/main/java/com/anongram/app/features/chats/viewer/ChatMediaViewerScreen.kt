@@ -77,6 +77,7 @@ internal fun ChatMediaFullscreenViewer(
     onShowInChat: (ChatMessage) -> Unit,
     onReply: (ChatMessage, Int?) -> Unit = { _, _ -> },
     onForward: (List<String>) -> Unit = {},
+    onEditPhoto: ((ChatMessage, String) -> Unit)? = null,
     onRequestDelete: (ChatMessage, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -381,6 +382,9 @@ internal fun ChatMediaFullscreenViewer(
                 isSettingsMenuOpen = isSettingsMenuOpen,
                 isMoreMenuOpen = isMoreMenuOpen,
                 onClose = onClose,
+                onEditPhotoClick = if (!currentEntry.isVideo && onEditPhoto != null) {
+                    { onEditPhoto(activeMessage, currentEntry.uri) }
+                } else null,
                 onForwardClick = {
                     if (activeAlbumUris.size > 1) {
                         showForwardDialog = true

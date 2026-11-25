@@ -1,21 +1,31 @@
 package com.anongram.app.features.chats.ui.components
 
 import android.content.Intent
+import android.net.Uri
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.zIndex
 import com.anongram.app.features.chats.attach.api.AttachSheet
 import com.anongram.app.features.chats.attach.AttachTab
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.media.MediaCompressor
+import com.anongram.app.features.chats.mediaeditor.api.EditableMediaItem
+import com.anongram.app.features.chats.mediaeditor.api.MediaEditorScreen
 import com.anongram.app.features.chats.media.player.ChatAudioController
 import com.anongram.app.features.chats.media.player.ChatMusicPlayerSheet
 import com.anongram.app.features.chats.media.player.MusicFullScreenPlayer
@@ -72,6 +82,8 @@ internal fun ChatOverlaysHost(
     isReplaceAttachSheetOpen: Boolean,
     replaceInitialTab: AttachTab,
     onCloseReplaceAttach: () -> Unit,
+    isEditMediaEditorOpen: Boolean = false,
+    onCloseEditMediaEditor: () -> Unit = {},
     forwardingMessageIds: List<String>?,
     onStartForward: (List<String>) -> Unit,
     onCloseForward: () -> Unit,
@@ -108,6 +120,8 @@ internal fun ChatOverlaysHost(
         isReplaceAttachSheetOpen = isReplaceAttachSheetOpen,
         replaceInitialTab = replaceInitialTab,
         onCloseReplaceAttach = onCloseReplaceAttach,
+        isEditMediaEditorOpen = isEditMediaEditorOpen,
+        onCloseEditMediaEditor = onCloseEditMediaEditor,
         viewingMediaMessage = viewingMediaMessage,
         viewingMediaInitialIndex = viewingMediaInitialIndex,
         viewingOverrideSingleUri = viewingOverrideSingleUri,
@@ -177,6 +191,8 @@ private fun ChatInputAndMediaOverlays(
     isReplaceAttachSheetOpen: Boolean,
     replaceInitialTab: AttachTab,
     onCloseReplaceAttach: () -> Unit,
+    isEditMediaEditorOpen: Boolean = false,
+    onCloseEditMediaEditor: () -> Unit = {},
     viewingMediaMessage: ChatMessage?,
     viewingMediaInitialIndex: Int,
     viewingOverrideSingleUri: String?,
@@ -190,6 +206,7 @@ private fun ChatInputAndMediaOverlays(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
+    var viewerEditTarget by remember { mutableStateOf<Pair<ChatMessage, String>?>(null) }
 
     if (isFullEditorOpen) {
         ChatFullTextEditorScreen(
@@ -371,6 +388,9 @@ private fun ChatInputAndMediaOverlays(
                 onCloseMediaViewer(false)
                 onStartForward(ids)
             },
+            onEditPhoto = { msg, uriStr ->
+                viewerEditTarget = msg to uriStr
+            },
             onRequestDelete = { msg, photoIdx ->
                 when (msg.attachment) {
                     is MessageAttachment.MediaAlbum -> viewModel.requestDelete(listOf("${msg.id}#photo_$photoIdx"))
@@ -379,6 +399,94 @@ private fun ChatInputAndMediaOverlays(
                 }
             }
         )
+    }
+
+    // Редактор фото из полноэкранного просмотра в чате (своё -> замена, собеседника -> отправка от моего имени)
+    viewerEditTarget?.let { (msg, uriStr) ->
+        val parsedUri = runCatching { Uri.parse(uriStr) }.getOrNull()
+        if (parsedUri != null) {
+            MediaEditorScreen(
+                items = listOf(EditableMediaItem(uri = parsedUri, isVideo = false)),
+                recipientName = session.title,
+                onSend = { editedList ->
+                    val edited = editedList.firstOrNull()
+                    if (edited != null) {
+                        if (msg.isFromMe) {
+                            viewModel.startEdit(msg)
+                            viewModel.replaceEditingAttachment(
+                                MessageAttachment.Photo(
+                                    uri = edited.uri.toString(),
+                                    isVideo = false,
+                                    caption = edited.caption
+                                ),
+                                edited.caption.ifBlank { null }
+                            )
+                        } else {
+                            viewModel.sendAttachment(
+                                MessageAttachment.Photo(
+                                    uri = edited.uri.toString(),
+                                    isVideo = false,
+                                    caption = edited.caption
+                                ),
+                                edited.caption
+                            )
+                        }
+                    }
+                    viewerEditTarget = null
+                    onCloseMediaViewer(false)
+                },
+                onAddMore = { viewerEditTarget = null },
+                onBack = { viewerEditTarget = null },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(120f)
+            )
+        }
+    }
+
+    // Редактор фото/видео по кнопке кисточки в FusedEditBar (редактирование сообщения)
+    val editingMsg = state.editing
+    if (isEditMediaEditorOpen && editingMsg != null) {
+        val (editUriStr, editIsVideo) = when (val att = editingMsg.attachment) {
+            is MessageAttachment.Photo -> att.uri to att.isVideo
+            is MessageAttachment.MediaAlbum -> {
+                val sub = att.items.getOrNull(state.editingSubIndex ?: 0)
+                sub?.uri to (sub?.isVideo == true)
+            }
+            else -> null to false
+        }
+        val parsedUri = editUriStr?.let { runCatching { Uri.parse(it) }.getOrNull() }
+        if (parsedUri != null) {
+            MediaEditorScreen(
+                items = listOf(
+                    EditableMediaItem(
+                        uri = parsedUri,
+                        isVideo = editIsVideo,
+                        caption = state.input
+                    )
+                ),
+                recipientName = session.title,
+                onSend = { editedList ->
+                    val edited = editedList.firstOrNull()
+                    if (edited != null) {
+                        viewModel.replaceEditingAttachment(
+                            MessageAttachment.Photo(
+                                uri = edited.uri.toString(),
+                                isVideo = edited.isVideo,
+                                caption = edited.caption
+                            ),
+                            edited.caption.ifBlank { null }
+                        )
+                    }
+                    onCloseEditMediaEditor()
+                },
+                onAddMore = { onCloseEditMediaEditor() },
+                onBack = { onCloseEditMediaEditor() },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(120f)
+            )
+        }
     }
 }
 

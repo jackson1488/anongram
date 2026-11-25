@@ -38,6 +38,7 @@ import androidx.compose.material.icons.automirrored.outlined.Reply
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.AspectRatio
+import androidx.compose.material.icons.outlined.Brush
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Download
@@ -106,6 +107,7 @@ internal fun ViewerTopBar(
     isSettingsMenuOpen: Boolean,
     isMoreMenuOpen: Boolean,
     onClose: () -> Unit,
+    onEditPhotoClick: (() -> Unit)? = null,
     onForwardClick: () -> Unit,
     onSettingsMenuOpenChange: (Boolean) -> Unit,
     onMoreMenuOpenChange: (Boolean) -> Unit,
@@ -171,7 +173,19 @@ internal fun ViewerTopBar(
                     )
                 }
 
-                // Кнопка «Переслать» (как в Telegram, вместо Поделиться и Кисточки)
+                // Кнопка «Кисточка» (редактирование фото, перед кнопкой «Переслать»)
+                if (!isVideo && onEditPhotoClick != null) {
+                    IconButton(onClick = onEditPhotoClick) {
+                        Icon(
+                            imageVector = Icons.Outlined.Brush,
+                            contentDescription = null,
+                            tint = scheme.textPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
+                }
+
+                // Кнопка «Переслать»
                 IconButton(onClick = onForwardClick) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.Reply,

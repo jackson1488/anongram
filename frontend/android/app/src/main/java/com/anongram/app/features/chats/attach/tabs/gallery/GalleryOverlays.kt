@@ -76,6 +76,18 @@ internal fun GalleryOverlays(
             onCaptionChange = { sheetState.captionText = it },
             onSend = onSendAllSelected,
             onClose = { sheetState.viewingMediaList = null },
+            onEditMedia = { media ->
+                sheetState.viewingMediaList = null
+                sheetState.editorItems = listOf(
+                    EditableMediaItem(
+                        id = media.uri.toString(),
+                        uri = media.effectiveUri,
+                        isVideo = media.isVideo,
+                        durationMs = media.durationMs
+                    )
+                )
+                sheetState.isEditorOpen = true
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(100f)
@@ -171,6 +183,29 @@ internal fun GalleryOverlays(
                 onSend(buildEditedMediaDrafts(editedList))
                 sheetState.isEditorOpen = false
                 dragState.dismissAnimated()
+            },
+            onSaveOnly = { editedList ->
+                editedList.forEachIndexed { idx, edited ->
+                    val origUriStr = sheetState.editorItems.getOrNull(idx)?.id
+                    val existingIdx = sheetState.selectedMedia.indexOfFirst {
+                        it.uri.toString() == origUriStr || it.uri == edited.uri
+                    }
+                    if (existingIdx >= 0) {
+                        val old = sheetState.selectedMedia[existingIdx]
+                        sheetState.selectedMedia[existingIdx] = old.copy(editedUri = edited.uri)
+                    } else {
+                        val origUri = origUriStr?.let { runCatching { android.net.Uri.parse(it) }.getOrNull() } ?: edited.uri
+                        sheetState.selectedMedia.add(
+                            GalleryMedia(
+                                uri = origUri,
+                                isVideo = edited.isVideo,
+                                dateAdded = System.currentTimeMillis(),
+                                editedUri = edited.uri
+                            )
+                        )
+                    }
+                }
+                sheetState.isEditorOpen = false
             },
             onAddMore = { sheetState.isEditorOpen = false },
             onBack = { sheetState.isEditorOpen = false },

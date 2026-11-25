@@ -3,11 +3,8 @@ package com.anongram.app.features.chats.mediaeditor.ui.video
 import android.graphics.Bitmap
 import android.media.MediaMetadataRetriever
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -47,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.mediaeditor.i18n.MediaEditorI18n
+import com.anongram.app.features.wallpapers.ui.components.CustomGalleryPickerSheet
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -57,8 +54,9 @@ import java.io.FileOutputStream
 fun VideoCoverPickerOverlay(
     videoUri: Uri,
     durationMs: Long,
+    initialCoverUri: Uri?,
     initialCoverTimeMs: Long?,
-    onSaveCover: (coverUri: Uri, coverTimeMs: Long?) -> Unit,
+    onSaveCover: (coverUri: Uri?, coverTimeMs: Long?) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -70,15 +68,8 @@ fun VideoCoverPickerOverlay(
     var selectedTimeMs by remember(initialCoverTimeMs) { mutableLongStateOf(initialCoverTimeMs ?: 0L) }
     var detectedDuration by remember(videoUri, durationMs) { mutableLongStateOf(durationMs.coerceAtLeast(1000L)) }
     var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var galleryCoverUri by remember { mutableStateOf<Uri?>(null) }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        if (uri != null) {
-            galleryCoverUri = uri
-        }
-    }
+    var galleryCoverUri by remember(initialCoverUri) { mutableStateOf<Uri?>(initialCoverUri) }
+    var showGallerySheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(videoUri, selectedTimeMs, galleryCoverUri) {
         withContext(Dispatchers.IO) {
@@ -106,118 +97,149 @@ fun VideoCoverPickerOverlay(
         }
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-    ) {
-        // Top bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = strings.cancel,
-                color = scheme.textSecondary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable { onCancel() }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
-            Text(
-                text = strings.chooseFromGallery,
-                color = scheme.accent,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(20.dp))
-                    .clickable { galleryLauncher.launch("image/*") }
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
-            )
-        }
-
-        // Preview frame
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .padding(16.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            val bmp = previewBitmap
-            if (bmp != null) {
-                Image(
-                    bitmap = bmp.asImageBitmap(),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-        }
-
-        // Frame scrubber + Save cover button
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(scheme.surface.copy(alpha = 0.96f))
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxSize()
+                .background(Color.Black)
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
-            Slider(
-                value = selectedTimeMs.toFloat().coerceIn(0f, detectedDuration.toFloat()),
-                onValueChange = {
-                    galleryCoverUri = null
-                    selectedTimeMs = it.toLong()
-                },
-                valueRange = 0f..detectedDuration.toFloat().coerceAtLeast(1000f),
-                colors = SliderDefaults.colors(
-                    thumbColor = scheme.accent,
-                    activeTrackColor = scheme.accent,
-                    inactiveTrackColor = scheme.textMuted.copy(alpha = 0.25f)
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            Button(
-                onClick = {
-                    scope.launch {
-                        val savedUri = withContext(Dispatchers.IO) {
-                            val bmp = previewBitmap
-                            if (bmp != null) {
-                                val outFile = File(context.cacheDir, "video_cover_${System.currentTimeMillis()}.jpg")
-                                FileOutputStream(outFile).use { fos ->
-                                    bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos)
-                                }
-                                Uri.fromFile(outFile)
-                            } else {
-                                galleryCoverUri ?: videoUri
-                            }
-                        }
-                        onSaveCover(savedUri, if (galleryCoverUri == null) selectedTimeMs else null)
-                    }
-                },
-                shape = RoundedCornerShape(24.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = scheme.accent),
+            // Top bar: Cancel | Remove Cover (if any) | Choose from gallery >
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
+                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = strings.saveCover,
-                    color = scheme.onAccent,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
+                    text = strings.cancel,
+                    color = scheme.textSecondary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { onCancel() }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                )
+
+                if (initialCoverUri != null || galleryCoverUri != null) {
+                    Text(
+                        text = strings.removeCover,
+                        color = Color(0xFFFF453A),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .clickable {
+                                galleryCoverUri = null
+                                onSaveCover(null, null)
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
+
+                Text(
+                    text = strings.chooseFromGallery,
+                    color = scheme.accent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(20.dp))
+                        .clickable { showGallerySheet = true }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
+
+            // Preview frame
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                val bmp = previewBitmap
+                if (bmp != null) {
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+
+            // Frame scrubber + Save cover button
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(scheme.surface.copy(alpha = 0.96f))
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Slider(
+                    value = selectedTimeMs.toFloat().coerceIn(0f, detectedDuration.toFloat()),
+                    onValueChange = {
+                        galleryCoverUri = null
+                        selectedTimeMs = it.toLong()
+                    },
+                    valueRange = 0f..detectedDuration.toFloat().coerceAtLeast(1000f),
+                    colors = SliderDefaults.colors(
+                        thumbColor = scheme.accent,
+                        activeTrackColor = scheme.accent,
+                        inactiveTrackColor = scheme.textMuted.copy(alpha = 0.25f)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val savedUri = withContext(Dispatchers.IO) {
+                                val bmp = previewBitmap
+                                if (bmp != null) {
+                                    val outFile = File(context.cacheDir, "video_cover_${System.currentTimeMillis()}.jpg")
+                                    FileOutputStream(outFile).use { fos ->
+                                        bmp.compress(Bitmap.CompressFormat.JPEG, 90, fos)
+                                    }
+                                    Uri.fromFile(outFile)
+                                } else {
+                                    galleryCoverUri ?: videoUri
+                                }
+                            }
+                            onSaveCover(savedUri, if (galleryCoverUri == null) selectedTimeMs else null)
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = scheme.accent),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = strings.saveCover,
+                        color = scheme.onAccent,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        // Wallpaper-style 1-tap gallery sheet (no ⋮, no multi-select)
+        if (showGallerySheet) {
+            CustomGalleryPickerSheet(
+                onPickUri = { pickedUri ->
+                    showGallerySheet = false
+                    onSaveCover(pickedUri, null)
+                },
+                onDismiss = { showGallerySheet = false },
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

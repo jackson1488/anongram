@@ -44,6 +44,9 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.rounded.Brush
 import androidx.compose.material.icons.rounded.Videocam
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -54,6 +57,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -117,6 +121,7 @@ fun MediaEditorContent(
     onSend: (List<EditedMedia>) -> Unit,
     onAddMore: () -> Unit,
     onBack: () -> Unit,
+    onSaveOnly: ((List<EditedMedia>) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (items.isEmpty()) {
@@ -144,9 +149,28 @@ fun MediaEditorContent(
     var showTtlMenu by remember { mutableStateOf(false) }
     var showVideoQualityMenu by remember { mutableStateOf(false) }
     var showFontsModuleScreen by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
 
     var isVideoPlaying by remember(activeItem.id) { mutableStateOf(true) }
+
+    val hasUnsavedChanges = currentItems.any { item ->
+        item.editState.crop.isModified ||
+            item.editState.hasAnyAdjustments ||
+            item.editState.hasAnyPaintOrText ||
+            item.coverUri != null ||
+            item.isMuted ||
+            item.trimStartMs > 0L ||
+            item.trimEndMs > 0L
+    }
+
+    fun requestBack() {
+        if (hasUnsavedChanges) {
+            showDiscardDialog = true
+        } else {
+            onBack()
+        }
+    }
 
     // Cache decoded preview bitmap for the active photo
     var activeRawBitmap by remember(activeItem.uri, activeItem.isVideo) { mutableStateOf<Bitmap?>(null) }
@@ -163,8 +187,12 @@ fun MediaEditorContent(
         currentItems[currentIndex] = updated
     }
 
-    BackHandler(enabled = !showFontsModuleScreen && editorMode != EditorMode.MAIN) {
-        editorMode = EditorMode.MAIN
+    BackHandler(enabled = !showFontsModuleScreen) {
+        if (editorMode != EditorMode.MAIN) {
+            editorMode = EditorMode.MAIN
+        } else {
+            requestBack()
+        }
     }
     BackHandler(enabled = showFontsModuleScreen) {
         showFontsModuleScreen = false
@@ -224,7 +252,7 @@ fun MediaEditorContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
-                    onClick = onBack,
+                    onClick = { requestBack() },
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
@@ -273,7 +301,7 @@ fun MediaEditorContent(
                     }
                 }
 
-                // Confirm Checkmark
+                // Confirm Checkmark (saves back to attach if onSaveOnly != null, otherwise sends)
                 IconButton(
                     onClick = {
                         if (!isExporting) {
@@ -281,7 +309,7 @@ fun MediaEditorContent(
                             scope.launch {
                                 val results = BitmapExportRenderer.exportAll(context, currentItems)
                                 isExporting = false
-                                onSend(results)
+                                (onSaveOnly ?: onSend)(results)
                             }
                         }
                     },
@@ -762,6 +790,7 @@ fun MediaEditorContent(
             VideoCoverPickerOverlay(
                 videoUri = activeItem.uri,
                 durationMs = activeItem.durationMs,
+                initialCoverUri = activeItem.coverUri,
                 initialCoverTimeMs = activeItem.coverTimeMs,
                 onSaveCover = { uri, timeMs ->
                     updateCurrentItem { it.copy(coverUri = uri, coverTimeMs = timeMs) }
@@ -776,6 +805,47 @@ fun MediaEditorContent(
             FontsModuleSettingsScreen(
                 onBack = { showFontsModuleScreen = false },
                 modifier = Modifier.fillMaxSize()
+            )
+        }
+
+        // Discard unsaved edits dialog
+        if (showDiscardDialog) {
+            AlertDialog(
+                onDismissRequest = { showDiscardDialog = false },
+                containerColor = scheme.card,
+                shape = RoundedCornerShape(22.dp),
+                title = {
+                    Text(
+                        text = strings.discardTitle,
+                        color = scheme.textPrimary,
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
+                text = {
+                    Text(
+                        text = strings.discardMessage,
+                        color = scheme.textSecondary,
+                        fontSize = 14.sp
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDiscardDialog = false
+                            onBack()
+                        },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF453A))
+                    ) {
+                        Text(strings.discardConfirm, color = Color.White, fontWeight = FontWeight.SemiBold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDiscardDialog = false }) {
+                        Text(strings.cancel, color = scheme.textSecondary)
+                    }
+                }
             )
         }
     }
