@@ -45,6 +45,7 @@ import com.anongram.app.features.chats.attach.i18n.AttachI18n
 import com.anongram.app.features.chats.attach.i18n.LocalAttachStrings
 import com.anongram.app.features.chats.attach.state.rememberAttachSheetDragState
 import com.anongram.app.features.chats.attach.state.rememberAttachSheetState
+import com.anongram.app.features.chats.attach.tabs.gallery.GalleryAlbumsDropdownOverlay
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryFloatingTopBar
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryTab
 
@@ -206,7 +207,7 @@ fun CustomGalleryPickerSheet(
                     )
                 }
 
-                // Штатная плавающая шапка Галереи (с учётом статус-бара, альбомами и меню ⋮)
+                // Штатная плавающая шапка Галереи (с учётом статус-бара и выбором альбомов, без ⋮)
                 if (dragState.isExpanded95) {
                     val topBarAlpha = ((totalHeightPx * 0.05f - dragState.offsetPx) / (totalHeightPx * 0.05f)).coerceIn(0f, 1f)
                     GalleryFloatingTopBar(
@@ -221,10 +222,16 @@ fun CustomGalleryPickerSheet(
                         onLaunchSystemChooser = { systemChooserLauncher.launch(it) },
                         onToggleSpoiler = {},
                         onSendHd = {},
-                        showSendInHd = false
+                        showSendInHd = false,
+                        hasActionMenu = false
                     )
                 }
             }
+
+            GalleryAlbumsDropdownOverlay(
+                sheetState = sheetState,
+                dragState = dragState
+            )
 
             if (sheetState.isCameraOpen) {
                 CameraScreen(

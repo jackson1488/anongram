@@ -57,7 +57,8 @@ internal fun BoxScope.GalleryFloatingTopBar(
     onLaunchSystemChooser: (Intent) -> Unit,
     onToggleSpoiler: () -> Unit,
     onSendHd: () -> Unit,
-    showSendInHd: Boolean = true
+    showSendInHd: Boolean = true,
+    hasActionMenu: Boolean = true
 ) {
     val scheme = LocalAnonGramScheme.current
     val displayAlbumTitle = if (
@@ -87,7 +88,7 @@ internal fun BoxScope.GalleryFloatingTopBar(
         onBack = onBack,
         onSearchQueryChange = {},
         onToggleSearch = {},
-        hasActionMenu = true,
+        hasActionMenu = hasActionMenu,
         hasSearchToggle = false,
         actionMenuContent = {
             var isTopBarMenuOpen by remember { mutableStateOf(false) }

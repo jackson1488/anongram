@@ -54,60 +54,10 @@ internal fun GalleryOverlays(
     val scheme = LocalAnonGramScheme.current
 
     // Выпадающее меню альбомов
-    if (sheetState.isAlbumsSheetOpen && sheetState.availableAlbums.isNotEmpty() && dragState.offsetPx <= dragState.totalHeightPx * 0.08f) {
-        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .zIndex(50f)
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null
-                ) { sheetState.isAlbumsSheetOpen = false }
-        ) {
-            Column(
-                modifier = Modifier
-                    .padding(
-                        start = 58.dp,
-                        top = statusBarTop + 58.dp,
-                        end = 24.dp,
-                        bottom = 24.dp
-                    )
-                    .widthIn(min = 230.dp, max = 290.dp)
-                    .wrapContentHeight()
-                    .heightIn(max = 380.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(scheme.card)
-                    .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) { /* consume clicks inside menu */ }
-                    .padding(vertical = 8.dp)
-            ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight()
-                ) {
-                    items(sheetState.availableAlbums, key = { it.name }) { album ->
-                        AlbumDropdownRowItem(
-                            album = album,
-                            isSelected = (
-                                album.name == sheetState.selectedAlbum ||
-                                    ((album.name == ALL_MEDIA_ALBUM_ID || album.name == "Все медиа") &&
-                                        (sheetState.selectedAlbum == ALL_MEDIA_ALBUM_ID || sheetState.selectedAlbum == "Все медиа" || sheetState.selectedAlbum == "Галерея"))
-                                ),
-                            onClick = {
-                                sheetState.selectedAlbum = album.name
-                                sheetState.isAlbumsSheetOpen = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
-    }
+    GalleryAlbumsDropdownOverlay(
+        sheetState = sheetState,
+        dragState = dragState
+    )
 
     // Полноэкранный просмотр фото со свайпом влево-вправо
     if (sheetState.viewingMediaList != null) {
@@ -228,3 +178,66 @@ internal fun GalleryOverlays(
         )
     }
 }
+
+@Composable
+internal fun BoxScope.GalleryAlbumsDropdownOverlay(
+    sheetState: AttachSheetState,
+    dragState: AttachSheetDragState
+) {
+    val scheme = LocalAnonGramScheme.current
+    if (sheetState.isAlbumsSheetOpen && sheetState.availableAlbums.isNotEmpty() && dragState.offsetPx <= dragState.totalHeightPx * 0.08f) {
+        val statusBarTop = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(50f)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
+                ) { sheetState.isAlbumsSheetOpen = false }
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(
+                        start = 58.dp,
+                        top = statusBarTop + 58.dp,
+                        end = 24.dp,
+                        bottom = 24.dp
+                    )
+                    .widthIn(min = 230.dp, max = 290.dp)
+                    .wrapContentHeight()
+                    .heightIn(max = 380.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(scheme.card)
+                    .border(0.5.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { /* consume clicks inside menu */ }
+                    .padding(vertical = 8.dp)
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .wrapContentHeight()
+                ) {
+                    items(sheetState.availableAlbums, key = { it.name }) { album ->
+                        AlbumDropdownRowItem(
+                            album = album,
+                            isSelected = (
+                                album.name == sheetState.selectedAlbum ||
+                                    ((album.name == ALL_MEDIA_ALBUM_ID || album.name == "Все медиа") &&
+                                        (sheetState.selectedAlbum == ALL_MEDIA_ALBUM_ID || sheetState.selectedAlbum == "Все медиа" || sheetState.selectedAlbum == "Галерея"))
+                                ),
+                            onClick = {
+                                sheetState.selectedAlbum = album.name
+                                sheetState.isAlbumsSheetOpen = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -25,9 +25,13 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutLinearInEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -271,6 +275,7 @@ fun GalleryTab(
                 )
             } else {
                 val gridState = rememberLazyGridState()
+                val dragSelectController = rememberGalleryDragSelectController()
                 val fastScrollScope = rememberCoroutineScope()
                 var isDraggingThumb by remember { mutableStateOf(false) }
                 var showFastThumb by remember { mutableStateOf(false) }
@@ -293,7 +298,16 @@ fun GalleryTab(
                     LazyVerticalGrid(
                         state = gridState,
                         columns = GridCells.Fixed(3),
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .galleryDragToSelect(
+                                enabled = showSelectionCircles,
+                                gridState = gridState,
+                                controller = dragSelectController,
+                                items = filteredMedia,
+                                selectedMedia = selectedMedia,
+                                onToggleSelectMedia = onToggleSelectMedia
+                            ),
                         contentPadding = PaddingValues(start = 2.dp, top = topGridPadding, end = 2.dp, bottom = 84.dp),
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalArrangement = Arrangement.spacedBy(2.dp)
@@ -340,7 +354,12 @@ fun GalleryTab(
                                                 onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
                                                 showSelectionCircles = showSelectionCircles,
-                                                modifier = Modifier.weight(1f).fillMaxHeight()
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight()
+                                                    .onGloballyPositioned {
+                                                        dragSelectController.tileBounds[effectiveMedia.uri.toString()] = it.boundsInRoot()
+                                                    }
                                             )
                                         } else {
                                             Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
@@ -365,7 +384,12 @@ fun GalleryTab(
                                                 onOpenViewer = { openViewerHelper(i) },
                                                 onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
                                                 showSelectionCircles = showSelectionCircles,
-                                                modifier = Modifier.weight(1f).fillMaxHeight()
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .fillMaxHeight()
+                                                    .onGloballyPositioned {
+                                                        dragSelectController.tileBounds[effectiveMedia.uri.toString()] = it.boundsInRoot()
+                                                    }
                                             )
                                         } else {
                                             Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
@@ -397,6 +421,9 @@ fun GalleryTab(
                         },
                         onToggleSelect = {
                             onToggleSelectMedia(effectiveMedia)
+                        },
+                        modifier = Modifier.onGloballyPositioned {
+                            dragSelectController.tileBounds[effectiveMedia.uri.toString()] = it.boundsInRoot()
                         }
                     )
                 }
@@ -678,59 +705,76 @@ private fun GalleryItemTile(
         }
     }
 
+    val tileScale by animateFloatAsState(
+        targetValue = if (isSelected) 0.84f else 1f,
+        animationSpec = tween(160),
+        label = "galleryTileScale"
+    )
+
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .background(scheme.card)
+            .background(scheme.surface)
             .clickable { onOpenViewer() }
     ) {
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap!!,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(if (isSelected && media.hasSpoiler) Modifier.blur(18.dp) else Modifier)
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(scheme.card)
-            )
-        }
-
-        if (media.isVideo) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(4.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color(0x99000000))
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Videocam,
-                    contentDescription = "Video",
-                    tint = Color.White,
-                    modifier = Modifier.size(12.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = tileScale
+                    scaleY = tileScale
+                }
+                .clip(RoundedCornerShape(if (isSelected) 10.dp else 0.dp))
+                .background(scheme.card)
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap!!,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .then(if (isSelected && media.hasSpoiler) Modifier.blur(18.dp) else Modifier)
                 )
-                if (media.durationMs > 0) {
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = formatVideoTime(media.durationMs),
-                        color = Color.White,
-                        fontSize = 10.sp
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(scheme.card)
+                )
+            }
+
+            if (media.isVideo) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(4.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color(0x99000000))
+                        .padding(horizontal = 4.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Videocam,
+                        contentDescription = "Video",
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
                     )
+                    if (media.durationMs > 0) {
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = formatVideoTime(media.durationMs),
+                            color = Color.White,
+                            fontSize = 10.sp
+                        )
+                    }
                 }
             }
-        }
 
-        // Анимированный спойлер, если включён
-        if (isSelected && media.hasSpoiler) {
-            SpoilerOverlay(modifier = Modifier.fillMaxSize())
+            // Анимированный спойлер, если включён
+            if (isSelected && media.hasSpoiler) {
+                SpoilerOverlay(modifier = Modifier.fillMaxSize())
+            }
         }
 
         // Кружок выбора в правом верхнем углу (ТЗ, шаг 9: ТОЛЬКО выбирает/снимает выбор)

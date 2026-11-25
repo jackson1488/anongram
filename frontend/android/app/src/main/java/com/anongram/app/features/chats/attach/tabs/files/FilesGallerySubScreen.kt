@@ -84,8 +84,16 @@ import com.anongram.app.features.chats.attach.components.GalleryGridSkeleton
 import com.anongram.app.features.chats.attach.tabs.gallery.GalleryMedia
 import com.anongram.app.features.chats.attach.tabs.files.formatFileSize
 import com.anongram.app.features.chats.attach.tabs.files.getFileMetadata
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import com.anongram.app.features.chats.attach.tabs.gallery.galleryDragToSelect
 import com.anongram.app.features.chats.attach.tabs.gallery.loadDeviceGalleryMedia
 import com.anongram.app.features.chats.attach.tabs.gallery.loadMediaThumbnail
+import com.anongram.app.features.chats.attach.tabs.gallery.rememberGalleryDragSelectController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Locale
@@ -167,12 +175,23 @@ fun FilesGallerySubScreen(
                 )
             }
         } else if (isGridMode) {
+            val gridState = rememberLazyGridState()
+            val dragSelectController = rememberGalleryDragSelectController()
             LazyVerticalGrid(
+                state = gridState,
                 columns = GridCells.Fixed(3),
                 modifier = Modifier
                     .fillMaxSize()
                     .zIndex(1f)
-                    .padding(horizontal = 4.dp),
+                    .padding(horizontal = 4.dp)
+                    .galleryDragToSelect(
+                        enabled = true,
+                        gridState = gridState,
+                        controller = dragSelectController,
+                        items = mediaList,
+                        selectedMedia = selectedMedia,
+                        onToggleSelectMedia = onToggleMedia
+                    ),
                 contentPadding = PaddingValues(top = statusBarTopDp + 64.dp, bottom = 96.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -181,7 +200,10 @@ fun FilesGallerySubScreen(
                     FilesGalleryGridItem(
                         media = media,
                         selectionNumber = selectedMedia.indexOfFirst { it.uri == media.uri } + 1,
-                        onClick = { onToggleMedia(media) }
+                        onClick = { onToggleMedia(media) },
+                        modifier = Modifier.onGloballyPositioned {
+                            dragSelectController.tileBounds[media.uri.toString()] = it.boundsInRoot()
+                        }
                     )
                 }
             }
@@ -431,7 +453,8 @@ fun FilesGallerySubScreen(
 internal fun FilesGalleryGridItem(
     media: GalleryMedia,
     selectionNumber: Int,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
     val context = LocalContext.current
@@ -443,11 +466,17 @@ internal fun FilesGalleryGridItem(
         }
     }
 
+    val isSelected = selectionNumber > 0
+    val tileScale by animateFloatAsState(
+        targetValue = if (isSelected) 0.84f else 1f,
+        animationSpec = tween(160),
+        label = "filesGalleryTileScale"
+    )
+
     Box(
-        modifier = Modifier
+        modifier = modifier
             .aspectRatio(1f)
-            .clip(RoundedCornerShape(8.dp))
-            .background(scheme.card)
+            .background(scheme.surface)
             .clickable(onClick = onClick)
     ) {
         FilesSelectionCircle(
@@ -458,49 +487,60 @@ internal fun FilesGalleryGridItem(
                 .padding(6.dp)
                 .zIndex(2f)
         )
-        if (thumbnail != null) {
-            Image(
-                bitmap = thumbnail!!.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = if (media.isVideo) Icons.Rounded.Videocam else Icons.Outlined.PhotoLibrary,
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = tileScale
+                    scaleY = tileScale
+                }
+                .clip(RoundedCornerShape(if (isSelected) 10.dp else 8.dp))
+                .background(scheme.card)
+        ) {
+            if (thumbnail != null) {
+                Image(
+                    bitmap = thumbnail!!.asImageBitmap(),
                     contentDescription = null,
-                    tint = scheme.textMuted,
-                    modifier = Modifier.size(28.dp)
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
                 )
-            }
-        }
-
-        if (media.isVideo) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(4.dp)
-                    .background(Color(0xCC000000), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 4.dp, vertical = 2.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            } else {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     Icon(
-                        imageVector = Icons.Rounded.Videocam,
+                        imageVector = if (media.isVideo) Icons.Rounded.Videocam else Icons.Outlined.PhotoLibrary,
                         contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(12.dp)
+                        tint = scheme.textMuted,
+                        modifier = Modifier.size(28.dp)
                     )
-                    if (media.durationMs > 0) {
-                        Spacer(modifier = Modifier.width(2.dp))
-                        Text(
-                            text = formatDuration(media.durationMs),
-                            color = Color.White,
-                            fontSize = 10.sp
+                }
+            }
+
+            if (media.isVideo) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(4.dp)
+                        .background(Color(0xCC000000), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Rounded.Videocam,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(12.dp)
                         )
+                        if (media.durationMs > 0) {
+                            Spacer(modifier = Modifier.width(2.dp))
+                            Text(
+                                text = formatDuration(media.durationMs),
+                                color = Color.White,
+                                fontSize = 10.sp
+                            )
+                        }
                     }
                 }
             }
