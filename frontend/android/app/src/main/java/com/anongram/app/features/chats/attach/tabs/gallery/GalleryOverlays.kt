@@ -180,7 +180,7 @@ internal fun GalleryOverlays(
 }
 
 @Composable
-internal fun BoxScope.GalleryAlbumsDropdownOverlay(
+internal fun GalleryAlbumsDropdownOverlay(
     sheetState: AttachSheetState,
     dragState: AttachSheetDragState
 ) {
