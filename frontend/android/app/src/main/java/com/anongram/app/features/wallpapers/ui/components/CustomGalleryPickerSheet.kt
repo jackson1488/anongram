@@ -130,7 +130,7 @@ fun CustomGalleryPickerSheet(
                 }
                 Spacer(modifier = Modifier.width(10.dp))
 
-                val albumTitle = availableAlbums.firstOrNull { it.id == selectedAlbum }?.name
+                val albumTitle = availableAlbums.firstOrNull { it.name == selectedAlbum }?.name
                     ?: strings.chatWallpapersGalleryBtn
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -218,12 +218,12 @@ fun CustomGalleryPickerSheet(
                                 .border(1.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
                                 .padding(vertical = 6.dp)
                         ) {
-                            items(availableAlbums, key = { it.id }) { album ->
+                            items(availableAlbums, key = { it.name }) { album ->
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable {
-                                            selectedAlbum = album.id
+                                            selectedAlbum = album.name
                                             isAlbumsOpen = false
                                         }
                                         .padding(horizontal = 16.dp, vertical = 11.dp),
@@ -231,9 +231,9 @@ fun CustomGalleryPickerSheet(
                                 ) {
                                     Text(
                                         text = album.name,
-                                        color = if (album.id == selectedAlbum) scheme.accent else scheme.textPrimary,
+                                        color = if (album.name == selectedAlbum) scheme.accent else scheme.textPrimary,
                                         fontSize = 14.5.sp,
-                                        fontWeight = if (album.id == selectedAlbum) FontWeight.Bold else FontWeight.Medium,
+                                        fontWeight = if (album.name == selectedAlbum) FontWeight.Bold else FontWeight.Medium,
                                         modifier = Modifier.weight(1f)
                                     )
                                     Text(
