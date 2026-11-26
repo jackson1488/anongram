@@ -6,6 +6,8 @@ import androidx.compose.ui.graphics.Color
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import org.json.JSONArray
+import org.json.JSONObject
 
 const val MAX_PROFILE_VIDEO_MS = 20_000L
 
@@ -49,9 +51,6 @@ sealed interface ProfileAvatar {
         val bgEnd: Color get() = Color(bgEndArgb.toInt())
     }
 }
-
-import org.json.JSONArray
-import org.json.JSONObject
 
 object ProfileAvatarStore {
     private const val PREFS = "anongram_profile_avatar"
