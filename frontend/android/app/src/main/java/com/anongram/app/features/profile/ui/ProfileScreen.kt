@@ -51,6 +51,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -64,6 +65,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
@@ -469,6 +471,7 @@ fun ProfileScreen(
                                                             indication = null
                                                         ) {
                                                             if (selectedAvatarIndex > 0) selectedAvatarIndex -= 1
+                                                            else selectedAvatarIndex = avatars.lastIndex
                                                         }
                                                 )
                                             }
@@ -491,6 +494,7 @@ fun ProfileScreen(
                                                             indication = null
                                                         ) {
                                                             if (selectedAvatarIndex < avatars.lastIndex) selectedAvatarIndex += 1
+                                                            else selectedAvatarIndex = 0
                                                         }
                                                 )
                                             }
@@ -581,6 +585,7 @@ fun ProfileScreen(
                                 Spacer(modifier = Modifier.height(14.dp))
 
                                 val activePillHaze = if (expandFraction > 0.5f) heroHaze else coverHaze
+                                val activeTintOverride = if (expandFraction < 0.5f) appearance.preset?.primary else null
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -594,6 +599,7 @@ fun ProfileScreen(
                                         overlayStyle = true,
                                         heroHaze = activePillHaze,
                                         glassBlurEnabled = animState.glassBlurEnabled,
+                                        tintOverride = activeTintOverride,
                                         modifier = Modifier.weight(1f)
                                     )
                                     ProfileActionPill(
@@ -603,6 +609,7 @@ fun ProfileScreen(
                                         overlayStyle = true,
                                         heroHaze = activePillHaze,
                                         glassBlurEnabled = animState.glassBlurEnabled,
+                                        tintOverride = activeTintOverride,
                                         modifier = Modifier.weight(1f)
                                     )
                                     ProfileActionPill(
@@ -612,6 +619,7 @@ fun ProfileScreen(
                                         overlayStyle = true,
                                         heroHaze = activePillHaze,
                                         glassBlurEnabled = animState.glassBlurEnabled,
+                                        tintOverride = activeTintOverride,
                                         modifier = Modifier.weight(1f)
                                     )
                                 }
@@ -657,7 +665,7 @@ fun ProfileScreen(
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text(strings.copyAction, color = scheme.textPrimary, fontSize = 14.sp) },
-                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        leadingIcon = { Icon(Icons.Outlined.ContentCopy, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
                                         onClick = {
                                             activeFieldMenu = null
                                             copyValue(rawPublicId)
@@ -682,7 +690,7 @@ fun ProfileScreen(
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text(strings.copyAction, color = scheme.textPrimary, fontSize = 14.sp) },
-                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        leadingIcon = { Icon(Icons.Outlined.ContentCopy, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
                                         onClick = {
                                             activeFieldMenu = null
                                             copyValue(bio)
@@ -715,7 +723,7 @@ fun ProfileScreen(
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text(strings.copyUsernameAction, color = scheme.textPrimary, fontSize = 14.sp) },
-                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        leadingIcon = { Icon(Icons.Outlined.ContentCopy, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
                                         onClick = {
                                             activeFieldMenu = null
                                             copyValue(handle)
@@ -748,7 +756,7 @@ fun ProfileScreen(
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text(strings.copyAction, color = scheme.textPrimary, fontSize = 14.sp) },
-                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        leadingIcon = { Icon(Icons.Outlined.ContentCopy, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
                                         onClick = {
                                             activeFieldMenu = null
                                             copyValue(birthday)
@@ -884,7 +892,7 @@ fun ProfileScreen(
                                         },
                                         onClick = {
                                             menuOpen = false
-                                            subOverlay = ProfileSubOverlay.AccountEdit
+                                            showQuickUsernameEditor = true
                                         }
                                     )
                                     DropdownMenuItem(
@@ -1283,17 +1291,21 @@ fun ProfileScreen(
                         }
                     }
 
-                    // Нижняя лента мини-карточек (показывается ТОЛЬКО если >= 2 фото/видео)
+                    // Нижняя лента мини-карточек строго по середине (показывается ТОЛЬКО если >= 2 фото/видео)
                     if (avatars.size >= 2) {
-                        LazyRow(
+                        Box(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
                                 .safeNavigationBarPadding()
                                 .padding(bottom = 16.dp),
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+                            contentAlignment = Alignment.Center
                         ) {
+                            LazyRow(
+                                modifier = Modifier.wrapContentWidth(),
+                                contentPadding = PaddingValues(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
                             itemsIndexed(avatars) { idx, item ->
                                 val isSelected = idx == viewerPagerState.currentPage
                                 Box(
@@ -1319,6 +1331,7 @@ fun ProfileScreen(
                                     )
                                 }
                             }
+                        }
                         }
                     }
                 }
@@ -1473,7 +1486,8 @@ private fun ProfileActionPill(
     modifier: Modifier = Modifier,
     overlayStyle: Boolean = false,
     heroHaze: HazeState? = null,
-    glassBlurEnabled: Boolean = true
+    glassBlurEnabled: Boolean = true,
+    tintOverride: Color? = null
 ) {
     val scheme = LocalAnonGramScheme.current
     val useGlass = overlayStyle && heroHaze != null
@@ -1483,7 +1497,8 @@ private fun ProfileActionPill(
         modifier.settingsGlassPill(
             hazeState = heroHaze!!,
             shape = RoundedCornerShape(18.dp),
-            glassBlurEnabled = glassBlurEnabled
+            glassBlurEnabled = glassBlurEnabled,
+            tintOverride = tintOverride
         )
     } else {
         val bgColor = if (overlayStyle) Color.Black.copy(alpha = 0.36f) else scheme.card

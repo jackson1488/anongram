@@ -138,7 +138,7 @@ fun MainFloatingIsland(
                     {
                         Box(
                             modifier = Modifier
-                                .size(22.dp)
+                                .size(27.dp)
                                 .clip(CircleShape)
                                 .then(
                                     if (currentTab == 3) {
@@ -151,8 +151,8 @@ fun MainFloatingIsland(
                             ProfileAvatarView(
                                 avatar = profileAvatar,
                                 displayName = profileName,
-                                monogramFontSize = 10.sp,
-                                emojiFontSize = 12.sp,
+                                monogramFontSize = 11.sp,
+                                emojiFontSize = 14.sp,
                                 playVideo = false,
                                 modifier = Modifier.fillMaxSize()
                             )
@@ -235,7 +235,10 @@ private fun RowScope.NavTabItem(
             modifier = Modifier
                 .clip(CircleShape)
                 .background(if (isSelected) activeBgColor else Color.Transparent)
-                .padding(horizontal = 14.dp, vertical = 4.dp),
+                .padding(
+                    horizontal = if (avatarContent != null) 12.dp else 14.dp,
+                    vertical = if (avatarContent != null) 2.dp else 4.dp
+                ),
             contentAlignment = Alignment.Center
         ) {
             if (avatarContent != null) {

@@ -480,7 +480,6 @@ fun SettingsNavHost(
                 displayName = customDisplayName,
                 subtitleText = "@$customHandle",
                 onPickMedia = { uri, isVideo, durationMs ->
-                    showAvatarPickerSheet = false
                     pendingEditorMedia = Triple(uri, isVideo, durationMs)
                 },
                 onBack = { showAvatarPickerSheet = false }
@@ -498,7 +497,10 @@ fun SettingsNavHost(
                     uri = editorMedia.first,
                     isVideo = editorMedia.second,
                     initialDurationMs = editorMedia.third,
-                    onSaved = { pendingEditorMedia = null },
+                    onSaved = {
+                        pendingEditorMedia = null
+                        showAvatarPickerSheet = false
+                    },
                     onBack = { pendingEditorMedia = null }
                 )
             }

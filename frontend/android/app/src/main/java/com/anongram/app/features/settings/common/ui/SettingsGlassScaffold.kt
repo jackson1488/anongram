@@ -58,21 +58,25 @@ import dev.chrisbanes.haze.hazeSource
 fun Modifier.settingsGlassPill(
     hazeState: HazeState,
     shape: Shape = CircleShape,
-    glassBlurEnabled: Boolean = AnimationsSettingsStore.state.collectAsState().value.glassBlurEnabled
+    glassBlurEnabled: Boolean = AnimationsSettingsStore.state.collectAsState().value.glassBlurEnabled,
+    tintOverride: Color? = null
 ): Modifier {
     val scheme = LocalAnonGramScheme.current
     val pillBorderBrush = com.anongram.app.core.theme.rememberRainbowBorderBrush(scheme)
+    val baseTint = tintOverride ?: scheme.surface
     val pillModifier = if (glassBlurEnabled) {
         Modifier
             .clip(shape)
             .hazeEffect(
                 state = hazeState,
                 style = HazeStyle(
-                    backgroundColor = scheme.islandBg,
+                    backgroundColor = Color.Transparent,
                     tint = HazeTint(
-                        color = scheme.islandBg.copy(alpha = if (scheme.isDark) 0.45f else 0.55f)
+                        color = baseTint.copy(
+                            alpha = if (tintOverride != null) 0.26f else if (scheme.isDark) 0.34f else 0.45f
+                        )
                     ),
-                    blurRadius = 16.dp,
+                    blurRadius = 22.dp,
                     noiseFactor = 0.02f
                 )
             )
@@ -80,7 +84,7 @@ fun Modifier.settingsGlassPill(
     } else {
         Modifier
             .clip(shape)
-            .background(scheme.islandBg.copy(alpha = 0.90f))
+            .background(baseTint.copy(alpha = 0.78f))
             .border(0.8.dp, pillBorderBrush, shape)
     }
     return this.then(pillModifier)
