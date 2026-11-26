@@ -58,6 +58,28 @@ import kotlinx.coroutines.withContext
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/**
+ * Глобальный LRU-кэш раскадровки видео (12 кадров + длительность),
+ * чтобы дорожка видео (`VideoTimelineBar`) и выбор обложки (`VideoCoverPickerOverlay`)
+ * открывались мгновенно за 0 мс без повторного декодирования и без пустой полосы.
+ */
+object VideoFilmstripCache {
+    private val framesByUri = android.util.LruCache<String, List<ImageBitmap>>(48)
+    private val durationByUri = android.util.LruCache<String, Long>(64)
+
+    fun getFrames(uri: Uri): List<ImageBitmap>? = framesByUri.get(uri.toString())
+    fun getDuration(uri: Uri): Long? = durationByUri.get(uri.toString())
+
+    fun put(uri: Uri, frames: List<ImageBitmap>, durationMs: Long) {
+        if (frames.isNotEmpty()) {
+            framesByUri.put(uri.toString(), frames)
+        }
+        if (durationMs > 0L) {
+            durationByUri.put(uri.toString(), durationMs)
+        }
+    }
+}
+
 private enum class TrimDragMode {
     LEFT,
     RIGHT,
@@ -88,10 +110,29 @@ fun VideoTimelineBar(
     val scheme = LocalAnonGramScheme.current
     val strings = MediaEditorI18n.current
 
-    var frames by remember(videoUri) { mutableStateOf<List<ImageBitmap>>(emptyList()) }
-    var detectedDurationMs by remember(videoUri, durationMs) { mutableStateOf(durationMs) }
+    // Instant 0ms fallback frames from VideoFilmstripCache or gallery thumbnail cache so the timeline is NEVER blank!
+    val initialFrames = remember(videoUri) {
+        VideoFilmstripCache.getFrames(videoUri) ?: run {
+            val cachedThumb = com.anongram.app.features.chats.attach.tabs.gallery.getCachedGalleryBitmap(videoUri)
+            if (cachedThumb != null) {
+                val img = Bitmap.createScaledBitmap(cachedThumb, 72, 72, true).asImageBitmap()
+                List(12) { img }
+            } else emptyList()
+        }
+    }
+    var frames by remember(videoUri) { mutableStateOf<List<ImageBitmap>>(initialFrames) }
+    var detectedDurationMs by remember(videoUri, durationMs) {
+        mutableStateOf(VideoFilmstripCache.getDuration(videoUri) ?: durationMs)
+    }
 
     LaunchedEffect(videoUri) {
+        val cached = VideoFilmstripCache.getFrames(videoUri)
+        val cachedDur = VideoFilmstripCache.getDuration(videoUri)
+        if (cached != null && cached.size >= 8 && cachedDur != null) {
+            frames = cached
+            detectedDurationMs = cachedDur
+            return@LaunchedEffect
+        }
         withContext(Dispatchers.IO) {
             val retriever = MediaMetadataRetriever()
             try {
@@ -100,14 +141,24 @@ fun VideoTimelineBar(
                 val totalMs = (durStr?.toLongOrNull() ?: durationMs).coerceAtLeast(1000L)
                 detectedDurationMs = totalMs
                 val count = 12
-                val extracted = (0 until count).mapNotNull { idx ->
+                val progressive = ArrayList<ImageBitmap>(count)
+                for (idx in 0 until count) {
                     val timeUs = (totalMs * idx / count) * 1000L
-                    retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
-                        ?.let { bmp ->
-                            Bitmap.createScaledBitmap(bmp, 72, 72, true).asImageBitmap()
+                    val bmp = retriever.getFrameAtTime(timeUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+                        ?: if (idx == 0) retriever.frameAtTime else null
+                    if (bmp != null) {
+                        val thumb = Bitmap.createScaledBitmap(bmp, 72, 72, true).asImageBitmap()
+                        progressive.add(thumb)
+                        // If we didn't have cached frames yet, populate all 12 slots immediately after the very first frame!
+                        if (idx == 0 && initialFrames.isEmpty()) {
+                            frames = List(count) { thumb }
                         }
+                    }
                 }
-                frames = extracted
+                if (progressive.isNotEmpty()) {
+                    frames = progressive
+                    VideoFilmstripCache.put(videoUri, progressive, totalMs)
+                }
             } catch (_: Exception) {
             } finally {
                 runCatching { retriever.release() }

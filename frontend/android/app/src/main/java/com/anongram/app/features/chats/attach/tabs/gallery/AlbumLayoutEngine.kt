@@ -15,15 +15,28 @@ import kotlinx.coroutines.withContext
 
 internal val mediaSizeCache = LruCache<String, Pair<Int, Int>>(256)
 
+internal fun putMediaDimensions(uriString: String, width: Int, height: Int) {
+    if (uriString.isNotBlank() && width > 0 && height > 0) {
+        mediaSizeCache.put(uriString, width to height)
+    }
+}
+
 internal suspend fun resolveMediaDimensions(
     context: Context,
     uriString: String,
     isVideo: Boolean
 ): Pair<Int, Int>? {
-    mediaSizeCache.get(uriString)?.let { return it }
+    // If video has live crop/rotation edits in VideoLiveEditRegistry, apply them to the raw dimensions
+    val liveVideoEdit = if (isVideo) {
+        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getState(uriString)
+    } else null
+
+    val cached = mediaSizeCache.get(uriString)
+    if (cached != null && liveVideoEdit == null) return cached
+
     return withContext(Dispatchers.IO) {
         val uri = runCatching { Uri.parse(uriString) }.getOrNull() ?: return@withContext null
-        val dims: Pair<Int, Int>? = if (isVideo) {
+        val rawDims: Pair<Int, Int>? = if (isVideo) {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, uri)
@@ -66,10 +79,21 @@ internal suspend fun resolveMediaDimensions(
                 null
             }
         }
-        if (dims != null) {
-            mediaSizeCache.put(uriString, dims)
+        val finalDims = if (rawDims != null && liveVideoEdit != null) {
+            val crop = liveVideoEdit.crop
+            val swapped = ((crop.baseRotation90 / 90) % 2 + 2) % 2 != 0
+            val baseW = if (swapped) rawDims.second else rawDims.first
+            val baseH = if (swapped) rawDims.first else rawDims.second
+            val croppedW = (baseW * crop.cropRect.width).toInt().coerceAtLeast(32)
+            val croppedH = (baseH * crop.cropRect.height).toInt().coerceAtLeast(32)
+            croppedW to croppedH
+        } else {
+            rawDims
         }
-        dims
+        if (finalDims != null) {
+            mediaSizeCache.put(uriString, finalDims)
+        }
+        finalDims
     }
 }
 
@@ -78,13 +102,13 @@ internal fun rememberMediaAspects(items: List<Pair<String, Boolean>>): List<Floa
     val context = LocalContext.current
     val aspects by produceState<List<Float>>(
         initialValue = items.map { (uri, _) ->
-            mediaSizeCache.get(uri)?.let { it.first.toFloat() / it.second.toFloat() } ?: 0.8f
+            mediaSizeCache.get(uri)?.let { (it.first.toFloat() / it.second.toFloat()).coerceIn(0.35f, 3.2f) } ?: 0.8f
         },
         key1 = items
     ) {
         value = items.map { (uri, isVideo) ->
             val dims = resolveMediaDimensions(context, uri, isVideo)
-            if (dims != null) dims.first.toFloat() / dims.second.toFloat() else 0.8f
+            if (dims != null) (dims.first.toFloat() / dims.second.toFloat()).coerceIn(0.35f, 3.2f) else 0.8f
         }
     }
     return aspects

@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
 import androidx.compose.ui.layout.ContentScale
@@ -148,23 +149,21 @@ internal fun ChatSinglePhotoSection(
 
         val sizeModifier = if (dims != null) {
             val (rawW, rawH) = dims!!
-            val aspect = (rawW.toFloat() / rawH.toFloat()).coerceIn(0.42f, 2.8f)
-            if (aspect >= 1.1f) {
-                Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(aspect.coerceIn(1.1f, 2.4f))
-                    .clip(RoundedCornerShape(14.dp))
-            } else if (singlePhotoStretch) {
-                val targetH = (325f / aspect).coerceIn(180f, 490f)
+            val aspect = (rawW.toFloat() / rawH.toFloat()).coerceIn(0.32f, 3.4f)
+            // If photo or video was cropped small (e.g. rawW or rawH < 520px), scale the bubble down proportionally instead of stretching to 325dp!
+            val pixelScale = (maxOf(rawW, rawH).toFloat() / 680f).coerceIn(0.45f, 1f)
+            val maxW = (325f * pixelScale).coerceIn(135f, 325f)
+            val minW = (135f * pixelScale).coerceIn(110f, 190f)
+            val maxH = (480f * pixelScale).coerceIn(150f, 480f)
+            val minH = (110f * pixelScale).coerceIn(95f, 180f)
+
+            if (aspect >= 1.15f && pixelScale >= 0.85f) {
+                val targetH = (325f / aspect).coerceIn(110f, 310f)
                 Modifier
                     .fillMaxWidth()
                     .height(targetH.dp)
                     .clip(RoundedCornerShape(14.dp))
             } else {
-                val maxW = 325f
-                val minW = 190f
-                val maxH = 490f
-                val minH = 180f
                 var targetW = maxW
                 var targetH = targetW / aspect
                 if (targetH > maxH) {
@@ -859,6 +858,19 @@ internal fun ChatRealPhotoBox(
         }
 
         if (isVideo && !showSpoiler && !isUploading && allowVideoAutoplay && parsedUri != null) {
+            val crop = liveVideoEditState?.crop
+            val cropCenterOffsetX = if (crop != null && !crop.cropRect.isFull) {
+                0.5f - (crop.cropRect.left + crop.cropRect.right) * 0.5f
+            } else 0f
+            val cropCenterOffsetY = if (crop != null && !crop.cropRect.isFull) {
+                0.5f - (crop.cropRect.top + crop.cropRect.bottom) * 0.5f
+            } else 0f
+            val cropZoom = if (crop != null && !crop.cropRect.isFull) {
+                maxOf(1f / crop.cropRect.width, 1f / crop.cropRect.height).coerceIn(1f, 4f)
+            } else 1f
+            val mirrorSign = if (crop?.mirrorHorizontal == true) -1f else 1f
+            val extraRot = (crop?.baseRotation90?.toFloat() ?: 0f) + (crop?.straightenDegrees ?: 0f)
+
             InlineMutedVideoPreview(
                 uri = parsedUri,
                 onPrepared = { durMs ->
@@ -873,7 +885,15 @@ internal fun ChatRealPhotoBox(
                         videoProgress = (posMs.toFloat() / durMs).coerceIn(0f, 1f)
                     }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        rotationZ = extraRot
+                        scaleX = mirrorSign * cropZoom
+                        scaleY = cropZoom
+                        translationX = cropCenterOffsetX * size.width * cropZoom
+                        translationY = cropCenterOffsetY * size.height * cropZoom
+                    }
             )
 
             // 1. Live Droplet Blur (Radial / Linear) mask across ALL playing video frames in the chat bubble

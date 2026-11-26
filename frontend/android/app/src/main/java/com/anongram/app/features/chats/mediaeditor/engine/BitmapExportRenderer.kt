@@ -123,8 +123,13 @@ object BitmapExportRenderer {
                     if (item.editState.strokes.isNotEmpty() || item.editState.textLayers.isNotEmpty()) {
                         working = renderOverlayLayers(context, working, item.editState)
                     }
-                    // Cache the edited preview thumbnail for finalUri so gallery/chat initial frame is instant
+                    // Cache the edited preview thumbnail and cropped dimensions for finalUri so gallery/chat bubbles size adaptively in 0ms
                     com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(finalUri, working)
+                    com.anongram.app.features.chats.attach.tabs.gallery.putMediaDimensions(
+                        finalUri.toString(),
+                        working.width,
+                        working.height
+                    )
 
                     if (item.coverUri != null) {
                         val coverFile = File(
@@ -143,9 +148,15 @@ object BitmapExportRenderer {
             }
         }
 
+        // Preserve extra live rotation only if remux didn't already bake the rotation into the MP4 file
+        val liveStateForPlayback = if (remuxSucceeded && item.editState.crop.baseRotation90 % 360 != 0) {
+            item.editState.copy(crop = item.editState.crop.copy(baseRotation90 = 0))
+        } else {
+            item.editState
+        }
         com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
             uriString = finalUri.toString(),
-            state = item.editState,
+            state = liveStateForPlayback,
             overlayBitmap = transparentOverlayBmp,
             blurMaskBitmap = blurMaskBmp
         )
@@ -293,7 +304,13 @@ object BitmapExportRenderer {
                     working.compress(Bitmap.CompressFormat.JPEG, if (item.hd) 94 else 84, fos)
                 }
                 if (targetFile.exists() && targetFile.length() > 0) {
-                    com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(Uri.fromFile(targetFile), working)
+                    val outUri = Uri.fromFile(targetFile)
+                    com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(outUri, working)
+                    com.anongram.app.features.chats.attach.tabs.gallery.putMediaDimensions(
+                        outUri.toString(),
+                        working.width,
+                        working.height
+                    )
                 }
             }
         }

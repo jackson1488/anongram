@@ -1595,9 +1595,19 @@ private fun EditorVideoPreview(
             (bmp.width.toFloat() / bmp.height.toFloat()).coerceIn(0.25f, 4f)
         } else 9f / 16f
     }
-    val isSwapped90 = ((editState.crop.baseRotation90 / 90) % 2 + 2) % 2 != 0
-    val displayVideoAspect = if (isSwapped90) 1f / baseVideoAspect else baseVideoAspect
+    val crop = editState.crop
+    val isSwapped90 = ((crop.baseRotation90 / 90) % 2 + 2) % 2 != 0
+    val rotatedVideoAspect = if (isSwapped90) 1f / baseVideoAspect else baseVideoAspect
     val rot90VideoComp = if (isSwapped90) maxOf(baseVideoAspect, 1f / baseVideoAspect) else 1f
+
+    // In CROP mode we show the full uncropped video frame so the user can move the crop grid over it;
+    // in MAIN / ADJUST / PAINT modes we clip and fit to the cropped aspect ratio so the video is genuinely cropped!
+    val showCroppedViewport = !isEditOverlayActive || isAdjustMode || editState.strokes.isNotEmpty() || editState.textLayers.isNotEmpty()
+    val effectiveViewportAspect = if (showCroppedViewport && !crop.cropRect.isFull) {
+        (rotatedVideoAspect * (crop.cropRect.width / crop.cropRect.height)).coerceIn(0.25f, 4f)
+    } else {
+        rotatedVideoAspect
+    }
 
     Box(
         modifier = modifier
@@ -1614,10 +1624,24 @@ private fun EditorVideoPreview(
     ) {
         Box(
             modifier = Modifier
-                .aspectRatio(displayVideoAspect, matchHeightConstraintsFirst = displayVideoAspect < 1f)
+                .aspectRatio(effectiveViewportAspect, matchHeightConstraintsFirst = effectiveViewportAspect < 1f)
                 .clip(RoundedCornerShape(2.dp)),
             contentAlignment = Alignment.Center
         ) {
+            val cropCenterOffsetX = if (showCroppedViewport && !crop.cropRect.isFull) {
+                0.5f - (crop.cropRect.left + crop.cropRect.right) * 0.5f
+            } else 0f
+            val cropCenterOffsetY = if (showCroppedViewport && !crop.cropRect.isFull) {
+                0.5f - (crop.cropRect.top + crop.cropRect.bottom) * 0.5f
+            } else 0f
+            val cropZoomX = if (showCroppedViewport && !crop.cropRect.isFull) {
+                (1f / crop.cropRect.width).coerceIn(1f, 4f)
+            } else 1f
+            val cropZoomY = if (showCroppedViewport && !crop.cropRect.isFull) {
+                (1f / crop.cropRect.height).coerceIn(1f, 4f)
+            } else 1f
+            val uniformCropZoom = maxOf(cropZoomX, cropZoomY)
+
             AndroidView(
                 factory = { ctx ->
                     VideoView(ctx).apply {
@@ -1642,13 +1666,13 @@ private fun EditorVideoPreview(
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer {
-                        rotationZ = editState.crop.baseRotation90.toFloat() + editState.crop.straightenDegrees
-                        val mirrorSign = if (editState.crop.mirrorHorizontal) -1f else 1f
-                        val cropScaleX = (1f / editState.crop.cropRect.width).coerceIn(1f, 3.5f)
-                        val cropScaleY = (1f / editState.crop.cropRect.height).coerceIn(1f, 3.5f)
-                        val cropZoom = maxOf(cropScaleX, cropScaleY) * rot90VideoComp
-                        scaleX = mirrorSign * cropZoom
-                        scaleY = cropZoom
+                        rotationZ = crop.baseRotation90.toFloat() + crop.straightenDegrees
+                        val mirrorSign = if (crop.mirrorHorizontal) -1f else 1f
+                        val totalZoom = uniformCropZoom * rot90VideoComp
+                        scaleX = mirrorSign * totalZoom
+                        scaleY = totalZoom
+                        translationX = cropCenterOffsetX * size.width * uniformCropZoom
+                        translationY = cropCenterOffsetY * size.height * uniformCropZoom
                     }
             )
 

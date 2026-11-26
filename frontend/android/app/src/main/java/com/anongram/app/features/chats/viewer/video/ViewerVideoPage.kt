@@ -63,6 +63,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -370,7 +371,40 @@ internal fun ViewerVideoPage(
                 com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getBlurMaskBitmap(uriString)?.asImageBitmap()
             }
 
-            Box(modifier = videoBoxModifier) {
+            val crop = liveVideoEditState?.crop
+            val effectiveVideoAspect = if (crop != null && !crop.cropRect.isFull) {
+                (videoAspect * (crop.cropRect.width / crop.cropRect.height)).coerceIn(0.32f, 3.2f)
+            } else {
+                videoAspect
+            }
+
+            val croppedVideoBoxModifier = if (playbackState.isFillExpanded) {
+                if (effectiveVideoAspect >= containerAspect) {
+                    Modifier.fillMaxHeight().aspectRatio(effectiveVideoAspect).clipToBounds()
+                } else {
+                    Modifier.fillMaxWidth().aspectRatio(effectiveVideoAspect).clipToBounds()
+                }
+            } else {
+                if (effectiveVideoAspect >= containerAspect) {
+                    Modifier.fillMaxWidth().aspectRatio(effectiveVideoAspect).clipToBounds()
+                } else {
+                    Modifier.fillMaxHeight().aspectRatio(effectiveVideoAspect).clipToBounds()
+                }
+            }
+
+            val cropCenterOffsetX = if (crop != null && !crop.cropRect.isFull) {
+                0.5f - (crop.cropRect.left + crop.cropRect.right) * 0.5f
+            } else 0f
+            val cropCenterOffsetY = if (crop != null && !crop.cropRect.isFull) {
+                0.5f - (crop.cropRect.top + crop.cropRect.bottom) * 0.5f
+            } else 0f
+            val cropZoom = if (crop != null && !crop.cropRect.isFull) {
+                maxOf(1f / crop.cropRect.width, 1f / crop.cropRect.height).coerceIn(1f, 4f)
+            } else 1f
+            val mirrorSign = if (crop?.mirrorHorizontal == true) -1f else 1f
+            val extraRot = (crop?.baseRotation90?.toFloat() ?: 0f) + (crop?.straightenDegrees ?: 0f)
+
+            Box(modifier = croppedVideoBoxModifier) {
                 AndroidView(
                     factory = { ctx ->
                         TextureView(ctx).apply {
@@ -424,7 +458,15 @@ internal fun ViewerVideoPage(
                             }
                         }
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer {
+                            rotationZ = extraRot
+                            scaleX = mirrorSign * cropZoom
+                            scaleY = cropZoom
+                            translationX = cropCenterOffsetX * size.width * cropZoom
+                            translationY = cropCenterOffsetY * size.height * cropZoom
+                        }
                 )
 
                 // 1. Live Droplet Blur (Radial / Linear) mask across ALL playing video frames in fullscreen viewer

@@ -78,14 +78,38 @@ fun VideoCoverPickerOverlay(
     val scope = rememberCoroutineScope()
 
     var selectedTimeMs by remember(initialCoverTimeMs) { mutableLongStateOf(initialCoverTimeMs ?: 0L) }
-    var detectedDuration by remember(videoUri, durationMs) { mutableLongStateOf(durationMs.coerceAtLeast(1000L)) }
-    var previewBitmap by remember { mutableStateOf<Bitmap?>(null) }
-    var filmstripFrames by remember(videoUri) { mutableStateOf<List<ImageBitmap>>(emptyList()) }
+    var detectedDuration by remember(videoUri, durationMs) {
+        mutableLongStateOf((VideoFilmstripCache.getDuration(videoUri) ?: durationMs).coerceAtLeast(1000L))
+    }
+    var previewBitmap by remember(videoUri) {
+        mutableStateOf<Bitmap?>(
+            (initialCoverUri ?: videoUri).let {
+                com.anongram.app.features.chats.attach.tabs.gallery.getCachedGalleryBitmap(it)
+            }
+        )
+    }
+    val initialFilmstrip = remember(videoUri) {
+        VideoFilmstripCache.getFrames(videoUri) ?: run {
+            val cachedThumb = com.anongram.app.features.chats.attach.tabs.gallery.getCachedGalleryBitmap(videoUri)
+            if (cachedThumb != null) {
+                val img = Bitmap.createScaledBitmap(cachedThumb, 96, 96, true).asImageBitmap()
+                List(12) { img }
+            } else emptyList()
+        }
+    }
+    var filmstripFrames by remember(videoUri) { mutableStateOf<List<ImageBitmap>>(initialFilmstrip) }
     var galleryCoverUri by remember(initialCoverUri) { mutableStateOf<Uri?>(initialCoverUri) }
     var showGallerySheet by remember { mutableStateOf(false) }
 
-    // Extract filmstrip frames once when opening
+    // Extract filmstrip frames once when opening (or reuse VideoFilmstripCache in 0ms!)
     LaunchedEffect(videoUri) {
+        val cached = VideoFilmstripCache.getFrames(videoUri)
+        val cachedDur = VideoFilmstripCache.getDuration(videoUri)
+        if (cached != null && cached.size >= 8 && cachedDur != null) {
+            filmstripFrames = cached
+            detectedDuration = cachedDur
+            return@LaunchedEffect
+        }
         withContext(Dispatchers.IO) {
             val retriever = MediaMetadataRetriever()
             try {
@@ -101,7 +125,10 @@ fun VideoCoverPickerOverlay(
                             Bitmap.createScaledBitmap(bmp, 96, 96, true).asImageBitmap()
                         }
                 }
-                filmstripFrames = list
+                if (list.isNotEmpty()) {
+                    filmstripFrames = list
+                    VideoFilmstripCache.put(videoUri, list, totalMs)
+                }
             } catch (_: Exception) {
             } finally {
                 runCatching { retriever.release() }
@@ -109,22 +136,28 @@ fun VideoCoverPickerOverlay(
         }
     }
 
-    // Update main preview frame when scrubbing or when picking from gallery
+    // Update main preview frame when scrubbing or when picking from gallery (never clears previewBitmap to null so it never flickers/disappears!)
     LaunchedEffect(videoUri, selectedTimeMs, galleryCoverUri) {
         withContext(Dispatchers.IO) {
             if (galleryCoverUri != null) {
                 runCatching {
-                    previewBitmap = com.anongram.app.features.chats.mediaeditor.engine.BitmapExportRenderer
+                    val decoded = com.anongram.app.features.chats.mediaeditor.engine.BitmapExportRenderer
                         .decodeBitmapWithExif(context, galleryCoverUri!!, maxDim = 1600)
+                    if (decoded != null) {
+                        previewBitmap = decoded
+                    }
                 }
             } else {
                 val retriever = MediaMetadataRetriever()
                 try {
                     retriever.setDataSource(context, videoUri)
-                    previewBitmap = retriever.getFrameAtTime(
+                    val frame = retriever.getFrameAtTime(
                         selectedTimeMs * 1000L,
                         MediaMetadataRetriever.OPTION_CLOSEST_SYNC
                     ) ?: retriever.frameAtTime
+                    if (frame != null) {
+                        previewBitmap = frame
+                    }
                 } catch (_: Exception) {
                 } finally {
                     runCatching { retriever.release() }
