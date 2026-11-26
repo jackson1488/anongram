@@ -296,7 +296,7 @@ fun AdjustmentsPanel(
                                     onCurvesChange(
                                         curves.withPoints(
                                             curves.activeChannel,
-                                            ToneCurvesState.defaultPoints()
+                                            ToneCurvesState.defaultPoints
                                         )
                                     )
                                 }
