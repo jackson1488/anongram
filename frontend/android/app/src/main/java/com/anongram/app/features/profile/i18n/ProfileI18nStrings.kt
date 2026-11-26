@@ -53,4 +53,15 @@ interface ProfileI18nStrings {
     val save: String
     val cancel: String
     val permissionsNeeded: String
+
+    // Галерея аватаров и полноэкранный просмотр
+    val photoCounterOf: String
+    val menuSetPrimaryPhoto: String
+    val menuSaveToGallery: String
+    val menuShare: String
+    val menuDeletePhoto: String
+    val deletePhotoTitle: String
+    val deletePhotoMessage: String
+    val deleteConfirm: String
+    val savedToGalleryToast: String
 }

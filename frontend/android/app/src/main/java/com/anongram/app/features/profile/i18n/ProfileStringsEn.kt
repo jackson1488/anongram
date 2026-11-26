@@ -48,4 +48,14 @@ object ProfileStringsEn : ProfileI18nStrings {
     override val save: String = "Save"
     override val cancel: String = "Cancel"
     override val permissionsNeeded: String = "Allow gallery access to pick photos and videos"
+
+    override val photoCounterOf: String = "%1\$d of %2\$d"
+    override val menuSetPrimaryPhoto: String = "Set as primary"
+    override val menuSaveToGallery: String = "Save to gallery"
+    override val menuShare: String = "Share"
+    override val menuDeletePhoto: String = "Delete"
+    override val deletePhotoTitle: String = "Delete photo?"
+    override val deletePhotoMessage: String = "Are you sure you want to delete this?"
+    override val deleteConfirm: String = "Delete"
+    override val savedToGalleryToast: String = "Saved to gallery"
 }

@@ -50,8 +50,12 @@ sealed interface ProfileAvatar {
     }
 }
 
+import org.json.JSONArray
+import org.json.JSONObject
+
 object ProfileAvatarStore {
     private const val PREFS = "anongram_profile_avatar"
+    private const val KEY_AVATARS_JSON = "avatars_json"
     private const val KEY_TYPE = "type"
     private const val KEY_URI = "uri"
     private const val KEY_ZOOM = "zoom"
@@ -66,6 +70,9 @@ object ProfileAvatarStore {
     private const val KEY_BG_START = "bg_start"
     private const val KEY_BG_END = "bg_end"
 
+    private val _avatars = MutableStateFlow<List<ProfileAvatar>>(emptyList())
+    val avatars: StateFlow<List<ProfileAvatar>> = _avatars.asStateFlow()
+
     private val _avatar = MutableStateFlow<ProfileAvatar>(ProfileAvatar.None)
     val avatar: StateFlow<ProfileAvatar> = _avatar.asStateFlow()
 
@@ -75,7 +82,63 @@ object ProfileAvatarStore {
         if (loaded) return
         loaded = true
         val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        _avatar.value = when (p.getString(KEY_TYPE, "none")) {
+        val rawJson = p.getString(KEY_AVATARS_JSON, null)
+        val list = if (!rawJson.isNullOrBlank()) {
+            decodeList(rawJson)
+        } else {
+            val legacy = loadLegacySingle(p)
+            if (legacy != ProfileAvatar.None) listOf(legacy) else emptyList()
+        }
+        applyList(list)
+    }
+
+    fun setAvatar(context: Context, avatar: ProfileAvatar) {
+        ensureLoaded(context)
+        if (avatar is ProfileAvatar.None) {
+            saveList(context, emptyList())
+        } else {
+            addAvatar(context, avatar)
+        }
+    }
+
+    fun addAvatar(context: Context, avatar: ProfileAvatar) {
+        if (avatar is ProfileAvatar.None) return
+        ensureLoaded(context)
+        val updated = listOf(avatar) + _avatars.value
+        saveList(context, updated)
+    }
+
+    fun setPrimaryAvatar(context: Context, index: Int) {
+        ensureLoaded(context)
+        val current = _avatars.value
+        if (index !in current.indices || index == 0) return
+        val chosen = current[index]
+        val updated = listOf(chosen) + current.filterIndexed { i, _ -> i != index }
+        saveList(context, updated)
+    }
+
+    fun removeAvatarAt(context: Context, index: Int) {
+        ensureLoaded(context)
+        val current = _avatars.value
+        if (index !in current.indices) return
+        val updated = current.filterIndexed { i, _ -> i != index }
+        saveList(context, updated)
+    }
+
+    private fun applyList(list: List<ProfileAvatar>) {
+        _avatars.value = list
+        _avatar.value = list.firstOrNull() ?: ProfileAvatar.None
+    }
+
+    private fun saveList(context: Context, list: List<ProfileAvatar>) {
+        loaded = true
+        applyList(list)
+        val p = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        p.edit().putString(KEY_AVATARS_JSON, encodeList(list)).apply()
+    }
+
+    private fun loadLegacySingle(p: android.content.SharedPreferences): ProfileAvatar {
+        return when (p.getString(KEY_TYPE, "none")) {
             "photo" -> {
                 val uri = p.getString(KEY_URI, null)
                 if (uri.isNullOrBlank()) ProfileAvatar.None
@@ -112,37 +175,95 @@ object ProfileAvatarStore {
         }
     }
 
-    fun setAvatar(context: Context, avatar: ProfileAvatar) {
-        loaded = true
-        _avatar.value = avatar
-        val editor = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-        when (avatar) {
-            is ProfileAvatar.None -> editor.clear().putString(KEY_TYPE, "none")
-            is ProfileAvatar.Photo -> editor
-                .putString(KEY_TYPE, "photo")
-                .putString(KEY_URI, avatar.uriString)
-                .putFloat(KEY_ZOOM, avatar.zoom)
-                .putFloat(KEY_PAN_X, avatar.panX)
-                .putFloat(KEY_PAN_Y, avatar.panY)
-                .putInt(KEY_ROT, avatar.rotationDegrees)
-                .putBoolean(KEY_MIRROR, avatar.mirrorHorizontal)
-            is ProfileAvatar.Video -> editor
-                .putString(KEY_TYPE, "video")
-                .putString(KEY_URI, avatar.uriString)
-                .putLong(KEY_TRIM_START, avatar.trimStartMs)
-                .putLong(KEY_TRIM_END, avatar.trimEndMs)
-                .putLong(KEY_THUMB_MS, avatar.thumbnailFrameMs)
-                .putFloat(KEY_ZOOM, avatar.zoom)
-                .putFloat(KEY_PAN_X, avatar.panX)
-                .putFloat(KEY_PAN_Y, avatar.panY)
-                .putInt(KEY_ROT, avatar.rotationDegrees)
-                .putBoolean(KEY_MIRROR, avatar.mirrorHorizontal)
-            is ProfileAvatar.Emoji -> editor
-                .putString(KEY_TYPE, "emoji")
-                .putString(KEY_EMOJI, avatar.emoji)
-                .putLong(KEY_BG_START, avatar.bgStartArgb)
-                .putLong(KEY_BG_END, avatar.bgEndArgb)
+    private fun encodeList(list: List<ProfileAvatar>): String {
+        val arr = JSONArray()
+        for (item in list) {
+            val obj = JSONObject()
+            when (item) {
+                is ProfileAvatar.None -> continue
+                is ProfileAvatar.Photo -> {
+                    obj.put(KEY_TYPE, "photo")
+                    obj.put(KEY_URI, item.uriString)
+                    obj.put(KEY_ZOOM, item.zoom.toDouble())
+                    obj.put(KEY_PAN_X, item.panX.toDouble())
+                    obj.put(KEY_PAN_Y, item.panY.toDouble())
+                    obj.put(KEY_ROT, item.rotationDegrees)
+                    obj.put(KEY_MIRROR, item.mirrorHorizontal)
+                }
+                is ProfileAvatar.Video -> {
+                    obj.put(KEY_TYPE, "video")
+                    obj.put(KEY_URI, item.uriString)
+                    obj.put(KEY_TRIM_START, item.trimStartMs)
+                    obj.put(KEY_TRIM_END, item.trimEndMs)
+                    obj.put(KEY_THUMB_MS, item.thumbnailFrameMs)
+                    obj.put(KEY_ZOOM, item.zoom.toDouble())
+                    obj.put(KEY_PAN_X, item.panX.toDouble())
+                    obj.put(KEY_PAN_Y, item.panY.toDouble())
+                    obj.put(KEY_ROT, item.rotationDegrees)
+                    obj.put(KEY_MIRROR, item.mirrorHorizontal)
+                }
+                is ProfileAvatar.Emoji -> {
+                    obj.put(KEY_TYPE, "emoji")
+                    obj.put(KEY_EMOJI, item.emoji)
+                    obj.put(KEY_BG_START, item.bgStartArgb)
+                    obj.put(KEY_BG_END, item.bgEndArgb)
+                }
+            }
+            arr.put(obj)
         }
-        editor.apply()
+        return arr.toString()
+    }
+
+    private fun decodeList(raw: String): List<ProfileAvatar> {
+        return runCatching {
+            val arr = JSONArray(raw)
+            buildList {
+                for (i in 0 until arr.length()) {
+                    val obj = arr.optJSONObject(i) ?: continue
+                    when (obj.optString(KEY_TYPE)) {
+                        "photo" -> {
+                            val uri = obj.optString(KEY_URI)
+                            if (uri.isNotBlank()) {
+                                add(
+                                    ProfileAvatar.Photo(
+                                        uriString = uri,
+                                        zoom = obj.optDouble(KEY_ZOOM, 1.0).toFloat(),
+                                        panX = obj.optDouble(KEY_PAN_X, 0.0).toFloat(),
+                                        panY = obj.optDouble(KEY_PAN_Y, 0.0).toFloat(),
+                                        rotationDegrees = obj.optInt(KEY_ROT, 0),
+                                        mirrorHorizontal = obj.optBoolean(KEY_MIRROR, false)
+                                    )
+                                )
+                            }
+                        }
+                        "video" -> {
+                            val uri = obj.optString(KEY_URI)
+                            if (uri.isNotBlank()) {
+                                add(
+                                    ProfileAvatar.Video(
+                                        uriString = uri,
+                                        trimStartMs = obj.optLong(KEY_TRIM_START, 0L),
+                                        trimEndMs = obj.optLong(KEY_TRIM_END, MAX_PROFILE_VIDEO_MS),
+                                        thumbnailFrameMs = obj.optLong(KEY_THUMB_MS, 0L),
+                                        zoom = obj.optDouble(KEY_ZOOM, 1.0).toFloat(),
+                                        panX = obj.optDouble(KEY_PAN_X, 0.0).toFloat(),
+                                        panY = obj.optDouble(KEY_PAN_Y, 0.0).toFloat(),
+                                        rotationDegrees = obj.optInt(KEY_ROT, 0),
+                                        mirrorHorizontal = obj.optBoolean(KEY_MIRROR, false)
+                                    )
+                                )
+                            }
+                        }
+                        "emoji" -> add(
+                            ProfileAvatar.Emoji(
+                                emoji = obj.optString(KEY_EMOJI, "🦆"),
+                                bgStartArgb = obj.optLong(KEY_BG_START, 0xFF62C8FA),
+                                bgEndArgb = obj.optLong(KEY_BG_END, 0xFF2B6FD9)
+                            )
+                        )
+                    }
+                }
+            }
+        }.getOrDefault(emptyList())
     }
 }

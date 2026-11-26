@@ -543,7 +543,7 @@ fun ProfileAvatarEditorScreen(
                                                 } else uri
                                             }.getOrDefault(uri)
                                         }
-                                        ProfileAvatarStore.setAvatar(
+                                        ProfileAvatarStore.addAvatar(
                                             context,
                                             ProfileAvatar.Photo(
                                                 uriString = exported.toString(),
@@ -555,7 +555,7 @@ fun ProfileAvatarEditorScreen(
                                             )
                                         )
                                     } else {
-                                        ProfileAvatarStore.setAvatar(
+                                        ProfileAvatarStore.addAvatar(
                                             context,
                                             ProfileAvatar.Video(
                                                 uriString = uri.toString(),

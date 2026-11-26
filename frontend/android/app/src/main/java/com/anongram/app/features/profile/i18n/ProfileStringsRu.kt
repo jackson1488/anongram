@@ -48,4 +48,14 @@ object ProfileStringsRu : ProfileI18nStrings {
     override val save: String = "Сохранить"
     override val cancel: String = "Отмена"
     override val permissionsNeeded: String = "Разрешите доступ к галерее для выбора фото и видео"
+
+    override val photoCounterOf: String = "%1\$d из %2\$d"
+    override val menuSetPrimaryPhoto: String = "Сделать основной"
+    override val menuSaveToGallery: String = "Сохранить в галерею"
+    override val menuShare: String = "Поделиться"
+    override val menuDeletePhoto: String = "Удалить"
+    override val deletePhotoTitle: String = "Удалить фотографию?"
+    override val deletePhotoMessage: String = "Вы точно хотите удалить?"
+    override val deleteConfirm: String = "Удалить"
+    override val savedToGalleryToast: String = "Сохранено в галерею"
 }

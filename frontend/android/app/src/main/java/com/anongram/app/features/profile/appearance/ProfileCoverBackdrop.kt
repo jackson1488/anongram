@@ -82,5 +82,17 @@ fun ProfileCoverBackdrop(
                 }
             }
         }
+        // Бесшовное растворение нижней кромки шапки в фон экрана
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        0.0f to Color.Transparent,
+                        0.62f to Color.Transparent,
+                        1.0f to scheme.background
+                    )
+                )
+        )
     }
 }
