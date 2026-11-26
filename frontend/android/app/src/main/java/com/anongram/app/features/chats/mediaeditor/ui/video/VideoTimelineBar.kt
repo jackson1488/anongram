@@ -7,7 +7,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -34,6 +35,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,6 +44,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -53,7 +56,14 @@ import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.features.chats.mediaeditor.i18n.MediaEditorI18n
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlin.math.abs
 import kotlin.math.roundToInt
+
+private enum class TrimDragMode {
+    LEFT,
+    RIGHT,
+    WINDOW
+}
 
 @Composable
 fun VideoTimelineBar(
@@ -67,6 +77,7 @@ fun VideoTimelineBar(
     onTogglePlay: () -> Unit,
     onToggleMute: () -> Unit,
     onTrimChange: (startMs: Long, endMs: Long) -> Unit,
+    onTrimFinished: ((startMs: Long, endMs: Long) -> Unit)? = null,
     onOpenCoverPicker: () -> Unit,
     onRemoveCover: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -104,12 +115,19 @@ fun VideoTimelineBar(
 
     val effectiveDuration = detectedDurationMs.coerceAtLeast(1000L)
     val effectiveEnd = if (trimEndMs > 0L) trimEndMs.coerceAtMost(effectiveDuration) else effectiveDuration
-    val effectiveStart = trimStartMs.coerceIn(0L, (effectiveEnd - 500L).coerceAtLeast(0L))
+    val effectiveStart = trimStartMs.coerceIn(0L, (effectiveEnd - 400L).coerceAtLeast(0L))
+    val trimmedDurationMs = (effectiveEnd - effectiveStart).coerceAtLeast(400L)
+
+    val currentStartState by rememberUpdatedState(effectiveStart)
+    val currentEndState by rememberUpdatedState(effectiveEnd)
+    val currentDurationState by rememberUpdatedState(effectiveDuration)
+    val currentOnTrimChange by rememberUpdatedState(onTrimChange)
+    val currentOnTrimFinished by rememberUpdatedState(onTrimFinished)
 
     Column(
         modifier = modifier.fillMaxWidth()
     ) {
-        // Row above strip: Mute circle on left, "Изменить обложку >" pill centered, and "Снять обложку" if custom cover is set
+        // Row above strip: Mute circle on left, "Изменить обложку >" pill centered, and trimmed duration badge on right
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -167,116 +185,185 @@ fun VideoTimelineBar(
                 }
             }
 
-            Spacer(modifier = Modifier.size(32.dp))
+            // Live trimmed duration badge (e.g. "0:05")
+            val totalSec = (trimmedDurationMs / 1000L).coerceAtLeast(1L)
+            Text(
+                text = String.format("%d:%02d", totalSec / 60, totalSec % 60),
+                color = Color.White,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(scheme.islandBg)
+                    .border(1.dp, scheme.islandBorder, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
         }
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // Compact white-bordered frame timeline strip (36.dp)
+        // Interactive Frame Timeline Strip (42.dp tall, wide hit targets for left/right trim handles + whole window slide)
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(36.dp)
+                .height(42.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(scheme.card)
         ) {
             val density = LocalDensity.current
             val totalWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
             val startFrac = (effectiveStart.toFloat() / effectiveDuration).coerceIn(0f, 0.94f)
-            val endFrac = (effectiveEnd.toFloat() / effectiveDuration).coerceIn(startFrac + 0.06f, 1f)
+            val endFrac = (effectiveEnd.toFloat() / effectiveDuration).coerceIn(startFrac + 0.05f, 1f)
+            val handleHitRadiusPx = with(density) { 26.dp.toPx() }
+            val visualHandleWidthDp = 14.dp
+            val visualHandleWidthPx = with(density) { visualHandleWidthDp.toPx() }
 
-            Row(modifier = Modifier.fillMaxSize()) {
-                frames.forEach { frame ->
-                    Image(
-                        bitmap = frame,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
+            // Unified gesture detector across the entire timeline track so handles NEVER lose focus while dragging!
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(videoUri) {
+                        awaitEachGesture {
+                            val down = awaitFirstDown(requireUnconsumed = false)
+                            val dur = currentDurationState.coerceAtLeast(1000L)
+                            val curStart = currentStartState
+                            val curEnd = currentEndState
+                            val leftHandleCenterX = (curStart.toFloat() / dur) * totalWidthPx
+                            val rightHandleCenterX = (curEnd.toFloat() / dur) * totalWidthPx
+
+                            val distLeft = abs(down.position.x - leftHandleCenterX)
+                            val distRight = abs(down.position.x - rightHandleCenterX)
+
+                            val dragMode = when {
+                                distLeft <= handleHitRadiusPx && distLeft <= distRight -> TrimDragMode.LEFT
+                                distRight <= handleHitRadiusPx -> TrimDragMode.RIGHT
+                                down.position.x in leftHandleCenterX..rightHandleCenterX -> TrimDragMode.WINDOW
+                                distLeft < distRight -> TrimDragMode.LEFT
+                                else -> TrimDragMode.RIGHT
+                            }
+
+                            var workingStart = curStart
+                            var workingEnd = curEnd
+                            val minSpanMs = 500L.coerceAtMost(dur)
+
+                            // If user tapped outside the handles, jump the nearest handle immediately to the touch X
+                            if (dragMode == TrimDragMode.LEFT && distLeft > handleHitRadiusPx) {
+                                workingStart = ((down.position.x / totalWidthPx) * dur).toLong()
+                                    .coerceIn(0L, (workingEnd - minSpanMs).coerceAtLeast(0L))
+                                currentOnTrimChange(workingStart, workingEnd)
+                            } else if (dragMode == TrimDragMode.RIGHT && distRight > handleHitRadiusPx) {
+                                workingEnd = ((down.position.x / totalWidthPx) * dur).toLong()
+                                    .coerceIn((workingStart + minSpanMs).coerceAtMost(dur), dur)
+                                currentOnTrimChange(workingStart, workingEnd)
+                            }
+
+                            while (true) {
+                                val event = awaitPointerEvent()
+                                val change = event.changes.firstOrNull { it.pressed } ?: break
+                                val dx = change.positionChange().x
+                                if (dx != 0f) {
+                                    change.consume()
+                                    val deltaMs = ((dx / totalWidthPx) * dur).toLong()
+                                    when (dragMode) {
+                                        TrimDragMode.LEFT -> {
+                                            workingStart = (workingStart + deltaMs)
+                                                .coerceIn(0L, (workingEnd - minSpanMs).coerceAtLeast(0L))
+                                        }
+                                        TrimDragMode.RIGHT -> {
+                                            workingEnd = (workingEnd + deltaMs)
+                                                .coerceIn((workingStart + minSpanMs).coerceAtMost(dur), dur)
+                                        }
+                                        TrimDragMode.WINDOW -> {
+                                            val windowSpan = (workingEnd - workingStart).coerceAtLeast(minSpanMs)
+                                            val nextS = (workingStart + deltaMs).coerceIn(0L, (dur - windowSpan).coerceAtLeast(0L))
+                                            workingStart = nextS
+                                            workingEnd = (nextS + windowSpan).coerceAtMost(dur)
+                                        }
+                                    }
+                                    currentOnTrimChange(workingStart, workingEnd)
+                                }
+                            }
+
+                            currentOnTrimFinished?.invoke(workingStart, workingEnd)
+                        }
+                    }
+            ) {
+                Row(modifier = Modifier.fillMaxSize()) {
+                    frames.forEach { frame ->
+                        Image(
+                            bitmap = frame,
+                            contentDescription = null,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
+                }
+
+                // Dimmed outside trimmed area
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(with(density) { (startFrac * totalWidthPx).toDp() })
+                        .background(Color.Black.copy(alpha = 0.62f))
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(with(density) { ((1f - endFrac) * totalWidthPx).toDp() })
+                        .background(Color.Black.copy(alpha = 0.62f))
+                )
+
+                // Active trim window border
+                val trimLeftDp = with(density) { (startFrac * totalWidthPx).toDp() }
+                val trimWidthDp = with(density) { ((endFrac - startFrac) * totalWidthPx).coerceAtLeast(24f).toDp() }
+                Box(
+                    modifier = Modifier
+                        .offset(x = trimLeftDp)
+                        .width(trimWidthDp)
+                        .fillMaxHeight()
+                        .border(2.dp, Color.White, RoundedCornerShape(7.dp))
+                )
+
+                // Left white handle with dark slot
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset((startFrac * (totalWidthPx - visualHandleWidthPx)).roundToInt(), 0) }
+                        .width(visualHandleWidthDp)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(topStart = 7.dp, bottomStart = 7.dp))
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
+                            .width(2.5.dp)
+                            .height(14.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.65f))
                     )
                 }
-            }
 
-            // Dimmed outside trimmed area
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(with(density) { (startFrac * totalWidthPx).toDp() })
-                    .background(Color.Black.copy(alpha = 0.65f))
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .fillMaxHeight()
-                    .width(with(density) { ((1f - endFrac) * totalWidthPx).toDp() })
-                    .background(Color.Black.copy(alpha = 0.65f))
-            )
-
-            // Active trim window border
-            val trimLeftDp = with(density) { (startFrac * totalWidthPx).toDp() }
-            val trimWidthDp = with(density) { ((endFrac - startFrac) * totalWidthPx).coerceAtLeast(20f).toDp() }
-            Box(
-                modifier = Modifier
-                    .offset(x = trimLeftDp)
-                    .width(trimWidthDp)
-                    .fillMaxHeight()
-                    .border(2.dp, Color.White, RoundedCornerShape(6.dp))
-            )
-
-            // Left white handle with dark slot
-            val handleWidthPx = with(density) { 11.dp.toPx() }
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset((startFrac * (totalWidthPx - handleWidthPx)).roundToInt(), 0) }
-                    .width(11.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(topStart = 6.dp, bottomStart = 6.dp))
-                    .background(Color.White)
-                    .pointerInput(effectiveDuration, effectiveEnd) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            val deltaMs = (dragAmount.x / totalWidthPx * effectiveDuration).toLong()
-                            val nextStart = (effectiveStart + deltaMs).coerceIn(0L, (effectiveEnd - 500L).coerceAtLeast(0L))
-                            onTrimChange(nextStart, effectiveEnd)
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
+                // Right white handle with dark slot
                 Box(
                     modifier = Modifier
-                        .width(2.dp)
-                        .height(12.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.6f))
-                )
-            }
-
-            // Right white handle with dark slot
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(((endFrac * totalWidthPx) - handleWidthPx).coerceAtLeast(0f).roundToInt(), 0) }
-                    .width(11.dp)
-                    .fillMaxHeight()
-                    .clip(RoundedCornerShape(topEnd = 6.dp, bottomEnd = 6.dp))
-                    .background(Color.White)
-                    .pointerInput(effectiveDuration, effectiveStart) {
-                        detectDragGestures { change, dragAmount ->
-                            change.consume()
-                            val deltaMs = (dragAmount.x / totalWidthPx * effectiveDuration).toLong()
-                            val nextEnd = (effectiveEnd + deltaMs).coerceIn((effectiveStart + 500L).coerceAtMost(effectiveDuration), effectiveDuration)
-                            onTrimChange(effectiveStart, nextEnd)
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .height(12.dp)
-                        .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.6f))
-                )
+                        .offset { IntOffset(((endFrac * totalWidthPx) - visualHandleWidthPx).coerceAtLeast(0f).roundToInt(), 0) }
+                        .width(visualHandleWidthDp)
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(topEnd = 7.dp, bottomEnd = 7.dp))
+                        .background(Color.White),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(2.5.dp)
+                            .height(14.dp)
+                            .clip(CircleShape)
+                            .background(Color.Black.copy(alpha = 0.65f))
+                    )
+                }
             }
         }
     }

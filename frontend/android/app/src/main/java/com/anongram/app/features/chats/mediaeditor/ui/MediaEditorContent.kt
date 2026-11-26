@@ -216,6 +216,8 @@ fun MediaEditorContent(
     var dragOffsetY by remember { mutableFloatStateOf(0f) }
     var dragScale by remember { mutableFloatStateOf(1f) }
     var dragBgAlpha by remember { mutableFloatStateOf(1f) }
+    var closeCardAlpha by remember { mutableFloatStateOf(1f) }
+    var closeCornerDp by remember { mutableFloatStateOf(0f) }
     var isVerticalDragging by remember { mutableStateOf(false) }
     var isClosingAnimated by remember { mutableStateOf(false) }
 
@@ -245,7 +247,8 @@ fun MediaEditorContent(
         val startX = dragOffsetX
         val startY = dragOffsetY
         val startScale = dragScale
-        val startAlpha = dragBgAlpha
+        val startBgAlpha = dragBgAlpha
+        val startCorner = closeCornerDp
 
         val rootCenterX = if (editorRootBounds.width > 0f) editorRootBounds.center.x else (screenWidthPx * 0.5f)
         val rootCenterY = if (editorRootBounds.height > 0f) editorRootBounds.center.y else (screenHeightPx * 0.5f)
@@ -256,22 +259,25 @@ fun MediaEditorContent(
         val endY = if (targetRect != null && targetRect.height > 0f) {
             targetRect.center.y - rootCenterY
         } else {
-            screenHeightPx * 0.28f
+            screenHeightPx * 0.25f
         }
         val endScale = if (targetRect != null && targetRect.width > 0f) {
-            (targetRect.width / screenWidthPx).coerceIn(0.24f, 0.44f)
-        } else 0.32f
+            (targetRect.width / screenWidthPx).coerceIn(0.26f, 0.42f)
+        } else 0.31f
 
         scope.launch {
             androidx.compose.animation.core.animate(
                 initialValue = 0f,
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 220, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
             ) { t, _ ->
                 dragOffsetX = startX + (endX - startX) * t
                 dragOffsetY = startY + (endY - startY) * t
                 dragScale = startScale + (endScale - startScale) * t
-                dragBgAlpha = (startAlpha * (1f - t)).coerceIn(0f, 1f)
+                closeCornerDp = startCorner + (24f - startCorner) * t
+                dragBgAlpha = (startBgAlpha * (1f - t * 1.15f)).coerceIn(0f, 1f)
+                // Keep the photo card 100% opaque while flying to its grid tile, fading only in the last 18%
+                closeCardAlpha = if (t < 0.82f) 1f else ((1f - t) / 0.18f).coerceIn(0f, 1f)
             }
             onBack()
         }
@@ -363,7 +369,7 @@ fun MediaEditorContent(
                     translationY = dragOffsetY
                     scaleX = dragScale
                     scaleY = dragScale
-                    alpha = (dragBgAlpha + 0.25f).coerceIn(0f, 1f)
+                    alpha = closeCardAlpha
                 }
                 .then(
                     if (editorMode == EditorMode.MAIN && !showFontsModuleScreen && activePhotoZoomScale <= 1.02f) {
@@ -374,23 +380,25 @@ fun MediaEditorContent(
                                 },
                                 onDragEnd = {
                                     isVerticalDragging = false
-                                    if (abs(dragOffsetY) > 105.dp.toPx()) {
+                                    if (abs(dragOffsetY) > 95.dp.toPx()) {
                                         triggerAnimatedClose()
                                     } else {
                                         val sX = dragOffsetX
                                         val sY = dragOffsetY
                                         val sScale = dragScale
                                         val sAlpha = dragBgAlpha
+                                        val sCorner = closeCornerDp
                                         scope.launch {
                                             androidx.compose.animation.core.animate(
                                                 initialValue = 0f,
                                                 targetValue = 1f,
-                                                animationSpec = tween(durationMillis = 175, easing = FastOutSlowInEasing)
+                                                animationSpec = tween(durationMillis = 190, easing = FastOutSlowInEasing)
                                             ) { t, _ ->
                                                 dragOffsetX = sX * (1f - t)
                                                 dragOffsetY = sY * (1f - t)
                                                 dragScale = sScale + (1f - sScale) * t
                                                 dragBgAlpha = sAlpha + (1f - sAlpha) * t
+                                                closeCornerDp = sCorner * (1f - t)
                                             }
                                         }
                                     }
@@ -401,15 +409,20 @@ fun MediaEditorContent(
                                     dragOffsetY = 0f
                                     dragScale = 1f
                                     dragBgAlpha = 1f
+                                    closeCornerDp = 0f
                                 },
                                 onVerticalDrag = { change, dragAmount ->
+                                    val dx = change.position.x - change.previousPosition.x
                                     change.consume()
-                                    // Synchronous 1:1 update without launching any coroutine!
+                                    // Synchronous 1:1 2D follow without launching any coroutine!
+                                    val nextX = dragOffsetX + dx * 0.85f
                                     val nextY = dragOffsetY + dragAmount
-                                    val progress = (abs(nextY) / (screenHeightPx * 0.55f)).coerceIn(0f, 1f)
+                                    val progress = (abs(nextY) / (screenHeightPx * 0.52f)).coerceIn(0f, 1f)
+                                    dragOffsetX = nextX
                                     dragOffsetY = nextY
-                                    dragScale = (1f - progress * 0.35f).coerceIn(0.52f, 1f)
-                                    dragBgAlpha = (1f - progress * 0.85f).coerceIn(0.12f, 1f)
+                                    dragScale = (1f - progress * 0.38f).coerceIn(0.48f, 1f)
+                                    dragBgAlpha = (1f - progress * 0.88f).coerceIn(0.08f, 1f)
+                                    closeCornerDp = progress * 20f
                                 }
                             )
                         }
@@ -426,7 +439,11 @@ fun MediaEditorContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 0.dp),
+                    .padding(vertical = 0.dp)
+                    .then(
+                        if (closeCornerDp > 0.5f) Modifier.clip(RoundedCornerShape(closeCornerDp.dp))
+                        else Modifier
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 if (item.isVideo) {
@@ -613,6 +630,9 @@ fun MediaEditorContent(
                             autoSaveSingleItem(updated)
                         },
                         onTrimChange = { startMs, endMs ->
+                            updateCurrentItem { it.copy(trimStartMs = startMs, trimEndMs = endMs) }
+                        },
+                        onTrimFinished = { startMs, endMs ->
                             val updated = updateCurrentItem { it.copy(trimStartMs = startMs, trimEndMs = endMs) }
                             autoSaveSingleItem(updated)
                         },
@@ -1378,6 +1398,30 @@ private fun EditorVideoPreview(
             } else {
                 if (vv.isPlaying) vv.pause()
             }
+        }
+    }
+
+    // Seek video when user drags trimStartMs and loop strictly between [trimStartMs .. trimEndMs]
+    LaunchedEffect(item.trimStartMs, videoViewRef) {
+        val vv = videoViewRef ?: return@LaunchedEffect
+        runCatching {
+            vv.seekTo(item.trimStartMs.toInt())
+        }
+    }
+
+    LaunchedEffect(isPlaying, item.trimStartMs, item.trimEndMs, videoViewRef) {
+        val vv = videoViewRef ?: return@LaunchedEffect
+        while (isPlaying) {
+            runCatching {
+                val pos = vv.currentPosition.toLong()
+                val startBound = item.trimStartMs.coerceAtLeast(0L)
+                val endBound = if (item.trimEndMs > startBound + 300L) item.trimEndMs else Long.MAX_VALUE
+                if (pos >= endBound || pos < startBound - 300L) {
+                    vv.seekTo(startBound.toInt())
+                    if (!vv.isPlaying) vv.start()
+                }
+            }
+            delay(80L)
         }
     }
 
