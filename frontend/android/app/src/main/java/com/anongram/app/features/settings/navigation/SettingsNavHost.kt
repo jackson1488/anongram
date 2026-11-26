@@ -43,6 +43,9 @@ import com.anongram.app.features.settings.notifications.ui.NotificationsSettings
 import com.anongram.app.features.settings.privacy.ui.PrivacySecuritySettingsScreen
 import com.anongram.app.features.settings.security.ui.SecuritySettingsScreen
 import com.anongram.app.features.settings.search.ui.SettingsSearchScreen
+import android.net.Uri
+import com.anongram.app.features.profile.avatar.ProfileAvatarEditorScreen
+import com.anongram.app.features.profile.avatar.ProfileAvatarPickerScreen
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import com.anongram.app.features.settings.qr.ui.QrCameraScannerScreen
 import kotlinx.coroutines.launch
@@ -267,6 +270,36 @@ fun SettingsNavHost(
                     onSaveAccount = { newName, newHandle ->
                         customDisplayName = newName
                         customHandle = newHandle.uppercase()
+                    },
+                    onBack = popBack
+                )
+            }
+
+            SettingsRoute.ProfileAvatar -> {
+                ProfileAvatarPickerScreen(
+                    displayName = customDisplayName,
+                    subtitleText = "@$customHandle",
+                    onPickMedia = { uri, isVideo, durationMs ->
+                        navigateTo(
+                            SettingsRoute.ProfileAvatarEditor(
+                                uriString = uri.toString(),
+                                isVideo = isVideo,
+                                durationMs = durationMs
+                            )
+                        )
+                    },
+                    onBack = popBack
+                )
+            }
+
+            is SettingsRoute.ProfileAvatarEditor -> {
+                ProfileAvatarEditorScreen(
+                    uri = Uri.parse(route.uriString),
+                    isVideo = route.isVideo,
+                    initialDurationMs = route.durationMs,
+                    onSaved = {
+                        popBack()
+                        popBack()
                     },
                     onBack = popBack
                 )

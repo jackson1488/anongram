@@ -173,7 +173,7 @@ fun SettingsMainScreen(
             SettingsProfileHeader(
                 displayName = displayName,
                 subtitleText = subtitleInfo,
-                onAvatarClick = { onNavigate(SettingsRoute.Account) }
+                onAvatarClick = { onNavigate(SettingsRoute.ProfileAvatar) }
             )
 
             Spacer(modifier = Modifier.height(10.dp))

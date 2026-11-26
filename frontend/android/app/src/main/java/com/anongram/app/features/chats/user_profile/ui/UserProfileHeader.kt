@@ -421,76 +421,98 @@ internal fun UserProfileHeroHeader(
                 }
             }
         } else {
-            Spacer(modifier = Modifier.safeStatusBarPadding())
-            Spacer(modifier = Modifier.height(16.dp))
-            val pullScale = 1f + (expandProgress.coerceIn(0f, 1f) * 0.25f)
-            Box(
-                modifier = Modifier
-                    .size(108.dp)
-                    .graphicsLayer {
-                        scaleX = pullScale
-                        scaleY = pullScale
-                    }
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(scheme.accent, scheme.accent.copy(alpha = 0.72f))
-                        )
-                    )
-                    .then(
-                        if (canExpandHero) Modifier.clickable(onClick = onToggleExpand)
-                        else Modifier
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                if (primaryAvatar != null) {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(id = primaryAvatar),
-                        contentDescription = session.title,
-                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                        modifier = Modifier.size(108.dp)
-                    )
-                } else {
-                    Text(
-                        text = initials,
-                        color = scheme.onAccent,
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Bold
+            val peerAppearance = remember(session.id) {
+                com.anongram.app.features.profile.appearance.ProfileAppearanceStore.appearanceForPeer(session.id)
+            }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                if (peerAppearance.preset != null) {
+                    com.anongram.app.features.profile.appearance.ProfileCoverBackdrop(
+                        appearance = peerAppearance,
+                        modifier = Modifier.matchParentSize()
                     )
                 }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = session.title,
-                color = scheme.textPrimary,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 24.dp)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = statusText,
-                    color = if (session.isOnline) scheme.accent else scheme.textSecondary,
-                    fontSize = 13.sp
-                )
-                if (!session.isOnline) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(modifier = Modifier.safeStatusBarPadding())
+                    Spacer(modifier = Modifier.height(16.dp))
+                    val pullScale = 1f + (expandProgress.coerceIn(0f, 1f) * 0.25f)
                     Box(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(scheme.card)
-                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                            .size(108.dp)
+                            .graphicsLayer {
+                                scaleX = pullScale
+                                scaleY = pullScale
+                            }
+                            .clip(CircleShape)
+                            .background(
+                                Brush.linearGradient(
+                                    colors = listOf(scheme.accent, scheme.accent.copy(alpha = 0.72f))
+                                )
+                            )
+                            .then(
+                                if (canExpandHero) Modifier.clickable(onClick = onToggleExpand)
+                                else Modifier
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (primaryAvatar != null) {
+                            androidx.compose.foundation.Image(
+                                painter = androidx.compose.ui.res.painterResource(id = primaryAvatar),
+                                contentDescription = session.title,
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                                modifier = Modifier.size(108.dp)
+                            )
+                        } else {
+                            Text(
+                                text = initials,
+                                color = scheme.onAccent,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = session.title,
+                        color = if (peerAppearance.preset != null) Color.White else scheme.textPrimary,
+                        fontSize = 21.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(horizontal = 24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = strings.whenQuestion,
-                            color = scheme.textSecondary,
-                            fontSize = 11.sp
+                            text = statusText,
+                            color = when {
+                                peerAppearance.preset != null -> Color.White.copy(alpha = 0.78f)
+                                session.isOnline -> scheme.accent
+                                else -> scheme.textSecondary
+                            },
+                            fontSize = 13.sp
                         )
+                        if (!session.isOnline) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(scheme.card.copy(alpha = 0.80f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = strings.whenQuestion,
+                                    color = scheme.textSecondary,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
                     }
                 }
             }

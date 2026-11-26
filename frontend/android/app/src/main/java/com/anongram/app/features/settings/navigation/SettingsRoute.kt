@@ -27,4 +27,10 @@ sealed interface SettingsRoute {
     data object ModulesTranslation : SettingsRoute
     data object ModulesLocalAi : SettingsRoute
     data object ModulesFonts : SettingsRoute
+    data object ProfileAvatar : SettingsRoute
+    data class ProfileAvatarEditor(
+        val uriString: String,
+        val isVideo: Boolean,
+        val durationMs: Long
+    ) : SettingsRoute
 }

@@ -94,6 +94,7 @@ fun MainAppShell(
     var isLocalAiOpen by remember { mutableStateOf(false) }
     var isLocalAiModulesOpen by remember { mutableStateOf(false) }
     var isSettingsSubScreenOpen by remember { mutableStateOf(false) }
+    var isProfileSubScreenOpen by remember { mutableStateOf(false) }
     var selectedSession by remember { mutableStateOf<IChatSession?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -370,8 +371,11 @@ fun MainAppShell(
                     }
 
                     3 -> {
-                        AppHeader()
-                        ProfileScreen()
+                        ProfileScreen(
+                            onOpenSettings = { currentTab = 2 },
+                            onSubScreenVisibilityChange = { isProfileSubScreenOpen = it },
+                            onLogout = onLogout
+                        )
                     }
                 }
             }
@@ -725,7 +729,8 @@ fun MainAppShell(
         val isRootScreen = selectedSession == null && !isSearchOpen && !isContactsOpen &&
             !isArchiveOpen && !isQrOpen && !isLanguageOpen && incomingShare == null &&
             !isLocalAiOpen && !isLocalAiModulesOpen &&
-            !(currentTab == 2 && isSettingsSubScreenOpen)
+            !(currentTab == 2 && isSettingsSubScreenOpen) &&
+            !(currentTab == 3 && isProfileSubScreenOpen)
 
         AnimatedVisibility(
             visible = isRootScreen,
