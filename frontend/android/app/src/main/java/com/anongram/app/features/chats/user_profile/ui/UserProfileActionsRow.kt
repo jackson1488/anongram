@@ -26,7 +26,6 @@ import androidx.compose.material.icons.outlined.Videocam
 import androidx.compose.material.icons.outlined.VolumeOff
 import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -142,7 +141,7 @@ private fun UserProfileMuteDropdownMenu(
     ) {
         MuteMenuRow(
             icon = Icons.Outlined.VolumeUp,
-            label = strings.muteEnableSound,
+            label = if (isMuted) strings.muteEnableSound else strings.muteNotificationsOn,
             tint = if (!isMuted) scheme.accent else scheme.textPrimary,
             trailingCheck = !isMuted,
             onClick = {
@@ -167,11 +166,6 @@ private fun UserProfileMuteDropdownMenu(
                 onDismiss()
                 onOpenMuteSettings()
             }
-        )
-        HorizontalDivider(
-            color = scheme.divider,
-            thickness = 0.6.dp,
-            modifier = Modifier.padding(vertical = 4.dp)
         )
         MuteMenuRow(
             icon = Icons.Outlined.VolumeOff,

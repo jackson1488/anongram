@@ -44,6 +44,7 @@ internal fun UserProfileInfoCard(
     securityLabel: String,
     strings: UserProfileStrings,
     onOpenQr: () -> Unit,
+    onShowBanner: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -53,7 +54,11 @@ internal fun UserProfileInfoCard(
     fun copyText(value: String) {
         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         cm.setPrimaryClip(ClipData.newPlainText("AnonGram", value))
-        Toast.makeText(context, strings.copiedToast, Toast.LENGTH_SHORT).show()
+        if (onShowBanner != null) {
+            onShowBanner(strings.copiedToast)
+        } else {
+            Toast.makeText(context, strings.copiedToast, Toast.LENGTH_SHORT).show()
+        }
     }
 
     val rows = buildList {
@@ -125,13 +130,6 @@ internal fun UserProfileInfoCard(
                         )
                     }
                 }
-            }
-            if (idx < rows.lastIndex) {
-                HorizontalDivider(
-                    color = scheme.divider,
-                    thickness = 0.5.dp,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
             }
         }
     }

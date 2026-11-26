@@ -3,9 +3,15 @@ package com.anongram.app.features.chats.user_profile.api
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -34,10 +40,20 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.Call
+import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.NotificationsOff
+import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.Report
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.VolumeUp
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -55,7 +71,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -69,12 +87,12 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.spring
-import androidx.compose.runtime.LaunchedEffect
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.core.ui.safeNavigationBarPadding
+import kotlinx.coroutines.delay
 import com.anongram.app.features.chats.common.IChatSession
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
@@ -165,6 +183,16 @@ fun UserProfileScreen(
     var gridColumns by remember { mutableIntStateOf(3) }
     var selectedKeys by remember(session.id) { mutableStateOf(emptySet<String>()) }
     val hazeState = remember { HazeState() }
+    var activeBanner by remember { mutableStateOf<Triple<ImageVector, String, Long>?>(null) }
+    val showBanner: (ImageVector, String) -> Unit = { icon, text ->
+        activeBanner = Triple(icon, text, System.nanoTime())
+    }
+    LaunchedEffect(activeBanner?.third) {
+        if (activeBanner != null) {
+            delay(2200)
+            activeBanner = null
+        }
+    }
 
     val buckets = remember(messages) { extractProfileBuckets(messages) }
     val availableTabs = remember(buckets) { buckets.availableTabs() }
@@ -323,7 +351,7 @@ fun UserProfileScreen(
                                             isMutedLocal = false
                                             onToggleMute()
                                         }
-                                        Toast.makeText(context, strings.unmutedSoundToast, Toast.LENGTH_SHORT).show()
+                                        showBanner(Icons.Outlined.VolumeUp, strings.unmutedSoundToast)
                                     },
                                     onOpenMuteDrum = { isMuteDrumOpen = true },
                                     onOpenMuteSettings = { isNotificationSettingsOpen = true },
@@ -332,15 +360,15 @@ fun UserProfileScreen(
                                             isMutedLocal = true
                                             onToggleMute()
                                         }
-                                        Toast.makeText(context, strings.mutedForeverToast, Toast.LENGTH_SHORT).show()
+                                        showBanner(Icons.Outlined.NotificationsOff, strings.mutedForeverToast)
                                     },
                                     onChatClick = onBack,
                                     onMuteToggle = { isMuteMenuOpen = true },
                                     onCallClick = {
-                                        Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                                        showBanner(Icons.Outlined.Call, strings.callSoonToast)
                                     },
                                     onVideoClick = {
-                                        Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                                        showBanner(Icons.Outlined.Call, strings.callSoonToast)
                                     }
                                 )
                             }
@@ -361,7 +389,7 @@ fun UserProfileScreen(
                                     isMutedLocal = false
                                     onToggleMute()
                                 }
-                                Toast.makeText(context, strings.unmutedSoundToast, Toast.LENGTH_SHORT).show()
+                                showBanner(Icons.Outlined.VolumeUp, strings.unmutedSoundToast)
                             },
                             onOpenMuteDrum = { isMuteDrumOpen = true },
                             onOpenMuteSettings = { isNotificationSettingsOpen = true },
@@ -370,15 +398,15 @@ fun UserProfileScreen(
                                     isMutedLocal = true
                                     onToggleMute()
                                 }
-                                Toast.makeText(context, strings.mutedForeverToast, Toast.LENGTH_SHORT).show()
+                                showBanner(Icons.Outlined.NotificationsOff, strings.mutedForeverToast)
                             },
                             onChatClick = onBack,
                             onMuteToggle = { isMuteMenuOpen = true },
                             onCallClick = {
-                                Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                                showBanner(Icons.Outlined.Call, strings.callSoonToast)
                             },
                             onVideoClick = {
-                                Toast.makeText(context, strings.callSoonToast, Toast.LENGTH_SHORT).show()
+                                showBanner(Icons.Outlined.Call, strings.callSoonToast)
                             }
                         )
                         Spacer(modifier = Modifier.height(14.dp))
@@ -393,7 +421,8 @@ fun UserProfileScreen(
                         birthday = birthday,
                         securityLabel = session.securityLabel,
                         strings = strings,
-                        onOpenQr = { isQrOverlayOpen = true }
+                        onOpenQr = { isQrOverlayOpen = true },
+                        onShowBanner = { showBanner(Icons.Outlined.ContentCopy, it) }
                     )
                 }
 
@@ -807,11 +836,10 @@ fun UserProfileScreen(
                         },
                         onBlockUser = {
                             val nowBlocked = com.anongram.app.features.chats.user_profile.data.BlockedUsersStore.toggle(context, session.id)
-                            Toast.makeText(
-                                context,
-                                if (nowBlocked) strings.blockedToast else strings.unblockedToast,
-                                Toast.LENGTH_SHORT
-                            ).show()
+                            showBanner(
+                                if (nowBlocked) Icons.Outlined.Block else Icons.Outlined.CheckCircleOutline,
+                                if (nowBlocked) strings.blockedToast else strings.unblockedToast
+                            )
                         },
                         onEditContact = {
                             isEditContactMode = true
@@ -822,10 +850,10 @@ fun UserProfileScreen(
                             onDeleteChat?.invoke()
                         },
                         onRestrictCopying = {
-                            Toast.makeText(context, strings.restrictCopyToast, Toast.LENGTH_SHORT).show()
+                            showBanner(Icons.Outlined.ContentCopy, strings.restrictCopyToast)
                         },
                         onReport = {
-                            Toast.makeText(context, strings.reportToast, Toast.LENGTH_SHORT).show()
+                            showBanner(Icons.Outlined.Report, strings.reportToast)
                         }
                     )
                 },
@@ -859,11 +887,10 @@ fun UserProfileScreen(
                             isMutedLocal = true
                             onToggleMute()
                         }
-                        Toast.makeText(
-                            context,
-                            strings.mutedForToastFormat(durationLabel),
-                            Toast.LENGTH_SHORT
-                        ).show()
+                        showBanner(
+                            Icons.Outlined.NotificationsOff,
+                            strings.mutedForToastFormat(durationLabel)
+                        )
                     },
                     onDismiss = { isMuteDrumOpen = false }
                 )
@@ -925,7 +952,7 @@ fun UserProfileScreen(
                             isNewContactSheetOpen = false
                             addedToContactsLocal = true
                             onAddContact?.invoke()
-                            Toast.makeText(context, strings.addedToContactsToast, Toast.LENGTH_SHORT).show()
+                            showBanner(Icons.Outlined.PersonAdd, strings.addedToContactsToast)
                         }
                     )
                 }
@@ -947,12 +974,12 @@ fun UserProfileScreen(
                         onConfirmMultiSelect = { targets, comment ->
                             isShareContactPickerOpen = false
                             onShareContactToChats(targets, comment)
-                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                            showBanner(Icons.Outlined.Share, strings.shareContactToast)
                         },
                         onSelectSession = { target ->
                             isShareContactPickerOpen = false
                             onShareContactToChats(listOf(target), "")
-                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                            showBanner(Icons.Outlined.Share, strings.shareContactToast)
                         },
                         onSelectSavedMessages = {
                             val saved = activeSessions.firstOrNull { it.id == "0" }
@@ -960,13 +987,53 @@ fun UserProfileScreen(
                             if (saved != null) {
                                 onShareContactToChats(listOf(saved), "")
                             }
-                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                            showBanner(Icons.Outlined.Share, strings.shareContactToast)
                         },
                         onSelectGlobalItem = { _, _ ->
                             isShareContactPickerOpen = false
-                            Toast.makeText(context, strings.shareContactToast, Toast.LENGTH_SHORT).show()
+                            showBanner(Icons.Outlined.Share, strings.shareContactToast)
                         }
                     )
+                }
+            }
+
+            val bannerScheme = LocalAnonGramScheme.current
+            AnimatedVisibility(
+                visible = activeBanner != null,
+                enter = slideInVertically(initialOffsetY = { it / 2 }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it / 2 }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .safeNavigationBarPadding()
+                    .padding(horizontal = 20.dp, vertical = 18.dp)
+                    .zIndex(60f)
+            ) {
+                activeBanner?.let { (icon, message, _) ->
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(bannerScheme.islandBg)
+                            .border(0.8.dp, bannerScheme.islandBorder, RoundedCornerShape(22.dp))
+                            .clickable { activeBanner = null }
+                            .padding(horizontal = 16.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = bannerScheme.accent,
+                            modifier = Modifier.size(19.dp)
+                        )
+                        Text(
+                            text = message,
+                            color = bannerScheme.textPrimary,
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }

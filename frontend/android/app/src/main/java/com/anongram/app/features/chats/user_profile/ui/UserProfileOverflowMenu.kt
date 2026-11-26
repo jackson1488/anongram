@@ -113,7 +113,6 @@ internal fun UserProfileOverflowMenu(
                     trailingIcon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                     onClick = { inAutoDeleteSubmenu = true }
                 )
-                HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
                 MenuRowItem(
                     icon = Icons.Outlined.Share,
                     label = strings.menuShareContact,
@@ -173,7 +172,6 @@ internal fun UserProfileOverflowMenu(
                 label = strings.autoDeleteBack,
                 onClick = { inAutoDeleteSubmenu = false }
             )
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
             MenuRowItem(
                 icon = Icons.Outlined.Timer,
                 label = strings.autoDelete1Day,
@@ -209,7 +207,6 @@ internal fun UserProfileOverflowMenu(
                     onOpenCustomAutoDelete()
                 }
             )
-            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
