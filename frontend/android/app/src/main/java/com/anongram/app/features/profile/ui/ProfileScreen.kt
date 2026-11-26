@@ -15,12 +15,19 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -244,13 +251,13 @@ fun ProfileScreen(
                 if (hasMediaAvatar && atTop && available.y > 0f) {
                     val next = (pullProgress.value + available.y / pullThresholdPx).coerceIn(0f, 1.2f)
                     scope.launch { pullProgress.snapTo(next) }
-                    if (!isExpandedHero && next >= 0.85f) {
+                    if (!isExpandedHero && next >= 0.75f) {
                         selectedAvatarIndex = 0
                         isExpandedHero = true
-                        scope.launch { pullProgress.animateTo(0f, spring()) }
-                    } else if (isExpandedHero && next >= 0.75f) {
+                        scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
+                    } else if (isExpandedHero && next >= 0.65f) {
                         isFullscreenViewer = true
-                        scope.launch { pullProgress.animateTo(0f, spring()) }
+                        scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                     }
                     return Offset(0f, available.y * 0.65f)
                 }
@@ -259,7 +266,7 @@ fun ProfileScreen(
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
                 if (pullProgress.value > 0f) {
-                    scope.launch { pullProgress.animateTo(0f, spring()) }
+                    scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                 }
                 return Velocity.Zero
             }
@@ -287,23 +294,27 @@ fun ProfileScreen(
                     .hazeSource(state = hazeState)
                     .background(scheme.background)
             ) {
+                val stretchDp = (pullProgress.value.coerceIn(0f, 1f) * if (isExpandedHero) 52f else 36f).dp
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .graphicsLayer {
-                            if (pullProgress.value > 0f && !isExpandedHero) {
-                                translationY = pullProgress.value * 90f
-                            }
-                        }
                         .nestedScroll(pullNestedScroll),
                     contentPadding = PaddingValues(bottom = 128.dp)
                 ) {
-                    // 1. Шапка профиля (обычный круг -> раскрывается в полноширинную hero-карточку)
+                    // 1. Шапка профиля (обычный круг -> плавно раскрывается в полноширинную hero-карточку)
                     item(key = "profile_hero") {
                         AnimatedContent(
                             targetState = isExpandedHero && hasMediaAvatar,
-                            transitionSpec = { fadeIn(spring()) togetherWith fadeOut(spring()) },
+                            transitionSpec = {
+                                (fadeIn(tween(340, easing = FastOutSlowInEasing)) togetherWith
+                                    fadeOut(tween(240, easing = FastOutSlowInEasing)))
+                                    .using(
+                                        SizeTransform(clip = false) { _, _ ->
+                                            tween(340, easing = FastOutSlowInEasing)
+                                        }
+                                    )
+                            },
                             label = "profileHeroExpand"
                         ) { expanded ->
                             if (expanded) {
@@ -323,7 +334,7 @@ fun ProfileScreen(
                                 BoxWithConstraints(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(410.dp)
+                                        .height(410.dp + stretchDp)
                                 ) {
                                     val boxWidthPx = with(density) { maxWidth.toPx() }
 
@@ -500,7 +511,7 @@ fun ProfileScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(252.dp)
+                                        .height(344.dp)
                                 ) {
                                     ProfileCoverBackdrop(
                                         appearance = appearance,
@@ -510,7 +521,8 @@ fun ProfileScreen(
                                     Column(
                                         modifier = Modifier
                                             .align(Alignment.BottomCenter)
-                                            .padding(bottom = 18.dp),
+                                            .fillMaxWidth()
+                                            .padding(bottom = 14.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
                                         val ringColor = appearance.preset?.primary ?: scheme.accent
@@ -543,61 +555,58 @@ fun ProfileScreen(
                                             )
                                         }
 
-                                    Spacer(modifier = Modifier.height(10.dp))
+                                        Spacer(modifier = Modifier.height(10.dp))
 
-                                    Text(
-                                        text = displayName,
-                                        color = appearance.namePreset?.primary
-                                            ?: if (appearance.preset != null) Color.White else scheme.textPrimary,
-                                        fontSize = 21.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                    Text(
-                                        text = strings.onlineStatus,
-                                        color = if (appearance.preset != null) Color.White.copy(alpha = 0.78f) else scheme.accent,
-                                        fontSize = 13.sp
-                                    )
+                                        Text(
+                                            text = displayName,
+                                            color = appearance.namePreset?.primary
+                                                ?: if (appearance.preset != null) Color.White else scheme.textPrimary,
+                                            fontSize = 21.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                        Text(
+                                            text = strings.onlineStatus,
+                                            color = if (appearance.preset != null) Color.White.copy(alpha = 0.78f) else scheme.accent,
+                                            fontSize = 13.sp
+                                        )
+
+                                        Spacer(modifier = Modifier.height(16.dp))
+
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(horizontal = 14.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            ProfileActionPill(
+                                                icon = Icons.Outlined.AddAPhoto,
+                                                label = strings.selectPhoto,
+                                                onClick = { subOverlay = ProfileSubOverlay.AvatarPicker },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            ProfileActionPill(
+                                                icon = Icons.Outlined.Edit,
+                                                label = strings.edit,
+                                                onClick = { subOverlay = ProfileSubOverlay.AccountEdit },
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            ProfileActionPill(
+                                                icon = Icons.Outlined.Settings,
+                                                label = strings.settings,
+                                                onClick = onOpenSettings,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                    }
 
-                    // 2. Три быстрые кнопки (когда hero не раскрыт)
-                    if (!(isExpandedHero && hasMediaAvatar)) {
-                        item(key = "profile_actions") {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                ProfileActionPill(
-                                    icon = Icons.Outlined.AddAPhoto,
-                                    label = strings.selectPhoto,
-                                    onClick = { subOverlay = ProfileSubOverlay.AvatarPicker },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                ProfileActionPill(
-                                    icon = Icons.Outlined.Edit,
-                                    label = strings.edit,
-                                    onClick = { subOverlay = ProfileSubOverlay.AccountEdit },
-                                    modifier = Modifier.weight(1f)
-                                )
-                                ProfileActionPill(
-                                    icon = Icons.Outlined.Settings,
-                                    label = strings.settings,
-                                    onClick = onOpenSettings,
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                        }
-                    } else {
-                        item(key = "hero_spacer") {
-                            Spacer(modifier = Modifier.height(14.dp))
-                        }
+                    item(key = "hero_spacer") {
+                        Spacer(modifier = Modifier.height(10.dp))
                     }
 
                     // 3. Карточка информации о профиле
@@ -806,7 +815,22 @@ fun ProfileScreen(
             // 3. Вложенные экраны (Шторка фото/видео, Редактор, Цвет профиля, Аккаунт, QR)
             AnimatedContent(
                 targetState = subOverlay,
-                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                transitionSpec = {
+                    val isSheet = targetState is ProfileSubOverlay.AvatarPicker ||
+                        initialState is ProfileSubOverlay.AvatarPicker
+                    if (isSheet) {
+                        EnterTransition.None togetherWith ExitTransition.None
+                    } else {
+                        (slideInVertically(
+                            animationSpec = tween(280, easing = FastOutSlowInEasing),
+                            initialOffsetY = { it / 4 }
+                        ) + fadeIn(tween(200))) togetherWith
+                            (slideOutVertically(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                targetOffsetY = { it / 6 }
+                            ) + fadeOut(tween(160)))
+                    }
+                },
                 label = "profileSubOverlay"
             ) { overlay ->
                 when (overlay) {
@@ -824,50 +848,74 @@ fun ProfileScreen(
                     }
 
                     is ProfileSubOverlay.AvatarEditor -> {
-                        ProfileAvatarEditorScreen(
-                            uri = overlay.uri,
-                            isVideo = overlay.isVideo,
-                            initialDurationMs = overlay.durationMs,
-                            onSaved = { subOverlay = ProfileSubOverlay.None },
-                            onBack = { subOverlay = ProfileSubOverlay.AvatarPicker }
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(scheme.background)
+                        ) {
+                            ProfileAvatarEditorScreen(
+                                uri = overlay.uri,
+                                isVideo = overlay.isVideo,
+                                initialDurationMs = overlay.durationMs,
+                                onSaved = { subOverlay = ProfileSubOverlay.None },
+                                onBack = { subOverlay = ProfileSubOverlay.AvatarPicker }
+                            )
+                        }
                     }
 
                     is ProfileSubOverlay.ColorEditor -> {
-                        ProfileColorEditorScreen(
-                            displayName = displayName,
-                            onBack = { subOverlay = ProfileSubOverlay.None }
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(scheme.background)
+                        ) {
+                            ProfileColorEditorScreen(
+                                displayName = displayName,
+                                onBack = { subOverlay = ProfileSubOverlay.None }
+                            )
+                        }
                     }
 
                     is ProfileSubOverlay.AccountEdit -> {
-                        AccountSettingsScreen(
-                            initialDisplayName = displayName,
-                            initialHandle = handle,
-                            onSaveAccount = { newName, newHandle ->
-                                displayName = newName
-                                handle = "@${newHandle.removePrefix("@").uppercase()}"
-                                prefs.edit()
-                                    .putString("display_name", displayName)
-                                    .putString("handle", handle)
-                                    .apply()
-                            },
-                            onBack = { subOverlay = ProfileSubOverlay.None },
-                            onLogout = {
-                                subOverlay = ProfileSubOverlay.None
-                                vault.clear()
-                                onLogout?.invoke()
-                            }
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(scheme.background)
+                        ) {
+                            AccountSettingsScreen(
+                                initialDisplayName = displayName,
+                                initialHandle = handle,
+                                onSaveAccount = { newName, newHandle ->
+                                    displayName = newName
+                                    handle = "@${newHandle.removePrefix("@").uppercase()}"
+                                    prefs.edit()
+                                        .putString("display_name", displayName)
+                                        .putString("handle", handle)
+                                        .apply()
+                                },
+                                onBack = { subOverlay = ProfileSubOverlay.None },
+                                onLogout = {
+                                    subOverlay = ProfileSubOverlay.None
+                                    vault.clear()
+                                    onLogout?.invoke()
+                                }
+                            )
+                        }
                     }
 
                     is ProfileSubOverlay.MyQr -> {
-                        MyQrCodeScreen(
-                            handle = handle,
-                            publicKeyHex = rawPublicId,
-                            onClose = { subOverlay = ProfileSubOverlay.None },
-                            onOpenScanner = { subOverlay = ProfileSubOverlay.None }
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(scheme.background)
+                        ) {
+                            MyQrCodeScreen(
+                                handle = handle,
+                                publicKeyHex = rawPublicId,
+                                onClose = { subOverlay = ProfileSubOverlay.None },
+                                onOpenScanner = { subOverlay = ProfileSubOverlay.None }
+                            )
+                        }
                     }
                 }
             }

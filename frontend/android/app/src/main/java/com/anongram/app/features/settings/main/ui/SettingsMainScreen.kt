@@ -323,16 +323,14 @@ fun SettingsMainScreen(
                     .padding(horizontal = 14.dp, vertical = 4.dp)
                     .height(44.dp)
             ) {
-                // Круглая кнопка QR (живое матовое стекло поверх скролла) - слева
+                // Круглая кнопка QR слева
                 Box(
                     modifier = Modifier
                         .align(Alignment.CenterStart)
                         .size(38.dp)
-                        .settingsGlassPill(
-                            hazeState = hazeState,
-                            shape = CircleShape,
-                            glassBlurEnabled = animState.glassBlurEnabled
-                        )
+                        .clip(CircleShape)
+                        .background(scheme.card.copy(alpha = 0.72f))
+                        .border(0.8.dp, scheme.cardBorder, CircleShape)
                         .clickable { onNavigate(SettingsRoute.MyQr) },
                     contentAlignment = Alignment.Center
                 ) {
@@ -354,15 +352,13 @@ fun SettingsMainScreen(
                     modifier = Modifier.align(Alignment.Center)
                 )
 
-                // Островок Поиск + Меню 3 точки (живое матовое стекло поверх скролла) - справа
+                // Островок Поиск + Меню 3 точки справа
                 Row(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .settingsGlassPill(
-                            hazeState = hazeState,
-                            shape = RoundedCornerShape(22.dp),
-                            glassBlurEnabled = animState.glassBlurEnabled
-                        )
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(scheme.card.copy(alpha = 0.72f))
+                        .border(0.8.dp, scheme.cardBorder, RoundedCornerShape(22.dp))
                         .padding(horizontal = 4.dp, vertical = 2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

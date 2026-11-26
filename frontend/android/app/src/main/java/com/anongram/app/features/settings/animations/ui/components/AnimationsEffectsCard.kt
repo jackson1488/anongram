@@ -89,20 +89,7 @@ fun AnimationsEffectsCard(
         HorizontalDivider(color = scheme.divider)
         Spacer(modifier = Modifier.height(12.dp))
 
-        // 3. Зацикленные стикеры и эмодзи
-        AnimationToggleRow(
-            title = "Анимированные стикеры и эмодзи",
-            subtitle = "Плавное непрерывное воспроизведение стикеров в чатах",
-            checked = stickersLoopEnabled,
-            onCheckedChange = onStickersLoopChange,
-            colors = switchColors
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-        HorizontalDivider(color = scheme.divider)
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // 4. Эффекты реакций
+        // 3. Эффекты реакций
         AnimationToggleRow(
             title = "Эффекты реакций",
             subtitle = "Всплески частиц при отправке реакций на сообщения",

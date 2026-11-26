@@ -123,8 +123,8 @@ object SettingsSearchEngine {
                 iconBackgroundColor = Color(0xFFEC407A),
                 keywords = listOf(
                     "анимации", "анимация", "плавность", "переходы", "размытие", "блюр", "glass", "стекло",
-                    "стикеры", "эмодзи", "реакции", "живые фоны", "скорость анимаций", "уменьшение движения", "reduce motion",
-                    "animations", "transitions", "blur", "glass", "stickers", "emoji", "reactions", "speed", "motion"
+                    "эмодзи", "реакции", "живые фоны", "скорость анимаций", "уменьшение движения", "reduce motion",
+                    "animations", "transitions", "blur", "glass", "emoji", "reactions", "speed", "motion"
                 )
             ),
             SettingsSearchItem(
