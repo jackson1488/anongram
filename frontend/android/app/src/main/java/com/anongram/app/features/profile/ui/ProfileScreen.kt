@@ -32,6 +32,9 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,6 +102,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
@@ -130,9 +134,11 @@ import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.abs
 
 private sealed interface ProfileSubOverlay {
     data object None : ProfileSubOverlay
@@ -213,6 +219,14 @@ fun ProfileScreen(
     var subOverlay by remember { mutableStateOf<ProfileSubOverlay>(ProfileSubOverlay.None) }
     var menuOpen by remember { mutableStateOf(false) }
     var deleteConfirmIndex by remember { mutableStateOf<Int?>(null) }
+    var customBannerText by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(customBannerText) {
+        if (customBannerText != null) {
+            delay(2200)
+            customBannerText = null
+        }
+    }
 
     // 3-ступенчатое состояние: круг -> раскрытая hero-карточка -> полноэкранный просмотр
     val hasMediaAvatar = avatars.isNotEmpty()
@@ -294,7 +308,9 @@ fun ProfileScreen(
                     .hazeSource(state = hazeState)
                     .background(scheme.background)
             ) {
-                val stretchDp = (pullProgress.value.coerceIn(0f, 1f) * if (isExpandedHero) 52f else 36f).dp
+                val target60Dp = LocalConfiguration.current.screenHeightDp.dp * 0.60f
+                val extraStage2Dp = (target60Dp - 410.dp).coerceAtLeast(72.dp)
+                val stretchDp = (pullProgress.value.coerceIn(0f, 1f) * if (isExpandedHero) extraStage2Dp.value else 36f).dp
                 LazyColumn(
                     state = listState,
                     modifier = Modifier
@@ -506,7 +522,7 @@ fun ProfileScreen(
                                     animationSpec = spring(),
                                     label = "profileAvatarSize"
                                 )
-                                val pullScale = 1f + (pullProgress.value.coerceIn(0f, 1f) * 0.25f)
+                                val pullScale = 1f + (pullProgress.value.coerceIn(0f, 1f) * 0.45f)
 
                                 Box(
                                     modifier = Modifier
@@ -774,7 +790,7 @@ fun ProfileScreen(
                                                         saveAvatarToGallery(context, activeAvatar)
                                                     }
                                                     if (ok) {
-                                                        Toast.makeText(context, strings.savedToGalleryToast, Toast.LENGTH_SHORT).show()
+                                                        customBannerText = strings.savedToGalleryToast
                                                     }
                                                 }
                                             }
@@ -923,8 +939,8 @@ fun ProfileScreen(
             // 4. Полноэкранный просмотр аватара (Этап 3)
             AnimatedVisibility(
                 visible = isFullscreenViewer && hasMediaAvatar,
-                enter = fadeIn(),
-                exit = fadeOut()
+                enter = fadeIn(tween(220)),
+                exit = fadeOut(tween(180))
             ) {
                 val viewerHaze = remember { HazeState() }
                 val viewerPagerState = rememberPagerState(
@@ -932,7 +948,14 @@ fun ProfileScreen(
                     pageCount = { avatars.size.coerceAtLeast(1) }
                 )
                 var viewerMenuOpen by remember { mutableStateOf(false) }
+                val viewerDragY = remember { Animatable(0f) }
+                val dismissThresholdPx = with(density) { 140.dp.toPx() }
+                val bgAlpha = (1f - abs(viewerDragY.value) / (dismissThresholdPx * 3.5f)).coerceIn(0.15f, 1f)
+                val contentScale = (1f - abs(viewerDragY.value) / (dismissThresholdPx * 7f)).coerceIn(0.84f, 1f)
 
+                LaunchedEffect(isFullscreenViewer) {
+                    if (isFullscreenViewer) viewerDragY.snapTo(0f)
+                }
                 LaunchedEffect(viewerPagerState.currentPage) {
                     selectedAvatarIndex = viewerPagerState.currentPage
                 }
@@ -945,22 +968,42 @@ fun ProfileScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(scheme.background)
+                        .background(scheme.background.copy(alpha = bgAlpha))
                 ) {
                     HorizontalPager(
                         state = viewerPagerState,
                         modifier = Modifier
                             .fillMaxSize()
+                            .graphicsLayer {
+                                translationY = viewerDragY.value
+                                scaleX = contentScale
+                                scaleY = contentScale
+                            }
+                            .draggable(
+                                orientation = Orientation.Vertical,
+                                state = rememberDraggableState { delta ->
+                                    scope.launch {
+                                        viewerDragY.snapTo(viewerDragY.value + delta)
+                                    }
+                                },
+                                onDragStopped = { velocity ->
+                                    scope.launch {
+                                        if (abs(viewerDragY.value) > dismissThresholdPx || abs(velocity) > 1200f) {
+                                            val targetY = if (viewerDragY.value >= 0f) dismissThresholdPx * 3.5f else -dismissThresholdPx * 3.5f
+                                            viewerDragY.animateTo(targetY, tween(180, easing = FastOutSlowInEasing))
+                                            isFullscreenViewer = false
+                                            viewerDragY.snapTo(0f)
+                                        } else {
+                                            viewerDragY.animateTo(0f, spring(dampingRatio = 0.82f, stiffness = 340f))
+                                        }
+                                    }
+                                }
+                            )
                             .hazeSource(state = viewerHaze)
                     ) { page ->
                         val itemAvatar = avatars.getOrNull(page) ?: primaryAvatar
                         Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null
-                                ) { isFullscreenViewer = false },
+                            modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
                             ProfileAvatarView(
@@ -974,24 +1017,20 @@ fun ProfileScreen(
                         }
                     }
 
-                    // Верхняя панель: ← | Имя (+ 1 из N при >= 2 фото) | ⋮
+                    // Верхняя панель: чистая ← (без кружка) + Имя слева (+ 1 из N при >= 2 фото) | ⋮
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()
                             .safeStatusBarPadding()
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                            .graphicsLayer { alpha = bgAlpha },
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .settingsGlassPill(
-                                    hazeState = viewerHaze,
-                                    shape = CircleShape,
-                                    glassBlurEnabled = animState.glassBlurEnabled
-                                )
+                                .clip(CircleShape)
                                 .clickable { isFullscreenViewer = false },
                             contentAlignment = Alignment.Center
                         ) {
@@ -999,20 +1038,20 @@ fun ProfileScreen(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = strings.back,
                                 tint = scheme.textPrimary,
-                                modifier = Modifier.size(20.dp)
+                                modifier = Modifier.size(24.dp)
                             )
                         }
 
                         Column(
                             modifier = Modifier
                                 .weight(1f)
-                                .padding(horizontal = 12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .padding(horizontal = 10.dp),
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Text(
                                 text = displayName,
                                 color = scheme.textPrimary,
-                                fontSize = 16.sp,
+                                fontSize = 17.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -1085,7 +1124,7 @@ fun ProfileScreen(
                                                     saveAvatarToGallery(context, currentItem)
                                                 }
                                                 if (ok) {
-                                                    Toast.makeText(context, strings.savedToGalleryToast, Toast.LENGTH_SHORT).show()
+                                                    customBannerText = strings.savedToGalleryToast
                                                 }
                                             }
                                         }
@@ -1212,6 +1251,40 @@ fun ProfileScreen(
                         }
                     }
                 )
+            }
+
+            // 6. Кастомное тематическое уведомление снизу
+            AnimatedVisibility(
+                visible = customBannerText != null,
+                enter = slideInVertically(tween(220)) { it } + fadeIn(tween(180)),
+                exit = slideOutVertically(tween(180)) { it } + fadeOut(tween(150)),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .safeNavigationBarPadding()
+                    .padding(horizontal = 20.dp, vertical = 22.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(22.dp))
+                        .background(scheme.card)
+                        .border(0.9.dp, scheme.cardBorder, RoundedCornerShape(22.dp))
+                        .padding(horizontal = 16.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.CheckCircleOutline,
+                        contentDescription = null,
+                        tint = scheme.accent,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Text(
+                        text = customBannerText.orEmpty(),
+                        color = scheme.textPrimary,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }

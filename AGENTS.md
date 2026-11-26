@@ -8,6 +8,9 @@
   3. Скачивание артефакта APK из Cloud CI
 
 ## 2. Установка на телефон (Device Deployment via ADB)
+- **Если устройство не отображается в `adb devices -l`**:
+  - Перезапустить ADB-сервер и проверить mDNS: `adb kill-server && adb start-server && adb mdns services`
+  - При обнаружении `_adb-tls-connect._tcp` подключиться напрямую: `adb connect <ip:port>`
 - **Никогда не открывать и не запускать приложение автоматически после установки**:
   - Выполнять ТОЛЬКО тихую установку обновления: `adb -s <device> install -r <apk>`
   - **ЗАПРЕЩЕНО** запускать приложение командами `monkey`, `am start` и т.д.

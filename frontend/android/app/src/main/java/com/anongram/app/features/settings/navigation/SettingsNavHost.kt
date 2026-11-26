@@ -3,8 +3,10 @@ package com.anongram.app.features.settings.navigation
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import com.anongram.app.core.theme.LocalAnonGramScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -99,10 +101,17 @@ fun SettingsNavHost(
     val currentRoute = backStack.lastOrNull() ?: SettingsRoute.Main
     var underlayRoute by remember { mutableStateOf<SettingsRoute?>(null) }
     var isExiting by remember { mutableStateOf(false) }
+    var showAvatarPickerSheet by remember { mutableStateOf(false) }
     val transitionProgress = remember { Animatable(0f) }
 
+    LaunchedEffect(showAvatarPickerSheet, currentRoute) {
+        onSubScreenVisibilityChange(showAvatarPickerSheet || currentRoute != SettingsRoute.Main)
+    }
+
     val navigateTo: (SettingsRoute) -> Unit = { route ->
-        if (currentRoute != route) {
+        if (route == SettingsRoute.ProfileAvatar) {
+            showAvatarPickerSheet = true
+        } else if (currentRoute != route) {
             val prev = currentRoute
             underlayRoute = prev
             isExiting = false
@@ -299,7 +308,7 @@ fun SettingsNavHost(
                     isVideo = route.isVideo,
                     initialDurationMs = route.durationMs,
                     onSaved = {
-                        popBack()
+                        showAvatarPickerSheet = false
                         popBack()
                     },
                     onBack = popBack
@@ -430,7 +439,12 @@ fun SettingsNavHost(
         }
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    val scheme = LocalAnonGramScheme.current
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(scheme.background)
+    ) {
         underlayRoute?.let { bgRoute ->
             Box(modifier = Modifier.fillMaxSize()) {
                 RenderRoute(bgRoute)
@@ -442,7 +456,7 @@ fun SettingsNavHost(
             isExit = isExiting,
             config = navConfig,
             modifier = Modifier.swipeBackGesture(
-                enabled = backStack.size > 1 && navConfig.allowFullWidthSwipe,
+                enabled = backStack.size > 1 && !showAvatarPickerSheet && navConfig.allowFullWidthSwipe,
                 onDragStart = {
                     if (backStack.size > 1) {
                         underlayRoute = backStack[backStack.lastIndex - 1]
@@ -456,6 +470,24 @@ fun SettingsNavHost(
             )
         ) {
             RenderRoute(currentRoute)
+        }
+
+        if (showAvatarPickerSheet) {
+            ProfileAvatarPickerScreen(
+                displayName = customDisplayName,
+                subtitleText = "@$customHandle",
+                onPickMedia = { uri, isVideo, durationMs ->
+                    showAvatarPickerSheet = false
+                    navigateTo(
+                        SettingsRoute.ProfileAvatarEditor(
+                            uriString = uri.toString(),
+                            isVideo = isVideo,
+                            durationMs = durationMs
+                        )
+                    )
+                },
+                onBack = { showAvatarPickerSheet = false }
+            )
         }
     }
 }
