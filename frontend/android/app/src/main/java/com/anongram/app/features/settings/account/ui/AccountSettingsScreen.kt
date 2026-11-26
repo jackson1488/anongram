@@ -53,13 +53,15 @@ fun AccountSettingsScreen(
     initialDisplayName: String,
     initialHandle: String,
     onSaveAccount: (displayName: String, handle: String) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scheme = LocalAnonGramScheme.current
     var displayName by remember { mutableStateOf(initialDisplayName) }
     var handle by remember { mutableStateOf(initialHandle.removePrefix("@")) }
     var bio by remember { mutableStateOf("Децентрализованный анонимный профиль AnonGram (Ed25519)") }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     SettingsGlassScaffold(
         title = "Аккаунт",
@@ -123,5 +125,63 @@ fun AccountSettingsScreen(
                 fontWeight = FontWeight.SemiBold
             )
         }
+
+        if (onLogout != null) {
+            Spacer(modifier = Modifier.height(14.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(scheme.card, RoundedCornerShape(18.dp))
+                    .clickable { showLogoutDialog = true }
+                    .padding(horizontal = 18.dp, vertical = 15.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Выход",
+                    color = com.anongram.app.core.theme.CrimsonKillSwitch,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    }
+
+    if (showLogoutDialog && onLogout != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            containerColor = scheme.card,
+            title = {
+                Text(
+                    text = "Выход из аккаунта",
+                    color = scheme.textPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    text = "Вы точно хотите выйти из аккаунта?",
+                    color = scheme.textSecondary
+                )
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                    }
+                ) {
+                    Text(
+                        text = "Выйти",
+                        color = com.anongram.app.core.theme.CrimsonKillSwitch,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showLogoutDialog = false }) {
+                    Text(text = "Отмена", color = scheme.textSecondary)
+                }
+            }
+        )
     }
 }

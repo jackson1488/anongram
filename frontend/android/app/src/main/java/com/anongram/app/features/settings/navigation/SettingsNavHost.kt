@@ -271,7 +271,8 @@ fun SettingsNavHost(
                         customDisplayName = newName
                         customHandle = newHandle.uppercase()
                     },
-                    onBack = popBack
+                    onBack = popBack,
+                    onLogout = onLogout
                 )
             }
 

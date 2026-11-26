@@ -175,6 +175,7 @@ fun GalleryTab(
     onAlbumsLoaded: ((List<GalleryAlbum>) -> Unit)? = null,
     onTileBoundsChanged: ((String, androidx.compose.ui.geometry.Rect) -> Unit)? = null,
     showSelectionCircles: Boolean = true,
+    leadingExtraTile: (@Composable () -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -351,25 +352,36 @@ fun GalleryTab(
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     for (i in 0..1) {
-                                        val media = filteredMedia.getOrNull(i)
-                                        if (media != null) {
-                                            val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
-                                            val isSelected = selectedIndex >= 0
-                                            val effectiveMedia = if (isSelected) selectedMedia[selectedIndex] else media
-                                            GalleryItemTile(
-                                                media = effectiveMedia,
-                                                isSelected = isSelected,
-                                                selectionNumber = if (isSelected) selectedIndex + 1 else 0,
-                                                onOpenViewer = { openViewerHelper(i) },
-                                                onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
-                                                onBoundsChanged = { rect -> onTileBoundsChanged?.invoke(effectiveMedia.uri.toString(), rect) },
-                                                showSelectionCircles = showSelectionCircles,
+                                        if (i == 0 && leadingExtraTile != null) {
+                                            Box(
                                                 modifier = Modifier
                                                     .weight(1f)
                                                     .fillMaxHeight()
-                                            )
+                                            ) {
+                                                leadingExtraTile()
+                                            }
                                         } else {
-                                            Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
+                                            val mediaIdx = if (leadingExtraTile != null) i - 1 else i
+                                            val media = filteredMedia.getOrNull(mediaIdx)
+                                            if (media != null) {
+                                                val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
+                                                val isSelected = selectedIndex >= 0
+                                                val effectiveMedia = if (isSelected) selectedMedia[selectedIndex] else media
+                                                GalleryItemTile(
+                                                    media = effectiveMedia,
+                                                    isSelected = isSelected,
+                                                    selectionNumber = if (isSelected) selectedIndex + 1 else 0,
+                                                    onOpenViewer = { openViewerHelper(mediaIdx) },
+                                                    onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
+                                                    onBoundsChanged = { rect -> onTileBoundsChanged?.invoke(effectiveMedia.uri.toString(), rect) },
+                                                    showSelectionCircles = showSelectionCircles,
+                                                    modifier = Modifier
+                                                        .weight(1f)
+                                                        .fillMaxHeight()
+                                                )
+                                            } else {
+                                                Spacer(modifier = Modifier.weight(1f).fillMaxHeight())
+                                            }
                                         }
                                     }
                                 }
@@ -379,7 +391,8 @@ fun GalleryTab(
                                     horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     for (i in 2..3) {
-                                        val media = filteredMedia.getOrNull(i)
+                                        val mediaIdx = if (leadingExtraTile != null) i - 1 else i
+                                        val media = filteredMedia.getOrNull(mediaIdx)
                                         if (media != null) {
                                             val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
                                             val isSelected = selectedIndex >= 0
@@ -388,7 +401,7 @@ fun GalleryTab(
                                                 media = effectiveMedia,
                                                 isSelected = isSelected,
                                                 selectionNumber = if (isSelected) selectedIndex + 1 else 0,
-                                                onOpenViewer = { openViewerHelper(i) },
+                                                onOpenViewer = { openViewerHelper(mediaIdx) },
                                                 onToggleSelect = { onToggleSelectMedia(effectiveMedia) },
                                                 onBoundsChanged = { rect -> onTileBoundsChanged?.invoke(effectiveMedia.uri.toString(), rect) },
                                                 showSelectionCircles = showSelectionCircles,
@@ -406,8 +419,8 @@ fun GalleryTab(
                     }
                 }
 
-                // Остальные элементы медиатеки с 5-го элемента (индекс 4)
-                items(filteredMedia.drop(4), key = { it.uri.toString() }) { media ->
+                // Остальные элементы медиатеки
+                items(filteredMedia.drop(if (leadingExtraTile != null) 3 else 4), key = { it.uri.toString() }) { media ->
                     val selectedIndex = selectedMedia.indexOfFirst { it.uri == media.uri }
                     val isSelected = selectedIndex >= 0
                     val effectiveMedia = if (isSelected) selectedMedia[selectedIndex] else media
