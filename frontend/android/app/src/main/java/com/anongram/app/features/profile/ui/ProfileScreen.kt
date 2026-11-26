@@ -36,7 +36,10 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -356,7 +359,6 @@ fun ProfileScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .hazeSource(state = hazeState)
                     .background(scheme.background)
             ) {
                 val target60Dp = LocalConfiguration.current.screenHeightDp.dp * 0.60f
@@ -643,6 +645,7 @@ fun ProfileScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .hazeSource(state = hazeState)
                                 .padding(horizontal = 14.dp)
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(scheme.card)
@@ -1085,12 +1088,19 @@ fun ProfileScreen(
                 val dismissThresholdPx = with(density) { 140.dp.toPx() }
                 val bgAlpha = (1f - abs(viewerDragY.value) / (dismissThresholdPx * 3.5f)).coerceIn(0.15f, 1f)
                 val contentScale = (1f - abs(viewerDragY.value) / (dismissThresholdPx * 7f)).coerceIn(0.84f, 1f)
+                var isHudVisible by remember(isFullscreenViewer) { mutableStateOf(true) }
+                var activePageScale by remember(isFullscreenViewer) { mutableStateOf(1f) }
 
                 LaunchedEffect(isFullscreenViewer) {
-                    if (isFullscreenViewer) viewerDragY.snapTo(0f)
+                    if (isFullscreenViewer) {
+                        viewerDragY.snapTo(0f)
+                        isHudVisible = true
+                        activePageScale = 1f
+                    }
                 }
                 LaunchedEffect(viewerPagerState.currentPage) {
                     selectedAvatarIndex = viewerPagerState.currentPage
+                    activePageScale = 1f
                 }
                 LaunchedEffect(selectedAvatarIndex, avatars.size) {
                     if (selectedAvatarIndex in avatars.indices && viewerPagerState.currentPage != selectedAvatarIndex) {
@@ -1105,6 +1115,7 @@ fun ProfileScreen(
                 ) {
                     HorizontalPager(
                         state = viewerPagerState,
+                        userScrollEnabled = activePageScale <= 1.02f,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -1114,6 +1125,7 @@ fun ProfileScreen(
                             }
                             .draggable(
                                 orientation = Orientation.Vertical,
+                                enabled = activePageScale <= 1.02f,
                                 state = rememberDraggableState { delta ->
                                     scope.launch {
                                         viewerDragY.snapTo(viewerDragY.value + delta)
@@ -1135,60 +1147,117 @@ fun ProfileScreen(
                             .hazeSource(state = viewerHaze)
                     ) { page ->
                         val itemAvatar = avatars.getOrNull(page) ?: primaryAvatar
+                        var scale by remember(page) { mutableStateOf(1f) }
+                        var offsetX by remember(page) { mutableStateOf(0f) }
+                        var offsetY by remember(page) { mutableStateOf(0f) }
+                        val transformState = rememberTransformableState { zoomChange, panChange, _ ->
+                            val next = (scale * zoomChange).coerceIn(1f, 4f)
+                            scale = next
+                            if (page == viewerPagerState.currentPage) {
+                                activePageScale = next
+                            }
+                            if (next > 1.02f) {
+                                offsetX = (offsetX + panChange.x).coerceIn(-600f * next, 600f * next)
+                                offsetY = (offsetY + panChange.y).coerceIn(-600f * next, 600f * next)
+                            } else {
+                                offsetX = 0f
+                                offsetY = 0f
+                            }
+                        }
                         Box(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(page, scale) {
+                                    detectTapGestures(
+                                        onTap = { isHudVisible = !isHudVisible },
+                                        onDoubleTap = {
+                                            if (scale > 1.05f) {
+                                                scale = 1f
+                                                offsetX = 0f
+                                                offsetY = 0f
+                                            } else {
+                                                scale = 2.5f
+                                            }
+                                            if (page == viewerPagerState.currentPage) {
+                                                activePageScale = scale
+                                            }
+                                        }
+                                    )
+                                },
                             contentAlignment = Alignment.Center
                         ) {
-                            ProfileAvatarView(
-                                avatar = itemAvatar,
-                                displayName = displayName,
-                                monogramFontSize = 68.sp,
-                                emojiFontSize = 96.sp,
-                                playVideo = page == viewerPagerState.currentPage,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .transformable(
+                                        state = transformState,
+                                        canPan = { scale > 1.02f }
+                                    )
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        translationX = offsetX
+                                        translationY = offsetY
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ProfileAvatarView(
+                                    avatar = itemAvatar,
+                                    displayName = displayName,
+                                    monogramFontSize = 68.sp,
+                                    emojiFontSize = 96.sp,
+                                    playVideo = page == viewerPagerState.currentPage,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     }
 
-                    // Верхняя панель: чистая ← (без кружка) + Имя слева (+ 1 из N при >= 2 фото) | ⋮
-                    Row(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .fillMaxWidth()
-                            .safeStatusBarPadding()
-                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                            .graphicsLayer { alpha = bgAlpha },
-                        verticalAlignment = Alignment.CenterVertically
+                    // Верхняя панель: чистая ← и Имя слева | 1 из N строго по центру | ⋮ справа
+                    AnimatedVisibility(
+                        visible = isHudVisible,
+                        enter = fadeIn(tween(180)),
+                        exit = fadeOut(tween(180)),
+                        modifier = Modifier.align(Alignment.TopCenter)
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable { isFullscreenViewer = false },
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .safeStatusBarPadding()
+                                .padding(horizontal = 12.dp, vertical = 8.dp)
+                                .graphicsLayer { alpha = bgAlpha }
                         ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = strings.back,
-                                tint = scheme.textPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                            Row(
+                                modifier = Modifier
+                                    .align(Alignment.CenterStart)
+                                    .padding(end = 96.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .clickable { isFullscreenViewer = false },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                        contentDescription = strings.back,
+                                        tint = scheme.textPrimary,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Text(
+                                    text = displayName,
+                                    color = scheme.textPrimary,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(start = 6.dp)
+                                )
+                            }
 
-                        Column(
-                            modifier = Modifier
-                                .weight(1f)
-                                .padding(horizontal = 10.dp),
-                            horizontalAlignment = Alignment.Start
-                        ) {
-                            Text(
-                                text = displayName,
-                                color = scheme.textPrimary,
-                                fontSize = 17.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
                             if (avatars.size >= 2) {
                                 Text(
                                     text = String.format(
@@ -1196,13 +1265,14 @@ fun ProfileScreen(
                                         viewerPagerState.currentPage + 1,
                                         avatars.size
                                     ),
-                                    color = scheme.textSecondary,
-                                    fontSize = 12.5.sp
+                                    color = scheme.textPrimary,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.align(Alignment.Center)
                                 )
                             }
-                        }
 
-                        Box {
+                            Box(modifier = Modifier.align(Alignment.CenterEnd)) {
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -1292,10 +1362,14 @@ fun ProfileScreen(
                     }
 
                     // Нижняя лента мини-карточек строго по середине (показывается ТОЛЬКО если >= 2 фото/видео)
-                    if (avatars.size >= 2) {
+                    AnimatedVisibility(
+                        visible = isHudVisible && avatars.size >= 2,
+                        enter = fadeIn(tween(180)),
+                        exit = fadeOut(tween(180)),
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    ) {
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
                                 .safeNavigationBarPadding()
                                 .padding(bottom = 16.dp),

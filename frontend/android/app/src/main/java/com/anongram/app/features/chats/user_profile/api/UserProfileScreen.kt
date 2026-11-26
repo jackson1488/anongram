@@ -238,65 +238,40 @@ fun UserProfileScreen(
 
     val hasRealAvatar = session.avatarResId != null
     val density = LocalDensity.current
-    val configuration = LocalConfiguration.current
-    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }.coerceAtLeast(600f)
-    val heroTriggerFraction = (with(density) { 76.dp.toPx() } / (screenHeightPx * 0.50f)).coerceIn(0.14f, 0.30f)
-    val fullscreenThresholdPx = (screenHeightPx * 0.50f).coerceAtLeast(320f)
+    val pullThresholdPx = with(density) { 140.dp.toPx() }
+    var lockPullUntilRelease by remember { mutableStateOf(false) }
 
-    val pullDownNestedScroll = remember(hasRealAvatar, fullscreenThresholdPx, heroTriggerFraction) {
+    val pullDownNestedScroll = remember(hasRealAvatar, isExpandedHero, isAvatarFullscreenOpen, pullThresholdPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (hasRealAvatar && isExpandedHero && available.y < -14f && source == NestedScrollSource.UserInput) {
+                if (source != NestedScrollSource.UserInput || isAvatarFullscreenOpen) return Offset.Zero
+                val atTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
+                if (hasRealAvatar && isExpandedHero && available.y < -12f && !lockPullUntilRelease) {
                     isExpandedHero = false
-                    scope.launch { pullProgress.snapTo(0f) }
+                    lockPullUntilRelease = true
+                    return Offset.Zero
                 }
-                return Offset.Zero
-            }
-
-            override fun onPostScroll(
-                consumed: Offset,
-                available: Offset,
-                source: NestedScrollSource
-            ): Offset {
-                if (
-                    hasRealAvatar &&
-                    available.y > 0f &&
-                    source == NestedScrollSource.UserInput &&
-                    listState.firstVisibleItemIndex == 0 &&
-                    listState.firstVisibleItemScrollOffset == 0
-                ) {
-                    val next = (pullProgress.value + available.y / fullscreenThresholdPx).coerceIn(0f, 1.15f)
+                if (hasRealAvatar && atTop && available.y > 0f && !lockPullUntilRelease) {
+                    val next = (pullProgress.value + available.y / pullThresholdPx).coerceIn(0f, 1.2f)
                     scope.launch { pullProgress.snapTo(next) }
-                    if (!isExpandedHero && next >= heroTriggerFraction) {
+                    if (!isExpandedHero && next >= 0.75f) {
                         isExpandedHero = true
-                    } else if (isExpandedHero && next >= 0.50f) {
+                        lockPullUntilRelease = true
+                        scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
+                    } else if (isExpandedHero && next >= 0.65f) {
                         isAvatarFullscreenOpen = true
-                        scope.launch { pullProgress.snapTo(0f) }
+                        lockPullUntilRelease = true
+                        scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                     }
-                    return Offset(0f, available.y)
+                    return Offset(0f, available.y * 0.65f)
                 }
                 return Offset.Zero
-            }
-
-            override suspend fun onPreFling(available: Velocity): Velocity {
-                if (hasRealAvatar && listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
-                    if (available.y > 850f) {
-                        if (!isExpandedHero) {
-                            isExpandedHero = true
-                        } else {
-                            isAvatarFullscreenOpen = true
-                        }
-                        scope.launch { pullProgress.snapTo(0f) }
-                    } else if (pullProgress.value > 0f) {
-                        scope.launch { pullProgress.animateTo(0f, spring()) }
-                    }
-                }
-                return Velocity.Zero
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                lockPullUntilRelease = false
                 if (pullProgress.value > 0f) {
-                    scope.launch { pullProgress.animateTo(0f, spring()) }
+                    scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                 }
                 return Velocity.Zero
             }
@@ -312,12 +287,6 @@ fun UserProfileScreen(
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer {
-                        if (pullProgress.value > 0f) {
-                            translationY = pullProgress.value * (screenHeightPx * if (isExpandedHero) 0.22f else 0.34f)
-                        }
-                    }
-                    .hazeSource(state = hazeState)
                     .nestedScroll(pullDownNestedScroll)
                     .navigationBarsPadding()
             ) {
@@ -378,16 +347,18 @@ fun UserProfileScreen(
                 }
 
                 item(key = "info_card") {
-                    UserProfileInfoCard(
-                        anonIdOrFingerprint = session.fingerprint,
-                        username = derivedHandle,
-                        bio = bio,
-                        birthday = birthday,
-                        securityLabel = session.securityLabel,
-                        strings = strings,
-                        onOpenQr = { isQrOverlayOpen = true },
-                        onShowBanner = { showBanner(Icons.Outlined.ContentCopy, it) }
-                    )
+                    Box(modifier = Modifier.hazeSource(state = hazeState)) {
+                        UserProfileInfoCard(
+                            anonIdOrFingerprint = session.fingerprint,
+                            username = derivedHandle,
+                            bio = bio,
+                            birthday = birthday,
+                            securityLabel = session.securityLabel,
+                            strings = strings,
+                            onOpenQr = { isQrOverlayOpen = true },
+                            onShowBanner = { showBanner(Icons.Outlined.ContentCopy, it) }
+                        )
+                    }
                 }
 
                 if (isBlocked) {

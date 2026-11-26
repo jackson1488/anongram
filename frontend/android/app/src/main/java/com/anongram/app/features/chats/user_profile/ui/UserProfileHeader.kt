@@ -279,30 +279,72 @@ internal fun UserProfileHeroHeader(
     val primaryAvatar = avatarResIds.firstOrNull() ?: session.avatarResId
     val canExpandHero = primaryAvatar != null
     val effectiveExpanded = canExpandHero && isExpandedHero
+    val peerAppearance = remember(session.id) {
+        com.anongram.app.features.profile.appearance.ProfileAppearanceStore.appearanceForPeer(session.id)
+    }
+    val expandFraction by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (effectiveExpanded) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(
+            durationMillis = 380,
+            easing = androidx.compose.animation.core.FastOutSlowInEasing
+        ),
+        label = "peerHeroExpandFraction"
+    )
+    val stage1Pull = if (!effectiveExpanded) expandProgress.coerceIn(0f, 1f) else 0f
+    val target60Dp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 0.60f
+    val extraStage2Dp = (target60Dp - 410.dp).coerceAtLeast(72.dp)
+    val stage2PullDp = if (effectiveExpanded) (expandProgress.coerceIn(0f, 1f) * extraStage2Dp.value).dp else 0.dp
+    val collapsedBaseHeight = if (overlayActions != null) 340.dp else 260.dp
+    val totalHeroHeight = androidx.compose.ui.unit.lerp(collapsedBaseHeight, 410.dp, expandFraction) + stage2PullDp
+
+    val coverHaze = remember { HazeState() }
+    val heroHaze = remember { HazeState() }
+    val safeIndex = currentAvatarIndex.coerceIn(0, (avatarResIds.size - 1).coerceAtLeast(0))
+    val displayedAvatar = if (primaryAvatar != null) avatarResIds.getOrElse(safeIndex) { primaryAvatar } else null
 
     Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize(
-                animationSpec = spring(
-                    dampingRatio = 0.85f,
-                    stiffness = androidx.compose.animation.core.Spring.StiffnessMediumLow
-                )
-            ),
+        modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        if (effectiveExpanded && primaryAvatar != null) {
-            val heroHeight = if (overlayActions != null) 420.dp else 340.dp
-            val safeIndex = currentAvatarIndex.coerceIn(0, (avatarResIds.size - 1).coerceAtLeast(0))
-            val displayedAvatar = avatarResIds.getOrElse(safeIndex) { primaryAvatar }
-            val heroHaze = remember { HazeState() }
+        androidx.compose.foundation.layout.BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(totalHeroHeight)
+        ) {
+            if (expandFraction < 0.99f) {
+                com.anongram.app.features.profile.appearance.ProfileCoverBackdrop(
+                    appearance = peerAppearance,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer { alpha = 1f - expandFraction }
+                        .hazeSource(state = coverHaze)
+                )
+            }
+
+            val circleSize = 104.dp * (1f + stage1Pull * 0.40f)
+            val avatarW = androidx.compose.ui.unit.lerp(circleSize, maxWidth, expandFraction)
+            val avatarH = androidx.compose.ui.unit.lerp(circleSize, totalHeroHeight, expandFraction)
+            val avatarCorner = androidx.compose.ui.unit.lerp(circleSize / 2f, 0.dp, expandFraction)
+            val avatarTopOffset = androidx.compose.ui.unit.lerp(82.dp, 0.dp, expandFraction)
+
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(heroHeight)
-                    .pointerInput(avatarResIds.size, safeIndex) {
+                    .align(Alignment.TopCenter)
+                    .padding(top = avatarTopOffset)
+                    .size(width = avatarW, height = avatarH)
+                    .clip(RoundedCornerShape(avatarCorner))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(scheme.accent, scheme.accent.copy(alpha = 0.72f))
+                        )
+                    )
+                    .hazeSource(state = heroHaze)
+                    .pointerInput(canExpandHero, expandFraction, avatarResIds.size, safeIndex) {
                         detectTapGestures { offset ->
-                            if (avatarResIds.size > 1) {
+                            if (!canExpandHero) return@detectTapGestures
+                            if (expandFraction < 0.25f) {
+                                onToggleExpand()
+                            } else if (avatarResIds.size > 1) {
                                 when {
                                     offset.x < size.width * 0.30f -> {
                                         onSelectAvatarIndex((safeIndex - 1 + avatarResIds.size) % avatarResIds.size)
@@ -316,24 +358,33 @@ internal fun UserProfileHeroHeader(
                                 onOpenFullscreen()
                             }
                         }
-                    }
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                androidx.compose.foundation.Image(
-                    painter = androidx.compose.ui.res.painterResource(id = displayedAvatar),
-                    contentDescription = session.title,
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .hazeSource(state = heroHaze)
-                )
+                if (displayedAvatar != null) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = displayedAvatar),
+                        contentDescription = session.title,
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        text = initials,
+                        color = scheme.onAccent,
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
 
-                if (avatarResIds.size > 1) {
+                if (expandFraction > 0.6f && avatarResIds.size > 1) {
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()
                             .safeStatusBarPadding()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                            .graphicsLayer { alpha = ((expandFraction - 0.6f) / 0.4f).coerceIn(0f, 1f) },
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         avatarResIds.forEachIndexed { idx, _ ->
@@ -349,157 +400,76 @@ internal fun UserProfileHeroHeader(
                         }
                     }
                 }
+            }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp),
+                horizontalAlignment = if (expandFraction > 0.5f) Alignment.Start else Alignment.CenterHorizontally
+            ) {
+                val collapsedTitleColor = if (peerAppearance.preset != null) Color.White else scheme.textPrimary
+                val titleColor = androidx.compose.ui.graphics.lerp(collapsedTitleColor, Color.White, expandFraction)
+                val collapsedStatusColor = when {
+                    peerAppearance.preset != null -> Color.White.copy(alpha = 0.78f)
+                    session.isOnline -> scheme.accent
+                    else -> scheme.textSecondary
+                }
+                val statusColor = androidx.compose.ui.graphics.lerp(
+                    collapsedStatusColor,
+                    if (session.isOnline) scheme.accent else Color.White.copy(alpha = 0.82f),
+                    expandFraction
+                )
 
                 Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .fillMaxWidth()
-                        .padding(top = 36.dp, bottom = 14.dp)
+                    modifier = Modifier.padding(horizontal = if (expandFraction > 0.5f) 18.dp else 24.dp),
+                    horizontalAlignment = if (expandFraction > 0.5f) Alignment.Start else Alignment.CenterHorizontally
                 ) {
-                    Column(modifier = Modifier.padding(horizontal = 18.dp)) {
-                        Text(
-                            text = session.title,
-                            color = Color.White,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(3.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = statusText,
-                                color = if (session.isOnline) scheme.accent else Color.White.copy(alpha = 0.82f),
-                                fontSize = 13.5.sp
-                            )
-                            if (!session.isOnline) {
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color.Black.copy(alpha = 0.35f))
-                                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = strings.whenQuestion,
-                                        color = Color.White.copy(alpha = 0.88f),
-                                        fontSize = 11.5.sp
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    if (overlayActions != null) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        overlayActions(heroHaze)
-                    }
-                }
-            }
-        } else {
-            val peerAppearance = remember(session.id) {
-                com.anongram.app.features.profile.appearance.ProfileAppearanceStore.appearanceForPeer(session.id)
-            }
-            val collapsedCoverHaze = remember { HazeState() }
-            Box(modifier = Modifier.fillMaxWidth()) {
-                com.anongram.app.features.profile.appearance.ProfileCoverBackdrop(
-                    appearance = peerAppearance,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .hazeSource(state = collapsedCoverHaze)
-                )
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 14.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.safeStatusBarPadding())
-                    Spacer(modifier = Modifier.height(16.dp))
-                    val pullScale = 1f + (expandProgress.coerceIn(0f, 1f) * 0.25f)
-                    Box(
-                        modifier = Modifier
-                            .size(108.dp)
-                            .graphicsLayer {
-                                scaleX = pullScale
-                                scaleY = pullScale
-                            }
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(scheme.accent, scheme.accent.copy(alpha = 0.72f))
-                                )
-                            )
-                            .then(
-                                if (canExpandHero) Modifier.clickable(onClick = onToggleExpand)
-                                else Modifier
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (primaryAvatar != null) {
-                            androidx.compose.foundation.Image(
-                                painter = androidx.compose.ui.res.painterResource(id = primaryAvatar),
-                                contentDescription = session.title,
-                                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
-                                modifier = Modifier.size(108.dp)
-                            )
-                        } else {
-                            Text(
-                                text = initials,
-                                color = scheme.onAccent,
-                                fontSize = 32.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = session.title,
-                        color = if (peerAppearance.preset != null) Color.White else scheme.textPrimary,
-                        fontSize = 21.sp,
+                        color = titleColor,
+                        fontSize = androidx.compose.ui.unit.lerp(21.sp, 24.sp, expandFraction),
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.padding(horizontal = 24.dp)
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(3.dp))
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
                             text = statusText,
-                            color = when {
-                                peerAppearance.preset != null -> Color.White.copy(alpha = 0.78f)
-                                session.isOnline -> scheme.accent
-                                else -> scheme.textSecondary
-                            },
-                            fontSize = 13.sp
+                            color = statusColor,
+                            fontSize = 13.5.sp
                         )
                         if (!session.isOnline) {
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(10.dp))
-                                    .background(scheme.card.copy(alpha = 0.80f))
+                                    .background(
+                                        if (expandFraction > 0.5f) Color.Black.copy(alpha = 0.35f)
+                                        else scheme.card.copy(alpha = 0.80f)
+                                    )
                                     .padding(horizontal = 8.dp, vertical = 2.dp)
                             ) {
                                 Text(
                                     text = strings.whenQuestion,
-                                    color = scheme.textSecondary,
-                                    fontSize = 11.sp
+                                    color = if (expandFraction > 0.5f) Color.White.copy(alpha = 0.88f) else scheme.textSecondary,
+                                    fontSize = 11.5.sp
                                 )
                             }
                         }
                     }
-                    if (overlayActions != null) {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        overlayActions(collapsedCoverHaze)
-                    }
+                }
+                if (overlayActions != null) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                    overlayActions(if (expandFraction > 0.5f) heroHaze else coverHaze)
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 
@@ -579,6 +549,7 @@ internal fun UserProfileAvatarFullscreenOverlay(
     ) {
         androidx.compose.foundation.pager.HorizontalPager(
             state = pagerState,
+            userScrollEnabled = activePageScale <= 1.02f,
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
@@ -609,25 +580,39 @@ internal fun UserProfileAvatarFullscreenOverlay(
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(pageIdx, safeList.size, scale) {
-                        detectTapGestures { offset ->
-                            if (safeList.size > 1 && scale <= 1.02f) {
-                                when {
-                                    offset.x < size.width * 0.24f -> {
-                                        scope.launch {
-                                            pagerState.animateScrollToPage((pageIdx - 1).coerceAtLeast(0))
-                                        }
-                                    }
-                                    offset.x > size.width * 0.76f -> {
-                                        scope.launch {
-                                            pagerState.animateScrollToPage((pageIdx + 1).coerceAtMost(safeList.lastIndex))
-                                        }
-                                    }
-                                    else -> isHudVisible = !isHudVisible
+                        detectTapGestures(
+                            onDoubleTap = {
+                                if (scale > 1.05f) {
+                                    scale = 1f
+                                    offsetX = 0f
+                                    offsetY = 0f
+                                } else {
+                                    scale = 2.5f
                                 }
-                            } else {
-                                isHudVisible = !isHudVisible
+                                if (pageIdx == pagerState.currentPage) {
+                                    activePageScale = scale
+                                }
+                            },
+                            onTap = { offset ->
+                                if (safeList.size > 1 && scale <= 1.02f) {
+                                    when {
+                                        offset.x < size.width * 0.24f -> {
+                                            scope.launch {
+                                                pagerState.animateScrollToPage((pageIdx - 1).coerceAtLeast(0))
+                                            }
+                                        }
+                                        offset.x > size.width * 0.76f -> {
+                                            scope.launch {
+                                                pagerState.animateScrollToPage((pageIdx + 1).coerceAtMost(safeList.lastIndex))
+                                            }
+                                        }
+                                        else -> isHudVisible = !isHudVisible
+                                    }
+                                } else {
+                                    isHudVisible = !isHudVisible
+                                }
                             }
-                        }
+                        )
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -651,14 +636,14 @@ internal fun UserProfileAvatarFullscreenOverlay(
             }
         }
 
-        // Верхняя панель: простая стрелка назад (без кружка), имя, 3 точки (Сохранить / Поделиться с иконками)
+        // Верхняя панель: стрелка назад и имя слева | счётчик строго по центру | 3 точки справа
         androidx.compose.animation.AnimatedVisibility(
             visible = isHudVisible,
             enter = androidx.compose.animation.fadeIn(),
             exit = androidx.compose.animation.fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
-            Row(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
@@ -667,39 +652,42 @@ internal fun UserProfileAvatarFullscreenOverlay(
                         )
                     )
                     .safeStatusBarPadding()
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 8.dp, vertical = 10.dp)
             ) {
-                androidx.compose.material3.IconButton(onClick = onClose) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = strings.back,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Column(
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(horizontal = 6.dp)
+                        .align(Alignment.CenterStart)
+                        .padding(end = 96.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    androidx.compose.material3.IconButton(onClick = onClose) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = strings.back,
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                     Text(
                         text = title,
                         color = Color.White,
                         fontSize = 17.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(start = 4.dp)
                     )
-                    if (safeList.size > 1) {
-                        Text(
-                            text = "${pagerState.currentPage + 1} / ${safeList.size}",
-                            color = Color.White.copy(alpha = 0.72f),
-                            fontSize = 12.sp
-                        )
-                    }
                 }
-                Box {
+                if (safeList.size > 1) {
+                    Text(
+                        text = "${pagerState.currentPage + 1} / ${safeList.size}",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                }
+                Box(modifier = Modifier.align(Alignment.CenterEnd)) {
                     androidx.compose.material3.IconButton(onClick = { isMenuOpen = true }) {
                         Icon(
                             imageVector = Icons.Outlined.MoreVert,
