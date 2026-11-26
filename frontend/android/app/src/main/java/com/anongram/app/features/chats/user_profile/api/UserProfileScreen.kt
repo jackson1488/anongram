@@ -347,11 +347,13 @@ fun UserProfileScreen(
                                     isMuteMenuExpanded = isMuteMenuOpen,
                                     onDismissMuteMenu = { isMuteMenuOpen = false },
                                     onEnableSound = {
-                                        if (isMutedLocal) {
-                                            isMutedLocal = false
-                                            onToggleMute()
-                                        }
-                                        showBanner(Icons.Outlined.VolumeUp, strings.unmutedSoundToast)
+                                        val nowMuted = !isMutedLocal
+                                        isMutedLocal = nowMuted
+                                        onToggleMute()
+                                        showBanner(
+                                            if (nowMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.VolumeUp,
+                                            if (nowMuted) strings.mutedForeverToast else strings.unmutedSoundToast
+                                        )
                                     },
                                     onOpenMuteDrum = { isMuteDrumOpen = true },
                                     onOpenMuteSettings = { isNotificationSettingsOpen = true },
@@ -385,11 +387,13 @@ fun UserProfileScreen(
                             isMuteMenuExpanded = isMuteMenuOpen,
                             onDismissMuteMenu = { isMuteMenuOpen = false },
                             onEnableSound = {
-                                if (isMutedLocal) {
-                                    isMutedLocal = false
-                                    onToggleMute()
-                                }
-                                showBanner(Icons.Outlined.VolumeUp, strings.unmutedSoundToast)
+                                val nowMuted = !isMutedLocal
+                                isMutedLocal = nowMuted
+                                onToggleMute()
+                                showBanner(
+                                    if (nowMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.VolumeUp,
+                                    if (nowMuted) strings.mutedForeverToast else strings.unmutedSoundToast
+                                )
                             },
                             onOpenMuteDrum = { isMuteDrumOpen = true },
                             onOpenMuteSettings = { isNotificationSettingsOpen = true },
