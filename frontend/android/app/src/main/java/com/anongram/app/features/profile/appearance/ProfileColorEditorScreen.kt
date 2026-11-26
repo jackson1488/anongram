@@ -42,12 +42,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anongram.app.core.theme.AnonGramThemes
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.theme.LocalThemeController
+import com.anongram.app.core.theme.rememberThemeRevealLauncher
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
@@ -77,7 +83,16 @@ fun ProfileColorEditorScreen(
 
     var draft by remember(savedAppearance) { mutableStateOf(savedAppearance) }
     var activeTab by remember { mutableIntStateOf(0) } // 0 = Профиль, 1 = Имя
+    val themeController = LocalThemeController.current
+    val revealThemeLauncher = rememberThemeRevealLauncher()
+    var lastDarkThemeId by remember {
+        mutableStateOf(if (scheme.isDark) scheme.id else AnonGramThemes.CyberStealth.id)
+    }
+    androidx.compose.runtime.LaunchedEffect(scheme.id, scheme.isDark) {
+        if (scheme.isDark) lastDarkThemeId = scheme.id
+    }
     var previewDark by remember(scheme.isDark) { mutableStateOf(scheme.isDark) }
+    var themeBtnCenter by remember { mutableStateOf(Offset.Zero) }
     var emojiPickerOpen by remember { mutableStateOf(false) }
 
     BackHandler {
@@ -166,7 +181,27 @@ fun ProfileColorEditorScreen(
                                 .size(38.dp)
                                 .clip(CircleShape)
                                 .background(Color.Black.copy(alpha = 0.24f))
-                                .clickable { previewDark = !previewDark },
+                                .onGloballyPositioned { coords ->
+                                    val pos = coords.positionInRoot()
+                                    themeBtnCenter = Offset(
+                                        pos.x + coords.size.width / 2f,
+                                        pos.y + coords.size.height / 2f
+                                    )
+                                }
+                                .clickable {
+                                    if (themeController != null) {
+                                        val targetId = if (scheme.isDark) {
+                                            AnonGramThemes.MonochromePaper.id
+                                        } else {
+                                            lastDarkThemeId
+                                        }
+                                        revealThemeLauncher(themeBtnCenter) {
+                                            themeController.selectTheme(targetId)
+                                        }
+                                    } else {
+                                        previewDark = !previewDark
+                                    }
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

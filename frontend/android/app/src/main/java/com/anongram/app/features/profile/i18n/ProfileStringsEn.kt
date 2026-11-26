@@ -10,7 +10,7 @@ object ProfileStringsEn : ProfileI18nStrings {
     override val changeName: String = "Edit Name"
     override val copyLink: String = "Copy Link"
     override val linkCopied: String = "Link copied"
-    override val phoneLabel: String = "Phone"
+    override val phoneLabel: String = "Public key"
     override val bioLabel: String = "Bio"
     override val usernameLabel: String = "Username"
     override val birthdayLabel: String = "Birthday"

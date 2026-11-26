@@ -367,64 +367,97 @@ fun ProfileScreen(
                         .nestedScroll(pullNestedScroll),
                     contentPadding = PaddingValues(bottom = 128.dp)
                 ) {
-                    // 1. Шапка профиля (обычный круг -> плавно раскрывается в полноширинную hero-карточку)
+                    // 1. Шапка профиля (единый морфинг: круг 96dp <-> полноширинная hero-карточка 410dp в обе стороны)
                     item(key = "profile_hero") {
-                        AnimatedContent(
-                            targetState = isExpandedHero && hasMediaAvatar,
-                            transitionSpec = {
-                                (fadeIn(tween(340, easing = FastOutSlowInEasing)) togetherWith
-                                    fadeOut(tween(240, easing = FastOutSlowInEasing)))
-                                    .using(
-                                        SizeTransform(clip = false) { _, _ ->
-                                            tween(340, easing = FastOutSlowInEasing)
+                        val expandFraction by animateFloatAsState(
+                            targetValue = if (isExpandedHero && hasMediaAvatar) 1f else 0f,
+                            animationSpec = tween(durationMillis = 380, easing = FastOutSlowInEasing),
+                            label = "heroExpandFraction"
+                        )
+                        val stage1Pull = if (!isExpandedHero) pullProgress.value.coerceIn(0f, 1f) else 0f
+                        val stage2PullDp = if (isExpandedHero) (pullProgress.value.coerceIn(0f, 1f) * extraStage2Dp.value).dp else 0.dp
+                        val totalHeroHeight = androidx.compose.ui.unit.lerp(344.dp, 410.dp, expandFraction) + stage2PullDp
+
+                        val heroPagerState = rememberPagerState(
+                            initialPage = selectedAvatarIndex.coerceIn(0, (avatars.size - 1).coerceAtLeast(0)),
+                            pageCount = { avatars.size.coerceAtLeast(1) }
+                        )
+                        LaunchedEffect(heroPagerState.currentPage) {
+                            selectedAvatarIndex = heroPagerState.currentPage
+                        }
+                        LaunchedEffect(selectedAvatarIndex) {
+                            if (selectedAvatarIndex in avatars.indices && heroPagerState.currentPage != selectedAvatarIndex) {
+                                heroPagerState.animateScrollToPage(selectedAvatarIndex)
+                            }
+                        }
+
+                        BoxWithConstraints(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(totalHeroHeight)
+                        ) {
+                            // Обложка с бесшовным растворением низа (видна при свёрнутом круге и плавно исчезает при раскрытии)
+                            if (expandFraction < 0.99f) {
+                                ProfileCoverBackdrop(
+                                    appearance = appearance,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer { alpha = 1f - expandFraction }
+                                        .hazeSource(state = coverHaze)
+                                )
+                            }
+
+                            val circleSize = 96.dp * (1f + stage1Pull * 0.45f)
+                            val avatarW = androidx.compose.ui.unit.lerp(circleSize, maxWidth, expandFraction)
+                            val avatarH = androidx.compose.ui.unit.lerp(circleSize, totalHeroHeight, expandFraction)
+                            val avatarCorner = androidx.compose.ui.unit.lerp(circleSize / 2f, 0.dp, expandFraction)
+                            val avatarTopOffset = androidx.compose.ui.unit.lerp(94.dp, 0.dp, expandFraction)
+                            val ringColor = appearance.preset?.primary ?: scheme.accent
+
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = avatarTopOffset)
+                                    .size(width = avatarW, height = avatarH)
+                                    .clip(RoundedCornerShape(avatarCorner))
+                                    .then(
+                                        if (expandFraction < 0.9f) {
+                                            Modifier.border(
+                                                width = (2f * (1f - expandFraction)).dp,
+                                                color = ringColor.copy(alpha = 0.85f * (1f - expandFraction)),
+                                                shape = RoundedCornerShape(avatarCorner)
+                                            )
+                                        } else {
+                                            Modifier
                                         }
                                     )
-                            },
-                            label = "profileHeroExpand"
-                        ) { expanded ->
-                            if (expanded) {
-                                val heroPagerState = rememberPagerState(
-                                    initialPage = selectedAvatarIndex.coerceIn(0, (avatars.size - 1).coerceAtLeast(0)),
-                                    pageCount = { avatars.size.coerceAtLeast(1) }
-                                )
-                                LaunchedEffect(heroPagerState.currentPage) {
-                                    selectedAvatarIndex = heroPagerState.currentPage
-                                }
-                                LaunchedEffect(selectedAvatarIndex) {
-                                    if (selectedAvatarIndex in avatars.indices && heroPagerState.currentPage != selectedAvatarIndex) {
-                                        heroPagerState.animateScrollToPage(selectedAvatarIndex)
-                                    }
-                                }
-
-                                BoxWithConstraints(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(410.dp + stretchDp)
-                                ) {
-                                    val boxWidthPx = with(density) { maxWidth.toPx() }
-
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .hazeSource(state = heroHaze)
-                                    ) {
-                                        HorizontalPager(
-                                            state = heroPagerState,
-                                            modifier = Modifier.fillMaxSize()
-                                        ) { page ->
-                                            val itemAvatar = avatars.getOrNull(page) ?: primaryAvatar
-                                            // Видео-аватар воспроизводится ТОЛЬКО когда раскрыт (без паузы, по кругу)
-                                            ProfileAvatarView(
-                                                avatar = itemAvatar,
-                                                displayName = displayName,
-                                                monogramFontSize = 54.sp,
-                                                emojiFontSize = 72.sp,
-                                                playVideo = !isFullscreenViewer && page == heroPagerState.currentPage,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
+                                    .hazeSource(state = heroHaze)
+                                    .clickable(enabled = expandFraction < 0.25f) {
+                                        if (hasMediaAvatar) {
+                                            selectedAvatarIndex = 0
+                                            isExpandedHero = true
+                                        } else {
+                                            isAvatarPickerOpen = true
                                         }
+                                    }
+                            ) {
+                                if (expandFraction > 0.25f && hasMediaAvatar) {
+                                    HorizontalPager(
+                                        state = heroPagerState,
+                                        modifier = Modifier.fillMaxSize()
+                                    ) { page ->
+                                        val itemAvatar = avatars.getOrNull(page) ?: primaryAvatar
+                                        ProfileAvatarView(
+                                            avatar = itemAvatar,
+                                            displayName = displayName,
+                                            monogramFontSize = 54.sp,
+                                            emojiFontSize = 72.sp,
+                                            playVideo = !isFullscreenViewer && isExpandedHero && page == heroPagerState.currentPage,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
 
-                                        // Невидимые зоны тапа: лево/право листают фото при >=2, центр открывает полноэкранный просмотр
+                                    if (expandFraction > 0.85f) {
                                         Row(modifier = Modifier.fillMaxSize()) {
                                             if (avatars.size >= 2) {
                                                 Box(
@@ -435,9 +468,7 @@ fun ProfileScreen(
                                                             interactionSource = remember { MutableInteractionSource() },
                                                             indication = null
                                                         ) {
-                                                            if (selectedAvatarIndex > 0) {
-                                                                selectedAvatarIndex -= 1
-                                                            }
+                                                            if (selectedAvatarIndex > 0) selectedAvatarIndex -= 1
                                                         }
                                                 )
                                             }
@@ -448,9 +479,7 @@ fun ProfileScreen(
                                                     .clickable(
                                                         interactionSource = remember { MutableInteractionSource() },
                                                         indication = null
-                                                    ) {
-                                                        isFullscreenViewer = true
-                                                    }
+                                                    ) { isFullscreenViewer = true }
                                             )
                                             if (avatars.size >= 2) {
                                                 Box(
@@ -461,15 +490,12 @@ fun ProfileScreen(
                                                             interactionSource = remember { MutableInteractionSource() },
                                                             indication = null
                                                         ) {
-                                                            if (selectedAvatarIndex < avatars.lastIndex) {
-                                                                selectedAvatarIndex += 1
-                                                            }
+                                                            if (selectedAvatarIndex < avatars.lastIndex) selectedAvatarIndex += 1
                                                         }
                                                 )
                                             }
                                         }
 
-                                        // Верхние полоски-индикаторы только когда 2 и более фото
                                         if (avatars.size >= 2) {
                                             Row(
                                                 modifier = Modifier
@@ -493,189 +519,101 @@ fun ProfileScreen(
                                                 }
                                             }
                                         }
+                                    }
 
-                                        // Градиент снизу под имя и кнопки
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .height(175.dp)
-                                                .align(Alignment.BottomCenter)
-                                                .background(
-                                                    Brush.verticalGradient(
-                                                        colors = listOf(
-                                                            Color.Transparent,
-                                                            Color.Black.copy(alpha = 0.72f)
-                                                        )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(175.dp)
+                                            .align(Alignment.BottomCenter)
+                                            .graphicsLayer { alpha = expandFraction }
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color.Transparent,
+                                                        Color.Black.copy(alpha = 0.72f)
                                                     )
                                                 )
-                                        )
-                                    }
-
-                                    Column(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 14.dp, vertical = 14.dp)
-                                    ) {
-                                        Text(
-                                            text = displayName,
-                                            color = Color.White,
-                                            fontSize = 23.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = strings.onlineStatus,
-                                            color = Color.White.copy(alpha = 0.80f),
-                                            fontSize = 13.5.sp
-                                        )
-                                        Spacer(modifier = Modifier.height(14.dp))
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            ProfileActionPill(
-                                                icon = Icons.Outlined.AddAPhoto,
-                                                label = strings.selectPhoto,
-                                                onClick = { isAvatarPickerOpen = true },
-                                                overlayStyle = true,
-                                                heroHaze = heroHaze,
-                                                glassBlurEnabled = animState.glassBlurEnabled,
-                                                modifier = Modifier.weight(1f)
                                             )
-                                            ProfileActionPill(
-                                                icon = Icons.Outlined.Edit,
-                                                label = strings.edit,
-                                                onClick = { subOverlay = ProfileSubOverlay.AccountEdit },
-                                                overlayStyle = true,
-                                                heroHaze = heroHaze,
-                                                glassBlurEnabled = animState.glassBlurEnabled,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            ProfileActionPill(
-                                                icon = Icons.Outlined.Settings,
-                                                label = strings.settings,
-                                                onClick = onOpenSettings,
-                                                overlayStyle = true,
-                                                heroHaze = heroHaze,
-                                                glassBlurEnabled = animState.glassBlurEnabled,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                    }
+                                    )
+                                } else {
+                                    ProfileAvatarView(
+                                        avatar = primaryAvatar,
+                                        displayName = displayName,
+                                        monogramFontSize = 34.sp,
+                                        emojiFontSize = 42.sp,
+                                        playVideo = false,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
                                 }
-                            } else {
-                                val avatarSize by animateDpAsState(
-                                    targetValue = 96.dp,
-                                    animationSpec = spring(),
-                                    label = "profileAvatarSize"
-                                )
-                                val pullScale = 1f + (pullProgress.value.coerceIn(0f, 1f) * 0.45f)
+                            }
 
-                                Box(
+                            // Имя, статус и 3 нижние кнопки (плавно остаются внизу при переходе 1 <-> 2)
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(bottom = 14.dp),
+                                horizontalAlignment = if (expandFraction > 0.5f) Alignment.Start else Alignment.CenterHorizontally
+                            ) {
+                                val collapsedNameColor = appearance.namePreset?.primary
+                                    ?: if (appearance.preset != null) Color.White else scheme.textPrimary
+                                val nameColor = androidx.compose.ui.graphics.lerp(collapsedNameColor, Color.White, expandFraction)
+                                val collapsedStatusColor = if (appearance.preset != null) Color.White.copy(alpha = 0.78f) else scheme.accent
+                                val statusColor = androidx.compose.ui.graphics.lerp(collapsedStatusColor, Color.White.copy(alpha = 0.80f), expandFraction)
+
+                                Text(
+                                    text = displayName,
+                                    color = nameColor,
+                                    fontSize = androidx.compose.ui.unit.lerp(21.sp, 23.sp, expandFraction),
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.padding(horizontal = if (expandFraction > 0.5f) 14.dp else 20.dp)
+                                )
+                                Text(
+                                    text = strings.onlineStatus,
+                                    color = statusColor,
+                                    fontSize = 13.sp,
+                                    modifier = Modifier.padding(horizontal = if (expandFraction > 0.5f) 14.dp else 20.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                val activePillHaze = if (expandFraction > 0.5f) heroHaze else coverHaze
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .height(344.dp)
+                                        .padding(horizontal = 14.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    ProfileCoverBackdrop(
-                                        appearance = appearance,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .hazeSource(state = coverHaze)
+                                    ProfileActionPill(
+                                        icon = Icons.Outlined.AddAPhoto,
+                                        label = strings.selectPhoto,
+                                        onClick = { isAvatarPickerOpen = true },
+                                        overlayStyle = true,
+                                        heroHaze = activePillHaze,
+                                        glassBlurEnabled = animState.glassBlurEnabled,
+                                        modifier = Modifier.weight(1f)
                                     )
-
-                                    Column(
-                                        modifier = Modifier
-                                            .align(Alignment.BottomCenter)
-                                            .fillMaxWidth()
-                                            .padding(bottom = 14.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        val ringColor = appearance.preset?.primary ?: scheme.accent
-                                        Box(
-                                            modifier = Modifier
-                                                .size(avatarSize)
-                                                .graphicsLayer {
-                                                    scaleX = pullScale
-                                                    scaleY = pullScale
-                                                }
-                                                .clip(CircleShape)
-                                                .border(2.dp, ringColor.copy(alpha = 0.85f), CircleShape)
-                                                .clickable {
-                                                    if (hasMediaAvatar) {
-                                                        selectedAvatarIndex = 0
-                                                        isExpandedHero = true
-                                                    } else {
-                                                        isAvatarPickerOpen = true
-                                                    }
-                                                }
-                                        ) {
-                                            // В свернутом круге видео не крутится (показывает миниатюру)
-                                            ProfileAvatarView(
-                                                avatar = primaryAvatar,
-                                                displayName = displayName,
-                                                monogramFontSize = 34.sp,
-                                                emojiFontSize = 42.sp,
-                                                playVideo = false,
-                                                modifier = Modifier.fillMaxSize()
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(10.dp))
-
-                                        Text(
-                                            text = displayName,
-                                            color = appearance.namePreset?.primary
-                                                ?: if (appearance.preset != null) Color.White else scheme.textPrimary,
-                                            fontSize = 21.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = strings.onlineStatus,
-                                            color = if (appearance.preset != null) Color.White.copy(alpha = 0.78f) else scheme.accent,
-                                            fontSize = 13.sp
-                                        )
-
-                                        Spacer(modifier = Modifier.height(16.dp))
-
-                                        Row(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 14.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            ProfileActionPill(
-                                                icon = Icons.Outlined.AddAPhoto,
-                                                label = strings.selectPhoto,
-                                                onClick = { isAvatarPickerOpen = true },
-                                                overlayStyle = true,
-                                                heroHaze = coverHaze,
-                                                glassBlurEnabled = animState.glassBlurEnabled,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            ProfileActionPill(
-                                                icon = Icons.Outlined.Edit,
-                                                label = strings.edit,
-                                                onClick = { subOverlay = ProfileSubOverlay.AccountEdit },
-                                                overlayStyle = true,
-                                                heroHaze = coverHaze,
-                                                glassBlurEnabled = animState.glassBlurEnabled,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                            ProfileActionPill(
-                                                icon = Icons.Outlined.Settings,
-                                                label = strings.settings,
-                                                onClick = onOpenSettings,
-                                                overlayStyle = true,
-                                                heroHaze = coverHaze,
-                                                glassBlurEnabled = animState.glassBlurEnabled,
-                                                modifier = Modifier.weight(1f)
-                                            )
-                                        }
-                                    }
+                                    ProfileActionPill(
+                                        icon = Icons.Outlined.Edit,
+                                        label = strings.edit,
+                                        onClick = { subOverlay = ProfileSubOverlay.AccountEdit },
+                                        overlayStyle = true,
+                                        heroHaze = activePillHaze,
+                                        glassBlurEnabled = animState.glassBlurEnabled,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    ProfileActionPill(
+                                        icon = Icons.Outlined.Settings,
+                                        label = strings.settings,
+                                        onClick = onOpenSettings,
+                                        overlayStyle = true,
+                                        heroHaze = activePillHaze,
+                                        glassBlurEnabled = animState.glassBlurEnabled,
+                                        modifier = Modifier.weight(1f)
+                                    )
                                 }
                             }
                         }
@@ -728,8 +666,6 @@ fun ProfileScreen(
                                 }
                             }
 
-                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
-
                             Box {
                                 ProfileInfoField(
                                     value = bio,
@@ -763,8 +699,6 @@ fun ProfileScreen(
                                 }
                             }
 
-                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
-
                             Box {
                                 ProfileInfoField(
                                     value = handle,
@@ -797,8 +731,6 @@ fun ProfileScreen(
                                     )
                                 }
                             }
-
-                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
 
                             Box {
                                 ProfileInfoField(
@@ -910,41 +842,10 @@ fun ProfileScreen(
                             )
                         }
 
-                        var themeBtnCenter by remember { mutableStateOf(Offset.Zero) }
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            if (!isHeroActive && themeController != null) {
-                                Box(
-                                    modifier = topPillModifier
-                                        .onGloballyPositioned { coords ->
-                                            val pos = coords.positionInRoot()
-                                            themeBtnCenter = Offset(
-                                                pos.x + coords.size.width / 2f,
-                                                pos.y + coords.size.height / 2f
-                                            )
-                                        }
-                                        .clickable {
-                                            val targetId = if (scheme.isDark) {
-                                                AnonGramThemes.MonochromePaper.id
-                                            } else {
-                                                lastDarkThemeId
-                                            }
-                                            revealThemeLauncher(themeBtnCenter) {
-                                                themeController.selectTheme(targetId)
-                                            }
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (scheme.isDark) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
-                                        contentDescription = null,
-                                        tint = topIconTint,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
 
                             Box {
                                 Box(

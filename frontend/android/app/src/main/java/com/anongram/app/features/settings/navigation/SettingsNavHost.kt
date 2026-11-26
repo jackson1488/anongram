@@ -214,10 +214,10 @@ fun SettingsNavHost(
         !navConfig.enableMiniCardCombo &&
         !navConfig.enablePredictiveBackCombo
     val usePredictiveBack = navConfig.transitionType != TransitionType.INSTANT && !isPureSwipeOrParallax
-    androidx.activity.compose.BackHandler(enabled = backStack.size > 1 && !usePredictiveBack) {
+    androidx.activity.compose.BackHandler(enabled = backStack.size > 1 && !showAvatarPickerSheet && !usePredictiveBack) {
         popBack()
     }
-    PredictiveBackHandler(enabled = backStack.size > 1 && usePredictiveBack) { backEvents ->
+    PredictiveBackHandler(enabled = backStack.size > 1 && !showAvatarPickerSheet && usePredictiveBack) { backEvents ->
         underlayRoute = backStack[backStack.lastIndex - 1]
         isExiting = true
         isPredictiveHolding = true

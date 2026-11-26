@@ -66,7 +66,7 @@ fun BirthdayWheelSheet(
     val isRu = appLanguage == AppLanguage.RU
 
     val currentYear = remember { Calendar.getInstance().get(Calendar.YEAR) }
-    val years = remember(currentYear) { (1900..currentYear).toList() }
+    val years = remember(currentYear) { (1800..currentYear).toList() }
     val months = remember(isRu) {
         if (isRu) {
             listOf(
@@ -219,21 +219,29 @@ private fun WheelColumn(
 ) {
     val scheme = LocalAnonGramScheme.current
     val itemHeight = 42.dp
-    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex.coerceIn(0, (items.size - 1).coerceAtLeast(0)))
+    val safeSize = items.size.coerceAtLeast(1)
+    val startBase = remember(safeSize) {
+        val mid = Int.MAX_VALUE / 2
+        mid - (mid % safeSize)
+    }
+    val startIndex = remember(startBase, initialIndex, safeSize) {
+        startBase + initialIndex.coerceIn(0, safeSize - 1)
+    }
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
     val flingBehavior = rememberSnapFlingBehavior(lazyListState = listState)
 
-    val centerIndex by remember {
+    val centerVirtualIndex by remember {
         derivedStateOf {
             val first = listState.firstVisibleItemIndex
             val offset = listState.firstVisibleItemScrollOffset
-            val candidate = if (offset > 45) first + 1 else first
-            candidate.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+            if (offset > 45) first + 1 else first
         }
     }
 
-    LaunchedEffect(centerIndex) {
-        if (centerIndex in items.indices) {
-            onSelectedIndex(centerIndex)
+    LaunchedEffect(centerVirtualIndex, safeSize) {
+        val mod = ((centerVirtualIndex % safeSize) + safeSize) % safeSize
+        if (mod in items.indices) {
+            onSelectedIndex(mod)
         }
     }
 
@@ -243,8 +251,9 @@ private fun WheelColumn(
         contentPadding = PaddingValues(vertical = itemHeight * 2),
         modifier = modifier.height(itemHeight * 5)
     ) {
-        items(items.size) { idx ->
-            val distance = abs(idx - centerIndex)
+        items(Int.MAX_VALUE) { virtualIdx ->
+            val realIdx = ((virtualIdx % safeSize) + safeSize) % safeSize
+            val distance = abs(virtualIdx - centerVirtualIndex)
             val alpha = when (distance) {
                 0 -> 1f
                 1 -> 0.58f
@@ -255,7 +264,7 @@ private fun WheelColumn(
                 1 -> 0.90f
                 else -> 0.76f
             }
-            val tilt = ((idx - centerIndex) * 18f).coerceIn(-45f, 45f)
+            val tilt = ((virtualIdx - centerVirtualIndex) * 18f).coerceIn(-45f, 45f)
 
             Box(
                 modifier = Modifier
@@ -271,7 +280,7 @@ private fun WheelColumn(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = items[idx],
+                    text = items[realIdx],
                     color = if (distance == 0) scheme.textPrimary else scheme.textSecondary,
                     fontSize = if (distance == 0) 17.sp else 15.sp,
                     fontWeight = if (distance == 0) FontWeight.SemiBold else FontWeight.Normal,
