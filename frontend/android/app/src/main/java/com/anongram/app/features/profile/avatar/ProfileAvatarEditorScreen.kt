@@ -131,7 +131,7 @@ fun ProfileAvatarEditorScreen(
 
     // Наследуемое состояние MediaEditor (рисование + улучшение)
     var editState by remember { mutableStateOf(PhotoEditState()) }
-    var adjustTab by remember { mutableStateOf(AdjustSubTab.ADJUST) }
+    var adjustTab by remember { mutableStateOf(AdjustSubTab.SLIDERS) }
 
     // Видео-состояние (авто-ограничение 20с)
     var detectedDurationMs by remember(uri, initialDurationMs) {
@@ -186,11 +186,9 @@ fun ProfileAvatarEditorScreen(
         val src = sourceBitmap ?: return@LaunchedEffect
         filteredPreview = withContext(Dispatchers.Default) {
             runCatching {
-                PhotoFilterEngine.applyAll(
+                PhotoFilterEngine.applyPixelPipeline(
                     source = src,
-                    adjustments = editState.adjustments,
-                    blur = editState.blur,
-                    curves = editState.curves
+                    state = editState
                 ).asImageBitmap()
             }.getOrNull() ?: src.asImageBitmap()
         }
@@ -523,7 +521,7 @@ fun ProfileAvatarEditorScreen(
                                         val finalEditState = editState.copy(
                                             crop = CropTransform(
                                                 baseRotation90 = rotationDeg,
-                                                flipHorizontal = mirrorH
+                                                mirrorHorizontal = mirrorH
                                             )
                                         )
                                         val editable = EditableMediaItem(
@@ -537,8 +535,8 @@ fun ProfileAvatarEditorScreen(
                                             runCatching {
                                                 val out = BitmapExportRenderer.exportAll(context, listOf(editable)).firstOrNull()
                                                 val target = File(context.filesDir, "profile_avatar_${System.currentTimeMillis()}.jpg")
-                                                if (out?.editedUri != null) {
-                                                    context.contentResolver.openInputStream(out.editedUri)?.use { inp ->
+                                                if (out != null) {
+                                                    context.contentResolver.openInputStream(out.uri)?.use { inp ->
                                                         target.outputStream().use { outStr -> inp.copyTo(outStr) }
                                                     }
                                                     Uri.fromFile(target)

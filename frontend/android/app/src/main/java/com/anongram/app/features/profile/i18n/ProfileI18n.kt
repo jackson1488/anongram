@@ -10,7 +10,6 @@ import com.anongram.app.core.i18n.LanguageSettingsStore
 object ProfileI18n {
     val current: ProfileI18nStrings
         @Composable
-        @ReadOnlyComposable
         get() = when (LanguageSettingsStore.language.collectAsState().value) {
             AppLanguage.RU -> ProfileStringsRu
             AppLanguage.EN -> ProfileStringsEn
