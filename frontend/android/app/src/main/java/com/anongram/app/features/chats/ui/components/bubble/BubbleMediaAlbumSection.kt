@@ -859,20 +859,12 @@ internal fun ChatRealPhotoBox(
 
         if (isVideo && !showSpoiler && !isUploading && allowVideoAutoplay && parsedUri != null) {
             val crop = liveVideoEditState?.crop
-            val cropCenterOffsetX = if (crop != null && !crop.cropRect.isFull) {
-                0.5f - (crop.cropRect.left + crop.cropRect.right) * 0.5f
-            } else 0f
-            val cropCenterOffsetY = if (crop != null && !crop.cropRect.isFull) {
-                0.5f - (crop.cropRect.top + crop.cropRect.bottom) * 0.5f
-            } else 0f
-            val cropZoom = if (crop != null && !crop.cropRect.isFull) {
-                maxOf(1f / crop.cropRect.width, 1f / crop.cropRect.height).coerceIn(1f, 4f)
-            } else 1f
             val mirrorSign = if (crop?.mirrorHorizontal == true) -1f else 1f
             val extraRot = (crop?.baseRotation90?.toFloat() ?: 0f) + (crop?.straightenDegrees ?: 0f)
 
             InlineMutedVideoPreview(
                 uri = parsedUri,
+                crop = crop,
                 onPrepared = { durMs ->
                     videoDurationMs = durMs
                     videoRemainingMs = durMs
@@ -889,10 +881,7 @@ internal fun ChatRealPhotoBox(
                     .fillMaxSize()
                     .graphicsLayer {
                         rotationZ = extraRot
-                        scaleX = mirrorSign * cropZoom
-                        scaleY = cropZoom
-                        translationX = cropCenterOffsetX * size.width * cropZoom
-                        translationY = cropCenterOffsetY * size.height * cropZoom
+                        scaleX = mirrorSign
                     }
             )
 
@@ -1112,6 +1101,7 @@ private fun formatUploadMbLabel(state: com.anongram.app.features.chats.media.Med
 @Composable
 private fun InlineMutedVideoPreview(
     uri: Uri,
+    crop: com.anongram.app.features.chats.mediaeditor.model.CropTransform? = null,
     onPrepared: (Int) -> Unit,
     onProgress: (Int, Int) -> Unit,
     modifier: Modifier = Modifier
@@ -1178,17 +1168,27 @@ private fun InlineMutedVideoPreview(
                                 if (videoW > 0 && videoH > 0 && width > 0 && height > 0) {
                                     val viewRatio = width.toFloat() / height
                                     val videoRatio = videoW.toFloat() / videoH
-                                    val scaleX: Float
-                                    val scaleY: Float
-                                    if (videoRatio > viewRatio) {
-                                        scaleX = videoRatio / viewRatio
-                                        scaleY = 1f
-                                    } else {
-                                        scaleX = 1f
-                                        scaleY = viewRatio / videoRatio
-                                    }
+                                    val cropRect = crop?.cropRect
                                     val matrix = Matrix()
-                                    matrix.setScale(scaleX, scaleY, width / 2f, height / 2f)
+                                    if (cropRect != null && !cropRect.isFull) {
+                                        val sx = (1f / cropRect.width).coerceIn(1f, 5f)
+                                        val sy = (1f / cropRect.height).coerceIn(1f, 5f)
+                                        val centerX = (cropRect.left + cropRect.right) * 0.5f
+                                        val centerY = (cropRect.top + cropRect.bottom) * 0.5f
+                                        matrix.setScale(sx, sy, width / 2f, height / 2f)
+                                        matrix.postTranslate((0.5f - centerX) * width * sx, (0.5f - centerY) * height * sy)
+                                    } else {
+                                        val scaleX: Float
+                                        val scaleY: Float
+                                        if (videoRatio > viewRatio) {
+                                            scaleX = videoRatio / viewRatio
+                                            scaleY = 1f
+                                        } else {
+                                            scaleX = 1f
+                                            scaleY = viewRatio / videoRatio
+                                        }
+                                        matrix.setScale(scaleX, scaleY, width / 2f, height / 2f)
+                                    }
                                     setTransform(matrix)
                                 }
                             }

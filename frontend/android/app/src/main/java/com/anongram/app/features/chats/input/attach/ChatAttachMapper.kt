@@ -143,6 +143,11 @@ private fun launchOptimisticMediaChunk(
                         }
                     )
                     MediaUploadTracker.complete(messageId, origUriStr)
+                    val outUriStr = outUri.toString()
+                    com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.alias(origUriStr, outUriStr)
+                    com.anongram.app.features.chats.attach.tabs.gallery.mediaSizeCache.get(origUriStr)?.let { (w, h) ->
+                        com.anongram.app.features.chats.attach.tabs.gallery.putMediaDimensions(outUriStr, w, h)
+                    }
                     media.copy(uri = outUri)
                 } catch (_: CancellationException) {
                     null

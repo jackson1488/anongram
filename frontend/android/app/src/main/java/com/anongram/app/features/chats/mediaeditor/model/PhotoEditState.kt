@@ -122,5 +122,12 @@ object VideoLiveEditRegistry {
         if (uriString.isNullOrBlank()) return null
         return blurMaskBitmapsByUri[uriString]
     }
+
+    fun alias(fromUriString: String?, toUriString: String?) {
+        if (fromUriString.isNullOrBlank() || toUriString.isNullOrBlank() || fromUriString == toUriString) return
+        statesByUri[fromUriString]?.let { statesByUri[toUriString] = it }
+        overlayBitmapsByUri[fromUriString]?.let { overlayBitmapsByUri[toUriString] = it }
+        blurMaskBitmapsByUri[fromUriString]?.let { blurMaskBitmapsByUri[toUriString] = it }
+    }
 }
 
