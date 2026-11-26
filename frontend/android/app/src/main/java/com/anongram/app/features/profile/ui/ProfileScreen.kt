@@ -376,7 +376,7 @@ fun ProfileScreen(
                         )
                         val stage1Pull = if (!isExpandedHero) pullProgress.value.coerceIn(0f, 1f) else 0f
                         val stage2PullDp = if (isExpandedHero) (pullProgress.value.coerceIn(0f, 1f) * extraStage2Dp.value).dp else 0.dp
-                        val totalHeroHeight = androidx.compose.ui.unit.lerp(344.dp, 410.dp, expandFraction) + stage2PullDp
+                        val totalHeroHeight = androidx.compose.ui.unit.lerp(328.dp, 410.dp, expandFraction) + stage2PullDp
 
                         val heroPagerState = rememberPagerState(
                             initialPage = selectedAvatarIndex.coerceIn(0, (avatars.size - 1).coerceAtLeast(0)),
@@ -411,7 +411,7 @@ fun ProfileScreen(
                             val avatarW = androidx.compose.ui.unit.lerp(circleSize, maxWidth, expandFraction)
                             val avatarH = androidx.compose.ui.unit.lerp(circleSize, totalHeroHeight, expandFraction)
                             val avatarCorner = androidx.compose.ui.unit.lerp(circleSize / 2f, 0.dp, expandFraction)
-                            val avatarTopOffset = androidx.compose.ui.unit.lerp(94.dp, 0.dp, expandFraction)
+                            val avatarTopOffset = androidx.compose.ui.unit.lerp(82.dp, 0.dp, expandFraction)
                             val ringColor = appearance.preset?.primary ?: scheme.accent
 
                             Box(

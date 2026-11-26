@@ -102,15 +102,18 @@ fun SettingsNavHost(
     var underlayRoute by remember { mutableStateOf<SettingsRoute?>(null) }
     var isExiting by remember { mutableStateOf(false) }
     var showAvatarPickerSheet by remember { mutableStateOf(false) }
+    var pendingEditorMedia by remember { mutableStateOf<Triple<Uri, Boolean, Long>?>(null) }
     val transitionProgress = remember { Animatable(0f) }
 
-    LaunchedEffect(showAvatarPickerSheet, currentRoute) {
-        onSubScreenVisibilityChange(showAvatarPickerSheet || currentRoute != SettingsRoute.Main)
+    LaunchedEffect(showAvatarPickerSheet, pendingEditorMedia, currentRoute) {
+        onSubScreenVisibilityChange(showAvatarPickerSheet || pendingEditorMedia != null || currentRoute != SettingsRoute.Main)
     }
 
     val navigateTo: (SettingsRoute) -> Unit = { route ->
         if (route == SettingsRoute.ProfileAvatar) {
             showAvatarPickerSheet = true
+        } else if (route is SettingsRoute.ProfileAvatarEditor) {
+            pendingEditorMedia = Triple(Uri.parse(route.uriString), route.isVideo, route.durationMs)
         } else if (currentRoute != route) {
             val prev = currentRoute
             underlayRoute = prev
@@ -478,16 +481,27 @@ fun SettingsNavHost(
                 subtitleText = "@$customHandle",
                 onPickMedia = { uri, isVideo, durationMs ->
                     showAvatarPickerSheet = false
-                    navigateTo(
-                        SettingsRoute.ProfileAvatarEditor(
-                            uriString = uri.toString(),
-                            isVideo = isVideo,
-                            durationMs = durationMs
-                        )
-                    )
+                    pendingEditorMedia = Triple(uri, isVideo, durationMs)
                 },
                 onBack = { showAvatarPickerSheet = false }
             )
+        }
+
+        val editorMedia = pendingEditorMedia
+        if (editorMedia != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(scheme.background)
+            ) {
+                ProfileAvatarEditorScreen(
+                    uri = editorMedia.first,
+                    isVideo = editorMedia.second,
+                    initialDurationMs = editorMedia.third,
+                    onSaved = { pendingEditorMedia = null },
+                    onBack = { pendingEditorMedia = null }
+                )
+            }
         }
     }
 }

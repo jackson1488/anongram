@@ -89,7 +89,7 @@ fun ProfileCoverBackdrop(
                 .background(
                     Brush.verticalGradient(
                         0.0f to Color.Transparent,
-                        0.62f to Color.Transparent,
+                        0.78f to Color.Transparent,
                         1.0f to scheme.background
                     )
                 )

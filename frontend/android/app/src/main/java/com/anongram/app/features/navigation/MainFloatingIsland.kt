@@ -17,6 +17,8 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -26,14 +28,18 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anongram.app.R
 import com.anongram.app.core.theme.LocalAnonGramScheme
-
 import com.anongram.app.core.ui.icons.FluentIcons
+import com.anongram.app.features.auth.data.crypto.KeystoreVault
+import com.anongram.app.features.profile.avatar.ProfileAvatar
+import com.anongram.app.features.profile.avatar.ProfileAvatarStore
+import com.anongram.app.features.profile.avatar.ProfileAvatarView
 
 /**
  * Ergonomic Floating Navigation Island with prominent central elevated Stealth QR button
@@ -46,6 +52,18 @@ fun MainFloatingIsland(
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
+    val context = LocalContext.current
+    LaunchedEffect(Unit) {
+        ProfileAvatarStore.ensureLoaded(context)
+    }
+    val profileAvatar by ProfileAvatarStore.avatar.collectAsState()
+    val profileName = remember {
+        context.applicationContext
+            .getSharedPreferences("anongram_profile_meta", android.content.Context.MODE_PRIVATE)
+            .getString("display_name", null)
+            ?: KeystoreVault(context).loadIdentity()?.nickname
+            ?: "Anon"
+    }
 
     Box(
         modifier = modifier
@@ -107,7 +125,7 @@ fun MainFloatingIsland(
                 onClick = { onTabSelected(2) }
             )
 
-            // 3. Profile (FluentUI Person)
+            // 3. Profile (мини-аватар как в Telegram, видео НЕ воспроизводится)
             NavTabItem(
                 label = "Профиль",
                 icon = FluentIcons.Person,
@@ -115,7 +133,34 @@ fun MainFloatingIsland(
                 activeColor = scheme.accent,
                 activeBgColor = scheme.accentSoft,
                 inactiveColor = scheme.textSecondary,
-                onClick = { onTabSelected(3) }
+                onClick = { onTabSelected(3) },
+                avatarContent = if (profileAvatar !is ProfileAvatar.None) {
+                    {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .then(
+                                    if (currentTab == 3) {
+                                        Modifier.border(1.5.dp, scheme.accent, CircleShape)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                        ) {
+                            ProfileAvatarView(
+                                avatar = profileAvatar,
+                                displayName = profileName,
+                                monogramFontSize = 10.sp,
+                                emojiFontSize = 12.sp,
+                                playVideo = false,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                } else {
+                    null
+                }
             )
         }
 
@@ -168,7 +213,8 @@ private fun RowScope.NavTabItem(
     activeColor: Color,
     activeBgColor: Color,
     inactiveColor: Color,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    avatarContent: (@Composable () -> Unit)? = null
 ) {
     val contentColor = if (isSelected) activeColor else inactiveColor
     val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
@@ -192,12 +238,16 @@ private fun RowScope.NavTabItem(
                 .padding(horizontal = 14.dp, vertical = 4.dp),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = contentColor,
-                modifier = Modifier.size(20.dp)
-            )
+            if (avatarContent != null) {
+                avatarContent()
+            } else {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = label,
+                    tint = contentColor,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(2.dp))
         Text(
