@@ -136,18 +136,21 @@ private fun UserProfileMuteDropdownMenu(
         onDismissRequest = onDismiss,
         offset = DpOffset(x = 0.dp, y = 6.dp),
         modifier = Modifier
-            .width(256.dp)
+            .width(228.dp)
             .background(scheme.card, RoundedCornerShape(18.dp))
             .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
     ) {
-        MuteMenuToggleRow(
-            icon = if (!isMuted) Icons.Outlined.VolumeUp else Icons.Outlined.NotificationsOff,
-            label = strings.muteNotificationsOn,
-            checked = !isMuted,
-            onToggle = {
-                onEnableSound()
-            }
-        )
+        if (isMuted) {
+            MuteMenuRow(
+                icon = Icons.Outlined.VolumeUp,
+                label = strings.muteEnableSound,
+                tint = scheme.textPrimary,
+                onClick = {
+                    onDismiss()
+                    onEnableSound()
+                }
+            )
+        }
         MuteMenuRow(
             icon = Icons.Outlined.Schedule,
             label = strings.muteCustomDrum,
@@ -166,69 +169,15 @@ private fun UserProfileMuteDropdownMenu(
                 onOpenMuteSettings()
             }
         )
-        MuteMenuRow(
-            icon = Icons.Outlined.VolumeOff,
-            label = strings.muteForever,
-            tint = destructiveRed,
-            onClick = {
-                onDismiss()
-                onMuteForever()
-            }
-        )
-    }
-}
-
-@Composable
-private fun MuteMenuToggleRow(
-    icon: ImageVector,
-    label: String,
-    checked: Boolean,
-    onToggle: () -> Unit
-) {
-    val scheme = LocalAnonGramScheme.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle)
-            .padding(horizontal = 14.dp, vertical = 11.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = if (checked) scheme.accent else scheme.textMuted,
-            modifier = Modifier.size(19.dp)
-        )
-        Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = label,
-            color = scheme.textPrimary,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
-        Box(
-            modifier = Modifier
-                .width(38.dp)
-                .height(22.dp)
-                .clip(RoundedCornerShape(11.dp))
-                .background(if (checked) scheme.accent else scheme.surface)
-                .border(
-                    width = 0.8.dp,
-                    color = if (checked) scheme.accent else scheme.islandBorder,
-                    shape = RoundedCornerShape(11.dp)
-                )
-                .padding(2.dp),
-            contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(16.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (checked) scheme.onAccent else scheme.textMuted)
+        if (!isMuted) {
+            MuteMenuRow(
+                icon = Icons.Outlined.VolumeOff,
+                label = strings.muteForever,
+                tint = destructiveRed,
+                onClick = {
+                    onDismiss()
+                    onMuteForever()
+                }
             )
         }
     }
