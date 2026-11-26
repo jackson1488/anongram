@@ -236,34 +236,38 @@ fun UserProfileScreen(
         }
     }
 
-    val hasRealAvatar = session.avatarResId != null
+    val hasRealAvatar = session.avatarResId != null || session.avatarResIds.isNotEmpty()
     val density = LocalDensity.current
-    val pullThresholdPx = with(density) { 140.dp.toPx() }
+    val pullThresholdPx = with(density) { 120.dp.toPx() }
     var lockPullUntilRelease by remember { mutableStateOf(false) }
+    val currentHasRealAvatar by rememberUpdatedState(hasRealAvatar)
+    val currentIsExpandedHero by rememberUpdatedState(isExpandedHero)
+    val currentIsFullscreen by rememberUpdatedState(isAvatarFullscreenOpen)
 
-    val pullDownNestedScroll = remember(hasRealAvatar, isExpandedHero, isAvatarFullscreenOpen, pullThresholdPx) {
+    val pullDownNestedScroll = remember(pullThresholdPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (source != NestedScrollSource.UserInput || isAvatarFullscreenOpen) return Offset.Zero
+                if (source != NestedScrollSource.UserInput || currentIsFullscreen) return Offset.Zero
                 val atTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                if (hasRealAvatar && isExpandedHero && available.y < -12f && !lockPullUntilRelease) {
+                if (currentHasRealAvatar && currentIsExpandedHero && available.y < -12f && !lockPullUntilRelease) {
                     isExpandedHero = false
                     lockPullUntilRelease = true
+                    scope.launch { pullProgress.snapTo(0f) }
                     return Offset.Zero
                 }
-                if (hasRealAvatar && atTop && available.y > 0f && !lockPullUntilRelease) {
+                if (currentHasRealAvatar && atTop && available.y > 0f && !lockPullUntilRelease) {
                     val next = (pullProgress.value + available.y / pullThresholdPx).coerceIn(0f, 1.2f)
                     scope.launch { pullProgress.snapTo(next) }
-                    if (!isExpandedHero && next >= 0.75f) {
+                    if (!currentIsExpandedHero && next >= 0.65f) {
                         isExpandedHero = true
                         lockPullUntilRelease = true
                         scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
-                    } else if (isExpandedHero && next >= 0.65f) {
+                    } else if (currentIsExpandedHero && next >= 0.55f) {
                         isAvatarFullscreenOpen = true
                         lockPullUntilRelease = true
                         scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                     }
-                    return Offset(0f, available.y * 0.65f)
+                    return Offset(0f, available.y)
                 }
                 return Offset.Zero
             }

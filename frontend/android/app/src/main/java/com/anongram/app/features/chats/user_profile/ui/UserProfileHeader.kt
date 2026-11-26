@@ -291,11 +291,12 @@ internal fun UserProfileHeroHeader(
         label = "peerHeroExpandFraction"
     )
     val stage1Pull = if (!effectiveExpanded) expandProgress.coerceIn(0f, 1f) else 0f
+    val stage1PullDp = (stage1Pull * 44f).dp
     val target60Dp = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 0.60f
     val extraStage2Dp = (target60Dp - 410.dp).coerceAtLeast(72.dp)
     val stage2PullDp = if (effectiveExpanded) (expandProgress.coerceIn(0f, 1f) * extraStage2Dp.value).dp else 0.dp
     val collapsedBaseHeight = if (overlayActions != null) 340.dp else 260.dp
-    val totalHeroHeight = androidx.compose.ui.unit.lerp(collapsedBaseHeight, 410.dp, expandFraction) + stage2PullDp
+    val totalHeroHeight = androidx.compose.ui.unit.lerp(collapsedBaseHeight, 410.dp, expandFraction) + stage1PullDp + stage2PullDp
 
     val coverHaze = remember { HazeState() }
     val heroHaze = remember { HazeState() }
