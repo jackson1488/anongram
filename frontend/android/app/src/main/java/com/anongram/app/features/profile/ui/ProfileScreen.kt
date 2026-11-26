@@ -156,6 +156,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.input.pointer.pointerInput
 import java.io.File
 import kotlin.math.abs
 
@@ -176,6 +177,7 @@ private sealed interface ProfileSubOverlay {
  * - Матовый блюр кнопок поверх фото/видео ([settingsGlassPill]);
  * - Выдвижная шторка выбора фото/видео/камеры поверх профиля.
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
     onOpenSettings: () -> Unit = {},
