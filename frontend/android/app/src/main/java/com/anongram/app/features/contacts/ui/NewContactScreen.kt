@@ -27,8 +27,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -72,7 +70,6 @@ fun NewContactScreen(
 
     var firstName by remember(initialFirstName) { mutableStateOf(initialFirstName) }
     var lastName by remember(initialLastName) { mutableStateOf(initialLastName) }
-    var sharePhone by remember { mutableStateOf(true) }
     var note by remember(initialNote) { mutableStateOf(initialNote) }
 
     BackHandler(onBack = onBack)
@@ -89,21 +86,9 @@ fun NewContactScreen(
         isRu -> "Создать"
         else -> "Create"
     }
-    val numberHiddenText = if (isRu) "Номер скрыт" else "Number hidden"
     val defaultStatus = statusText ?: if (isRu) "был(а) недавно" else "last seen recently"
     val firstNamePlaceholder = if (isRu) "Имя (обязательно)" else "First name (required)"
     val lastNamePlaceholder = if (isRu) "Фамилия (необязательно)" else "Last name (optional)"
-    val phoneHint = if (isRu) {
-        "Номер телефона будет виден, когда собеседник добавит Вас в контакты."
-    } else {
-        "Phone number will be visible when the contact adds you back."
-    }
-    val sharePhoneLabel = if (isRu) "Показать мой номер телефона" else "Share my phone number"
-    val sharePhoneHint = if (isRu) {
-        "Отключите, если не хотите, чтобы собеседник видел(а) Ваш номер телефона."
-    } else {
-        "Disable if you don't want them to see your phone number."
-    }
     val notePlaceholder = if (isRu) "Заметка" else "Notes"
     val noteHint = if (isRu) "Заметку видите только Вы." else "Only you can see this note."
 
@@ -149,7 +134,7 @@ fun NewContactScreen(
                         .clip(RoundedCornerShape(22.dp))
                         .background(if (canSubmit) scheme.accent else scheme.accent.copy(alpha = 0.42f))
                         .clickable(enabled = canSubmit) {
-                            onCreate(firstName.trim(), lastName.trim(), sharePhone, note.trim())
+                            onCreate(firstName.trim(), lastName.trim(), false, note.trim())
                         }
                         .padding(horizontal = 18.dp, vertical = 9.dp),
                     contentAlignment = Alignment.Center
@@ -210,7 +195,7 @@ fun NewContactScreen(
                         Spacer(modifier = Modifier.width(14.dp))
                         Column {
                             Text(
-                                text = numberHiddenText,
+                                text = firstName.trim().ifEmpty { titleText },
                                 color = scheme.textPrimary,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -242,50 +227,6 @@ fun NewContactScreen(
                         placeholder = lastNamePlaceholder
                     )
                 }
-
-                Text(
-                    text = phoneHint,
-                    color = scheme.textMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-
-                // Переключатель «Показать мой номер телефона»
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(scheme.card)
-                        .border(0.6.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
-                        .clickable { sharePhone = !sharePhone }
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = sharePhoneLabel,
-                        color = scheme.textPrimary,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Medium,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Switch(
-                        checked = sharePhone,
-                        onCheckedChange = { sharePhone = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = scheme.onAccent,
-                            checkedTrackColor = scheme.accent,
-                            uncheckedThumbColor = scheme.textMuted,
-                            uncheckedTrackColor = scheme.surface
-                        )
-                    )
-                }
-
-                Text(
-                    text = sharePhoneHint,
-                    color = scheme.textMuted,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
 
                 // Поле «Заметка»
                 Box(

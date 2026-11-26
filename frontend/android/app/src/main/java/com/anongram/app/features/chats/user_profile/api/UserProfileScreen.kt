@@ -153,6 +153,8 @@ fun UserProfileScreen(
     var isOverflowOpen by remember { mutableStateOf(false) }
     var isCustomAutoDeleteOpen by remember { mutableStateOf(false) }
     var isMuteMenuOpen by remember { mutableStateOf(false) }
+    var isMuteDrumOpen by remember { mutableStateOf(false) }
+    var isNotificationSettingsOpen by remember { mutableStateOf(false) }
     var isNewContactSheetOpen by remember { mutableStateOf(false) }
     var isEditContactMode by remember { mutableStateOf(false) }
     var isShareContactPickerOpen by remember { mutableStateOf(false) }
@@ -314,6 +316,24 @@ fun UserProfileScreen(
                                     isMuted = isMutedLocal,
                                     strings = strings,
                                     hazeState = hazeState,
+                                    isMuteMenuExpanded = isMuteMenuOpen,
+                                    onDismissMuteMenu = { isMuteMenuOpen = false },
+                                    onEnableSound = {
+                                        if (isMutedLocal) {
+                                            isMutedLocal = false
+                                            onToggleMute()
+                                        }
+                                        Toast.makeText(context, strings.unmutedSoundToast, Toast.LENGTH_SHORT).show()
+                                    },
+                                    onOpenMuteDrum = { isMuteDrumOpen = true },
+                                    onOpenMuteSettings = { isNotificationSettingsOpen = true },
+                                    onMuteForever = {
+                                        if (!isMutedLocal) {
+                                            isMutedLocal = true
+                                            onToggleMute()
+                                        }
+                                        Toast.makeText(context, strings.mutedForeverToast, Toast.LENGTH_SHORT).show()
+                                    },
                                     onChatClick = onBack,
                                     onMuteToggle = { isMuteMenuOpen = true },
                                     onCallClick = {
@@ -334,6 +354,24 @@ fun UserProfileScreen(
                             isMuted = isMutedLocal,
                             strings = strings,
                             hazeState = hazeState,
+                            isMuteMenuExpanded = isMuteMenuOpen,
+                            onDismissMuteMenu = { isMuteMenuOpen = false },
+                            onEnableSound = {
+                                if (isMutedLocal) {
+                                    isMutedLocal = false
+                                    onToggleMute()
+                                }
+                                Toast.makeText(context, strings.unmutedSoundToast, Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenMuteDrum = { isMuteDrumOpen = true },
+                            onOpenMuteSettings = { isNotificationSettingsOpen = true },
+                            onMuteForever = {
+                                if (!isMutedLocal) {
+                                    isMutedLocal = true
+                                    onToggleMute()
+                                }
+                                Toast.makeText(context, strings.mutedForeverToast, Toast.LENGTH_SHORT).show()
+                            },
                             onChatClick = onBack,
                             onMuteToggle = { isMuteMenuOpen = true },
                             onCallClick = {
@@ -814,26 +852,34 @@ fun UserProfileScreen(
                 )
             }
 
-            if (isMuteMenuOpen) {
-                com.anongram.app.features.chats.ui.components.NotificationsMuteDialog(
-                    peerName = session.title,
-                    onMuteFor = { hours ->
-                        isMutedLocal = true
-                        val msg = when (hours) {
-                            -1 -> strings.mutedForeverToast
-                            1 -> strings.mute1Hour
-                            8 -> strings.mute8Hours
-                            48 -> strings.mute2Days
-                            else -> strings.mutedForeverToast
+            if (isMuteDrumOpen) {
+                com.anongram.app.features.chats.ui.components.MuteDurationCustomBottomSheet(
+                    onConfirm = { durationLabel ->
+                        if (!isMutedLocal) {
+                            isMutedLocal = true
+                            onToggleMute()
                         }
-                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            context,
+                            strings.mutedForToastFormat(durationLabel),
+                            Toast.LENGTH_SHORT
+                        ).show()
                     },
-                    onOpenCustomSettings = {
-                        isMuteMenuOpen = false
-                        onToggleMute()
-                    },
-                    onDismiss = { isMuteMenuOpen = false }
+                    onDismiss = { isMuteDrumOpen = false }
                 )
+            }
+
+            if (isNotificationSettingsOpen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .zIndex(45f)
+                ) {
+                    com.anongram.app.features.chats.ui.components.NotificationsSettingsDialog(
+                        peerName = session.title,
+                        onDismiss = { isNotificationSettingsOpen = false }
+                    )
+                }
             }
 
             if (isQrOverlayOpen) {
