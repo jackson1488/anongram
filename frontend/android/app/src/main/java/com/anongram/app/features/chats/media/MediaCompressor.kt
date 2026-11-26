@@ -196,6 +196,10 @@ internal object MediaCompressor {
         onTempFileCreated: (File) -> Unit,
         onProgress: (Float) -> Unit
     ): Uri {
+        if (sourceUri.scheme == "file" && sourceUri.lastPathSegment?.startsWith("edited_video_") == true) {
+            onProgress(1f)
+            return sourceUri
+        }
         val targetMaxSide = if (hd) 1920 else 1280
         val targetBitrate = if (hd) 5_000_000 else 2_200_000
         val skipBitrateThreshold = if (hd) 6_000_000 else 3_000_000

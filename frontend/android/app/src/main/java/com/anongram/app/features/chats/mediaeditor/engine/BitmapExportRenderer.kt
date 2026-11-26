@@ -55,33 +55,13 @@ object BitmapExportRenderer {
             "edited_video_${System.currentTimeMillis()}_${item.id.take(4)}.mp4"
         )
 
-        val needsRemuxEdit = item.isMuted ||
-            item.trimStartMs > 0L ||
-            (item.trimEndMs > 0L && (item.durationMs <= 0L || item.trimEndMs < item.durationMs - 150L)) ||
-            item.editState.crop.baseRotation90 % 360 != 0 ||
-            item.rotationDegrees % 360 != 0
-
-        var remuxSucceeded = false
-        if (needsRemuxEdit) {
-            remuxSucceeded = runCatching {
-                remuxVideoWithEdits(context, item, targetFile)
-            }.getOrDefault(false)
-        }
-
-        if (!remuxSucceeded) {
-            runCatching {
-                context.contentResolver.openInputStream(item.uri)?.use { input ->
-                    FileOutputStream(targetFile).use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            }
-        }
-        val finalUri = if (targetFile.exists() && targetFile.length() > 0) Uri.fromFile(targetFile) else item.uri
-
-        // Register full-video edits (strokes, text, crop, adjustments, curves, blur) in VideoLiveEditRegistry
-        // so that EVERY frame of the playing video in chat bubbles and fullscreen player renders them live!
         val hasVisualEdits = item.editState.crop.isModified ||
+            item.editState.hasAnyAdjustments ||
+            item.editState.hasAnyPaintOrText
+
+        val needsGpuTranscode = !item.editState.crop.cropRect.isFull ||
+            kotlin.math.abs(item.editState.crop.straightenDegrees) > 0.05f ||
+            item.editState.crop.mirrorHorizontal ||
             item.editState.hasAnyAdjustments ||
             item.editState.hasAnyPaintOrText
 
@@ -93,8 +73,42 @@ object BitmapExportRenderer {
             }
         }
 
-        // Only bake a static coverUri if the user explicitly picked a custom cover (item.coverUri != null),
-        // and update the quick thumbnail cache for instant 0ms first-frame display before video autoplay starts.
+        var gpuTranscodeResult = VideoEditTranscoder.TranscodeResult(false)
+        if (needsGpuTranscode) {
+            gpuTranscodeResult = runCatching {
+                VideoEditTranscoder.transcode(
+                    context = context,
+                    item = item,
+                    outFile = targetFile,
+                    overlayBitmap = transparentOverlayBmp
+                )
+            }.getOrDefault(VideoEditTranscoder.TranscodeResult(false))
+        }
+
+        val needsRemuxEdit = item.isMuted ||
+            item.trimStartMs > 0L ||
+            (item.trimEndMs > 0L && (item.durationMs <= 0L || item.trimEndMs < item.durationMs - 150L)) ||
+            item.editState.crop.baseRotation90 % 360 != 0 ||
+            item.rotationDegrees % 360 != 0
+
+        var remuxSucceeded = false
+        if (!gpuTranscodeResult.success && needsRemuxEdit) {
+            remuxSucceeded = runCatching {
+                remuxVideoWithEdits(context, item, targetFile)
+            }.getOrDefault(false)
+        }
+
+        if (!gpuTranscodeResult.success && !remuxSucceeded) {
+            runCatching {
+                context.contentResolver.openInputStream(item.uri)?.use { input ->
+                    FileOutputStream(targetFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+            }
+        }
+        val finalUri = if (targetFile.exists() && targetFile.length() > 0) Uri.fromFile(targetFile) else item.uri
+
         var finalCoverUri = item.coverUri
         var blurMaskBmp: Bitmap? = null
         if (hasVisualEdits || item.coverUri != null) {
@@ -114,7 +128,7 @@ object BitmapExportRenderer {
                 }
                 if (baseFrame != null) {
                     var working = PhotoFilterEngine.applyCropAndTransform(baseFrame, item.editState)
-                    if (item.editState.blur.isModified) {
+                    if (!gpuTranscodeResult.success && item.editState.blur.isModified) {
                         blurMaskBmp = PhotoFilterEngine.buildSelectiveBlurOverlayBitmap(working, item.editState)
                     }
                     if (PhotoFilterEngine.needsPixelPipeline(item.editState)) {
@@ -123,12 +137,13 @@ object BitmapExportRenderer {
                     if (item.editState.strokes.isNotEmpty() || item.editState.textLayers.isNotEmpty()) {
                         working = renderOverlayLayers(context, working, item.editState)
                     }
-                    // Cache the edited preview thumbnail and cropped dimensions for finalUri so gallery/chat bubbles size adaptively in 0ms
                     com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(finalUri, working)
+                    val dimW = if (gpuTranscodeResult.success && gpuTranscodeResult.width > 0) gpuTranscodeResult.width else working.width
+                    val dimH = if (gpuTranscodeResult.success && gpuTranscodeResult.height > 0) gpuTranscodeResult.height else working.height
                     com.anongram.app.features.chats.attach.tabs.gallery.putMediaDimensions(
                         finalUri.toString(),
-                        working.width,
-                        working.height
+                        dimW,
+                        dimH
                     )
 
                     if (item.coverUri != null) {
@@ -148,18 +163,25 @@ object BitmapExportRenderer {
             }
         }
 
-        // Preserve extra live rotation only if remux didn't already bake the rotation into the MP4 file
-        val liveStateForPlayback = if (remuxSucceeded && item.editState.crop.baseRotation90 % 360 != 0) {
-            item.editState.copy(crop = item.editState.crop.copy(baseRotation90 = 0))
+        if (gpuTranscodeResult.success) {
+            // Physically baked into the MP4 file: clear VideoLiveEditRegistry for finalUri so effects are never applied twice!
+            com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
+                uriString = finalUri.toString(),
+                state = PhotoEditState()
+            )
         } else {
-            item.editState
+            val liveStateForPlayback = if (remuxSucceeded && item.editState.crop.baseRotation90 % 360 != 0) {
+                item.editState.copy(crop = item.editState.crop.copy(baseRotation90 = 0))
+            } else {
+                item.editState
+            }
+            com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
+                uriString = finalUri.toString(),
+                state = liveStateForPlayback,
+                overlayBitmap = transparentOverlayBmp,
+                blurMaskBitmap = blurMaskBmp
+            )
         }
-        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
-            uriString = finalUri.toString(),
-            state = liveStateForPlayback,
-            overlayBitmap = transparentOverlayBmp,
-            blurMaskBitmap = blurMaskBmp
-        )
         com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
             uriString = item.uri.toString(),
             state = item.editState,
