@@ -88,8 +88,6 @@ fun ProfileAvatarPickerScreen(
     val attachStrings = remember(appLanguage) { AttachI18n.forLanguage(appLanguage) }
     val context = LocalContext.current
 
-    var emojiSheetOpen by remember { mutableStateOf(false) }
-
     val systemChooserLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -128,7 +126,6 @@ fun ProfileAvatarPickerScreen(
 
         BackHandler {
             when {
-                emojiSheetOpen -> emojiSheetOpen = false
                 sheetState.isCameraOpen -> sheetState.isCameraOpen = false
                 sheetState.isAlbumsSheetOpen -> sheetState.isAlbumsSheetOpen = false
                 else -> dragState.requestDismiss()
@@ -205,31 +202,6 @@ fun ProfileAvatarPickerScreen(
                             },
                             onAlbumsLoaded = { sheetState.availableAlbums = it },
                             showSelectionCircles = false,
-                            leadingExtraTile = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(
-                                            Brush.linearGradient(
-                                                colors = listOf(Color(0xFF62C8FA), Color(0xFF2B6FD9))
-                                            )
-                                        )
-                                        .clickable { emojiSheetOpen = true },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Text(text = "🦆", fontSize = 34.sp)
-                                        Spacer(modifier = Modifier.height(3.dp))
-                                        Text(
-                                            text = strings.chooseEmoji,
-                                            color = Color.White,
-                                            fontSize = 11.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            textAlign = TextAlign.Center
-                                        )
-                                    }
-                                }
-                            },
                             modifier = Modifier.fillMaxSize()
                         )
                     }
@@ -304,120 +276,6 @@ fun ProfileAvatarPickerScreen(
                         .fillMaxSize()
                         .zIndex(20f)
                 )
-            }
-
-            if (emojiSheetOpen) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .zIndex(25f)
-                ) {
-                    EmojiAvatarSheet(
-                        onSelect = { emoji, start, end ->
-                            ProfileAvatarStore.addAvatar(
-                                context,
-                                ProfileAvatar.Emoji(
-                                    emoji = emoji,
-                                    bgStartArgb = start,
-                                    bgEndArgb = end
-                                )
-                            )
-                            emojiSheetOpen = false
-                            onBack()
-                        },
-                        onDismiss = { emojiSheetOpen = false }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun EmojiAvatarSheet(
-    onSelect: (emoji: String, bgStartArgb: Long, bgEndArgb: Long) -> Unit,
-    onDismiss: () -> Unit
-) {
-    val scheme = LocalAnonGramScheme.current
-    val strings = ProfileI18n.current
-    val emojis = remember {
-        listOf(
-            "🦆", "🦊", "🐺", "🦁", "🐉", "🦅", "🦉", "🐼",
-            "😎", "🤖", "👾", "🎭", "🔥", "⚡", "💎", "🛡️"
-        )
-    }
-    var selectedPreset by remember { mutableStateOf(ProfileColorPresets.gradientPresets.first()) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(scheme.overlayScrim)
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(scheme.card)
-                .clickable(enabled = false) {}
-                .safeNavigationBarPadding()
-                .padding(18.dp)
-        ) {
-            Text(
-                text = strings.chooseEmoji,
-                color = scheme.textPrimary,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                ProfileColorPresets.gradientPresets.forEach { p ->
-                    val isSel = p.id == selectedPreset.id
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(Brush.linearGradient(listOf(p.primary, p.secondary)))
-                            .then(
-                                if (isSel) Modifier.border(2.dp, scheme.textPrimary, CircleShape)
-                                else Modifier
-                            )
-                            .clickable { selectedPreset = p }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(4),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.height(230.dp)
-            ) {
-                items(emojis) { emoji ->
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(
-                                Brush.linearGradient(listOf(selectedPreset.primary, selectedPreset.secondary))
-                            )
-                            .clickable {
-                                val startArgb = (selectedPreset.primary.value shr 32).toLong()
-                                val endArgb = (selectedPreset.secondary.value shr 32).toLong()
-                                onSelect(emoji, startArgb, endArgb)
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = emoji, fontSize = 32.sp)
-                    }
-                }
             }
         }
     }

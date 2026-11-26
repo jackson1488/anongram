@@ -425,12 +425,10 @@ internal fun UserProfileHeroHeader(
                 com.anongram.app.features.profile.appearance.ProfileAppearanceStore.appearanceForPeer(session.id)
             }
             Box(modifier = Modifier.fillMaxWidth()) {
-                if (peerAppearance.preset != null) {
-                    com.anongram.app.features.profile.appearance.ProfileCoverBackdrop(
-                        appearance = peerAppearance,
-                        modifier = Modifier.matchParentSize()
-                    )
-                }
+                com.anongram.app.features.profile.appearance.ProfileCoverBackdrop(
+                    appearance = peerAppearance,
+                    modifier = Modifier.matchParentSize()
+                )
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()

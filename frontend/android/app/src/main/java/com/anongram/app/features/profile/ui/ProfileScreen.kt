@@ -29,9 +29,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.rememberDraggableState
@@ -62,9 +64,11 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.AddAPhoto
 import androidx.compose.material.icons.outlined.AlternateEmail
 import androidx.compose.material.icons.outlined.CheckCircleOutline
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.LightMode
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Palette
@@ -102,6 +106,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -111,8 +117,13 @@ import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
+import com.anongram.app.core.i18n.AppLanguage
+import com.anongram.app.core.i18n.LanguageSettingsStore
+import com.anongram.app.core.theme.AnonGramThemes
 import com.anongram.app.core.theme.CrimsonKillSwitch
 import com.anongram.app.core.theme.LocalAnonGramScheme
+import com.anongram.app.core.theme.LocalThemeController
+import com.anongram.app.core.theme.rememberThemeRevealLauncher
 import com.anongram.app.core.ui.AnonGramGlassHeaderBackdrop
 import com.anongram.app.core.ui.AnonGramScreenSurface
 import com.anongram.app.core.ui.safeNavigationBarPadding
@@ -128,6 +139,9 @@ import com.anongram.app.features.profile.avatar.ProfileAvatarStore
 import com.anongram.app.features.profile.avatar.ProfileAvatarView
 import com.anongram.app.features.profile.i18n.ProfileI18n
 import com.anongram.app.features.settings.account.ui.AccountSettingsScreen
+import com.anongram.app.features.settings.account.ui.UsernameEditorScreen
+import com.anongram.app.features.settings.account.ui.components.BirthdayWheelSheet
+import com.anongram.app.features.settings.account.ui.components.formatBirthdayWithAge
 import com.anongram.app.features.settings.animations.data.AnimationsSettingsStore
 import com.anongram.app.features.settings.common.ui.settingsGlassPill
 import com.anongram.app.features.settings.qr.ui.MyQrCodeScreen
@@ -202,11 +216,21 @@ fun ProfileScreen(
                 ?: "@${(identity?.nickname ?: "ANONUSER").uppercase().replace(" ", "")}"
         )
     }
-    val bio by remember {
+    var bio by remember {
         mutableStateOf(prefs.getString("bio", null) ?: strings.defaultBio)
     }
-    val birthday by remember {
+    var birthday by remember {
         mutableStateOf(prefs.getString("birthday", null) ?: strings.defaultBirthday)
+    }
+    val appLanguage by LanguageSettingsStore.language.collectAsState()
+    val isRu = appLanguage == AppLanguage.RU
+    val themeController = LocalThemeController.current
+    val revealThemeLauncher = rememberThemeRevealLauncher()
+    var lastDarkThemeId by remember {
+        mutableStateOf(if (scheme.isDark) scheme.id else AnonGramThemes.CyberStealth.id)
+    }
+    LaunchedEffect(scheme.id, scheme.isDark) {
+        if (scheme.isDark) lastDarkThemeId = scheme.id
     }
 
     val rawPublicId = identity?.publicId ?: "0x4D9F88E1A7C2"
@@ -217,6 +241,9 @@ fun ProfileScreen(
     }
 
     var subOverlay by remember { mutableStateOf<ProfileSubOverlay>(ProfileSubOverlay.None) }
+    var isAvatarPickerOpen by remember { mutableStateOf(false) }
+    var showQuickUsernameEditor by remember { mutableStateOf(false) }
+    var showQuickBirthdaySheet by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var deleteConfirmIndex by remember { mutableStateOf<Int?>(null) }
     var customBannerText by remember { mutableStateOf<String?>(null) }
@@ -232,14 +259,22 @@ fun ProfileScreen(
     val hasMediaAvatar = avatars.isNotEmpty()
     var isExpandedHero by remember { mutableStateOf(false) }
     var isFullscreenViewer by remember { mutableStateOf(false) }
+    var lockPullUntilRelease by remember { mutableStateOf(false) }
 
-    LaunchedEffect(subOverlay, isFullscreenViewer) {
-        onSubScreenVisibilityChange(subOverlay != ProfileSubOverlay.None || isFullscreenViewer)
+    LaunchedEffect(subOverlay, isAvatarPickerOpen, isFullscreenViewer, showQuickUsernameEditor, showQuickBirthdaySheet) {
+        onSubScreenVisibilityChange(
+            subOverlay != ProfileSubOverlay.None ||
+                isAvatarPickerOpen ||
+                isFullscreenViewer ||
+                showQuickUsernameEditor ||
+                showQuickBirthdaySheet
+        )
     }
 
     val pullProgress = remember { Animatable(0f) }
     val listState = rememberLazyListState()
     val hazeState = remember { HazeState() }
+    val coverHaze = remember { HazeState() }
     val heroHaze = remember { HazeState() }
     val pullThresholdPx = with(density) { 140.dp.toPx() }
 
@@ -258,19 +293,22 @@ fun ProfileScreen(
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 if (source != NestedScrollSource.UserInput || isFullscreenViewer) return Offset.Zero
                 val atTop = listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0
-                if (isExpandedHero && available.y < -12f) {
+                if (isExpandedHero && available.y < -12f && !lockPullUntilRelease) {
                     isExpandedHero = false
+                    lockPullUntilRelease = true
                     return Offset.Zero
                 }
-                if (hasMediaAvatar && atTop && available.y > 0f) {
+                if (hasMediaAvatar && atTop && available.y > 0f && !lockPullUntilRelease) {
                     val next = (pullProgress.value + available.y / pullThresholdPx).coerceIn(0f, 1.2f)
                     scope.launch { pullProgress.snapTo(next) }
                     if (!isExpandedHero && next >= 0.75f) {
                         selectedAvatarIndex = 0
                         isExpandedHero = true
+                        lockPullUntilRelease = true
                         scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                     } else if (isExpandedHero && next >= 0.65f) {
                         isFullscreenViewer = true
+                        lockPullUntilRelease = true
                         scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                     }
                     return Offset(0f, available.y * 0.65f)
@@ -279,6 +317,7 @@ fun ProfileScreen(
             }
 
             override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+                lockPullUntilRelease = false
                 if (pullProgress.value > 0f) {
                     scope.launch { pullProgress.animateTo(0f, spring(dampingRatio = 0.88f, stiffness = 260f)) }
                 }
@@ -287,10 +326,20 @@ fun ProfileScreen(
         }
     }
 
-    BackHandler(enabled = subOverlay != ProfileSubOverlay.None || isFullscreenViewer || isExpandedHero) {
+    BackHandler(
+        enabled = subOverlay != ProfileSubOverlay.None ||
+            isAvatarPickerOpen ||
+            showQuickUsernameEditor ||
+            showQuickBirthdaySheet ||
+            isFullscreenViewer ||
+            isExpandedHero
+    ) {
         when {
-            subOverlay is ProfileSubOverlay.AvatarEditor -> subOverlay = ProfileSubOverlay.AvatarPicker
+            showQuickBirthdaySheet -> showQuickBirthdaySheet = false
+            showQuickUsernameEditor -> showQuickUsernameEditor = false
+            subOverlay is ProfileSubOverlay.AvatarEditor -> subOverlay = ProfileSubOverlay.None
             subOverlay != ProfileSubOverlay.None -> subOverlay = ProfileSubOverlay.None
+            isAvatarPickerOpen -> isAvatarPickerOpen = false
             isFullscreenViewer -> isFullscreenViewer = false
             isExpandedHero -> isExpandedHero = false
         }
@@ -489,7 +538,7 @@ fun ProfileScreen(
                                             ProfileActionPill(
                                                 icon = Icons.Outlined.AddAPhoto,
                                                 label = strings.selectPhoto,
-                                                onClick = { subOverlay = ProfileSubOverlay.AvatarPicker },
+                                                onClick = { isAvatarPickerOpen = true },
                                                 overlayStyle = true,
                                                 heroHaze = heroHaze,
                                                 glassBlurEnabled = animState.glassBlurEnabled,
@@ -531,7 +580,9 @@ fun ProfileScreen(
                                 ) {
                                     ProfileCoverBackdrop(
                                         appearance = appearance,
-                                        modifier = Modifier.fillMaxSize()
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .hazeSource(state = coverHaze)
                                     )
 
                                     Column(
@@ -556,7 +607,7 @@ fun ProfileScreen(
                                                         selectedAvatarIndex = 0
                                                         isExpandedHero = true
                                                     } else {
-                                                        subOverlay = ProfileSubOverlay.AvatarPicker
+                                                        isAvatarPickerOpen = true
                                                     }
                                                 }
                                         ) {
@@ -599,19 +650,28 @@ fun ProfileScreen(
                                             ProfileActionPill(
                                                 icon = Icons.Outlined.AddAPhoto,
                                                 label = strings.selectPhoto,
-                                                onClick = { subOverlay = ProfileSubOverlay.AvatarPicker },
+                                                onClick = { isAvatarPickerOpen = true },
+                                                overlayStyle = true,
+                                                heroHaze = coverHaze,
+                                                glassBlurEnabled = animState.glassBlurEnabled,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             ProfileActionPill(
                                                 icon = Icons.Outlined.Edit,
                                                 label = strings.edit,
                                                 onClick = { subOverlay = ProfileSubOverlay.AccountEdit },
+                                                overlayStyle = true,
+                                                heroHaze = coverHaze,
+                                                glassBlurEnabled = animState.glassBlurEnabled,
                                                 modifier = Modifier.weight(1f)
                                             )
                                             ProfileActionPill(
                                                 icon = Icons.Outlined.Settings,
                                                 label = strings.settings,
                                                 onClick = onOpenSettings,
+                                                overlayStyle = true,
+                                                heroHaze = coverHaze,
+                                                glassBlurEnabled = animState.glassBlurEnabled,
                                                 modifier = Modifier.weight(1f)
                                             )
                                         }
@@ -625,8 +685,15 @@ fun ProfileScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                     }
 
-                    // 3. Карточка информации о профиле
+                    // 3. Карточка информации о профиле (тап -> меню, долгое зажатие -> копирование)
                     item(key = "profile_info_card") {
+                        var activeFieldMenu by remember { mutableStateOf<String?>(null) }
+                        val copyValue: (String) -> Unit = { valueToCopy ->
+                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                            cm.setPrimaryClip(ClipData.newPlainText("AnonGram", valueToCopy))
+                            customBannerText = strings.copiedToClipboard
+                        }
+
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -634,16 +701,151 @@ fun ProfileScreen(
                                 .clip(RoundedCornerShape(20.dp))
                                 .background(scheme.card)
                                 .border(0.8.dp, scheme.cardBorder, RoundedCornerShape(20.dp))
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                .padding(vertical = 6.dp)
                         ) {
-                            ProfileInfoField(value = displayPublicId, label = strings.phoneLabel)
-                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-                            ProfileInfoField(value = bio, label = strings.bioLabel)
-                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-                            ProfileInfoField(value = handle, label = strings.usernameLabel)
-                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp)
-                            ProfileInfoField(value = birthday, label = strings.birthdayLabel)
+                            Box {
+                                ProfileInfoField(
+                                    value = displayPublicId,
+                                    label = strings.phoneLabel,
+                                    onTap = { activeFieldMenu = "id" },
+                                    onLongPress = { copyValue(rawPublicId) }
+                                )
+                                DropdownMenu(
+                                    expanded = activeFieldMenu == "id",
+                                    onDismissRequest = { activeFieldMenu = null },
+                                    containerColor = scheme.card,
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(strings.copyAction, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            copyValue(rawPublicId)
+                                        }
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
+
+                            Box {
+                                ProfileInfoField(
+                                    value = bio,
+                                    label = strings.bioLabel,
+                                    onTap = { activeFieldMenu = "bio" },
+                                    onLongPress = { copyValue(bio) }
+                                )
+                                DropdownMenu(
+                                    expanded = activeFieldMenu == "bio",
+                                    onDismissRequest = { activeFieldMenu = null },
+                                    containerColor = scheme.card,
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(strings.copyAction, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            copyValue(bio)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(strings.editBioAction, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.Edit, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            subOverlay = ProfileSubOverlay.AccountEdit
+                                        }
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
+
+                            Box {
+                                ProfileInfoField(
+                                    value = handle,
+                                    label = strings.usernameLabel,
+                                    onTap = { activeFieldMenu = "username" },
+                                    onLongPress = { copyValue(handle) }
+                                )
+                                DropdownMenu(
+                                    expanded = activeFieldMenu == "username",
+                                    onDismissRequest = { activeFieldMenu = null },
+                                    containerColor = scheme.card,
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(strings.copyUsernameAction, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            copyValue(handle)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(strings.editUsernameAction, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.Edit, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            showQuickUsernameEditor = true
+                                        }
+                                    )
+                                }
+                            }
+
+                            HorizontalDivider(color = scheme.divider, thickness = 0.5.dp, modifier = Modifier.padding(horizontal = 16.dp))
+
+                            Box {
+                                ProfileInfoField(
+                                    value = birthday,
+                                    label = strings.birthdayLabel,
+                                    onTap = { activeFieldMenu = "birthday" },
+                                    onLongPress = { copyValue(birthday) }
+                                )
+                                DropdownMenu(
+                                    expanded = activeFieldMenu == "birthday",
+                                    onDismissRequest = { activeFieldMenu = null },
+                                    containerColor = scheme.card,
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(strings.copyAction, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            copyValue(birthday)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(strings.editBirthdayAction, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.Edit, null, tint = scheme.textSecondary, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            showQuickBirthdaySheet = true
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(strings.deleteBirthdayAction, color = CrimsonKillSwitch, fontSize = 14.sp) },
+                                        leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = CrimsonKillSwitch, modifier = Modifier.size(18.dp)) },
+                                        onClick = {
+                                            activeFieldMenu = null
+                                            prefs.edit()
+                                                .remove("birthday_day")
+                                                .remove("birthday_month")
+                                                .remove("birthday_year")
+                                                .remove("birthday")
+                                                .apply()
+                                            birthday = strings.defaultBirthday
+                                        }
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -708,117 +910,140 @@ fun ProfileScreen(
                             )
                         }
 
-                        Box {
-                            Box(
-                                modifier = topPillModifier.clickable { menuOpen = true },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Outlined.MoreVert,
-                                    contentDescription = null,
-                                    tint = topIconTint,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                        var themeBtnCenter by remember { mutableStateOf(Offset.Zero) }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (!isHeroActive && themeController != null) {
+                                Box(
+                                    modifier = topPillModifier
+                                        .onGloballyPositioned { coords ->
+                                            val pos = coords.positionInRoot()
+                                            themeBtnCenter = Offset(
+                                                pos.x + coords.size.width / 2f,
+                                                pos.y + coords.size.height / 2f
+                                            )
+                                        }
+                                        .clickable {
+                                            val targetId = if (scheme.isDark) {
+                                                AnonGramThemes.MonochromePaper.id
+                                            } else {
+                                                lastDarkThemeId
+                                            }
+                                            revealThemeLauncher(themeBtnCenter) {
+                                                themeController.selectTheme(targetId)
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = if (scheme.isDark) Icons.Outlined.LightMode else Icons.Outlined.DarkMode,
+                                        contentDescription = null,
+                                        tint = topIconTint,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
                             }
 
-                            DropdownMenu(
-                                expanded = menuOpen,
-                                onDismissRequest = { menuOpen = false },
-                                containerColor = scheme.card,
-                                shape = RoundedCornerShape(18.dp),
-                                modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text(strings.changeProfileColor, color = scheme.textPrimary, fontSize = 14.sp) },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.Palette, null, tint = scheme.accent, modifier = Modifier.size(19.dp))
-                                    },
-                                    onClick = {
-                                        menuOpen = false
-                                        subOverlay = ProfileSubOverlay.ColorEditor
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(strings.changeName, color = scheme.textPrimary, fontSize = 14.sp) },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.AlternateEmail, null, tint = scheme.textSecondary, modifier = Modifier.size(19.dp))
-                                    },
-                                    onClick = {
-                                        menuOpen = false
-                                        subOverlay = ProfileSubOverlay.AccountEdit
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text(strings.copyLink, color = scheme.textPrimary, fontSize = 14.sp) },
-                                    leadingIcon = {
-                                        Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(19.dp))
-                                    },
-                                    onClick = {
-                                        menuOpen = false
-                                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        cm.setPrimaryClip(ClipData.newPlainText("AnonGram", "anongram://user?handle=${handle.removePrefix("@")}"))
-                                        Toast.makeText(context, strings.linkCopied, Toast.LENGTH_SHORT).show()
-                                    }
-                                )
+                            Box {
+                                Box(
+                                    modifier = topPillModifier.clickable { menuOpen = true },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.MoreVert,
+                                        contentDescription = null,
+                                        tint = topIconTint,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
 
-                                // Дополнительные пункты меню на 2-й ступени (раскрытая карточка)
-                                if (isHeroActive) {
-                                    val activeAvatar = avatars.getOrNull(selectedAvatarIndex)
-                                    if (avatars.size >= 2 && selectedAvatarIndex != 0) {
-                                        DropdownMenuItem(
-                                            text = { Text(strings.menuSetPrimaryPhoto, color = scheme.textPrimary, fontSize = 14.sp) },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.CheckCircleOutline, null, tint = scheme.accent, modifier = Modifier.size(19.dp))
-                                            },
-                                            onClick = {
-                                                menuOpen = false
-                                                ProfileAvatarStore.setPrimaryAvatar(context, selectedAvatarIndex)
-                                                selectedAvatarIndex = 0
-                                            }
-                                        )
-                                    }
-                                    if (activeAvatar != null) {
-                                        DropdownMenuItem(
-                                            text = { Text(strings.menuSaveToGallery, color = scheme.textPrimary, fontSize = 14.sp) },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.Download, null, tint = scheme.textSecondary, modifier = Modifier.size(19.dp))
-                                            },
-                                            onClick = {
-                                                menuOpen = false
-                                                scope.launch {
-                                                    val ok = withContext(Dispatchers.IO) {
-                                                        saveAvatarToGallery(context, activeAvatar)
-                                                    }
-                                                    if (ok) {
-                                                        customBannerText = strings.savedToGalleryToast
+                                DropdownMenu(
+                                    expanded = menuOpen,
+                                    onDismissRequest = { menuOpen = false },
+                                    containerColor = scheme.card,
+                                    shape = RoundedCornerShape(18.dp),
+                                    modifier = Modifier.border(0.8.dp, scheme.cardBorder, RoundedCornerShape(18.dp))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text(strings.changeProfileColor, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.Palette, null, tint = scheme.accent, modifier = Modifier.size(19.dp))
+                                        },
+                                        onClick = {
+                                            menuOpen = false
+                                            subOverlay = ProfileSubOverlay.ColorEditor
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(strings.changeName, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.AlternateEmail, null, tint = scheme.textSecondary, modifier = Modifier.size(19.dp))
+                                        },
+                                        onClick = {
+                                            menuOpen = false
+                                            subOverlay = ProfileSubOverlay.AccountEdit
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text(strings.copyLink, color = scheme.textPrimary, fontSize = 14.sp) },
+                                        leadingIcon = {
+                                            Icon(Icons.Outlined.Link, null, tint = scheme.textSecondary, modifier = Modifier.size(19.dp))
+                                        },
+                                        onClick = {
+                                            menuOpen = false
+                                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            cm.setPrimaryClip(ClipData.newPlainText("AnonGram", "anongram://user?handle=${handle.removePrefix("@")}"))
+                                            customBannerText = strings.linkCopied
+                                        }
+                                    )
+
+                                    // Дополнительные пункты меню на 2-й ступени (без «Поделиться»)
+                                    if (isHeroActive) {
+                                        val activeAvatar = avatars.getOrNull(selectedAvatarIndex)
+                                        if (avatars.size >= 2 && selectedAvatarIndex != 0) {
+                                            DropdownMenuItem(
+                                                text = { Text(strings.menuSetPrimaryPhoto, color = scheme.textPrimary, fontSize = 14.sp) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.CheckCircleOutline, null, tint = scheme.accent, modifier = Modifier.size(19.dp))
+                                                },
+                                                onClick = {
+                                                    menuOpen = false
+                                                    ProfileAvatarStore.setPrimaryAvatar(context, selectedAvatarIndex)
+                                                    selectedAvatarIndex = 0
+                                                }
+                                            )
+                                        }
+                                        if (activeAvatar != null) {
+                                            DropdownMenuItem(
+                                                text = { Text(strings.menuSaveToGallery, color = scheme.textPrimary, fontSize = 14.sp) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.Download, null, tint = scheme.textSecondary, modifier = Modifier.size(19.dp))
+                                                },
+                                                onClick = {
+                                                    menuOpen = false
+                                                    scope.launch {
+                                                        val ok = withContext(Dispatchers.IO) {
+                                                            saveAvatarToGallery(context, activeAvatar)
+                                                        }
+                                                        if (ok) {
+                                                            customBannerText = strings.savedToGalleryToast
+                                                        }
                                                     }
                                                 }
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text(strings.menuShare, color = scheme.textPrimary, fontSize = 14.sp) },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.Share, null, tint = scheme.textSecondary, modifier = Modifier.size(19.dp))
-                                            },
-                                            onClick = {
-                                                menuOpen = false
-                                                scope.launch {
-                                                    withContext(Dispatchers.IO) {
-                                                        shareAvatarSystem(context, activeAvatar, displayName)
-                                                    }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text(strings.menuDeletePhoto, color = CrimsonKillSwitch, fontSize = 14.sp) },
+                                                leadingIcon = {
+                                                    Icon(Icons.Outlined.DeleteOutline, null, tint = CrimsonKillSwitch, modifier = Modifier.size(19.dp))
+                                                },
+                                                onClick = {
+                                                    menuOpen = false
+                                                    deleteConfirmIndex = selectedAvatarIndex
                                                 }
-                                            }
-                                        )
-                                        DropdownMenuItem(
-                                            text = { Text(strings.menuDeletePhoto, color = CrimsonKillSwitch, fontSize = 14.sp) },
-                                            leadingIcon = {
-                                                Icon(Icons.Outlined.DeleteOutline, null, tint = CrimsonKillSwitch, modifier = Modifier.size(19.dp))
-                                            },
-                                            onClick = {
-                                                menuOpen = false
-                                                deleteConfirmIndex = selectedAvatarIndex
-                                            }
-                                        )
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -828,40 +1053,35 @@ fun ProfileScreen(
                 }
             }
 
-            // 3. Вложенные экраны (Шторка фото/видео, Редактор, Цвет профиля, Аккаунт, QR)
+            // 3. Шторка выбора фото/видео (остаётся смонтированной под редактором, чтобы не подниматься заново при отмене)
+            if (isAvatarPickerOpen) {
+                ProfileAvatarPickerScreen(
+                    displayName = displayName,
+                    subtitleText = "$displayPublicId · $handle",
+                    onPickMedia = { uri, isVideo, durationMs ->
+                        subOverlay = ProfileSubOverlay.AvatarEditor(uri, isVideo, durationMs)
+                    },
+                    onBack = { isAvatarPickerOpen = false }
+                )
+            }
+
+            // 3б. Вложенные полноэкранные экраны (Редактор, Цвет профиля, Аккаунт, QR)
             AnimatedContent(
                 targetState = subOverlay,
                 transitionSpec = {
-                    val isSheet = targetState is ProfileSubOverlay.AvatarPicker ||
-                        initialState is ProfileSubOverlay.AvatarPicker
-                    if (isSheet) {
-                        EnterTransition.None togetherWith ExitTransition.None
-                    } else {
-                        (slideInVertically(
-                            animationSpec = tween(280, easing = FastOutSlowInEasing),
-                            initialOffsetY = { it / 4 }
-                        ) + fadeIn(tween(200))) togetherWith
-                            (slideOutVertically(
-                                animationSpec = tween(220, easing = FastOutSlowInEasing),
-                                targetOffsetY = { it / 6 }
-                            ) + fadeOut(tween(160)))
-                    }
+                    (slideInVertically(
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
+                        initialOffsetY = { it / 4 }
+                    ) + fadeIn(tween(200))) togetherWith
+                        (slideOutVertically(
+                            animationSpec = tween(220, easing = FastOutSlowInEasing),
+                            targetOffsetY = { it / 6 }
+                        ) + fadeOut(tween(160)))
                 },
                 label = "profileSubOverlay"
             ) { overlay ->
                 when (overlay) {
-                    is ProfileSubOverlay.None -> Unit
-
-                    is ProfileSubOverlay.AvatarPicker -> {
-                        ProfileAvatarPickerScreen(
-                            displayName = displayName,
-                            subtitleText = "$displayPublicId · $handle",
-                            onPickMedia = { uri, isVideo, durationMs ->
-                                subOverlay = ProfileSubOverlay.AvatarEditor(uri, isVideo, durationMs)
-                            },
-                            onBack = { subOverlay = ProfileSubOverlay.None }
-                        )
-                    }
+                    is ProfileSubOverlay.None, is ProfileSubOverlay.AvatarPicker -> Unit
 
                     is ProfileSubOverlay.AvatarEditor -> {
                         Box(
@@ -873,8 +1093,11 @@ fun ProfileScreen(
                                 uri = overlay.uri,
                                 isVideo = overlay.isVideo,
                                 initialDurationMs = overlay.durationMs,
-                                onSaved = { subOverlay = ProfileSubOverlay.None },
-                                onBack = { subOverlay = ProfileSubOverlay.AvatarPicker }
+                                onSaved = {
+                                    subOverlay = ProfileSubOverlay.None
+                                    isAvatarPickerOpen = false
+                                },
+                                onBack = { subOverlay = ProfileSubOverlay.None }
                             )
                         }
                     }
@@ -901,13 +1124,14 @@ fun ProfileScreen(
                             AccountSettingsScreen(
                                 initialDisplayName = displayName,
                                 initialHandle = handle,
+                                initialBio = prefs.getString("bio", null) ?: "",
                                 onSaveAccount = { newName, newHandle ->
                                     displayName = newName
                                     handle = "@${newHandle.removePrefix("@").uppercase()}"
-                                    prefs.edit()
-                                        .putString("display_name", displayName)
-                                        .putString("handle", handle)
-                                        .apply()
+                                },
+                                onProfileMetaSaved = {
+                                    bio = prefs.getString("bio", null) ?: strings.defaultBio
+                                    birthday = prefs.getString("birthday", null) ?: strings.defaultBirthday
                                 },
                                 onBack = { subOverlay = ProfileSubOverlay.None },
                                 onLogout = {
@@ -1253,6 +1477,56 @@ fun ProfileScreen(
                 )
             }
 
+            // Быстрое редактирование @username из контекстного меню
+            AnimatedVisibility(
+                visible = showQuickUsernameEditor,
+                enter = slideInVertically(tween(260)) { it / 4 } + fadeIn(tween(180)),
+                exit = slideOutVertically(tween(200)) { it / 6 } + fadeOut(tween(150))
+            ) {
+                UsernameEditorScreen(
+                    initialUsername = handle,
+                    onSave = { newHandle ->
+                        handle = "@${newHandle.removePrefix("@").uppercase()}"
+                        prefs.edit().putString("handle", handle).apply()
+                        showQuickUsernameEditor = false
+                    },
+                    onBack = { showQuickUsernameEditor = false }
+                )
+            }
+
+            // Быстрый 3D-барабан дня рождения из контекстного меню
+            if (showQuickBirthdaySheet) {
+                BirthdayWheelSheet(
+                    initialDay = prefs.getInt("birthday_day", 0).takeIf { it > 0 },
+                    initialMonth = prefs.getInt("birthday_month", 0).takeIf { it > 0 },
+                    initialYear = prefs.getInt("birthday_year", 0).takeIf { it > 0 },
+                    onSave = { d, m, y ->
+                        val formatted = formatBirthdayWithAge(d, m, y, isRu)
+                        prefs.edit()
+                            .putInt("birthday_day", d)
+                            .putInt("birthday_month", m)
+                            .putInt("birthday_year", y)
+                            .putString("birthday", formatted)
+                            .apply()
+                        birthday = formatted
+                        showQuickBirthdaySheet = false
+                    },
+                    onDelete = if (prefs.getInt("birthday_day", 0) > 0) {
+                        {
+                            prefs.edit()
+                                .remove("birthday_day")
+                                .remove("birthday_month")
+                                .remove("birthday_year")
+                                .remove("birthday")
+                                .apply()
+                            birthday = strings.defaultBirthday
+                            showQuickBirthdaySheet = false
+                        }
+                    } else null,
+                    onDismiss = { showQuickBirthdaySheet = false }
+                )
+            }
+
             // 6. Кастомное тематическое уведомление снизу
             AnimatedVisibility(
                 visible = customBannerText != null,
@@ -1343,13 +1617,24 @@ private fun ProfileActionPill(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ProfileInfoField(
     value: String,
-    label: String
+    label: String,
+    onTap: () -> Unit = {},
+    onLongPress: () -> Unit = {}
 ) {
     val scheme = LocalAnonGramScheme.current
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onTap,
+                onLongClick = onLongPress
+            )
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+    ) {
         Text(
             text = value,
             color = scheme.textPrimary,

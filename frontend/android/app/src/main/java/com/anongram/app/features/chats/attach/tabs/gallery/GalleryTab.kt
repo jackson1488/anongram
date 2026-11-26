@@ -155,6 +155,8 @@ data class GalleryAlbum(
     val coverUri: Uri?
 )
 
+private var cachedDeviceGalleryMedia: List<GalleryMedia>? = null
+
 @Composable
 fun GalleryTab(
     onLaunchCamera: () -> Unit,
@@ -206,17 +208,19 @@ fun GalleryTab(
         return
     }
 
-    var allMedia by remember { mutableStateOf<List<GalleryMedia>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    var allMedia by remember { mutableStateOf<List<GalleryMedia>>(cachedDeviceGalleryMedia.orEmpty()) }
+    var isLoading by remember { mutableStateOf(cachedDeviceGalleryMedia == null) }
     var viewerIndex by remember { mutableStateOf<Int?>(null) }
 
     LaunchedEffect(Unit) {
-        isLoading = true
+        if (cachedDeviceGalleryMedia == null) {
+            isLoading = true
+        }
         val loaded = withContext(Dispatchers.IO) {
             loadDeviceGalleryMedia(context)
         }
+        cachedDeviceGalleryMedia = loaded
         allMedia = loaded
-        kotlinx.coroutines.delay(220)
         isLoading = false
     }
 

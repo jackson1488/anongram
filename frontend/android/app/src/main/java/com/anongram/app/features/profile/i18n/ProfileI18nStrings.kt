@@ -64,4 +64,26 @@ interface ProfileI18nStrings {
     val deletePhotoMessage: String
     val deleteConfirm: String
     val savedToGalleryToast: String
+
+    // Поля профиля и экран Аккаунт
+    val copiedToClipboard: String
+    val copyAction: String
+    val copyUsernameAction: String
+    val editBioAction: String
+    val editUsernameAction: String
+    val editBirthdayAction: String
+    val deleteBirthdayAction: String
+    val accountTitle: String
+    val yourNameSection: String
+    val firstNameHint: String
+    val lastNameHint: String
+    val bioFooter: String
+    val infoAboutYouSection: String
+    val accountIdSubtitle: String
+    val tapToChangeUsername: String
+    val tapToChangeBirthday: String
+    val usernameScreenTitle: String
+    val usernameFieldTitle: String
+    val usernameHelper: String
+    val birthdaySheetTitle: String
 }
