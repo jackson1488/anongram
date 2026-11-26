@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.input.pointer.util.VelocityTracker
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -138,8 +140,15 @@ internal fun ChatMediaFullscreenViewer(
     var isLooping by remember { mutableStateOf(false) }
     val videoPlaybackState = remember { ViewerVideoPlaybackState() }
 
-    // Состояние вертикального свайпа вверх/вниз для закрытия
-    val dragOffsetY = remember { Animatable(0f) }
+    // Состояние вертикального свайпа вверх/вниз и анимационного возврата в карточку сообщения в чате
+    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx().coerceAtLeast(360f) }
+    var viewerRootBounds by remember { mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    var dragOffsetX by remember { mutableFloatStateOf(0f) }
+    var dragOffsetY by remember { mutableFloatStateOf(0f) }
+    var dragScale by remember { mutableFloatStateOf(1f) }
+    var backdropAlpha by remember { mutableFloatStateOf(0.96f) }
+    var closeCardAlpha by remember { mutableFloatStateOf(1f) }
+    var closeCornerDp by remember { mutableFloatStateOf(0f) }
     var isVerticalDragging by remember { mutableStateOf(false) }
     var isDismissing by remember { mutableStateOf(false) }
 
@@ -155,12 +164,54 @@ internal fun ChatMediaFullscreenViewer(
         else strings.counterOf(safeCurrentPage + 1, viewerEntries.size)
     }
 
+    fun triggerAnimatedCloseToChatCell(velocitySign: Float = 1f) {
+        if (isDismissing) return
+        isDismissing = true
+        val startX = dragOffsetX
+        val startY = dragOffsetY
+        val startScale = dragScale
+        val startBgAlpha = backdropAlpha
+        val startCorner = closeCornerDp
+
+        val rootCenterX = if (viewerRootBounds.width > 0f) viewerRootBounds.center.x else (screenWidthPx * 0.5f)
+        val rootCenterY = if (viewerRootBounds.height > 0f) viewerRootBounds.center.y else (screenHeightPx * 0.5f)
+        val targetRect = com.anongram.app.features.chats.ui.components.bubble.ChatMediaCellBoundsRegistry.resolve(
+            messageId = activeMessage.id,
+            itemIndex = currentEntry.itemIndexInMessage,
+            uriString = currentEntry.uri
+        )
+
+        val hasCellTarget = targetRect != null && targetRect.width > 0f && targetRect.height > 0f
+        val endX = if (hasCellTarget) targetRect!!.center.x - rootCenterX else 0f
+        val endY = if (hasCellTarget) targetRect!!.center.y - rootCenterY else velocitySign * screenHeightPx * 0.42f
+        val endScale = if (hasCellTarget) {
+            (targetRect!!.width / screenWidthPx).coerceIn(0.24f, 0.72f)
+        } else 0.48f
+
+        scope.launch {
+            val anim = Animatable(0f)
+            anim.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 165, easing = androidx.compose.animation.core.FastOutSlowInEasing)
+            ) {
+                val p = value
+                dragOffsetX = startX + (endX - startX) * p
+                dragOffsetY = startY + (endY - startY) * p
+                dragScale = startScale + (endScale - startScale) * p
+                backdropAlpha = startBgAlpha * (1f - p)
+                closeCornerDp = startCorner + (14f - startCorner) * p
+                closeCardAlpha = if (p > 0.72f) (1f - (p - 0.72f) / 0.28f).coerceIn(0f, 1f) else 1f
+            }
+            onClose()
+        }
+    }
+
     BackHandler {
         if (activePageScale > 1.02f) {
             resetZoomSignal += 1
             activePageScale = 1f
         } else {
-            onClose()
+            triggerAnimatedCloseToChatCell()
         }
     }
 
@@ -181,16 +232,16 @@ internal fun ChatMediaFullscreenViewer(
         formatViewerSubtitleDate(activeMessage.epochMs, strings)
     }
 
-    val swipeProgress = (abs(dragOffsetY.value) / (screenHeightPx * 0.55f)).coerceIn(0f, 1f)
-    val backdropAlpha = (0.96f * (1f - swipeProgress)).coerceIn(0f, 0.96f)
-    val dragScale = 1f - (0.12f * swipeProgress)
-    val controlsVisible = showControls && !isVerticalDragging && !isDismissing && abs(dragOffsetY.value) < 8f
+    val controlsVisible = showControls && !isVerticalDragging && !isDismissing && abs(dragOffsetY) < 8f
 
     var isCaptionExpanded by remember(activeMessage.id) { mutableStateOf(false) }
 
     Box(
         modifier = modifier
             .fillMaxSize()
+            .onGloballyPositioned { coords ->
+                viewerRootBounds = coords.boundsInRoot()
+            }
             .background(Color.Black.copy(alpha = backdropAlpha))
             .zIndex(300f)
             .pointerInput(activePageScale, isDismissing) {
@@ -231,39 +282,50 @@ internal fun ChatMediaFullscreenViewer(
                         if (dragging) {
                             change.consume()
                             velocityTracker.addPosition(change.uptimeMillis, change.position)
-                            scope.launch {
-                                dragOffsetY.snapTo(dragOffsetY.value + delta.y)
-                            }
+                            val nextX = dragOffsetX + delta.x * 0.85f
+                            val nextY = dragOffsetY + delta.y
+                            val progress = (abs(nextY) / (screenHeightPx * 0.52f)).coerceIn(0f, 1f)
+                            dragOffsetX = nextX
+                            dragOffsetY = nextY
+                            dragScale = (1f - 0.36f * progress).coerceIn(0.48f, 1f)
+                            backdropAlpha = (0.96f * (1f - progress * 0.88f)).coerceIn(0.08f, 0.96f)
+                            closeCornerDp = progress * 14f
                         }
                     }
 
                     if (dragging) {
                         val velocityY = velocityTracker.calculateVelocity().y
-                        val currentY = dragOffsetY.value
-                        val shouldDismiss = abs(currentY) > dismissThresholdPx || abs(velocityY) > 1100f
+                        val currentY = dragOffsetY
+                        val shouldDismiss = abs(currentY) > dismissThresholdPx || abs(velocityY) > 1000f
                         if (shouldDismiss) {
-                            isDismissing = true
                             val directionSign = when {
                                 abs(velocityY) > 500f -> if (velocityY >= 0f) 1f else -1f
                                 currentY >= 0f -> 1f
                                 else -> -1f
                             }
-                            scope.launch {
-                                dragOffsetY.animateTo(
-                                    targetValue = directionSign * screenHeightPx,
-                                    animationSpec = tween(durationMillis = 200)
-                                )
-                                onClose()
-                            }
+                            triggerAnimatedCloseToChatCell(directionSign)
                         } else {
+                            val startX = dragOffsetX
+                            val startY = dragOffsetY
+                            val startScale = dragScale
+                            val startBg = backdropAlpha
+                            val startCorner = closeCornerDp
                             scope.launch {
-                                dragOffsetY.animateTo(
-                                    targetValue = 0f,
+                                val anim = Animatable(0f)
+                                anim.animateTo(
+                                    targetValue = 1f,
                                     animationSpec = spring(
                                         dampingRatio = Spring.DampingRatioNoBouncy,
                                         stiffness = Spring.StiffnessMediumLow
                                     )
-                                )
+                                ) {
+                                    val p = value
+                                    dragOffsetX = startX * (1f - p)
+                                    dragOffsetY = startY * (1f - p)
+                                    dragScale = startScale + (1f - startScale) * p
+                                    backdropAlpha = startBg + (0.96f - startBg) * p
+                                    closeCornerDp = startCorner * (1f - p)
+                                }
                                 isVerticalDragging = false
                             }
                         }
@@ -274,91 +336,104 @@ internal fun ChatMediaFullscreenViewer(
         // 1. Горизонтальный пейджер фото и видео
         HorizontalPager(
             state = pagerState,
-            userScrollEnabled = activePageScale <= 1.02f && !isVerticalDragging,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    translationY = dragOffsetY.value
-                    scaleX = dragScale
-                    scaleY = dragScale
-                }
+            userScrollEnabled = activePageScale <= 1.02f && !isVerticalDragging && !isDismissing,
+            modifier = Modifier.fillMaxSize()
         ) { page ->
             val entry = viewerEntries.getOrNull(page) ?: return@HorizontalPager
             val isPageActive = (page == safeCurrentPage)
 
-            if (entry.isVideoCircle) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(
+                        if (isPageActive) {
+                            Modifier.graphicsLayer {
+                                translationX = dragOffsetX
+                                translationY = dragOffsetY
+                                scaleX = dragScale
+                                scaleY = dragScale
+                                alpha = closeCardAlpha
+                                shape = androidx.compose.foundation.shape.RoundedCornerShape(closeCornerDp.dp)
+                                clip = closeCornerDp > 0.5f
+                            }
+                        } else Modifier
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (entry.isVideoCircle) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.92f)
-                            .aspectRatio(1f)
-                            .clip(androidx.compose.foundation.shape.CircleShape)
-                            .background(com.anongram.app.features.chats.messages.domain.attachmentColor(entry.colorSeed))
-                            .border(2.dp, Color.White.copy(alpha = 0.28f), androidx.compose.foundation.shape.CircleShape),
+                        modifier = Modifier.fillMaxSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (entry.uri.isNotBlank()) {
-                            ViewerVideoPage(
-                                uriString = entry.uri,
-                                isActivePage = isPageActive,
-                                showControls = controlsVisible,
-                                playbackSpeed = playbackSpeed,
-                                isLooping = isLooping,
-                                playbackState = videoPlaybackState,
-                                onTap = {
-                                    if (isSettingsMenuOpen || isMoreMenuOpen) {
-                                        isSettingsMenuOpen = false
-                                        isMoreMenuOpen = false
-                                    } else {
-                                        showControls = !showControls
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.92f)
+                                .aspectRatio(1f)
+                                .clip(androidx.compose.foundation.shape.CircleShape)
+                                .background(com.anongram.app.features.chats.messages.domain.attachmentColor(entry.colorSeed))
+                                .border(2.dp, Color.White.copy(alpha = 0.28f), androidx.compose.foundation.shape.CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (entry.uri.isNotBlank()) {
+                                ViewerVideoPage(
+                                    uriString = entry.uri,
+                                    isActivePage = isPageActive,
+                                    showControls = controlsVisible,
+                                    playbackSpeed = playbackSpeed,
+                                    isLooping = isLooping,
+                                    playbackState = videoPlaybackState,
+                                    onTap = {
+                                        if (isSettingsMenuOpen || isMoreMenuOpen) {
+                                            isSettingsMenuOpen = false
+                                            isMoreMenuOpen = false
+                                        } else {
+                                            showControls = !showControls
+                                        }
                                     }
-                                }
-                            )
-                        } else {
-                            Icon(
-                                imageVector = androidx.compose.material.icons.Icons.Outlined.PlayArrow,
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(56.dp)
-                            )
+                                )
+                            } else {
+                                Icon(
+                                    imageVector = androidx.compose.material.icons.Icons.Outlined.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(56.dp)
+                                )
+                            }
                         }
                     }
+                } else if (entry.isVideo) {
+                    ViewerVideoPage(
+                        uriString = entry.uri,
+                        isActivePage = isPageActive,
+                        showControls = controlsVisible,
+                        playbackSpeed = playbackSpeed,
+                        isLooping = isLooping,
+                        playbackState = videoPlaybackState,
+                        onTap = {
+                            if (isSettingsMenuOpen || isMoreMenuOpen) {
+                                isSettingsMenuOpen = false
+                                isMoreMenuOpen = false
+                            } else {
+                                showControls = !showControls
+                            }
+                        }
+                    )
+                } else {
+                    ViewerPhotoPage(
+                        uriString = entry.uri,
+                        isActivePage = isPageActive,
+                        resetZoomSignal = resetZoomSignal,
+                        onScaleChanged = { activePageScale = it },
+                        onTap = {
+                            if (isSettingsMenuOpen || isMoreMenuOpen) {
+                                isSettingsMenuOpen = false
+                                isMoreMenuOpen = false
+                            } else {
+                                showControls = !showControls
+                            }
+                        }
+                    )
                 }
-            } else if (entry.isVideo) {
-                ViewerVideoPage(
-                    uriString = entry.uri,
-                    isActivePage = isPageActive,
-                    showControls = controlsVisible,
-                    playbackSpeed = playbackSpeed,
-                    isLooping = isLooping,
-                    playbackState = videoPlaybackState,
-                    onTap = {
-                        if (isSettingsMenuOpen || isMoreMenuOpen) {
-                            isSettingsMenuOpen = false
-                            isMoreMenuOpen = false
-                        } else {
-                            showControls = !showControls
-                        }
-                    }
-                )
-            } else {
-                ViewerPhotoPage(
-                    uriString = entry.uri,
-                    isActivePage = isPageActive,
-                    resetZoomSignal = resetZoomSignal,
-                    onScaleChanged = { activePageScale = it },
-                    onTap = {
-                        if (isSettingsMenuOpen || isMoreMenuOpen) {
-                            isSettingsMenuOpen = false
-                            isMoreMenuOpen = false
-                        } else {
-                            showControls = !showControls
-                        }
-                    }
-                )
             }
         }
 
@@ -381,7 +456,7 @@ internal fun ChatMediaFullscreenViewer(
                 isLooping = isLooping,
                 isSettingsMenuOpen = isSettingsMenuOpen,
                 isMoreMenuOpen = isMoreMenuOpen,
-                onClose = onClose,
+                onClose = { triggerAnimatedCloseToChatCell() },
                 onEditPhotoClick = if (!currentEntry.isVideo && onEditPhoto != null) {
                     { onEditPhoto(activeMessage, currentEntry.uri) }
                 } else null,

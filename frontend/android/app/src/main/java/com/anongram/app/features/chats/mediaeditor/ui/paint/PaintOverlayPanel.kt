@@ -93,6 +93,7 @@ fun PaintOverlayPanel(
     initialTextLayers: List<TextLayerItem>,
     initialTab: PaintModeTab = PaintModeTab.DRAWING,
     initialSelectedTextId: String? = null,
+    isVideo: Boolean = false,
     onApply: (List<BrushStroke>, List<TextLayerItem>) -> Unit,
     onCancel: () -> Unit,
     onOpenDownloadFonts: () -> Unit,
@@ -191,7 +192,7 @@ fun PaintOverlayPanel(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(if (isVideo) Color.Transparent else Color.Black)
     ) {
         // 1. Photo + Strokes + Text Canvas (smoothly shrinks into top area above editing controls / color sheet)
         Box(
@@ -219,7 +220,7 @@ fun PaintOverlayPanel(
                     .clip(RoundedCornerShape(2.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                if (previewBitmap != null) {
+                if (previewBitmap != null && !isVideo) {
                     Image(
                         bitmap = previewBitmap,
                         contentDescription = null,

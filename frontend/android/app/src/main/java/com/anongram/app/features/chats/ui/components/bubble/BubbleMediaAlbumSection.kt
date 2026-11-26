@@ -85,7 +85,38 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInRoot
+
 private val LocalUploadingMessageId = compositionLocalOf { "" }
+
+/**
+ * Реестр экранных координат ячеек фото и видео в чате (пузыри одиночных фото/видео и альбомов),
+ * чтобы при закрытии полноэкранного просмотра фото или видео плавно уменьшалось и возвращалось
+ * точно в свою карточку/ячейку сообщения в чате.
+ */
+object ChatMediaCellBoundsRegistry {
+    private val byKey = java.util.concurrent.ConcurrentHashMap<String, Rect>()
+
+    fun put(key: String, rect: Rect) {
+        if (key.isNotBlank() && rect.width > 0f && rect.height > 0f) {
+            byKey[key] = rect
+        }
+    }
+
+    fun resolve(messageId: String, itemIndex: Int, uriString: String): Rect? {
+        if (messageId.isNotBlank()) {
+            byKey["$messageId#photo_$itemIndex"]?.let { return it }
+            if (itemIndex == 0) {
+                byKey[messageId]?.let { return it }
+            }
+        }
+        if (uriString.isNotBlank()) {
+            byKey["uri:$uriString"]?.let { return it }
+        }
+        return null
+    }
+}
 
 /**
  * Одиночное сжатое фото или видео в пузыре сообщения.
@@ -166,6 +197,7 @@ internal fun ChatSinglePhotoSection(
                 isVideo = attachment.isVideo,
                 hasSpoiler = attachment.hasSpoiler,
                 coverUriString = attachment.coverUri,
+                snapshotKey = messageId,
                 onPhotoClick = {
                     if (isSelectionMode) onSelect() else onOpenPhotoAt(0)
                 },
@@ -742,6 +774,15 @@ internal fun ChatRealPhotoBox(
 
     Box(
         modifier = modifier
+            .onGloballyPositioned { coordinates ->
+                val rootBounds = coordinates.boundsInRoot()
+                if (snapshotKey.isNotBlank()) {
+                    ChatMediaCellBoundsRegistry.put(snapshotKey, rootBounds)
+                }
+                if (uriString.isNotBlank()) {
+                    ChatMediaCellBoundsRegistry.put("uri:$uriString", rootBounds)
+                }
+            }
             .then(
                 if (deleteLayer != null && snapshotRegistry != null) {
                     Modifier
@@ -807,6 +848,13 @@ internal fun ChatRealPhotoBox(
             }
         }
 
+        val liveVideoEditState = remember(uriString, isVideo) {
+            if (isVideo) com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getState(uriString) else null
+        }
+        val liveVideoOverlayBmp = remember(uriString, isVideo) {
+            if (isVideo) com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getOverlayBitmap(uriString)?.asImageBitmap() else null
+        }
+
         if (isVideo && !showSpoiler && !isUploading && allowVideoAutoplay && parsedUri != null) {
             InlineMutedVideoPreview(
                 uri = parsedUri,
@@ -824,6 +872,35 @@ internal fun ChatRealPhotoBox(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+
+            // Apply live color adjustments and paint/text overlay across ALL frames of the playing video in the bubble!
+            if (liveVideoEditState != null && liveVideoEditState.hasAnyAdjustments) {
+                val adj = liveVideoEditState.adjustments
+                val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.12f).coerceIn(-0.45f, 0.45f)
+                val warmthAlpha = (adj.warmth * 0.22f).coerceIn(-0.35f, 0.35f)
+                val contrastDarkAlpha = (adj.contrast * 0.16f - adj.shadows * 0.12f).coerceIn(-0.25f, 0.32f)
+                if (exposureAlpha > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.White.copy(alpha = exposureAlpha)))
+                } else if (exposureAlpha < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = -exposureAlpha)))
+                }
+                if (warmthAlpha > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFF9800).copy(alpha = warmthAlpha)))
+                } else if (warmthAlpha < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2196F3).copy(alpha = -warmthAlpha)))
+                }
+                if (contrastDarkAlpha > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = contrastDarkAlpha)))
+                }
+            }
+            if (liveVideoOverlayBmp != null) {
+                Image(
+                    bitmap = liveVideoOverlayBmp,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
 
             if (!isVideoPrepared) {
                 Box(

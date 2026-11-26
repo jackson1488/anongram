@@ -79,10 +79,32 @@ object BitmapExportRenderer {
         }
         val finalUri = if (targetFile.exists() && targetFile.length() > 0) Uri.fromFile(targetFile) else item.uri
 
-        // If user applied crop, adjustments, strokes, or text to a video, or picked a cover, bake them into coverUri
+        // Register full-video edits (strokes, text, crop, adjustments, curves, blur) in VideoLiveEditRegistry
+        // so that EVERY frame of the playing video in chat bubbles and fullscreen player renders them live!
         val hasVisualEdits = item.editState.crop.isModified ||
             item.editState.hasAnyAdjustments ||
             item.editState.hasAnyPaintOrText
+
+        var transparentOverlayBmp: Bitmap? = null
+        if (item.editState.hasAnyPaintOrText) {
+            runCatching {
+                val emptyCanvasBmp = Bitmap.createBitmap(1080, 1080, Bitmap.Config.ARGB_8888)
+                transparentOverlayBmp = renderOverlayLayers(context, emptyCanvasBmp, item.editState)
+            }
+        }
+        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
+            uriString = finalUri.toString(),
+            state = item.editState,
+            overlayBitmap = transparentOverlayBmp
+        )
+        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
+            uriString = item.uri.toString(),
+            state = item.editState,
+            overlayBitmap = transparentOverlayBmp
+        )
+
+        // Only bake a static coverUri if the user explicitly picked a custom cover (item.coverUri != null),
+        // and update the quick thumbnail cache for instant 0ms first-frame display before video autoplay starts.
         var finalCoverUri = item.coverUri
         if (hasVisualEdits || item.coverUri != null) {
             runCatching {
@@ -107,17 +129,21 @@ object BitmapExportRenderer {
                     if (item.editState.strokes.isNotEmpty() || item.editState.textLayers.isNotEmpty()) {
                         working = renderOverlayLayers(context, working, item.editState)
                     }
-                    val coverFile = File(
-                        context.cacheDir,
-                        "edited_video_cover_${System.currentTimeMillis()}_${item.id.take(4)}.jpg"
-                    )
-                    FileOutputStream(coverFile).use { fos ->
-                        working.compress(Bitmap.CompressFormat.JPEG, 92, fos)
-                    }
-                    if (coverFile.exists() && coverFile.length() > 0) {
-                        finalCoverUri = Uri.fromFile(coverFile)
-                        // Put into gallery thumbnail cache immediately so gallery & chat bubbles see it in 0ms
-                        com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(finalCoverUri!!, working)
+                    // Cache the edited preview thumbnail for finalUri so gallery/chat initial frame is instant
+                    com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(finalUri, working)
+
+                    if (item.coverUri != null) {
+                        val coverFile = File(
+                            context.cacheDir,
+                            "edited_video_cover_${System.currentTimeMillis()}_${item.id.take(4)}.jpg"
+                        )
+                        FileOutputStream(coverFile).use { fos ->
+                            working.compress(Bitmap.CompressFormat.JPEG, 92, fos)
+                        }
+                        if (coverFile.exists() && coverFile.length() > 0) {
+                            finalCoverUri = Uri.fromFile(coverFile)
+                            com.anongram.app.features.chats.attach.tabs.gallery.thumbnailCache.put(finalCoverUri!!, working)
+                        }
                     }
                 }
             }

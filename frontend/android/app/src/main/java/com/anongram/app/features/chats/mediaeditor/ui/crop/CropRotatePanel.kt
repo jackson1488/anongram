@@ -72,6 +72,8 @@ private enum class DragTarget {
 fun CropRotatePanel(
     bitmap: ImageBitmap?,
     initialTransform: CropTransform,
+    isVideo: Boolean = false,
+    onLiveChange: ((CropTransform) -> Unit)? = null,
     onApply: (CropTransform) -> Unit,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier
@@ -88,6 +90,10 @@ fun CropRotatePanel(
     var isDraggingWheel by remember { mutableStateOf(false) }
     var boxSize by remember { mutableStateOf(IntSize.Zero) }
 
+    androidx.compose.runtime.LaunchedEffect(draft) {
+        onLiveChange?.invoke(draft)
+    }
+
     val animatedBaseRotation by animateFloatAsState(
         targetValue = cumulativeRotation90,
         animationSpec = tween(durationMillis = 240),
@@ -102,7 +108,7 @@ fun CropRotatePanel(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color.Black)
+            .background(if (isVideo) Color.Transparent else Color.Black)
     ) {
         // Fullscreen Crop Workspace with slim edge margin and space for bottom floating controls
         Box(
@@ -134,18 +140,20 @@ fun CropRotatePanel(
                             height = with(density) { fittedRect.height.toDp() }
                         )
                 ) {
-                    Image(
-                        bitmap = bitmap,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                rotationZ = animatedBaseRotation + draft.straightenDegrees
-                                scaleX = animatedMirrorScale * autoZoom
-                                scaleY = autoZoom
-                            }
-                    )
+                    if (!isVideo) {
+                        Image(
+                            bitmap = bitmap,
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    rotationZ = animatedBaseRotation + draft.straightenDegrees
+                                    scaleX = animatedMirrorScale * autoZoom
+                                    scaleY = autoZoom
+                                }
+                        )
+                    }
 
                     val currentDraft by rememberUpdatedState(draft)
                     var activeHandle by remember { mutableStateOf(DragTarget.NONE) }

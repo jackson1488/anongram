@@ -67,4 +67,41 @@ data class PhotoEditState(
 
     val hasAnyPaintOrText: Boolean
         get() = strokes.isNotEmpty() || textLayers.isNotEmpty()
+
+    val hasAnyVideoOverlayOrFilter: Boolean
+        get() = crop.isModified || hasAnyAdjustments || hasAnyPaintOrText
 }
+
+/**
+ * Реестр применённого редактирования видео (кисточка, текст, кроп/поворот, цветокоррекция, кривые, размытие),
+ * чтобы все изменения применялись ко ВСЕМ кадрам воспроизводимого видео (в редакторе, в пузыре чата и в плеере),
+ * а не только к одному статичному кадру-обложке.
+ */
+object VideoLiveEditRegistry {
+    private val statesByUri = java.util.concurrent.ConcurrentHashMap<String, PhotoEditState>()
+    private val overlayBitmapsByUri = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
+
+    fun put(uriString: String, state: PhotoEditState, overlayBitmap: android.graphics.Bitmap? = null) {
+        if (uriString.isBlank()) return
+        if (state.hasAnyVideoOverlayOrFilter) {
+            statesByUri[uriString] = state
+            if (overlayBitmap != null) {
+                overlayBitmapsByUri[uriString] = overlayBitmap
+            }
+        } else {
+            statesByUri.remove(uriString)
+            overlayBitmapsByUri.remove(uriString)
+        }
+    }
+
+    fun getState(uriString: String?): PhotoEditState? {
+        if (uriString.isNullOrBlank()) return null
+        return statesByUri[uriString]
+    }
+
+    fun getOverlayBitmap(uriString: String?): android.graphics.Bitmap? {
+        if (uriString.isNullOrBlank()) return null
+        return overlayBitmapsByUri[uriString]
+    }
+}
+

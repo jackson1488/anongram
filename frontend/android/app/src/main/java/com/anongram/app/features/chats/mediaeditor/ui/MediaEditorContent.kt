@@ -205,9 +205,18 @@ fun MediaEditorContent(
         }
     }
 
-    // If video has a custom cover, start paused so user sees their saved cover immediately
-    var isVideoPlaying by remember(activeItem.id, activeItem.coverUri) {
-        mutableStateOf(activeItem.coverUri == null)
+    // When entering a video in MAIN mode, start paused (stopped) so user sees the Play icon and taps screen to play/stop
+    var isVideoPlaying by remember(activeItem.id) {
+        mutableStateOf(false)
+    }
+    var videoPlayheadMs by remember(activeItem.id) {
+        mutableStateOf(activeItem.trimStartMs)
+    }
+    var videoSeekTargetMs by remember(activeItem.id) {
+        mutableStateOf(-1L)
+    }
+    var videoSeekSignal by remember(activeItem.id) {
+        mutableIntStateOf(0)
     }
 
     // Zero-lag synchronous float states for vertical drag and single-coroutine close-to-grid transition
@@ -223,12 +232,22 @@ fun MediaEditorContent(
     var isClosingAnimated by remember { mutableStateOf(false) }
 
     val adjustBottomPadding by animateDpAsState(
-        targetValue = if (editorMode == EditorMode.ADJUST) 235.dp else 0.dp,
+        targetValue = when {
+            editorMode == EditorMode.ADJUST -> 235.dp
+            activeItem.isVideo && editorMode == EditorMode.PAINT -> 118.dp
+            activeItem.isVideo && editorMode == EditorMode.CROP -> 108.dp
+            else -> 0.dp
+        },
         animationSpec = tween(durationMillis = 200),
         label = "adjustPhotoShrink"
     )
     val adjustTopPadding by animateDpAsState(
-        targetValue = if (editorMode == EditorMode.ADJUST) 24.dp else 0.dp,
+        targetValue = when {
+            editorMode == EditorMode.ADJUST -> 24.dp
+            activeItem.isVideo && editorMode == EditorMode.PAINT -> 50.dp
+            activeItem.isVideo && editorMode == EditorMode.CROP -> 12.dp
+            else -> 0.dp
+        },
         animationSpec = tween(durationMillis = 200),
         label = "adjustPhotoTopPad"
     )
@@ -425,10 +444,12 @@ fun MediaEditorContent(
             val item = currentItems[page]
             val isCurrentPage = page == currentIndex
             val isAdjustingThisPage = isCurrentPage && editorMode == EditorMode.ADJUST
-            val previewState = if (isAdjustingThisPage) {
-                draftEditState
-            } else {
-                item.editState
+            val isCroppingThisPage = isCurrentPage && editorMode == EditorMode.CROP
+            val isPaintingThisPage = isCurrentPage && editorMode == EditorMode.PAINT
+            val previewState = when {
+                isAdjustingThisPage || isCroppingThisPage -> draftEditState
+                isPaintingThisPage -> item.editState.copy(strokes = emptyList(), textLayers = emptyList())
+                else -> item.editState
             }
 
             // Apply close/drag transform ONLY to the active page so offscreen pager pages aren't transformed!
@@ -451,13 +472,29 @@ fun MediaEditorContent(
                 contentAlignment = Alignment.Center
             ) {
                 if (item.isVideo) {
+                    val shouldPlayVideoNow = isCurrentPage && (
+                        (editorMode == EditorMode.MAIN && isVideoPlaying) ||
+                            editorMode == EditorMode.ADJUST ||
+                            editorMode == EditorMode.PAINT ||
+                            editorMode == EditorMode.CROP
+                        )
                     EditorVideoPreview(
                         item = item,
                         editState = previewState,
                         isAdjustMode = isAdjustingThisPage,
+                        isEditOverlayActive = isAdjustingThisPage || isCroppingThisPage || isPaintingThisPage,
                         baseFrameBitmap = if (isCurrentPage) activeRawBitmap else null,
-                        isPlaying = isVideoPlaying && isCurrentPage && editorMode == EditorMode.MAIN,
-                        onTogglePlay = { isVideoPlaying = !isVideoPlaying },
+                        isPlaying = shouldPlayVideoNow,
+                        seekTargetMs = if (isCurrentPage) videoSeekTargetMs else -1L,
+                        seekSignal = if (isCurrentPage) videoSeekSignal else 0,
+                        onPositionChange = { posMs ->
+                            if (isCurrentPage) videoPlayheadMs = posMs
+                        },
+                        onTogglePlay = {
+                            if (editorMode == EditorMode.MAIN) {
+                                isVideoPlaying = !isVideoPlaying
+                            }
+                        },
                         onTapTextLayer = if (isCurrentPage && editorMode == EditorMode.MAIN) {
                             { tappedLayer ->
                                 draftEditState = activeItem.editState
@@ -628,6 +665,7 @@ fun MediaEditorContent(
                         durationMs = activeItem.durationMs,
                         trimStartMs = activeItem.trimStartMs,
                         trimEndMs = activeItem.trimEndMs,
+                        currentPositionMs = videoPlayheadMs,
                         isPlaying = isVideoPlaying,
                         isMuted = activeItem.isMuted,
                         coverUri = activeItem.coverUri,
@@ -638,10 +676,17 @@ fun MediaEditorContent(
                         },
                         onTrimChange = { startMs, endMs ->
                             updateCurrentItem { it.copy(trimStartMs = startMs, trimEndMs = endMs) }
+                            val clamped = videoPlayheadMs.coerceIn(startMs, if (endMs > startMs) endMs else Long.MAX_VALUE)
+                            videoPlayheadMs = clamped
                         },
                         onTrimFinished = { startMs, endMs ->
                             val updated = updateCurrentItem { it.copy(trimStartMs = startMs, trimEndMs = endMs) }
                             autoSaveSingleItem(updated)
+                        },
+                        onSeekPosition = { seekMs ->
+                            videoPlayheadMs = seekMs
+                            videoSeekTargetMs = seekMs
+                            videoSeekSignal += 1
                         },
                         onOpenCoverPicker = {
                             isVideoPlaying = false
@@ -1030,6 +1075,10 @@ fun MediaEditorContent(
             CropRotatePanel(
                 bitmap = activeRawBitmap?.asImageBitmap(),
                 initialTransform = draftEditState.crop,
+                isVideo = activeItem.isVideo,
+                onLiveChange = { liveCrop ->
+                    draftEditState = draftEditState.copy(crop = liveCrop)
+                },
                 onApply = { newCrop ->
                     val updated = updateCurrentItem {
                         it.copy(
@@ -1040,7 +1089,10 @@ fun MediaEditorContent(
                     autoSaveSingleItem(updated)
                     editorMode = EditorMode.MAIN
                 },
-                onCancel = { editorMode = EditorMode.MAIN }
+                onCancel = {
+                    draftEditState = activeItem.editState
+                    editorMode = EditorMode.MAIN
+                }
             )
         }
 
@@ -1103,6 +1155,7 @@ fun MediaEditorContent(
                 initialTextLayers = activeItem.editState.textLayers,
                 initialTab = paintInitialTab,
                 initialSelectedTextId = paintInitialTextId,
+                isVideo = activeItem.isVideo,
                 onApply = { strokes, texts ->
                     val updated = updateCurrentItem {
                         it.copy(editState = it.editState.copy(strokes = strokes, textLayers = texts))
@@ -1402,8 +1455,12 @@ private fun EditorVideoPreview(
     item: EditableMediaItem,
     editState: PhotoEditState,
     isAdjustMode: Boolean = false,
+    isEditOverlayActive: Boolean = false,
     baseFrameBitmap: Bitmap? = null,
     isPlaying: Boolean,
+    seekTargetMs: Long = -1L,
+    seekSignal: Int = 0,
+    onPositionChange: (Long) -> Unit = {},
     onTogglePlay: () -> Unit,
     onTapTextLayer: ((TextLayerItem) -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -1424,38 +1481,6 @@ private fun EditorVideoPreview(
         }
     }
 
-    // Live color-adjusted video frame for EditorMode.ADJUST and paused preview when adjustments/blur/curves are applied
-    val fastVideoFrame = remember(baseFrameBitmap) {
-        baseFrameBitmap?.let { scaleDownBitmapForInteractivePreview(it, maxDim = 540) }
-    }
-    var adjustedVideoFrame by remember(item.uri) { mutableStateOf<ImageBitmap?>(null) }
-    val hasVisualAdjustments = editState.crop.isModified || PhotoFilterEngine.needsPixelPipeline(editState)
-
-    LaunchedEffect(
-        fastVideoFrame,
-        baseFrameBitmap,
-        isAdjustMode,
-        hasVisualAdjustments,
-        editState.crop,
-        editState.adjustments,
-        editState.blur,
-        editState.curves
-    ) {
-        val src = (if (isAdjustMode) fastVideoFrame else baseFrameBitmap) ?: fastVideoFrame ?: baseFrameBitmap
-        if (src == null || (!isAdjustMode && !hasVisualAdjustments)) {
-            adjustedVideoFrame = null
-            return@LaunchedEffect
-        }
-        val processed = withContext(Dispatchers.Default) {
-            var work = PhotoFilterEngine.applyCropAndTransform(src, editState)
-            if (PhotoFilterEngine.needsPixelPipeline(editState)) {
-                work = PhotoFilterEngine.applyPixelPipeline(work, editState)
-            }
-            work.asImageBitmap()
-        }
-        adjustedVideoFrame = processed
-    }
-
     LaunchedEffect(item.isMuted, mediaPlayerRef) {
         val vol = if (item.isMuted) 0f else 1f
         runCatching { mediaPlayerRef?.setVolume(vol, vol) }
@@ -1472,14 +1497,30 @@ private fun EditorVideoPreview(
         }
     }
 
-    // Seek video when user drags trimStartMs and loop strictly between [trimStartMs .. trimEndMs]
+    // Seek video when user drags trimStartMs
     LaunchedEffect(item.trimStartMs, videoViewRef) {
         val vv = videoViewRef ?: return@LaunchedEffect
         runCatching {
             vv.seekTo(item.trimStartMs.toInt())
+            onPositionChange(item.trimStartMs)
         }
     }
 
+    // Seek video when user drags the Playhead Scrubber bar inside [trimStartMs .. trimEndMs]
+    LaunchedEffect(seekSignal, seekTargetMs, videoViewRef) {
+        val vv = videoViewRef ?: return@LaunchedEffect
+        if (seekSignal > 0 && seekTargetMs >= 0L) {
+            runCatching {
+                val startBound = item.trimStartMs.coerceAtLeast(0L)
+                val endBound = if (item.trimEndMs > startBound + 200L) item.trimEndMs else Long.MAX_VALUE
+                val clamped = seekTargetMs.coerceIn(startBound, endBound)
+                vv.seekTo(clamped.toInt())
+                onPositionChange(clamped)
+            }
+        }
+    }
+
+    // Loop strictly between [trimStartMs .. trimEndMs] and update playhead position in real time
     LaunchedEffect(isPlaying, item.trimStartMs, item.trimEndMs, videoViewRef) {
         val vv = videoViewRef ?: return@LaunchedEffect
         while (isPlaying) {
@@ -1489,10 +1530,13 @@ private fun EditorVideoPreview(
                 val endBound = if (item.trimEndMs > startBound + 300L) item.trimEndMs else Long.MAX_VALUE
                 if (pos >= endBound || pos < startBound - 300L) {
                     vv.seekTo(startBound.toInt())
+                    onPositionChange(startBound)
                     if (!vv.isPlaying) vv.start()
+                } else {
+                    onPositionChange(pos.coerceIn(startBound, endBound))
                 }
             }
-            delay(80L)
+            delay(50L)
         }
     }
 
@@ -1503,121 +1547,176 @@ private fun EditorVideoPreview(
     }
 
     val adj = editState.adjustments
+    val videoAspect = remember(baseFrameBitmap) {
+        val bmp = baseFrameBitmap
+        if (bmp != null && bmp.width > 0 && bmp.height > 0) {
+            (bmp.width.toFloat() / bmp.height.toFloat()).coerceIn(0.25f, 4f)
+        } else 9f / 16f
+    }
 
     Box(
         modifier = modifier
-            .graphicsLayer {
-                rotationZ = editState.crop.baseRotation90.toFloat() + editState.crop.straightenDegrees
-                scaleX = if (editState.crop.mirrorHorizontal) -1f else 1f
-            },
+            .then(
+                if (!isEditOverlayActive) {
+                    Modifier.clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onTogglePlay() }
+                    )
+                } else Modifier
+            ),
         contentAlignment = Alignment.Center
     ) {
-        AndroidView(
-            factory = { ctx ->
-                VideoView(ctx).apply {
-                    setVideoURI(item.uri)
-                    setOnPreparedListener { mp ->
-                        mediaPlayerRef = mp
-                        mp.isLooping = true
-                        val vol = if (item.isMuted) 0f else 1f
-                        mp.setVolume(vol, vol)
-                        if (item.trimStartMs > 0L) seekTo(item.trimStartMs.toInt())
-                        if (isPlaying) start()
-                    }
-                    videoViewRef = this
+        Box(
+            modifier = Modifier
+                .aspectRatio(videoAspect, matchHeightConstraintsFirst = videoAspect < 1f)
+                .graphicsLayer {
+                    rotationZ = editState.crop.baseRotation90.toFloat() + editState.crop.straightenDegrees
+                    val mirrorSign = if (editState.crop.mirrorHorizontal) -1f else 1f
+                    val cropScaleX = (1f / editState.crop.cropRect.width).coerceIn(1f, 3.5f)
+                    val cropScaleY = (1f / editState.crop.cropRect.height).coerceIn(1f, 3.5f)
+                    val cropZoom = maxOf(cropScaleX, cropScaleY)
+                    scaleX = mirrorSign * cropZoom
+                    scaleY = cropZoom
                 }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Live color/contrast/exposure/warmth overlay during video playback when adjustments are active
-        if (isPlaying && adj.isModified) {
-            val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.10f).coerceIn(-0.45f, 0.45f)
-            val warmthAlpha = (adj.warmth * 0.22f).coerceIn(-0.35f, 0.35f)
-            val contrastDarkAlpha = (adj.contrast * 0.16f - adj.shadows * 0.12f).coerceIn(0f, 0.35f)
-            if (exposureAlpha > 0.01f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.White.copy(alpha = exposureAlpha))
-                )
-            } else if (exposureAlpha < -0.01f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = -exposureAlpha))
-                )
-            }
-            if (warmthAlpha > 0.01f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFFFF9800).copy(alpha = warmthAlpha))
-                )
-            } else if (warmthAlpha < -0.01f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color(0xFF2196F3).copy(alpha = -warmthAlpha))
-                )
-            }
-            if (contrastDarkAlpha > 0.01f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = contrastDarkAlpha))
-                )
-            }
-        }
-
-        // Show real pixel-adjusted frame when in Adjust mode or when paused with active adjustments/cover
-        val frameOverlay = when {
-            isAdjustMode && adjustedVideoFrame != null -> adjustedVideoFrame
-            !isPlaying && coverBitmap != null -> coverBitmap
-            !isPlaying && hasVisualAdjustments && adjustedVideoFrame != null -> adjustedVideoFrame
-            else -> null
-        }
-        if (frameOverlay != null) {
-            Image(
-                bitmap = frameOverlay,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
+                .clip(RoundedCornerShape(2.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    VideoView(ctx).apply {
+                        setVideoURI(item.uri)
+                        setOnPreparedListener { mp ->
+                            mediaPlayerRef = mp
+                            mp.isLooping = true
+                            val vol = if (item.isMuted) 0f else 1f
+                            mp.setVolume(vol, vol)
+                            val initialStart = item.trimStartMs.coerceAtLeast(0L)
+                            seekTo(initialStart.toInt())
+                            onPositionChange(initialStart)
+                            if (isPlaying) {
+                                start()
+                            } else {
+                                pause()
+                            }
+                        }
+                        videoViewRef = this
+                    }
+                },
                 modifier = Modifier.fillMaxSize()
             )
+
+            // Show custom cover image ONLY when paused in MAIN mode and user explicitly set a custom cover
+            if (!isPlaying && !isEditOverlayActive && coverBitmap != null) {
+                Image(
+                    bitmap = coverBitmap!!,
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // Live color/contrast/exposure/warmth/saturation/fade/vignette overlay across ALL playing or paused video frames!
+            if (editState.hasAnyAdjustments) {
+                val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.12f + adj.highlights * 0.10f).coerceIn(-0.48f, 0.48f)
+                val warmthAlpha = (adj.warmth * 0.24f).coerceIn(-0.38f, 0.38f)
+                val contrastDarkAlpha = (adj.contrast * 0.18f - adj.shadows * 0.14f).coerceIn(-0.30f, 0.35f)
+                val saturationAlpha = (adj.saturation * 0.18f).coerceIn(-0.35f, 0.35f)
+                val fadeAlpha = (adj.fade * 0.25f).coerceIn(0f, 0.32f)
+
+                if (exposureAlpha > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White.copy(alpha = exposureAlpha))
+                    )
+                } else if (exposureAlpha < -0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = -exposureAlpha))
+                    )
+                }
+                if (warmthAlpha > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFFF9800).copy(alpha = warmthAlpha))
+                    )
+                } else if (warmthAlpha < -0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFF2196F3).copy(alpha = -warmthAlpha))
+                    )
+                }
+                if (contrastDarkAlpha > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = contrastDarkAlpha))
+                    )
+                } else if (contrastDarkAlpha < -0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Gray.copy(alpha = -contrastDarkAlpha * 0.7f))
+                    )
+                }
+                if (saturationAlpha < -0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Gray.copy(alpha = -saturationAlpha))
+                    )
+                } else if (saturationAlpha > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFFF4081).copy(alpha = saturationAlpha * 0.35f))
+                    )
+                }
+                if (fadeAlpha > 0.01f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFE0E0E0).copy(alpha = fadeAlpha))
+                    )
+                }
+            }
+
+            // Render strokes and text layers live across ALL frames of the playing video!
+            if (editState.strokes.isNotEmpty()) {
+                StrokesPreviewCanvas(
+                    strokes = editState.strokes,
+                    blurredBitmap = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+            if (editState.textLayers.isNotEmpty()) {
+                TextLayersCanvasOverlay(
+                    layers = editState.textLayers,
+                    selectedLayerId = null,
+                    interactive = false,
+                    isTypingText = false,
+                    onSelectLayer = {},
+                    onUpdateLayer = {},
+                    onDeleteLayer = {},
+                    onEditLayerText = {},
+                    onTapLayerInPreviewMode = onTapTextLayer,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
 
-        // Render strokes and text layers applied to the video
-        if (editState.strokes.isNotEmpty()) {
-            StrokesPreviewCanvas(
-                strokes = editState.strokes,
-                blurredBitmap = null,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-        if (editState.textLayers.isNotEmpty()) {
-            TextLayersCanvasOverlay(
-                layers = editState.textLayers,
-                selectedLayerId = null,
-                interactive = false,
-                isTypingText = false,
-                onSelectLayer = {},
-                onUpdateLayer = {},
-                onDeleteLayer = {},
-                onEditLayerText = {},
-                onTapLayerInPreviewMode = onTapTextLayer,
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // Play / Pause tap overlay button when paused in MAIN mode
-        if (!isPlaying && !isAdjustMode) {
+        // Play indicator icon ONLY when stopped in MAIN mode (tapping anywhere on the screen starts/stops playback)
+        if (!isPlaying && !isEditOverlayActive) {
             Box(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
                     .background(Color.Black.copy(alpha = 0.55f))
-                    .border(1.5.dp, Color.White, CircleShape)
-                    .clickable { onTogglePlay() },
+                    .border(1.5.dp, Color.White, CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

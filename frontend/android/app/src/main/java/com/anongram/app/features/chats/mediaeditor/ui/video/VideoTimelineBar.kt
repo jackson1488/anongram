@@ -61,7 +61,7 @@ import kotlin.math.roundToInt
 private enum class TrimDragMode {
     LEFT,
     RIGHT,
-    WINDOW
+    PLAYHEAD
 }
 
 @Composable
@@ -70,6 +70,7 @@ fun VideoTimelineBar(
     durationMs: Long,
     trimStartMs: Long,
     trimEndMs: Long,
+    currentPositionMs: Long = 0L,
     isPlaying: Boolean,
     isMuted: Boolean,
     coverUri: Uri? = null,
@@ -77,6 +78,7 @@ fun VideoTimelineBar(
     onToggleMute: () -> Unit,
     onTrimChange: (startMs: Long, endMs: Long) -> Unit,
     onTrimFinished: ((startMs: Long, endMs: Long) -> Unit)? = null,
+    onSeekPosition: ((positionMs: Long) -> Unit)? = null,
     onDraggingTimelineChange: ((Boolean) -> Unit)? = null,
     onOpenCoverPicker: () -> Unit,
     onRemoveCover: (() -> Unit)? = null,
@@ -117,12 +119,14 @@ fun VideoTimelineBar(
     val effectiveEnd = if (trimEndMs > 0L) trimEndMs.coerceAtMost(effectiveDuration) else effectiveDuration
     val effectiveStart = trimStartMs.coerceIn(0L, (effectiveEnd - 400L).coerceAtLeast(0L))
     val trimmedDurationMs = (effectiveEnd - effectiveStart).coerceAtLeast(400L)
+    val clampedPlayheadMs = currentPositionMs.coerceIn(effectiveStart, effectiveEnd)
 
     val currentStartState by rememberUpdatedState(effectiveStart)
     val currentEndState by rememberUpdatedState(effectiveEnd)
     val currentDurationState by rememberUpdatedState(effectiveDuration)
     val currentOnTrimChange by rememberUpdatedState(onTrimChange)
     val currentOnTrimFinished by rememberUpdatedState(onTrimFinished)
+    val currentOnSeekPosition by rememberUpdatedState(onSeekPosition)
     val currentOnDraggingChange by rememberUpdatedState(onDraggingTimelineChange)
 
     Column(
@@ -214,9 +218,12 @@ fun VideoTimelineBar(
             val totalWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
             val startFrac = (effectiveStart.toFloat() / effectiveDuration).coerceIn(0f, 0.94f)
             val endFrac = (effectiveEnd.toFloat() / effectiveDuration).coerceIn(startFrac + 0.05f, 1f)
-            val handleHitRadiusPx = with(density) { 34.dp.toPx() }
+            val playheadFrac = (clampedPlayheadMs.toFloat() / effectiveDuration).coerceIn(startFrac, endFrac)
+            val handleHitRadiusPx = with(density) { 26.dp.toPx() }
             val visualHandleWidthDp = 15.dp
             val visualHandleWidthPx = with(density) { visualHandleWidthDp.toPx() }
+            val playheadWidthDp = 3.5.dp
+            val playheadWidthPx = with(density) { playheadWidthDp.toPx() }
 
             // Unified gesture detector across the entire timeline track:
             // Immediately consumes touch-down and notifies parent (onDraggingTimelineChange(true)) so HorizontalPager NEVER steals the drag!
@@ -242,14 +249,7 @@ fun VideoTimelineBar(
                                 val dragMode = when {
                                     distLeft <= handleHitRadiusPx && distLeft <= distRight -> TrimDragMode.LEFT
                                     distRight <= handleHitRadiusPx -> TrimDragMode.RIGHT
-                                    down.position.x in leftHandleCenterX..rightHandleCenterX -> {
-                                        // If window is full (0..100%), pick the closer edge so user can immediately trim from anywhere!
-                                        if (curStart <= 50L && curEnd >= dur - 50L) {
-                                            if (distLeft < distRight) TrimDragMode.LEFT else TrimDragMode.RIGHT
-                                        } else {
-                                            TrimDragMode.WINDOW
-                                        }
-                                    }
+                                    down.position.x in leftHandleCenterX..rightHandleCenterX -> TrimDragMode.PLAYHEAD
                                     distLeft < distRight -> TrimDragMode.LEFT
                                     else -> TrimDragMode.RIGHT
                                 }
@@ -258,34 +258,44 @@ fun VideoTimelineBar(
                                 var workingEnd = curEnd
                                 val minSpanMs = 500L.coerceAtMost(dur)
 
+                                // If user touched inside the trim window, immediately jump playhead to touch position (clamped inside [workingStart..workingEnd])
+                                if (dragMode == TrimDragMode.PLAYHEAD) {
+                                    val initialSeekMs = ((down.position.x / totalWidthPx) * dur).toLong()
+                                        .coerceIn(workingStart, workingEnd)
+                                    currentOnSeekPosition?.invoke(initialSeekMs)
+                                }
+
                                 while (true) {
                                     val event = awaitPointerEvent()
                                     val change = event.changes.firstOrNull { it.pressed } ?: break
                                     val dx = change.positionChange().x
                                     change.consume()
-                                    if (dx != 0f) {
+                                    if (dx != 0f || dragMode == TrimDragMode.PLAYHEAD) {
                                         val deltaMs = ((dx / totalWidthPx) * dur).toLong()
                                         when (dragMode) {
                                             TrimDragMode.LEFT -> {
                                                 workingStart = (workingStart + deltaMs)
                                                     .coerceIn(0L, (workingEnd - minSpanMs).coerceAtLeast(0L))
+                                                currentOnTrimChange(workingStart, workingEnd)
+                                                currentOnSeekPosition?.invoke(workingStart)
                                             }
                                             TrimDragMode.RIGHT -> {
                                                 workingEnd = (workingEnd + deltaMs)
                                                     .coerceIn((workingStart + minSpanMs).coerceAtMost(dur), dur)
+                                                currentOnTrimChange(workingStart, workingEnd)
                                             }
-                                            TrimDragMode.WINDOW -> {
-                                                val windowSpan = (workingEnd - workingStart).coerceAtLeast(minSpanMs)
-                                                val nextS = (workingStart + deltaMs).coerceIn(0L, (dur - windowSpan).coerceAtLeast(0L))
-                                                workingStart = nextS
-                                                workingEnd = (nextS + windowSpan).coerceAtMost(dur)
+                                            TrimDragMode.PLAYHEAD -> {
+                                                val seekMs = ((change.position.x / totalWidthPx) * dur).toLong()
+                                                    .coerceIn(workingStart, workingEnd)
+                                                currentOnSeekPosition?.invoke(seekMs)
                                             }
                                         }
-                                        currentOnTrimChange(workingStart, workingEnd)
                                     }
                                 }
 
-                                currentOnTrimFinished?.invoke(workingStart, workingEnd)
+                                if (dragMode != TrimDragMode.PLAYHEAD) {
+                                    currentOnTrimFinished?.invoke(workingStart, workingEnd)
+                                }
                             } finally {
                                 currentOnDraggingChange?.invoke(false)
                             }
@@ -368,6 +378,21 @@ fun VideoTimelineBar(
                             .background(Color.Black.copy(alpha = 0.7f))
                     )
                 }
+
+                // Vertical Playhead Scrubber Bar strictly clamped inside the left and right trim handles
+                val minPlayheadX = (startFrac * totalWidthPx + visualHandleWidthPx).coerceAtMost(totalWidthPx - playheadWidthPx)
+                val maxPlayheadX = ((endFrac * totalWidthPx) - visualHandleWidthPx - playheadWidthPx).coerceAtLeast(minPlayheadX)
+                val playheadX = (playheadFrac * totalWidthPx - playheadWidthPx * 0.5f).coerceIn(minPlayheadX, maxPlayheadX)
+                Box(
+                    modifier = Modifier
+                        .offset { IntOffset(playheadX.roundToInt(), 0) }
+                        .width(playheadWidthDp)
+                        .fillMaxHeight()
+                        .padding(vertical = 2.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(Color.White)
+                        .border(0.6.dp, Color.Black.copy(alpha = 0.45f), RoundedCornerShape(2.dp))
+                )
             }
         }
     }

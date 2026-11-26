@@ -360,6 +360,13 @@ internal fun ViewerVideoPage(
                 }
             }
 
+            val liveVideoEditState = remember(uriString) {
+                com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getState(uriString)
+            }
+            val liveVideoOverlayBmp = remember(uriString) {
+                com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getOverlayBitmap(uriString)?.asImageBitmap()
+            }
+
             Box(modifier = videoBoxModifier) {
                 AndroidView(
                     factory = { ctx ->
@@ -416,6 +423,35 @@ internal fun ViewerVideoPage(
                     },
                     modifier = Modifier.fillMaxSize()
                 )
+
+                // Render live color adjustments and paint/text overlay across ALL frames of the playing video in fullscreen viewer
+                if (liveVideoEditState != null && liveVideoEditState.hasAnyAdjustments) {
+                    val adj = liveVideoEditState.adjustments
+                    val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.12f).coerceIn(-0.45f, 0.45f)
+                    val warmthAlpha = (adj.warmth * 0.22f).coerceIn(-0.35f, 0.35f)
+                    val contrastDarkAlpha = (adj.contrast * 0.16f - adj.shadows * 0.12f).coerceIn(-0.25f, 0.32f)
+                    if (exposureAlpha > 0.01f) {
+                        Box(modifier = Modifier.fillMaxSize().background(Color.White.copy(alpha = exposureAlpha)))
+                    } else if (exposureAlpha < -0.01f) {
+                        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = -exposureAlpha)))
+                    }
+                    if (warmthAlpha > 0.01f) {
+                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFF9800).copy(alpha = warmthAlpha)))
+                    } else if (warmthAlpha < -0.01f) {
+                        Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2196F3).copy(alpha = -warmthAlpha)))
+                    }
+                    if (contrastDarkAlpha > 0.01f) {
+                        Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = contrastDarkAlpha)))
+                    }
+                }
+                if (liveVideoOverlayBmp != null) {
+                    Image(
+                        bitmap = liveVideoOverlayBmp,
+                        contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
                 if (!isPrepared && previewThumb != null) {
                     Image(
