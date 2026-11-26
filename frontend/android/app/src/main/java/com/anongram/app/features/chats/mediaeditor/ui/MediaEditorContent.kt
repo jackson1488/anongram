@@ -1547,12 +1547,57 @@ private fun EditorVideoPreview(
     }
 
     val adj = editState.adjustments
-    val videoAspect = remember(baseFrameBitmap) {
+    val curves = editState.curves
+    val blur = editState.blur
+
+    // Fast 360px base frame for 60 FPS live Radial / Linear blur mask generation on playing video
+    val fastBlurSrcBitmap = remember(baseFrameBitmap) {
+        baseFrameBitmap?.let { scaleDownBitmapForInteractivePreview(it, maxDim = 360) }
+    }
+    var liveBlurOverlayBitmap by remember(item.uri) { mutableStateOf<ImageBitmap?>(null) }
+
+    LaunchedEffect(
+        fastBlurSrcBitmap,
+        blur.mode,
+        blur.centerX,
+        blur.centerY,
+        blur.radius,
+        blur.angleDegrees,
+        blur.intensity,
+        adj,
+        curves
+    ) {
+        if (blur.mode == com.anongram.app.features.chats.mediaeditor.model.BlurMode.OFF || blur.intensity <= 0.02f || fastBlurSrcBitmap == null) {
+            liveBlurOverlayBitmap = null
+        } else {
+            liveBlurOverlayBitmap = withContext(Dispatchers.Default) {
+                PhotoFilterEngine.buildSelectiveBlurOverlayBitmap(fastBlurSrcBitmap, editState)?.asImageBitmap()
+            }
+        }
+    }
+
+    val curveAllBias = remember(curves.allPoints) {
+        PhotoFilterEngine.computeCurveChannelBias(curves.allPoints)
+    }
+    val curveRedBias = remember(curves.redPoints) {
+        PhotoFilterEngine.computeCurveChannelBias(curves.redPoints)
+    }
+    val curveGreenBias = remember(curves.greenPoints) {
+        PhotoFilterEngine.computeCurveChannelBias(curves.greenPoints)
+    }
+    val curveBlueBias = remember(curves.bluePoints) {
+        PhotoFilterEngine.computeCurveChannelBias(curves.bluePoints)
+    }
+
+    val baseVideoAspect = remember(baseFrameBitmap) {
         val bmp = baseFrameBitmap
         if (bmp != null && bmp.width > 0 && bmp.height > 0) {
             (bmp.width.toFloat() / bmp.height.toFloat()).coerceIn(0.25f, 4f)
         } else 9f / 16f
     }
+    val isSwapped90 = ((editState.crop.baseRotation90 / 90) % 2 + 2) % 2 != 0
+    val displayVideoAspect = if (isSwapped90) 1f / baseVideoAspect else baseVideoAspect
+    val rot90VideoComp = if (isSwapped90) maxOf(baseVideoAspect, 1f / baseVideoAspect) else 1f
 
     Box(
         modifier = modifier
@@ -1569,16 +1614,7 @@ private fun EditorVideoPreview(
     ) {
         Box(
             modifier = Modifier
-                .aspectRatio(videoAspect, matchHeightConstraintsFirst = videoAspect < 1f)
-                .graphicsLayer {
-                    rotationZ = editState.crop.baseRotation90.toFloat() + editState.crop.straightenDegrees
-                    val mirrorSign = if (editState.crop.mirrorHorizontal) -1f else 1f
-                    val cropScaleX = (1f / editState.crop.cropRect.width).coerceIn(1f, 3.5f)
-                    val cropScaleY = (1f / editState.crop.cropRect.height).coerceIn(1f, 3.5f)
-                    val cropZoom = maxOf(cropScaleX, cropScaleY)
-                    scaleX = mirrorSign * cropZoom
-                    scaleY = cropZoom
-                }
+                .aspectRatio(displayVideoAspect, matchHeightConstraintsFirst = displayVideoAspect < 1f)
                 .clip(RoundedCornerShape(2.dp)),
             contentAlignment = Alignment.Center
         ) {
@@ -1603,7 +1639,17 @@ private fun EditorVideoPreview(
                         videoViewRef = this
                     }
                 },
-                modifier = Modifier.fillMaxSize()
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer {
+                        rotationZ = editState.crop.baseRotation90.toFloat() + editState.crop.straightenDegrees
+                        val mirrorSign = if (editState.crop.mirrorHorizontal) -1f else 1f
+                        val cropScaleX = (1f / editState.crop.cropRect.width).coerceIn(1f, 3.5f)
+                        val cropScaleY = (1f / editState.crop.cropRect.height).coerceIn(1f, 3.5f)
+                        val cropZoom = maxOf(cropScaleX, cropScaleY) * rot90VideoComp
+                        scaleX = mirrorSign * cropZoom
+                        scaleY = cropZoom
+                    }
             )
 
             // Show custom cover image ONLY when paused in MAIN mode and user explicitly set a custom cover
@@ -1616,9 +1662,24 @@ private fun EditorVideoPreview(
                 )
             }
 
-            // Live color/contrast/exposure/warmth/saturation/fade/vignette overlay across ALL playing or paused video frames!
+            // 1. Live Droplet Blur (Radial / Linear Blur) overlay across ALL playing video frames!
+            if (liveBlurOverlayBitmap != null) {
+                Image(
+                    bitmap = liveBlurOverlayBitmap!!,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // 2. Live Sliders + Tone Curves (ALL, RED, GREEN, BLUE) color grading across ALL playing video frames!
             if (editState.hasAnyAdjustments) {
-                val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.12f + adj.highlights * 0.10f).coerceIn(-0.48f, 0.48f)
+                val exposureAlpha = (
+                    adj.exposure * 0.28f +
+                        adj.enhance * 0.12f +
+                        adj.highlights * 0.10f +
+                        curveAllBias * 0.75f
+                    ).coerceIn(-0.55f, 0.55f)
                 val warmthAlpha = (adj.warmth * 0.24f).coerceIn(-0.38f, 0.38f)
                 val contrastDarkAlpha = (adj.contrast * 0.18f - adj.shadows * 0.14f).coerceIn(-0.30f, 0.35f)
                 val saturationAlpha = (adj.saturation * 0.18f).coerceIn(-0.35f, 0.35f)
@@ -1682,6 +1743,27 @@ private fun EditorVideoPreview(
                             .fillMaxSize()
                             .background(Color(0xFFE0E0E0).copy(alpha = fadeAlpha))
                     )
+                }
+
+                // Tone Curves RGB channel tinting (RED / GREEN / BLUE) across all playing video frames
+                val rShift = (curveRedBias * 0.85f).coerceIn(-0.55f, 0.55f)
+                val gShift = (curveGreenBias * 0.85f).coerceIn(-0.55f, 0.55f)
+                val bShift = (curveBlueBias * 0.85f).coerceIn(-0.55f, 0.55f)
+
+                if (rShift > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFF1744).copy(alpha = rShift)))
+                } else if (rShift < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF00E5FF).copy(alpha = -rShift * 0.75f)))
+                }
+                if (gShift > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF00E676).copy(alpha = gShift)))
+                } else if (gShift < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFD500F9).copy(alpha = -gShift * 0.75f)))
+                }
+                if (bShift > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2979FF).copy(alpha = bShift)))
+                } else if (bShift < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFEA00).copy(alpha = -bShift * 0.75f)))
                 }
             }
 

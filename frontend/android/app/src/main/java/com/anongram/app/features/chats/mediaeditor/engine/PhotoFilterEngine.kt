@@ -392,4 +392,83 @@ object PhotoFilterEngine {
 
         return work
     }
+
+    /**
+     * Генерирует полупрозрачную маску размытия (Капля: Радиальное / Линейное) из кадра видео (или градиентного буфера),
+     * где в центре фокуса `alpha = 0` (видно чёткое живое видео), а за пределами радиуса `alpha -> intensity`
+     * с реальным размытием и цветокоррекцией/кривыми.
+     */
+    fun buildSelectiveBlurOverlayBitmap(source: Bitmap?, state: PhotoEditState): Bitmap? {
+        val blur = state.blur
+        if (blur.mode == BlurMode.OFF || blur.intensity <= 0.02f) return null
+        val base = source ?: return null
+        val w = base.width
+        val h = base.height
+        if (w <= 0 || h <= 0) return null
+
+        // First apply color adjustments & tone curves to a copy so the blurred outer region matches the video's color grading
+        val stateWithoutBlur = state.copy(blur = blur.copy(mode = BlurMode.OFF))
+        val colorGraded = if (stateWithoutBlur.adjustments.isModified || stateWithoutBlur.curves.isModified) {
+            applyPixelPipeline(base, stateWithoutBlur)
+        } else {
+            base
+        }
+
+        val pixels = IntArray(w * h)
+        colorGraded.getPixels(pixels, 0, w, 0, 0, w, h)
+        val radius = (7 + (blur.intensity * 14)).toInt().coerceIn(4, 22)
+        val pass1 = fastBoxBlur(pixels, w, h, radius = radius)
+        val blurred = fastBoxBlur(pass1, w, h, radius = radius)
+
+        val cx = blur.centerX * w
+        val cy = blur.centerY * h
+        val minDim = minOf(w, h).toFloat().coerceAtLeast(1f)
+        val focusR = (blur.radius * minDim).coerceAtLeast(10f)
+        val feather = (focusR * 0.50f).coerceAtLeast(16f)
+        val rad = Math.toRadians(blur.angleDegrees.toDouble())
+        val cosA = cos(rad).toFloat()
+        val sinA = sin(rad).toFloat()
+        val maxAlphaStrength = (0.35f + blur.intensity * 0.65f).coerceIn(0f, 1f)
+
+        val outPixels = IntArray(w * h)
+        for (y in 0 until h) {
+            val row = y * w
+            val dy = y - cy
+            for (x in 0 until w) {
+                val dx = x - cx
+                val dist = when (blur.mode) {
+                    BlurMode.RADIAL -> sqrt(dx * dx + dy * dy)
+                    BlurMode.LINEAR -> abs(-dx * sinA + dy * cosA)
+                    BlurMode.OFF -> 0f
+                }
+                val t = (((dist - focusR) / feather).coerceIn(0f, 1f) * maxAlphaStrength).coerceIn(0f, 1f)
+                if (t > 0.005f) {
+                    val b = blurred[row + x]
+                    val a = (t * 255f).toInt().coerceIn(0, 255)
+                    // Premultiplied or ARGB_8888 pixel with alpha = a
+                    outPixels[row + x] = (a shl 24) or (b and 0x00FFFFFF)
+                } else {
+                    outPixels[row + x] = 0x00000000
+                }
+            }
+        }
+        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        out.setPixels(outPixels, 0, w, 0, 0, w, h)
+        return out
+    }
+
+    /**
+     * Вычисляет суммарный сдвиг канала кривой (-1f..+1f) относительно диагонали `y = x`,
+     * чтобы кривые (ALL, RED, GREEN, BLUE) в реальном времени окрашивали все кадры воспроизводимого видео.
+     */
+    fun computeCurveChannelBias(points: List<CurvePoint>): Float {
+        if (points == ToneCurvesState.defaultPoints || points.isEmpty()) return 0f
+        val lut = buildCurveLut(points)
+        var sumDiff = 0f
+        for (i in 0..255) {
+            sumDiff += (lut[i] - i) / 255f
+        }
+        return (sumDiff / 256f).coerceIn(-1f, 1f)
+    }
 }
+

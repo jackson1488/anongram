@@ -402,21 +402,35 @@ private fun ChatInputAndMediaOverlays(
         )
     }
 
-    // Редактор фото из полноэкранного просмотра в чате (своё -> замена, собеседника -> отправка от моего имени)
+    // Редактор фото/видео из полноэкранного просмотра в чате (своё -> замена, собеседника -> отправка от моего имени)
     viewerEditTarget?.let { (msg, uriStr) ->
         val parsedUri = runCatching { Uri.parse(uriStr) }.getOrNull()
         if (parsedUri != null) {
+            val isVid = when (val att = msg.attachment) {
+                is MessageAttachment.Photo -> att.isVideo
+                is MessageAttachment.MediaAlbum -> att.items.firstOrNull { it.uri == uriStr }?.isVideo == true
+                else -> false
+            }
+            val prevEditState = com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getState(uriStr)
+                ?: com.anongram.app.features.chats.mediaeditor.model.PhotoEditState()
             MediaEditorScreen(
-                items = listOf(EditableMediaItem(uri = parsedUri, isVideo = false)),
+                items = listOf(
+                    EditableMediaItem(
+                        uri = parsedUri,
+                        isVideo = isVid,
+                        editState = prevEditState
+                    )
+                ),
                 recipientName = session.title,
                 onSend = { editedList ->
                     val edited = editedList.firstOrNull()
                     if (edited != null) {
                         val photoAtt = MessageAttachment.Photo(
-                            label = "Фото",
+                            label = if (edited.isVideo) "Видео" else "Фото",
                             colorSeed = 0,
-                            isVideo = false,
-                            uri = edited.uri.toString()
+                            isVideo = edited.isVideo,
+                            uri = edited.uri.toString(),
+                            coverUri = edited.coverUri?.toString()
                         )
                         if (msg.direction == MessageDirection.OUTGOING) {
                             viewModel.startEdit(msg)
@@ -443,7 +457,7 @@ private fun ChatInputAndMediaOverlays(
         }
     }
 
-    // Редактор фото/видео по кнопке кисточки в FusedEditBar (редактирование сообщения)
+    // Редактор фото/видео по кнопке кисточки в FusedEditBar (повторное редактирование сообщения)
     val editingMsg = state.editing
     if (isEditMediaEditorOpen && editingMsg != null) {
         val (editUriStr, editIsVideo) = when (val att = editingMsg.attachment) {
@@ -456,12 +470,20 @@ private fun ChatInputAndMediaOverlays(
         }
         val parsedUri = editUriStr?.let { runCatching { Uri.parse(it) }.getOrNull() }
         if (parsedUri != null) {
+            // Reset crop rotation to 0 if the video file at parsedUri already has the rotation remuxed into its container,
+            // while preserving any live strokes, text, adjustments, curves, and blur from VideoLiveEditRegistry!
+            val prevState = com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getState(editUriStr)
+            val initialEditState = prevState?.copy(
+                crop = prevState.crop.copy(baseRotation90 = 0)
+            ) ?: com.anongram.app.features.chats.mediaeditor.model.PhotoEditState()
+
             MediaEditorScreen(
                 items = listOf(
                     EditableMediaItem(
                         uri = parsedUri,
                         isVideo = editIsVideo,
-                        caption = state.input
+                        caption = state.input,
+                        editState = initialEditState
                     )
                 ),
                 recipientName = session.title,

@@ -854,6 +854,9 @@ internal fun ChatRealPhotoBox(
         val liveVideoOverlayBmp = remember(uriString, isVideo) {
             if (isVideo) com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getOverlayBitmap(uriString)?.asImageBitmap() else null
         }
+        val liveVideoBlurMaskBmp = remember(uriString, isVideo) {
+            if (isVideo) com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.getBlurMaskBitmap(uriString)?.asImageBitmap() else null
+        }
 
         if (isVideo && !showSpoiler && !isUploading && allowVideoAutoplay && parsedUri != null) {
             InlineMutedVideoPreview(
@@ -873,10 +876,26 @@ internal fun ChatRealPhotoBox(
                 modifier = Modifier.fillMaxSize()
             )
 
-            // Apply live color adjustments and paint/text overlay across ALL frames of the playing video in the bubble!
+            // 1. Live Droplet Blur (Radial / Linear) mask across ALL playing video frames in the chat bubble
+            if (liveVideoBlurMaskBmp != null) {
+                Image(
+                    bitmap = liveVideoBlurMaskBmp,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            // 2. Live color adjustments + Tone Curves (ALL / RED / GREEN / BLUE) across ALL playing video frames in the bubble!
             if (liveVideoEditState != null && liveVideoEditState.hasAnyAdjustments) {
                 val adj = liveVideoEditState.adjustments
-                val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.12f).coerceIn(-0.45f, 0.45f)
+                val curves = liveVideoEditState.curves
+                val curveAll = com.anongram.app.features.chats.mediaeditor.engine.PhotoFilterEngine.computeCurveChannelBias(curves.allPoints)
+                val curveRed = com.anongram.app.features.chats.mediaeditor.engine.PhotoFilterEngine.computeCurveChannelBias(curves.redPoints)
+                val curveGreen = com.anongram.app.features.chats.mediaeditor.engine.PhotoFilterEngine.computeCurveChannelBias(curves.greenPoints)
+                val curveBlue = com.anongram.app.features.chats.mediaeditor.engine.PhotoFilterEngine.computeCurveChannelBias(curves.bluePoints)
+
+                val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.12f + curveAll * 0.75f).coerceIn(-0.52f, 0.52f)
                 val warmthAlpha = (adj.warmth * 0.22f).coerceIn(-0.35f, 0.35f)
                 val contrastDarkAlpha = (adj.contrast * 0.16f - adj.shadows * 0.12f).coerceIn(-0.25f, 0.32f)
                 if (exposureAlpha > 0.01f) {
@@ -891,6 +910,25 @@ internal fun ChatRealPhotoBox(
                 }
                 if (contrastDarkAlpha > 0.01f) {
                     Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = contrastDarkAlpha)))
+                }
+
+                val rShift = (curveRed * 0.85f).coerceIn(-0.52f, 0.52f)
+                val gShift = (curveGreen * 0.85f).coerceIn(-0.52f, 0.52f)
+                val bShift = (curveBlue * 0.85f).coerceIn(-0.52f, 0.52f)
+                if (rShift > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFF1744).copy(alpha = rShift)))
+                } else if (rShift < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF00E5FF).copy(alpha = -rShift * 0.75f)))
+                }
+                if (gShift > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF00E676).copy(alpha = gShift)))
+                } else if (gShift < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFD500F9).copy(alpha = -gShift * 0.75f)))
+                }
+                if (bShift > 0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFF2979FF).copy(alpha = bShift)))
+                } else if (bShift < -0.01f) {
+                    Box(modifier = Modifier.fillMaxSize().background(Color(0xFFFFEA00).copy(alpha = -bShift * 0.75f)))
                 }
             }
             if (liveVideoOverlayBmp != null) {

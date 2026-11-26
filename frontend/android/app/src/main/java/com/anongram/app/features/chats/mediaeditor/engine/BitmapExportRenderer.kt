@@ -92,20 +92,11 @@ object BitmapExportRenderer {
                 transparentOverlayBmp = renderOverlayLayers(context, emptyCanvasBmp, item.editState)
             }
         }
-        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
-            uriString = finalUri.toString(),
-            state = item.editState,
-            overlayBitmap = transparentOverlayBmp
-        )
-        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
-            uriString = item.uri.toString(),
-            state = item.editState,
-            overlayBitmap = transparentOverlayBmp
-        )
 
         // Only bake a static coverUri if the user explicitly picked a custom cover (item.coverUri != null),
         // and update the quick thumbnail cache for instant 0ms first-frame display before video autoplay starts.
         var finalCoverUri = item.coverUri
+        var blurMaskBmp: Bitmap? = null
         if (hasVisualEdits || item.coverUri != null) {
             runCatching {
                 val baseFrame = if (item.coverUri != null) {
@@ -123,6 +114,9 @@ object BitmapExportRenderer {
                 }
                 if (baseFrame != null) {
                     var working = PhotoFilterEngine.applyCropAndTransform(baseFrame, item.editState)
+                    if (item.editState.blur.isModified) {
+                        blurMaskBmp = PhotoFilterEngine.buildSelectiveBlurOverlayBitmap(working, item.editState)
+                    }
                     if (PhotoFilterEngine.needsPixelPipeline(item.editState)) {
                         working = PhotoFilterEngine.applyPixelPipeline(working, item.editState)
                     }
@@ -148,6 +142,19 @@ object BitmapExportRenderer {
                 }
             }
         }
+
+        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
+            uriString = finalUri.toString(),
+            state = item.editState,
+            overlayBitmap = transparentOverlayBmp,
+            blurMaskBitmap = blurMaskBmp
+        )
+        com.anongram.app.features.chats.mediaeditor.model.VideoLiveEditRegistry.put(
+            uriString = item.uri.toString(),
+            state = item.editState,
+            overlayBitmap = transparentOverlayBmp,
+            blurMaskBitmap = blurMaskBmp
+        )
 
         return EditedMedia(
             uri = finalUri,

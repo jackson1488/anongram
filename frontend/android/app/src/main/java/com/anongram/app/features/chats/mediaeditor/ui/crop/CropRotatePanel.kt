@@ -82,8 +82,8 @@ fun CropRotatePanel(
     val strings = MediaEditorI18n.current
     val density = LocalDensity.current
 
-    var draft by remember(initialTransform) { mutableStateOf(initialTransform) }
-    var cumulativeRotation90 by remember(initialTransform) {
+    var draft by remember { mutableStateOf(initialTransform) }
+    var cumulativeRotation90 by remember {
         mutableFloatStateOf(initialTransform.baseRotation90.toFloat())
     }
     var isDraggingCrop by remember { mutableStateOf(false) }
@@ -121,17 +121,22 @@ fun CropRotatePanel(
             contentAlignment = Alignment.Center
         ) {
             if (bitmap != null && boxSize.width > 0 && boxSize.height > 0) {
-                val aspect = bitmap.width.toFloat() / bitmap.height.toFloat().coerceAtLeast(1f)
-                val swapped = (draft.baseRotation90 / 90) % 2 != 0
+                val aspect = (bitmap.width.toFloat() / bitmap.height.toFloat().coerceAtLeast(1f)).coerceIn(0.2f, 5f)
+                val swapped = ((draft.baseRotation90 / 90) % 2 + 2) % 2 != 0
                 val displayAspect = if (swapped) 1f / aspect else aspect
 
                 val fittedRect = remember(boxSize, displayAspect) {
                     computeFittedRect(boxSize, displayAspect)
                 }
 
+                // When rotated 90° or 270°, ContentScale.Fit inside fittedRect (which has swapped aspect)
+                // scales the unrotated bitmap down by min(aspect, 1/aspect). Multiply by max(aspect, 1/aspect)
+                // so the rotated image fills fittedRect 1:1 at all 4 orientations (0°, 90°, 180°, 270°)!
+                val rot90Compensation = if (swapped) maxOf(aspect, 1f / aspect) else 1f
                 val rad = Math.toRadians(abs(draft.straightenDegrees).toDouble())
-                val autoZoom = (cos(rad) + sin(rad) * maxOf(displayAspect, 1f / displayAspect)).toFloat()
+                val straightenZoom = (cos(rad) + sin(rad) * maxOf(displayAspect, 1f / displayAspect)).toFloat()
                     .coerceIn(1f, 1.85f)
+                val totalScale = rot90Compensation * straightenZoom
 
                 Box(
                     modifier = Modifier
@@ -149,8 +154,8 @@ fun CropRotatePanel(
                                 .fillMaxSize()
                                 .graphicsLayer {
                                     rotationZ = animatedBaseRotation + draft.straightenDegrees
-                                    scaleX = animatedMirrorScale * autoZoom
-                                    scaleY = autoZoom
+                                    scaleX = animatedMirrorScale * totalScale
+                                    scaleY = totalScale
                                 }
                         )
                     }
@@ -171,17 +176,17 @@ fun CropRotatePanel(
                                         val t = r.top * h
                                         val ri = r.right * w
                                         val b = r.bottom * h
-                                        val hitR = 36.dp.toPx()
+                                        val hitR = 44.dp.toPx()
 
                                         activeHandle = when {
                                             (offset - Offset(l, t)).getDistance() <= hitR -> DragTarget.TOP_LEFT
                                             (offset - Offset(ri, t)).getDistance() <= hitR -> DragTarget.TOP_RIGHT
                                             (offset - Offset(l, b)).getDistance() <= hitR -> DragTarget.BOTTOM_LEFT
                                             (offset - Offset(ri, b)).getDistance() <= hitR -> DragTarget.BOTTOM_RIGHT
-                                            abs(offset.x - l) <= hitR && offset.y in t..b -> DragTarget.LEFT
-                                            abs(offset.x - ri) <= hitR && offset.y in t..b -> DragTarget.RIGHT
-                                            abs(offset.y - t) <= hitR && offset.x in l..ri -> DragTarget.TOP
-                                            abs(offset.y - b) <= hitR && offset.x in l..ri -> DragTarget.BOTTOM
+                                            abs(offset.x - l) <= hitR && offset.y in (t - hitR)..(b + hitR) -> DragTarget.LEFT
+                                            abs(offset.x - ri) <= hitR && offset.y in (t - hitR)..(b + hitR) -> DragTarget.RIGHT
+                                            abs(offset.y - t) <= hitR && offset.x in (l - hitR)..(ri + hitR) -> DragTarget.TOP
+                                            abs(offset.y - b) <= hitR && offset.x in (l - hitR)..(ri + hitR) -> DragTarget.BOTTOM
                                             offset.x in l..ri && offset.y in t..b -> DragTarget.MOVE
                                             else -> DragTarget.NONE
                                         }

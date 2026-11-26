@@ -80,17 +80,31 @@ data class PhotoEditState(
 object VideoLiveEditRegistry {
     private val statesByUri = java.util.concurrent.ConcurrentHashMap<String, PhotoEditState>()
     private val overlayBitmapsByUri = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
+    private val blurMaskBitmapsByUri = java.util.concurrent.ConcurrentHashMap<String, android.graphics.Bitmap>()
 
-    fun put(uriString: String, state: PhotoEditState, overlayBitmap: android.graphics.Bitmap? = null) {
+    fun put(
+        uriString: String,
+        state: PhotoEditState,
+        overlayBitmap: android.graphics.Bitmap? = null,
+        blurMaskBitmap: android.graphics.Bitmap? = null
+    ) {
         if (uriString.isBlank()) return
         if (state.hasAnyVideoOverlayOrFilter) {
             statesByUri[uriString] = state
             if (overlayBitmap != null) {
                 overlayBitmapsByUri[uriString] = overlayBitmap
+            } else {
+                overlayBitmapsByUri.remove(uriString)
+            }
+            if (blurMaskBitmap != null) {
+                blurMaskBitmapsByUri[uriString] = blurMaskBitmap
+            } else {
+                blurMaskBitmapsByUri.remove(uriString)
             }
         } else {
             statesByUri.remove(uriString)
             overlayBitmapsByUri.remove(uriString)
+            blurMaskBitmapsByUri.remove(uriString)
         }
     }
 
@@ -102,6 +116,11 @@ object VideoLiveEditRegistry {
     fun getOverlayBitmap(uriString: String?): android.graphics.Bitmap? {
         if (uriString.isNullOrBlank()) return null
         return overlayBitmapsByUri[uriString]
+    }
+
+    fun getBlurMaskBitmap(uriString: String?): android.graphics.Bitmap? {
+        if (uriString.isNullOrBlank()) return null
+        return blurMaskBitmapsByUri[uriString]
     }
 }
 
