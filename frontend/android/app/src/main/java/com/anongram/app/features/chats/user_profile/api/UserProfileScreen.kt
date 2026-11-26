@@ -338,12 +338,11 @@ fun UserProfileScreen(
                                 isExpandedHero = true
                             }
                         },
-                        overlayActions = if (hasRealAvatar && isExpandedHero) {
-                            {
-                                UserProfileActionsRow(
-                                    isMuted = isMutedLocal,
-                                    strings = strings,
-                                    hazeState = hazeState,
+                        overlayActions = { actionHaze ->
+                            UserProfileActionsRow(
+                                isMuted = isMutedLocal,
+                                strings = strings,
+                                hazeState = actionHaze,
                                     isMuteMenuExpanded = isMuteMenuOpen,
                                     onDismissMuteMenu = { isMuteMenuOpen = false },
                                     onEnableSound = {
@@ -373,48 +372,8 @@ fun UserProfileScreen(
                                         showBanner(Icons.Outlined.Call, strings.callSoonToast)
                                     }
                                 )
-                            }
-                        } else null
+                        }
                     )
-                }
-
-                if (!(hasRealAvatar && isExpandedHero)) {
-                    item(key = "actions_row") {
-                        UserProfileActionsRow(
-                            isMuted = isMutedLocal,
-                            strings = strings,
-                            hazeState = hazeState,
-                            isMuteMenuExpanded = isMuteMenuOpen,
-                            onDismissMuteMenu = { isMuteMenuOpen = false },
-                            onEnableSound = {
-                                val nowMuted = !isMutedLocal
-                                isMutedLocal = nowMuted
-                                onToggleMute()
-                                showBanner(
-                                    if (nowMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.VolumeUp,
-                                    if (nowMuted) strings.mutedForeverToast else strings.unmutedSoundToast
-                                )
-                            },
-                            onOpenMuteDrum = { isMuteDrumOpen = true },
-                            onOpenMuteSettings = { isNotificationSettingsOpen = true },
-                            onMuteForever = {
-                                if (!isMutedLocal) {
-                                    isMutedLocal = true
-                                    onToggleMute()
-                                }
-                                showBanner(Icons.Outlined.NotificationsOff, strings.mutedForeverToast)
-                            },
-                            onChatClick = onBack,
-                            onMuteToggle = { isMuteMenuOpen = true },
-                            onCallClick = {
-                                showBanner(Icons.Outlined.Call, strings.callSoonToast)
-                            },
-                            onVideoClick = {
-                                showBanner(Icons.Outlined.Call, strings.callSoonToast)
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                    }
                 }
 
                 item(key = "info_card") {

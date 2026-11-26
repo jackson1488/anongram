@@ -269,7 +269,7 @@ internal fun UserProfileHeroHeader(
     currentAvatarIndex: Int = 0,
     onSelectAvatarIndex: (Int) -> Unit = {},
     onOpenFullscreen: () -> Unit = onToggleExpand,
-    overlayActions: (@Composable () -> Unit)? = null,
+    overlayActions: (@Composable (HazeState) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val scheme = LocalAnonGramScheme.current
@@ -354,35 +354,12 @@ internal fun UserProfileHeroHeader(
                     modifier = Modifier
                         .align(Alignment.BottomStart)
                         .fillMaxWidth()
-                        .hazeEffect(
-                            state = heroHaze,
-                            style = HazeStyle(
-                                backgroundColor = scheme.background.copy(alpha = 0.25f),
-                                tint = HazeTint(color = scheme.background.copy(alpha = 0.55f)),
-                                blurRadius = 24.dp,
-                                noiseFactor = 0.02f
-                            )
-                        ) {
-                            progressive = HazeProgressive.verticalGradient(
-                                startIntensity = 0f,
-                                endIntensity = 1f
-                            )
-                        }
-                        .background(
-                            Brush.verticalGradient(
-                                colors = listOf(
-                                    Color.Transparent,
-                                    scheme.background.copy(alpha = 0.65f),
-                                    scheme.background
-                                )
-                            )
-                        )
                         .padding(top = 36.dp, bottom = 14.dp)
                 ) {
                     Column(modifier = Modifier.padding(horizontal = 18.dp)) {
                         Text(
                             text = session.title,
-                            color = scheme.textPrimary,
+                            color = Color.White,
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
@@ -395,19 +372,19 @@ internal fun UserProfileHeroHeader(
                         ) {
                             Text(
                                 text = statusText,
-                                color = if (session.isOnline) scheme.accent else scheme.textSecondary,
+                                color = if (session.isOnline) scheme.accent else Color.White.copy(alpha = 0.82f),
                                 fontSize = 13.5.sp
                             )
                             if (!session.isOnline) {
                                 Box(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(10.dp))
-                                        .background(scheme.card.copy(alpha = 0.72f))
+                                        .background(Color.Black.copy(alpha = 0.35f))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = strings.whenQuestion,
-                                        color = scheme.textSecondary,
+                                        color = Color.White.copy(alpha = 0.88f),
                                         fontSize = 11.5.sp
                                     )
                                 }
@@ -416,7 +393,7 @@ internal fun UserProfileHeroHeader(
                     }
                     if (overlayActions != null) {
                         Spacer(modifier = Modifier.height(14.dp))
-                        overlayActions()
+                        overlayActions(heroHaze)
                     }
                 }
             }
@@ -424,10 +401,13 @@ internal fun UserProfileHeroHeader(
             val peerAppearance = remember(session.id) {
                 com.anongram.app.features.profile.appearance.ProfileAppearanceStore.appearanceForPeer(session.id)
             }
+            val collapsedCoverHaze = remember { HazeState() }
             Box(modifier = Modifier.fillMaxWidth()) {
                 com.anongram.app.features.profile.appearance.ProfileCoverBackdrop(
                     appearance = peerAppearance,
-                    modifier = Modifier.matchParentSize()
+                    modifier = Modifier
+                        .matchParentSize()
+                        .hazeSource(state = collapsedCoverHaze)
                 )
                 Column(
                     modifier = Modifier
@@ -512,9 +492,13 @@ internal fun UserProfileHeroHeader(
                             }
                         }
                     }
+                    if (overlayActions != null) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        overlayActions(collapsedCoverHaze)
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 }

@@ -63,7 +63,7 @@ fun Modifier.settingsGlassPill(
 ): Modifier {
     val scheme = LocalAnonGramScheme.current
     val pillBorderBrush = com.anongram.app.core.theme.rememberRainbowBorderBrush(scheme)
-    val baseTint = tintOverride ?: scheme.surface
+    val baseTint = tintOverride ?: if (scheme.isDark) Color.White else scheme.surface
     val pillModifier = if (glassBlurEnabled) {
         Modifier
             .clip(shape)
@@ -73,11 +73,11 @@ fun Modifier.settingsGlassPill(
                     backgroundColor = Color.Transparent,
                     tint = HazeTint(
                         color = baseTint.copy(
-                            alpha = if (tintOverride != null) 0.26f else if (scheme.isDark) 0.34f else 0.45f
+                            alpha = if (tintOverride != null) 0.16f else if (scheme.isDark) 0.14f else 0.22f
                         )
                     ),
-                    blurRadius = 22.dp,
-                    noiseFactor = 0.02f
+                    blurRadius = 24.dp,
+                    noiseFactor = 0.03f
                 )
             )
             .border(0.8.dp, pillBorderBrush, shape)
