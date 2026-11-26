@@ -563,6 +563,7 @@ fun ProfileScreen(
                             }
                         }
                     }
+                    }
 
                     // 2. Три быстрые кнопки (когда hero не раскрыт)
                     if (!(isExpandedHero && hasMediaAvatar)) {
