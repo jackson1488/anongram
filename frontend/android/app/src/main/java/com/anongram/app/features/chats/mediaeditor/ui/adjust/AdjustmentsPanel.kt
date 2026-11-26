@@ -1,8 +1,11 @@
 package com.anongram.app.features.chats.mediaeditor.ui.adjust
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,15 +28,19 @@ import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +52,7 @@ import com.anongram.app.features.chats.mediaeditor.model.BlurMode
 import com.anongram.app.features.chats.mediaeditor.model.CurveChannel
 import com.anongram.app.features.chats.mediaeditor.model.PhotoAdjustments
 import com.anongram.app.features.chats.mediaeditor.model.ToneCurvesState
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 enum class AdjustSubTab {
@@ -92,23 +100,23 @@ fun AdjustmentsPanel(
                 Brush.verticalGradient(
                     listOf(
                         Color.Transparent,
-                        Color.Black.copy(alpha = 0.86f),
-                        Color.Black.copy(alpha = 0.96f)
+                        Color.Black.copy(alpha = 0.88f),
+                        Color.Black.copy(alpha = 0.97f)
                     )
                 )
             )
             .navigationBarsPadding()
-            .padding(top = 14.dp, bottom = 6.dp)
+            .padding(top = 12.dp, bottom = 6.dp)
     ) {
         when (activeTab) {
             AdjustSubTab.SLIDERS -> {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(190.dp)
+                        .height(195.dp)
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(horizontal = 22.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     SliderParam.entries.forEach { param ->
                         val curVal = getParamValue(adjustments, param)
@@ -132,20 +140,17 @@ fun AdjustmentsPanel(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                            Slider(
+                            TelegramMinimalSlider(
                                 value = curVal,
+                                min = param.min,
+                                max = param.max,
+                                accentColor = scheme.accent,
                                 onValueChange = { v ->
                                     onAdjustmentsChange(setParamValue(adjustments, param, v))
                                 },
-                                valueRange = param.min..param.max,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = scheme.accent,
-                                    activeTrackColor = scheme.accent,
-                                    inactiveTrackColor = Color.White.copy(alpha = 0.22f)
-                                ),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .height(32.dp)
+                                    .height(26.dp)
                             )
                         }
                     }
@@ -156,7 +161,7 @@ fun AdjustmentsPanel(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -191,28 +196,49 @@ fun AdjustmentsPanel(
                 }
 
                 if (blur.mode != BlurMode.OFF) {
-                    Slider(
-                        value = blur.intensity,
-                        onValueChange = { onBlurChange(blur.copy(intensity = it)) },
-                        valueRange = 0.1f..1f,
-                        colors = SliderDefaults.colors(
-                            thumbColor = scheme.accent,
-                            activeTrackColor = scheme.accent,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.22f)
-                        ),
+                    Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 24.dp)
-                    )
+                            .padding(horizontal = 24.dp, vertical = 4.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = strings.blurIntensity,
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "${(blur.intensity * 100f).roundToInt()}",
+                                color = scheme.accent,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        TelegramMinimalSlider(
+                            value = blur.intensity,
+                            min = 0.05f,
+                            max = 1f,
+                            accentColor = scheme.accent,
+                            onValueChange = { onBlurChange(blur.copy(intensity = it)) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(28.dp)
+                        )
+                    }
                 }
             }
 
             AdjustSubTab.CURVES -> {
-                // 4 circular radio indicators with labels below (matching Telegram screenshot 2)
+                // 4 circular radio indicators with labels below + Reset current channel button
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 14.dp),
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -254,6 +280,28 @@ fun AdjustmentsPanel(
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
                             )
                         }
+                    }
+
+                    if (curves.isModified) {
+                        Text(
+                            text = strings.curveResetChannel,
+                            color = scheme.textSecondary,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(scheme.islandBg)
+                                .border(1.dp, scheme.islandBorder, RoundedCornerShape(14.dp))
+                                .clickable {
+                                    onCurvesChange(
+                                        curves.withPoints(
+                                            curves.activeChannel,
+                                            ToneCurvesState.defaultPoints()
+                                        )
+                                    )
+                                }
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        )
                     }
                 }
             }
@@ -319,6 +367,113 @@ fun AdjustmentsPanel(
                     .padding(horizontal = 10.dp, vertical = 6.dp)
             )
         }
+    }
+}
+
+/**
+ * Чистый минималистичный ползунок в стиле Telegram:
+ * - Тонкая аккуратная дорожка 2.dp
+ * - Для двусторонних параметров (-1..+1) активная полоса растёт из центра (0) влево или вправо
+ * - Для односторонних параметров (0..1) активная полоса растёт слева направо
+ * - Двойной тап по ползунку мгновенно сбрасывает значение в 0
+ * - Использует detectHorizontalDragGestures, поэтому никогда не конфликтует с вертикальным скроллом списка!
+ */
+@Composable
+private fun TelegramMinimalSlider(
+    value: Float,
+    min: Float,
+    max: Float,
+    accentColor: Color,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val currentOnChange by rememberUpdatedState(onValueChange)
+    val span = (max - min).coerceAtLeast(0.001f)
+    val isBipolar = min < -0.01f && max > 0.01f
+    val defaultVal = if (isBipolar) 0f else min
+
+    fun xToValue(x: Float, width: Float): Float {
+        val pad = 8f
+        val usable = (width - pad * 2f).coerceAtLeast(1f)
+        val frac = ((x - pad) / usable).coerceIn(0f, 1f)
+        val raw = min + frac * span
+        // Snap softly to 0 when within 1.5% of center on bipolar sliders
+        return if (isBipolar && abs(raw) < 0.015f) 0f else raw.coerceIn(min, max)
+    }
+
+    Canvas(
+        modifier = modifier
+            .pointerInput(min, max) {
+                detectTapGestures(
+                    onDoubleTap = { currentOnChange(defaultVal) },
+                    onTap = { pos -> currentOnChange(xToValue(pos.x, size.width.toFloat())) }
+                )
+            }
+            .pointerInput(min, max) {
+                detectHorizontalDragGestures(
+                    onDragStart = { pos ->
+                        currentOnChange(xToValue(pos.x, size.width.toFloat()))
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        currentOnChange(xToValue(change.position.x, size.width.toFloat()))
+                    }
+                )
+            }
+    ) {
+        val pad = 7.dp.toPx()
+        val usableW = (size.width - pad * 2f).coerceAtLeast(1f)
+        val centerY = size.height * 0.5f
+        val trackHeight = 2.dp.toPx()
+
+        // Base inactive track
+        drawRoundRect(
+            color = Color.White.copy(alpha = 0.22f),
+            topLeft = Offset(pad, centerY - trackHeight * 0.5f),
+            size = Size(usableW, trackHeight),
+            cornerRadius = CornerRadius(trackHeight * 0.5f, trackHeight * 0.5f)
+        )
+
+        val currentFrac = ((value - min) / span).coerceIn(0f, 1f)
+        val thumbX = pad + currentFrac * usableW
+
+        if (isBipolar) {
+            val zeroFrac = ((0f - min) / span).coerceIn(0f, 1f)
+            val zeroX = pad + zeroFrac * usableW
+            // Center tick mark
+            drawCircle(
+                color = Color.White.copy(alpha = 0.45f),
+                radius = 2.dp.toPx(),
+                center = Offset(zeroX, centerY)
+            )
+            val leftX = minOf(zeroX, thumbX)
+            val rightX = maxOf(zeroX, thumbX)
+            if (rightX - leftX > 0.5f) {
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(leftX, centerY - trackHeight * 0.5f),
+                    size = Size(rightX - leftX, trackHeight),
+                    cornerRadius = CornerRadius(trackHeight * 0.5f, trackHeight * 0.5f)
+                )
+            }
+        } else {
+            if (thumbX - pad > 0.5f) {
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(pad, centerY - trackHeight * 0.5f),
+                    size = Size(thumbX - pad, trackHeight),
+                    cornerRadius = CornerRadius(trackHeight * 0.5f, trackHeight * 0.5f)
+                )
+            }
+        }
+
+        // Minimalist clean thumb circle (6.dp radius = 12.dp diameter)
+        val isModified = abs(value - defaultVal) > 0.005f
+        drawCircle(
+            color = if (isModified) accentColor else Color.White,
+            radius = 6.dp.toPx(),
+            center = Offset(thumbX, centerY)
+        )
     }
 }
 

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -78,6 +77,7 @@ fun VideoTimelineBar(
     onToggleMute: () -> Unit,
     onTrimChange: (startMs: Long, endMs: Long) -> Unit,
     onTrimFinished: ((startMs: Long, endMs: Long) -> Unit)? = null,
+    onDraggingTimelineChange: ((Boolean) -> Unit)? = null,
     onOpenCoverPicker: () -> Unit,
     onRemoveCover: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -123,6 +123,7 @@ fun VideoTimelineBar(
     val currentDurationState by rememberUpdatedState(effectiveDuration)
     val currentOnTrimChange by rememberUpdatedState(onTrimChange)
     val currentOnTrimFinished by rememberUpdatedState(onTrimFinished)
+    val currentOnDraggingChange by rememberUpdatedState(onDraggingTimelineChange)
 
     Column(
         modifier = modifier.fillMaxWidth()
@@ -200,13 +201,12 @@ fun VideoTimelineBar(
             )
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // Interactive Frame Timeline Strip (42.dp tall, wide hit targets for left/right trim handles + whole window slide)
+        // Interactive Frame Timeline Strip (44.dp tall with 6.dp vertical touch padding, locks pager scroll on touch!)
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(42.dp)
+                .padding(vertical = 6.dp)
+                .height(44.dp)
                 .clip(RoundedCornerShape(8.dp))
                 .background(scheme.card)
         ) {
@@ -214,77 +214,81 @@ fun VideoTimelineBar(
             val totalWidthPx = with(density) { maxWidth.toPx() }.coerceAtLeast(1f)
             val startFrac = (effectiveStart.toFloat() / effectiveDuration).coerceIn(0f, 0.94f)
             val endFrac = (effectiveEnd.toFloat() / effectiveDuration).coerceIn(startFrac + 0.05f, 1f)
-            val handleHitRadiusPx = with(density) { 26.dp.toPx() }
-            val visualHandleWidthDp = 14.dp
+            val handleHitRadiusPx = with(density) { 34.dp.toPx() }
+            val visualHandleWidthDp = 15.dp
             val visualHandleWidthPx = with(density) { visualHandleWidthDp.toPx() }
 
-            // Unified gesture detector across the entire timeline track so handles NEVER lose focus while dragging!
+            // Unified gesture detector across the entire timeline track:
+            // Immediately consumes touch-down and notifies parent (onDraggingTimelineChange(true)) so HorizontalPager NEVER steals the drag!
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(videoUri) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            val dur = currentDurationState.coerceAtLeast(1000L)
-                            val curStart = currentStartState
-                            val curEnd = currentEndState
-                            val leftHandleCenterX = (curStart.toFloat() / dur) * totalWidthPx
-                            val rightHandleCenterX = (curEnd.toFloat() / dur) * totalWidthPx
+                            down.consume()
+                            currentOnDraggingChange?.invoke(true)
 
-                            val distLeft = abs(down.position.x - leftHandleCenterX)
-                            val distRight = abs(down.position.x - rightHandleCenterX)
+                            try {
+                                val dur = currentDurationState.coerceAtLeast(1000L)
+                                val curStart = currentStartState
+                                val curEnd = currentEndState
+                                val leftHandleCenterX = (curStart.toFloat() / dur) * totalWidthPx
+                                val rightHandleCenterX = (curEnd.toFloat() / dur) * totalWidthPx
 
-                            val dragMode = when {
-                                distLeft <= handleHitRadiusPx && distLeft <= distRight -> TrimDragMode.LEFT
-                                distRight <= handleHitRadiusPx -> TrimDragMode.RIGHT
-                                down.position.x in leftHandleCenterX..rightHandleCenterX -> TrimDragMode.WINDOW
-                                distLeft < distRight -> TrimDragMode.LEFT
-                                else -> TrimDragMode.RIGHT
-                            }
+                                val distLeft = abs(down.position.x - leftHandleCenterX)
+                                val distRight = abs(down.position.x - rightHandleCenterX)
 
-                            var workingStart = curStart
-                            var workingEnd = curEnd
-                            val minSpanMs = 500L.coerceAtMost(dur)
-
-                            // If user tapped outside the handles, jump the nearest handle immediately to the touch X
-                            if (dragMode == TrimDragMode.LEFT && distLeft > handleHitRadiusPx) {
-                                workingStart = ((down.position.x / totalWidthPx) * dur).toLong()
-                                    .coerceIn(0L, (workingEnd - minSpanMs).coerceAtLeast(0L))
-                                currentOnTrimChange(workingStart, workingEnd)
-                            } else if (dragMode == TrimDragMode.RIGHT && distRight > handleHitRadiusPx) {
-                                workingEnd = ((down.position.x / totalWidthPx) * dur).toLong()
-                                    .coerceIn((workingStart + minSpanMs).coerceAtMost(dur), dur)
-                                currentOnTrimChange(workingStart, workingEnd)
-                            }
-
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val change = event.changes.firstOrNull { it.pressed } ?: break
-                                val dx = change.positionChange().x
-                                if (dx != 0f) {
-                                    change.consume()
-                                    val deltaMs = ((dx / totalWidthPx) * dur).toLong()
-                                    when (dragMode) {
-                                        TrimDragMode.LEFT -> {
-                                            workingStart = (workingStart + deltaMs)
-                                                .coerceIn(0L, (workingEnd - minSpanMs).coerceAtLeast(0L))
-                                        }
-                                        TrimDragMode.RIGHT -> {
-                                            workingEnd = (workingEnd + deltaMs)
-                                                .coerceIn((workingStart + minSpanMs).coerceAtMost(dur), dur)
-                                        }
-                                        TrimDragMode.WINDOW -> {
-                                            val windowSpan = (workingEnd - workingStart).coerceAtLeast(minSpanMs)
-                                            val nextS = (workingStart + deltaMs).coerceIn(0L, (dur - windowSpan).coerceAtLeast(0L))
-                                            workingStart = nextS
-                                            workingEnd = (nextS + windowSpan).coerceAtMost(dur)
+                                val dragMode = when {
+                                    distLeft <= handleHitRadiusPx && distLeft <= distRight -> TrimDragMode.LEFT
+                                    distRight <= handleHitRadiusPx -> TrimDragMode.RIGHT
+                                    down.position.x in leftHandleCenterX..rightHandleCenterX -> {
+                                        // If window is full (0..100%), pick the closer edge so user can immediately trim from anywhere!
+                                        if (curStart <= 50L && curEnd >= dur - 50L) {
+                                            if (distLeft < distRight) TrimDragMode.LEFT else TrimDragMode.RIGHT
+                                        } else {
+                                            TrimDragMode.WINDOW
                                         }
                                     }
-                                    currentOnTrimChange(workingStart, workingEnd)
+                                    distLeft < distRight -> TrimDragMode.LEFT
+                                    else -> TrimDragMode.RIGHT
                                 }
-                            }
 
-                            currentOnTrimFinished?.invoke(workingStart, workingEnd)
+                                var workingStart = curStart
+                                var workingEnd = curEnd
+                                val minSpanMs = 500L.coerceAtMost(dur)
+
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val change = event.changes.firstOrNull { it.pressed } ?: break
+                                    val dx = change.positionChange().x
+                                    change.consume()
+                                    if (dx != 0f) {
+                                        val deltaMs = ((dx / totalWidthPx) * dur).toLong()
+                                        when (dragMode) {
+                                            TrimDragMode.LEFT -> {
+                                                workingStart = (workingStart + deltaMs)
+                                                    .coerceIn(0L, (workingEnd - minSpanMs).coerceAtLeast(0L))
+                                            }
+                                            TrimDragMode.RIGHT -> {
+                                                workingEnd = (workingEnd + deltaMs)
+                                                    .coerceIn((workingStart + minSpanMs).coerceAtMost(dur), dur)
+                                            }
+                                            TrimDragMode.WINDOW -> {
+                                                val windowSpan = (workingEnd - workingStart).coerceAtLeast(minSpanMs)
+                                                val nextS = (workingStart + deltaMs).coerceIn(0L, (dur - windowSpan).coerceAtLeast(0L))
+                                                workingStart = nextS
+                                                workingEnd = (nextS + windowSpan).coerceAtMost(dur)
+                                            }
+                                        }
+                                        currentOnTrimChange(workingStart, workingEnd)
+                                    }
+                                }
+
+                                currentOnTrimFinished?.invoke(workingStart, workingEnd)
+                            } finally {
+                                currentOnDraggingChange?.invoke(false)
+                            }
                         }
                     }
             ) {
@@ -318,13 +322,13 @@ fun VideoTimelineBar(
 
                 // Active trim window border
                 val trimLeftDp = with(density) { (startFrac * totalWidthPx).toDp() }
-                val trimWidthDp = with(density) { ((endFrac - startFrac) * totalWidthPx).coerceAtLeast(24f).toDp() }
+                val trimWidthDp = with(density) { ((endFrac - startFrac) * totalWidthPx).coerceAtLeast(28f).toDp() }
                 Box(
                     modifier = Modifier
                         .offset(x = trimLeftDp)
                         .width(trimWidthDp)
                         .fillMaxHeight()
-                        .border(2.dp, Color.White, RoundedCornerShape(7.dp))
+                        .border(2.2.dp, Color.White, RoundedCornerShape(7.dp))
                 )
 
                 // Left white handle with dark slot
@@ -340,9 +344,9 @@ fun VideoTimelineBar(
                     Box(
                         modifier = Modifier
                             .width(2.5.dp)
-                            .height(14.dp)
+                            .height(15.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.65f))
+                            .background(Color.Black.copy(alpha = 0.7f))
                     )
                 }
 
@@ -359,9 +363,9 @@ fun VideoTimelineBar(
                     Box(
                         modifier = Modifier
                             .width(2.5.dp)
-                            .height(14.dp)
+                            .height(15.dp)
                             .clip(CircleShape)
-                            .background(Color.Black.copy(alpha = 0.65f))
+                            .background(Color.Black.copy(alpha = 0.7f))
                     )
                 }
             }

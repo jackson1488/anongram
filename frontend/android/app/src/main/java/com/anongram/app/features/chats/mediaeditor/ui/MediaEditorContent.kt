@@ -219,16 +219,17 @@ fun MediaEditorContent(
     var closeCardAlpha by remember { mutableFloatStateOf(1f) }
     var closeCornerDp by remember { mutableFloatStateOf(0f) }
     var isVerticalDragging by remember { mutableStateOf(false) }
+    var isDraggingVideoTimeline by remember { mutableStateOf(false) }
     var isClosingAnimated by remember { mutableStateOf(false) }
 
     val adjustBottomPadding by animateDpAsState(
         targetValue = if (editorMode == EditorMode.ADJUST) 235.dp else 0.dp,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = 200),
         label = "adjustPhotoShrink"
     )
     val adjustTopPadding by animateDpAsState(
         targetValue = if (editorMode == EditorMode.ADJUST) 24.dp else 0.dp,
-        animationSpec = tween(durationMillis = 220),
+        animationSpec = tween(durationMillis = 200),
         label = "adjustPhotoTopPad"
     )
 
@@ -259,25 +260,24 @@ fun MediaEditorContent(
         val endY = if (targetRect != null && targetRect.height > 0f) {
             targetRect.center.y - rootCenterY
         } else {
-            screenHeightPx * 0.25f
+            screenHeightPx * 0.22f
         }
         val endScale = if (targetRect != null && targetRect.width > 0f) {
             (targetRect.width / screenWidthPx).coerceIn(0.26f, 0.42f)
-        } else 0.31f
+        } else 0.30f
 
         scope.launch {
             androidx.compose.animation.core.animate(
                 initialValue = 0f,
                 targetValue = 1f,
-                animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                animationSpec = tween(durationMillis = 165, easing = FastOutSlowInEasing)
             ) { t, _ ->
                 dragOffsetX = startX + (endX - startX) * t
                 dragOffsetY = startY + (endY - startY) * t
                 dragScale = startScale + (endScale - startScale) * t
-                closeCornerDp = startCorner + (24f - startCorner) * t
-                dragBgAlpha = (startBgAlpha * (1f - t * 1.15f)).coerceIn(0f, 1f)
-                // Keep the photo card 100% opaque while flying to its grid tile, fading only in the last 18%
-                closeCardAlpha = if (t < 0.82f) 1f else ((1f - t) / 0.18f).coerceIn(0f, 1f)
+                closeCornerDp = startCorner + (20f - startCorner) * t
+                dragBgAlpha = (startBgAlpha * (1f - t * 1.2f)).coerceIn(0f, 1f)
+                closeCardAlpha = if (t < 0.84f) 1f else ((1f - t) / 0.16f).coerceIn(0f, 1f)
             }
             onBack()
         }
@@ -353,26 +353,20 @@ fun MediaEditorContent(
             }
             .background(Color.Black.copy(alpha = dragBgAlpha))
     ) {
-        // Fullscreen Pager (left/right swipe across all gallery media in MAIN mode; 1:1 synchronous zero-lag vertical drag-to-close)
+        // Fullscreen Pager (disabled while dragging video trim handles so both left & right trim edges slide smoothly!)
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = editorMode == EditorMode.MAIN &&
                 !showFontsModuleScreen &&
                 !isVerticalDragging &&
+                !isDraggingVideoTimeline &&
                 activePhotoZoomScale <= 1.02f &&
                 currentItems.size > 1,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(top = adjustTopPadding, bottom = adjustBottomPadding)
-                .graphicsLayer {
-                    translationX = dragOffsetX
-                    translationY = dragOffsetY
-                    scaleX = dragScale
-                    scaleY = dragScale
-                    alpha = closeCardAlpha
-                }
                 .then(
-                    if (editorMode == EditorMode.MAIN && !showFontsModuleScreen && activePhotoZoomScale <= 1.02f) {
+                    if (editorMode == EditorMode.MAIN && !showFontsModuleScreen && !isDraggingVideoTimeline && activePhotoZoomScale <= 1.02f) {
                         Modifier.pointerInput(activeItem.id) {
                             detectVerticalDragGestures(
                                 onDragStart = {
@@ -380,7 +374,7 @@ fun MediaEditorContent(
                                 },
                                 onDragEnd = {
                                     isVerticalDragging = false
-                                    if (abs(dragOffsetY) > 95.dp.toPx()) {
+                                    if (abs(dragOffsetY) > 85.dp.toPx()) {
                                         triggerAnimatedClose()
                                     } else {
                                         val sX = dragOffsetX
@@ -392,7 +386,7 @@ fun MediaEditorContent(
                                             androidx.compose.animation.core.animate(
                                                 initialValue = 0f,
                                                 targetValue = 1f,
-                                                animationSpec = tween(durationMillis = 190, easing = FastOutSlowInEasing)
+                                                animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing)
                                             ) { t, _ ->
                                                 dragOffsetX = sX * (1f - t)
                                                 dragOffsetY = sY * (1f - t)
@@ -414,15 +408,14 @@ fun MediaEditorContent(
                                 onVerticalDrag = { change, dragAmount ->
                                     val dx = change.position.x - change.previousPosition.x
                                     change.consume()
-                                    // Synchronous 1:1 2D follow without launching any coroutine!
                                     val nextX = dragOffsetX + dx * 0.85f
                                     val nextY = dragOffsetY + dragAmount
-                                    val progress = (abs(nextY) / (screenHeightPx * 0.52f)).coerceIn(0f, 1f)
+                                    val progress = (abs(nextY) / (screenHeightPx * 0.50f)).coerceIn(0f, 1f)
                                     dragOffsetX = nextX
                                     dragOffsetY = nextY
-                                    dragScale = (1f - progress * 0.38f).coerceIn(0.48f, 1f)
+                                    dragScale = (1f - progress * 0.40f).coerceIn(0.45f, 1f)
                                     dragBgAlpha = (1f - progress * 0.88f).coerceIn(0.08f, 1f)
-                                    closeCornerDp = progress * 20f
+                                    closeCornerDp = progress * 18f
                                 }
                             )
                         }
@@ -430,19 +423,30 @@ fun MediaEditorContent(
                 )
         ) { page ->
             val item = currentItems[page]
-            val previewState = if (page == currentIndex && editorMode == EditorMode.ADJUST) {
+            val isCurrentPage = page == currentIndex
+            val isAdjustingThisPage = isCurrentPage && editorMode == EditorMode.ADJUST
+            val previewState = if (isAdjustingThisPage) {
                 draftEditState
             } else {
                 item.editState
             }
 
+            // Apply close/drag transform ONLY to the active page so offscreen pager pages aren't transformed!
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(vertical = 0.dp)
                     .then(
-                        if (closeCornerDp > 0.5f) Modifier.clip(RoundedCornerShape(closeCornerDp.dp))
-                        else Modifier
+                        if (isCurrentPage) {
+                            Modifier.graphicsLayer {
+                                translationX = dragOffsetX
+                                translationY = dragOffsetY
+                                scaleX = dragScale
+                                scaleY = dragScale
+                                alpha = closeCardAlpha
+                                shape = RoundedCornerShape(closeCornerDp.dp)
+                                clip = closeCornerDp > 0.5f
+                            }
+                        } else Modifier
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -450,9 +454,11 @@ fun MediaEditorContent(
                     EditorVideoPreview(
                         item = item,
                         editState = previewState,
-                        isPlaying = isVideoPlaying && page == currentIndex && editorMode == EditorMode.MAIN,
+                        isAdjustMode = isAdjustingThisPage,
+                        baseFrameBitmap = if (isCurrentPage) activeRawBitmap else null,
+                        isPlaying = isVideoPlaying && isCurrentPage && editorMode == EditorMode.MAIN,
                         onTogglePlay = { isVideoPlaying = !isVideoPlaying },
-                        onTapTextLayer = if (page == currentIndex && editorMode == EditorMode.MAIN) {
+                        onTapTextLayer = if (isCurrentPage && editorMode == EditorMode.MAIN) {
                             { tappedLayer ->
                                 draftEditState = activeItem.editState
                                 paintInitialTab = PaintModeTab.TEXT
@@ -466,10 +472,11 @@ fun MediaEditorContent(
                     EditorPhotoPreview(
                         item = item,
                         editState = previewState,
-                        enableZoom = page == currentIndex && editorMode == EditorMode.MAIN,
+                        isInteractiveAdjusting = isAdjustingThisPage,
+                        enableZoom = isCurrentPage && editorMode == EditorMode.MAIN,
                         resetZoomSignal = resetPhotoZoomSignal,
-                        onZoomScaleChange = { if (page == currentIndex) activePhotoZoomScale = it },
-                        onTapTextLayer = if (page == currentIndex && editorMode == EditorMode.MAIN) {
+                        onZoomScaleChange = { if (isCurrentPage) activePhotoZoomScale = it },
+                        onTapTextLayer = if (isCurrentPage && editorMode == EditorMode.MAIN) {
                             { tappedLayer ->
                                 draftEditState = activeItem.editState
                                 paintInitialTab = PaintModeTab.TEXT
@@ -643,6 +650,9 @@ fun MediaEditorContent(
                         onRemoveCover = {
                             val updated = updateCurrentItem { it.copy(coverUri = null, coverTimeMs = null) }
                             autoSaveSingleItem(updated)
+                        },
+                        onDraggingTimelineChange = { isDragging ->
+                            isDraggingVideoTimeline = isDragging
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
@@ -1136,6 +1146,7 @@ fun MediaEditorContent(
 private fun EditorPhotoPreview(
     item: EditableMediaItem,
     editState: PhotoEditState,
+    isInteractiveAdjusting: Boolean = false,
     enableZoom: Boolean = false,
     resetZoomSignal: Int = 0,
     onZoomScaleChange: (Float) -> Unit = {},
@@ -1150,6 +1161,12 @@ private fun EditorPhotoPreview(
     var rawBitmap by remember(item.uri) { mutableStateOf<Bitmap?>(initialCachedBmp) }
     var renderedBitmap by remember(item.uri) {
         mutableStateOf<ImageBitmap?>(initialCachedBmp?.asImageBitmap())
+    }
+
+    val fastPreviewBitmap = remember(rawBitmap) {
+        rawBitmap?.let { bmp ->
+            scaleDownBitmapForInteractivePreview(bmp, maxDim = 540)
+        }
     }
 
     var zoomScale by remember(item.uri) { mutableFloatStateOf(1f) }
@@ -1181,14 +1198,23 @@ private fun EditorPhotoPreview(
         }
     }
 
-    LaunchedEffect(rawBitmap, editState.crop, editState.adjustments, editState.blur, editState.curves) {
-        val src = rawBitmap ?: return@LaunchedEffect
+    LaunchedEffect(
+        rawBitmap,
+        fastPreviewBitmap,
+        isInteractiveAdjusting,
+        editState.crop,
+        editState.adjustments,
+        editState.blur,
+        editState.curves
+    ) {
+        val fullSrc = rawBitmap ?: return@LaunchedEffect
         val hasEdits = editState.crop.isModified || PhotoFilterEngine.needsPixelPipeline(editState)
         if (!hasEdits) {
-            renderedBitmap = src.asImageBitmap()
+            renderedBitmap = fullSrc.asImageBitmap()
         } else {
+            val activeSrc = if (isInteractiveAdjusting) (fastPreviewBitmap ?: fullSrc) else fullSrc
             val processed = withContext(Dispatchers.Default) {
-                var work = PhotoFilterEngine.applyCropAndTransform(src, editState)
+                var work = PhotoFilterEngine.applyCropAndTransform(activeSrc, editState)
                 if (PhotoFilterEngine.needsPixelPipeline(editState)) {
                     work = PhotoFilterEngine.applyPixelPipeline(work, editState)
                 }
@@ -1360,10 +1386,23 @@ private fun EditorPhotoPreview(
     }
 }
 
+private fun scaleDownBitmapForInteractivePreview(src: Bitmap, maxDim: Int = 540): Bitmap {
+    val w = src.width
+    val h = src.height
+    val longest = maxOf(w, h)
+    if (longest <= maxDim || w <= 0 || h <= 0) return src
+    val scale = maxDim.toFloat() / longest.toFloat()
+    val targetW = (w * scale).toInt().coerceAtLeast(1)
+    val targetH = (h * scale).toInt().coerceAtLeast(1)
+    return runCatching { Bitmap.createScaledBitmap(src, targetW, targetH, true) }.getOrDefault(src)
+}
+
 @Composable
 private fun EditorVideoPreview(
     item: EditableMediaItem,
     editState: PhotoEditState,
+    isAdjustMode: Boolean = false,
+    baseFrameBitmap: Bitmap? = null,
     isPlaying: Boolean,
     onTogglePlay: () -> Unit,
     onTapTextLayer: ((TextLayerItem) -> Unit)? = null,
@@ -1383,6 +1422,38 @@ private fun EditorVideoPreview(
         } else {
             coverBitmap = null
         }
+    }
+
+    // Live color-adjusted video frame for EditorMode.ADJUST and paused preview when adjustments/blur/curves are applied
+    val fastVideoFrame = remember(baseFrameBitmap) {
+        baseFrameBitmap?.let { scaleDownBitmapForInteractivePreview(it, maxDim = 540) }
+    }
+    var adjustedVideoFrame by remember(item.uri) { mutableStateOf<ImageBitmap?>(null) }
+    val hasVisualAdjustments = editState.crop.isModified || PhotoFilterEngine.needsPixelPipeline(editState)
+
+    LaunchedEffect(
+        fastVideoFrame,
+        baseFrameBitmap,
+        isAdjustMode,
+        hasVisualAdjustments,
+        editState.crop,
+        editState.adjustments,
+        editState.blur,
+        editState.curves
+    ) {
+        val src = (if (isAdjustMode) fastVideoFrame else baseFrameBitmap) ?: fastVideoFrame ?: baseFrameBitmap
+        if (src == null || (!isAdjustMode && !hasVisualAdjustments)) {
+            adjustedVideoFrame = null
+            return@LaunchedEffect
+        }
+        val processed = withContext(Dispatchers.Default) {
+            var work = PhotoFilterEngine.applyCropAndTransform(src, editState)
+            if (PhotoFilterEngine.needsPixelPipeline(editState)) {
+                work = PhotoFilterEngine.applyPixelPipeline(work, editState)
+            }
+            work.asImageBitmap()
+        }
+        adjustedVideoFrame = processed
     }
 
     LaunchedEffect(item.isMuted, mediaPlayerRef) {
@@ -1431,6 +1502,8 @@ private fun EditorVideoPreview(
         }
     }
 
+    val adj = editState.adjustments
+
     Box(
         modifier = modifier
             .graphicsLayer {
@@ -1457,10 +1530,56 @@ private fun EditorVideoPreview(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Show custom cover image on top of video when paused
-        if (!isPlaying && coverBitmap != null) {
+        // Live color/contrast/exposure/warmth overlay during video playback when adjustments are active
+        if (isPlaying && adj.isModified) {
+            val exposureAlpha = (adj.exposure * 0.28f + adj.enhance * 0.10f).coerceIn(-0.45f, 0.45f)
+            val warmthAlpha = (adj.warmth * 0.22f).coerceIn(-0.35f, 0.35f)
+            val contrastDarkAlpha = (adj.contrast * 0.16f - adj.shadows * 0.12f).coerceIn(0f, 0.35f)
+            if (exposureAlpha > 0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White.copy(alpha = exposureAlpha))
+                )
+            } else if (exposureAlpha < -0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = -exposureAlpha))
+                )
+            }
+            if (warmthAlpha > 0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFFFF9800).copy(alpha = warmthAlpha))
+                )
+            } else if (warmthAlpha < -0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color(0xFF2196F3).copy(alpha = -warmthAlpha))
+                )
+            }
+            if (contrastDarkAlpha > 0.01f) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = contrastDarkAlpha))
+                )
+            }
+        }
+
+        // Show real pixel-adjusted frame when in Adjust mode or when paused with active adjustments/cover
+        val frameOverlay = when {
+            isAdjustMode && adjustedVideoFrame != null -> adjustedVideoFrame
+            !isPlaying && coverBitmap != null -> coverBitmap
+            !isPlaying && hasVisualAdjustments && adjustedVideoFrame != null -> adjustedVideoFrame
+            else -> null
+        }
+        if (frameOverlay != null) {
             Image(
-                bitmap = coverBitmap!!,
+                bitmap = frameOverlay,
                 contentDescription = null,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
@@ -1490,8 +1609,8 @@ private fun EditorVideoPreview(
             )
         }
 
-        // Play / Pause tap overlay button when paused
-        if (!isPlaying) {
+        // Play / Pause tap overlay button when paused in MAIN mode
+        if (!isPlaying && !isAdjustMode) {
             Box(
                 modifier = Modifier
                     .size(64.dp)

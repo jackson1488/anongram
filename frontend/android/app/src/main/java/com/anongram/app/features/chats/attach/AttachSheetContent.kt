@@ -203,7 +203,7 @@ fun AttachSheetContent(
             Box(
                 Modifier
                     .fillMaxSize()
-                    .graphicsLayer { translationY = if (sheetState.isEditorOpen || sheetState.isCameraOpen) 0f else dragState.offsetPx }
+                    .graphicsLayer { translationY = dragState.offsetPx }
                     .then(
                         if (sheetState.selectedTab == AttachTab.LOCATION || sheetState.isEditorOpen || sheetState.isCameraOpen) Modifier
                         else Modifier.nestedScroll(dragState.nestedScrollConnection)
