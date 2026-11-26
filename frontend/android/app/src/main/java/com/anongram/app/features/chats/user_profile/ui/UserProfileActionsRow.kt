@@ -50,6 +50,7 @@ import dev.chrisbanes.haze.hazeEffect
 @Composable
 internal fun UserProfileActionsRow(
     isMuted: Boolean,
+    isSoundMuted: Boolean = false,
     strings: UserProfileStrings,
     onChatClick: () -> Unit,
     onMuteToggle: () -> Unit,
@@ -57,7 +58,7 @@ internal fun UserProfileActionsRow(
     onVideoClick: () -> Unit,
     isMuteMenuExpanded: Boolean = false,
     onDismissMuteMenu: () -> Unit = {},
-    onEnableSound: () -> Unit = {},
+    onToggleSoundOnly: () -> Unit = {},
     onOpenMuteDrum: () -> Unit = {},
     onOpenMuteSettings: () -> Unit = {},
     onMuteForever: () -> Unit = {},
@@ -89,10 +90,10 @@ internal fun UserProfileActionsRow(
             )
             UserProfileMuteDropdownMenu(
                 expanded = isMuteMenuExpanded,
-                isMuted = isMuted,
+                isSoundMuted = isSoundMuted,
                 strings = strings,
                 onDismiss = onDismissMuteMenu,
-                onEnableSound = onEnableSound,
+                onToggleSoundOnly = onToggleSoundOnly,
                 onOpenMuteDrum = onOpenMuteDrum,
                 onOpenMuteSettings = onOpenMuteSettings,
                 onMuteForever = onMuteForever
@@ -120,10 +121,10 @@ internal fun UserProfileActionsRow(
 @Composable
 private fun UserProfileMuteDropdownMenu(
     expanded: Boolean,
-    isMuted: Boolean,
+    isSoundMuted: Boolean,
     strings: UserProfileStrings,
     onDismiss: () -> Unit,
-    onEnableSound: () -> Unit,
+    onToggleSoundOnly: () -> Unit,
     onOpenMuteDrum: () -> Unit,
     onOpenMuteSettings: () -> Unit,
     onMuteForever: () -> Unit
@@ -136,21 +137,19 @@ private fun UserProfileMuteDropdownMenu(
         onDismissRequest = onDismiss,
         offset = DpOffset(x = 0.dp, y = 6.dp),
         modifier = Modifier
-            .width(228.dp)
-            .background(scheme.card, RoundedCornerShape(18.dp))
-            .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(18.dp))
+            .width(204.dp)
+            .background(scheme.card, RoundedCornerShape(16.dp))
+            .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(16.dp))
     ) {
-        if (isMuted) {
-            MuteMenuRow(
-                icon = Icons.Outlined.VolumeUp,
-                label = strings.muteEnableSound,
-                tint = scheme.textPrimary,
-                onClick = {
-                    onDismiss()
-                    onEnableSound()
-                }
-            )
-        }
+        MuteMenuRow(
+            icon = if (isSoundMuted) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,
+            label = if (isSoundMuted) strings.muteEnableSound else strings.muteDisableSound,
+            tint = scheme.textPrimary,
+            onClick = {
+                onDismiss()
+                onToggleSoundOnly()
+            }
+        )
         MuteMenuRow(
             icon = Icons.Outlined.Schedule,
             label = strings.muteCustomDrum,
@@ -169,17 +168,15 @@ private fun UserProfileMuteDropdownMenu(
                 onOpenMuteSettings()
             }
         )
-        if (!isMuted) {
-            MuteMenuRow(
-                icon = Icons.Outlined.VolumeOff,
-                label = strings.muteForever,
-                tint = destructiveRed,
-                onClick = {
-                    onDismiss()
-                    onMuteForever()
-                }
-            )
-        }
+        MuteMenuRow(
+            icon = Icons.Outlined.NotificationsOff,
+            label = strings.muteForever,
+            tint = destructiveRed,
+            onClick = {
+                onDismiss()
+                onMuteForever()
+            }
+        )
     }
 }
 
@@ -194,20 +191,20 @@ private fun MuteMenuRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+            .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = tint,
-            modifier = Modifier.size(19.dp)
+            modifier = Modifier.size(18.dp)
         )
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = label,
             color = tint,
-            fontSize = 14.sp,
+            fontSize = 13.5.sp,
             fontWeight = FontWeight.Medium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

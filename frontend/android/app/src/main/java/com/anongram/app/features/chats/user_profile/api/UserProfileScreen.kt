@@ -179,6 +179,7 @@ fun UserProfileScreen(
     var isQrOverlayOpen by remember { mutableStateOf(false) }
     var isQrScannerOpen by remember { mutableStateOf(false) }
     var isMutedLocal by remember(session.id, session.isMuted) { mutableStateOf(session.isMuted) }
+    var isSoundMutedLocal by remember(session.id) { mutableStateOf(false) }
     var addedToContactsLocal by remember(session.id) { mutableStateOf(isContact) }
     var gridColumns by remember { mutableIntStateOf(3) }
     var selectedKeys by remember(session.id) { mutableStateOf(emptySet<String>()) }
@@ -341,37 +342,37 @@ fun UserProfileScreen(
                         overlayActions = { actionHaze ->
                             UserProfileActionsRow(
                                 isMuted = isMutedLocal,
+                                isSoundMuted = isSoundMutedLocal,
                                 strings = strings,
                                 hazeState = actionHaze,
-                                    isMuteMenuExpanded = isMuteMenuOpen,
-                                    onDismissMuteMenu = { isMuteMenuOpen = false },
-                                    onEnableSound = {
-                                        val nowMuted = !isMutedLocal
-                                        isMutedLocal = nowMuted
+                                isMuteMenuExpanded = isMuteMenuOpen,
+                                onDismissMuteMenu = { isMuteMenuOpen = false },
+                                onToggleSoundOnly = {
+                                    val nowSoundMuted = !isSoundMutedLocal
+                                    isSoundMutedLocal = nowSoundMuted
+                                    showBanner(
+                                        if (nowSoundMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.VolumeUp,
+                                        if (nowSoundMuted) strings.mutedForeverToast else strings.unmutedSoundToast
+                                    )
+                                },
+                                onOpenMuteDrum = { isMuteDrumOpen = true },
+                                onOpenMuteSettings = { isNotificationSettingsOpen = true },
+                                onMuteForever = {
+                                    if (!isMutedLocal) {
+                                        isMutedLocal = true
                                         onToggleMute()
-                                        showBanner(
-                                            if (nowMuted) Icons.Outlined.NotificationsOff else Icons.Outlined.VolumeUp,
-                                            if (nowMuted) strings.mutedForeverToast else strings.unmutedSoundToast
-                                        )
-                                    },
-                                    onOpenMuteDrum = { isMuteDrumOpen = true },
-                                    onOpenMuteSettings = { isNotificationSettingsOpen = true },
-                                    onMuteForever = {
-                                        if (!isMutedLocal) {
-                                            isMutedLocal = true
-                                            onToggleMute()
-                                        }
-                                        showBanner(Icons.Outlined.NotificationsOff, strings.mutedForeverToast)
-                                    },
-                                    onChatClick = onBack,
-                                    onMuteToggle = { isMuteMenuOpen = true },
-                                    onCallClick = {
-                                        showBanner(Icons.Outlined.Call, strings.callSoonToast)
-                                    },
-                                    onVideoClick = {
-                                        showBanner(Icons.Outlined.Call, strings.callSoonToast)
                                     }
-                                )
+                                    showBanner(Icons.Outlined.NotificationsOff, strings.disabledNotificationsToast)
+                                },
+                                onChatClick = onBack,
+                                onMuteToggle = { isMuteMenuOpen = true },
+                                onCallClick = {
+                                    showBanner(Icons.Outlined.Call, strings.callSoonToast)
+                                },
+                                onVideoClick = {
+                                    showBanner(Icons.Outlined.Call, strings.callSoonToast)
+                                }
+                            )
                         }
                     )
                 }
