@@ -383,7 +383,7 @@ fun PasscodeLockOverlay(
             modifier = Modifier
                 .fillMaxSize()
                 .then(
-                    if (lockoutRemainingSec > 0L && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    if ((lockoutRemainingSec > 0L || !hasWindowFocus) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         Modifier.blur(38.dp)
                     } else {
                         Modifier
@@ -630,6 +630,14 @@ fun PasscodeLockOverlay(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+        }
+
+        if (!hasWindowFocus && lockoutRemainingSec <= 0L) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(scheme.background.copy(alpha = 0.36f))
+            )
         }
 
         if (lockoutRemainingSec > 0L) {

@@ -367,7 +367,7 @@ class MainActivity : FragmentActivity() {
                                 if (isCreatingPasscode) {
                                     PasscodeLockOverlay(
                                         mode = PasscodeScreenMode.CREATE,
-                                        hasWindowFocus = hasWindowFocus,
+                                        hasWindowFocus = hasWindowFocus && !isInRecentsOrPaused,
                                         onSuccess = {
                                             passcodeEnabled = true
                                             isUnlocked = true
@@ -383,7 +383,7 @@ class MainActivity : FragmentActivity() {
                                     PasscodeLockOverlay(
                                         mode = PasscodeScreenMode.UNLOCK,
                                         allowBack = false,
-                                        hasWindowFocus = hasWindowFocus,
+                                        hasWindowFocus = hasWindowFocus && !isInRecentsOrPaused,
                                         onSuccess = {
                                             lastInteractionMs = System.currentTimeMillis()
                                             isUnlocked = true
