@@ -1,9 +1,9 @@
 package com.anongram.app
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,7 +26,7 @@ import com.anongram.app.features.settings.security.ui.components.PasscodeScreenM
  * При включённом код-пароле сначала требует его ввода и не открывает
  * экран «Данные и память» (и не читает размеры данных) до разблокировки.
  */
-class ManageSpaceActivity : ComponentActivity() {
+class ManageSpaceActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

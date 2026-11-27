@@ -1,9 +1,9 @@
 package com.anongram.app
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.fragment.app.FragmentActivity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -75,7 +75,7 @@ import com.anongram.app.features.settings.security.ui.components.PasscodeScreenM
  * - Модуль авторизации: проверяет сессию пользователя и плавно переключает
  *   между графом авторизации [AuthNavGraph] и основным интерфейсом [MainAppShell].
  */
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
