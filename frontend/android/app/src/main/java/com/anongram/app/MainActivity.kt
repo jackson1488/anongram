@@ -5,29 +5,65 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.anongram.app.core.i18n.AppLanguage
+import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.AnonGramTheme
 import com.anongram.app.core.theme.SharedPrefsThemeRepository
 import com.anongram.app.core.theme.ThemeController
+import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.features.auth.data.repository.AuthRepositoryImpl
 import com.anongram.app.features.auth.domain.model.AuthState
 import com.anongram.app.features.auth.ui.navigation.AuthNavGraph
 import com.anongram.app.features.auth.ui.state.AuthViewModel
 import com.anongram.app.features.auth.ui.welcome.WelcomeShieldAnimation
 import com.anongram.app.features.navigation.MainAppShell
+import com.anongram.app.features.settings.security.data.PasscodeStore
+import com.anongram.app.features.settings.security.ui.components.PasscodeLockOverlay
+import com.anongram.app.features.settings.security.ui.components.PasscodeScreenMode
 
 /**
  * Главная точка входа в приложение AnonGram.
@@ -87,11 +123,129 @@ class MainActivity : ComponentActivity() {
                         }
 
                         is AuthState.Authenticated -> {
-                            MainAppShell(
-                                themeController = themeController,
-                                widthSizeClass = windowSizeClass.widthSizeClass,
-                                onLogout = { authViewModel.logout() }
-                            )
+                            val lang by LanguageSettingsStore.language.collectAsState()
+                            val isRu = lang == AppLanguage.RU
+                            var passcodeEnabled by remember {
+                                mutableStateOf(PasscodeStore.isPasscodeEnabled(applicationContext))
+                            }
+                            var isUnlocked by remember { mutableStateOf(!passcodeEnabled) }
+                            var showEnablePrompt by remember { mutableStateOf(!passcodeEnabled) }
+                            var isCreatingPasscode by remember { mutableStateOf(false) }
+
+                            val lifecycleOwner = LocalLifecycleOwner.current
+                            DisposableEffect(lifecycleOwner) {
+                                val observer = LifecycleEventObserver { _, event ->
+                                    if (event == Lifecycle.Event.ON_START) {
+                                        val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
+                                        passcodeEnabled = enabled
+                                        if (!enabled) {
+                                            isUnlocked = true
+                                            showEnablePrompt = true
+                                        }
+                                    }
+                                }
+                                lifecycleOwner.lifecycle.addObserver(observer)
+                                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+                            }
+
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                MainAppShell(
+                                    themeController = themeController,
+                                    widthSizeClass = windowSizeClass.widthSizeClass,
+                                    onLogout = { authViewModel.logout() }
+                                )
+
+                                // Нижняя карточка-напоминание при каждом входе, если код-пароль ещё не задан
+                                AnimatedVisibility(
+                                    visible = !passcodeEnabled && showEnablePrompt && !isCreatingPasscode,
+                                    enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                                    exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .safeNavigationBarPadding()
+                                        .padding(horizontal = 16.dp, vertical = 14.dp)
+                                        .zIndex(50f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(22.dp))
+                                            .background(scheme.islandBg)
+                                            .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(22.dp))
+                                            .clickable { isCreatingPasscode = true }
+                                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(scheme.accentSoft),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Lock,
+                                                contentDescription = null,
+                                                tint = scheme.accent,
+                                                modifier = Modifier.size(20.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = if (isRu) "Включить код-пароль" else "Enable Passcode",
+                                                color = scheme.textPrimary,
+                                                fontSize = 14.5.sp,
+                                                fontWeight = FontWeight.SemiBold
+                                            )
+                                            Text(
+                                                text = if (isRu) {
+                                                    "Защита чатов и шифрование базы"
+                                                } else {
+                                                    "Protect chats & encrypt local database"
+                                                },
+                                                color = scheme.textSecondary,
+                                                fontSize = 12.sp
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { showEnablePrompt = false },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.Close,
+                                                contentDescription = if (isRu) "Закрыть" else "Dismiss",
+                                                tint = scheme.textMuted,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (isCreatingPasscode) {
+                                    PasscodeLockOverlay(
+                                        mode = PasscodeScreenMode.CREATE,
+                                        onSuccess = {
+                                            passcodeEnabled = true
+                                            isUnlocked = true
+                                            showEnablePrompt = false
+                                            isCreatingPasscode = false
+                                        },
+                                        onBack = { isCreatingPasscode = false },
+                                        modifier = Modifier.zIndex(70f)
+                                    )
+                                }
+
+                                if (passcodeEnabled && !isUnlocked) {
+                                    PasscodeLockOverlay(
+                                        mode = PasscodeScreenMode.UNLOCK,
+                                        allowBack = false,
+                                        onSuccess = { isUnlocked = true },
+                                        onBack = {},
+                                        modifier = Modifier.zIndex(80f)
+                                    )
+                                }
+                            }
                         }
                     }
                 }

@@ -7,8 +7,13 @@ import java.security.SecureRandom
 import javax.crypto.SecretKeyFactory
 import javax.crypto.spec.PBEKeySpec
 
+enum class PasscodeType {
+    PIN,
+    PASSWORD
+}
+
 /**
- * Безопасное хранилище код-пароля приложения.
+ * Безопасное хранилище код-пароля приложения и его типа (PIN / PASSWORD).
  * Сам пароль в открытом виде не сохраняется: хранится только PBKDF2-HMAC-SHA256 хэш и случайная соль.
  */
 object PasscodeStore {
@@ -17,6 +22,8 @@ object PasscodeStore {
     private const val KEY_PASSCODE_ENABLED = "key_passcode_enabled"
     private const val KEY_PASSCODE_HASH = "key_passcode_hash"
     private const val KEY_PASSCODE_SALT = "key_passcode_salt"
+    private const val KEY_PASSCODE_TYPE = "key_passcode_type"
+    private const val KEY_DB_SALT = "key_db_salt"
     private const val ITERATIONS = 100_000
     private const val KEY_LENGTH_BITS = 256
 
@@ -27,13 +34,25 @@ object PasscodeStore {
             !prefs.getString(KEY_PASSCODE_SALT, null).isNullOrBlank()
     }
 
-    fun setPasscode(context: Context, rawPasscode: String) {
+    fun getPasscodeType(context: Context): PasscodeType {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val raw = prefs.getString(KEY_PASSCODE_TYPE, PasscodeType.PIN.name)
+        return runCatching { PasscodeType.valueOf(raw ?: PasscodeType.PIN.name) }
+            .getOrDefault(PasscodeType.PIN)
+    }
+
+    fun setPasscode(
+        context: Context,
+        rawPasscode: String,
+        type: PasscodeType = PasscodeType.PIN
+    ) {
         val salt = ByteArray(32)
         SecureRandom().nextBytes(salt)
         val hash = deriveHash(rawPasscode.toCharArray(), salt)
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_PASSCODE_ENABLED, true)
+            .putString(KEY_PASSCODE_TYPE, type.name)
             .putString(KEY_PASSCODE_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
             .putString(KEY_PASSCODE_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
             .apply()
@@ -55,12 +74,29 @@ object PasscodeStore {
         return matches
     }
 
+    fun deriveDbKeyBytes(context: Context, rawPasscode: String): ByteArray {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val existingSaltB64 = prefs.getString(KEY_DB_SALT, null)
+        val dbSalt = if (existingSaltB64.isNullOrBlank()) {
+            ByteArray(32).also {
+                SecureRandom().nextBytes(it)
+                prefs.edit().putString(KEY_DB_SALT, Base64.encodeToString(it, Base64.NO_WRAP)).apply()
+            }
+        } else {
+            Base64.decode(existingSaltB64, Base64.NO_WRAP)
+        }
+        val key = deriveHash(rawPasscode.toCharArray(), dbSalt)
+        dbSalt.fill(0)
+        return key
+    }
+
     fun clearPasscode(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_PASSCODE_ENABLED, false)
             .remove(KEY_PASSCODE_HASH)
             .remove(KEY_PASSCODE_SALT)
+            .remove(KEY_PASSCODE_TYPE)
             .apply()
     }
 

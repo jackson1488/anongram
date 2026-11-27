@@ -29,3 +29,7 @@
 -keepclassmembers class kotlinx.coroutines.** {
     volatile <fields>;
 }
+
+# SQLCipher
+-keep class net.zetetic.** { *; }
+-dontwarn net.zetetic.**
