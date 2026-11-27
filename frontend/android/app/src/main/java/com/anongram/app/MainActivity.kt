@@ -1,9 +1,13 @@
 package com.anongram.app
 
+import android.content.Context
+import android.os.Build
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
+import androidx.compose.ui.draw.blur
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -77,6 +81,18 @@ import com.anongram.app.features.settings.security.ui.components.PasscodeScreenM
  */
 class MainActivity : FragmentActivity() {
 
+    private var hasWindowFocus by mutableStateOf(true)
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        hasWindowFocus = hasFocus
+        val prefs = applicationContext.getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
+        val showInRecents = prefs.getBoolean("key_show_in_recents", true)
+        if (!showInRecents) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
+    }
+
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -131,16 +147,27 @@ class MainActivity : FragmentActivity() {
                             var isUnlocked by remember { mutableStateOf(!passcodeEnabled) }
                             var showEnablePrompt by remember { mutableStateOf(!passcodeEnabled) }
                             var isCreatingPasscode by remember { mutableStateOf(false) }
+                            var showInRecents by remember {
+                                mutableStateOf(
+                                    applicationContext.getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
+                                        .getBoolean("key_show_in_recents", true)
+                                )
+                            }
 
                             val lifecycleOwner = LocalLifecycleOwner.current
                             DisposableEffect(lifecycleOwner) {
                                 val observer = LifecycleEventObserver { _, event ->
-                                    if (event == Lifecycle.Event.ON_START) {
+                                    if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
                                         val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
                                         passcodeEnabled = enabled
+                                        showInRecents = applicationContext
+                                            .getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
+                                            .getBoolean("key_show_in_recents", true)
                                         if (!enabled) {
                                             isUnlocked = true
-                                            showEnablePrompt = true
+                                            if (event == Lifecycle.Event.ON_START) {
+                                                showEnablePrompt = true
+                                            }
                                         }
                                     }
                                 }
@@ -148,12 +175,20 @@ class MainActivity : FragmentActivity() {
                                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                             }
 
+                            val shouldBlurRecents = !hasWindowFocus && !showInRecents && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+
                             Box(modifier = Modifier.fillMaxSize()) {
-                                MainAppShell(
-                                    themeController = themeController,
-                                    widthSizeClass = windowSizeClass.widthSizeClass,
-                                    onLogout = { authViewModel.logout() }
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .then(if (shouldBlurRecents) Modifier.blur(26.dp) else Modifier)
+                                ) {
+                                    MainAppShell(
+                                        themeController = themeController,
+                                        widthSizeClass = windowSizeClass.widthSizeClass,
+                                        onLogout = { authViewModel.logout() }
+                                    )
+                                }
 
                                 // Нижняя карточка-напоминание при каждом входе, если код-пароль ещё не задан
                                 AnimatedVisibility(

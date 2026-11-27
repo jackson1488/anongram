@@ -1,6 +1,8 @@
 package com.anongram.app.features.settings.security.ui.components
 
+import android.app.Activity
 import android.content.Context
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -15,6 +17,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +29,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -44,6 +48,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -96,11 +101,10 @@ enum class PasscodeScreenMode {
 
 /**
  * Кастомный экран ввода или создания код-пароля:
- * - Живой анимированный фон в цветах активной темы
- * - Без ограничения длины и без подсказок количества символов
- * - В режиме UNLOCK (PIN): без кнопки ✓ — автоматическая разблокировка при верной комбинации
- * - В режиме UNLOCK (PASSWORD): без кнопки «Разблокировать», системная клавиатура открыта сразу
- * - Кнопка биометрии (отпечаток) по центру внизу, если включена в настройках
+ * - Полная изоляция касаний (клики по фону не проходят к экранам под ним)
+ * - Базовый FLAG_SECURE на время показа экрана код-пароля
+ * - Поднятая цифровая клавиатура (⌫ | 0 | Отпечаток при включённой биометрии)
+ * - Для текстового пароля: клавиатура открыта сразу и не опускается + синяя пульсирующая кнопка биометрии слева
  */
 @Composable
 fun PasscodeLockOverlay(
@@ -120,8 +124,28 @@ fun PasscodeLockOverlay(
     val lang by LanguageSettingsStore.language.collectAsState()
     val isRu = lang == AppLanguage.RU
 
-    if (allowBack) {
-        BackHandler(onBack = onBack)
+    BackHandler(enabled = true) {
+        if (allowBack) {
+            onBack()
+        } else {
+            (context as? Activity)?.moveTaskToBack(true)
+        }
+    }
+
+    // Базовый запрет скриншотов на экране ввода/создания код-пароля
+    DisposableEffect(Unit) {
+        val window = (context as? Activity)?.window
+        val hadFlagBefore = window != null &&
+            (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
+        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        onDispose {
+            val prefs = context.applicationContext
+                .getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
+            val showInRecents = prefs.getBoolean("key_show_in_recents", true)
+            if (!hadFlagBefore && showInRecents) {
+                window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
     }
 
     val biometricsEnabled = remember(mode) {
@@ -166,7 +190,15 @@ fun PasscodeLockOverlay(
         prompt.authenticate(promptInfo)
     }
 
-    // Автоматически держим системную клавиатуру открытой для текстового пароля
+    // Автоматический вызов биометрии при входе на экран блокировки, если включена
+    LaunchedEffect(mode, biometricsEnabled) {
+        if (mode == PasscodeScreenMode.UNLOCK && biometricsEnabled) {
+            delay(180)
+            launchBiometricPrompt()
+        }
+    }
+
+    // Держим системную клавиатуру открытой для текстового пароля
     LaunchedEffect(mode, selectedType) {
         if (selectedType == PasscodeType.PASSWORD) {
             delay(80)
@@ -177,7 +209,7 @@ fun PasscodeLockOverlay(
         }
     }
 
-    // Автоматическая разблокировка в режиме UNLOCK сразу как только введена верная комбинация
+    // Быстрая авторазблокировка в режиме UNLOCK сразу при верном вводе
     LaunchedEffect(input, mode) {
         if (mode == PasscodeScreenMode.UNLOCK && input.isNotEmpty()) {
             val candidate = input
@@ -277,6 +309,18 @@ fun PasscodeLockOverlay(
         modifier = modifier
             .fillMaxSize()
             .background(scheme.background)
+            // Перехват всех тапов по пустой области, чтобы клики не доходили до чатов под экраном
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null
+            ) {
+                if (selectedType == PasscodeType.PASSWORD) {
+                    runCatching {
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
+                    }
+                }
+            }
     ) {
         AnimatedLockShaderBackground(
             accent = scheme.accent,
@@ -309,7 +353,7 @@ fun PasscodeLockOverlay(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.45f))
+            Spacer(modifier = Modifier.weight(0.4f))
 
             Column(
                 modifier = Modifier
@@ -417,50 +461,62 @@ fun PasscodeLockOverlay(
                         }
                     }
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(scheme.card.copy(alpha = 0.85f))
-                            .border(
-                                width = 1.dp,
-                                color = if (errorText != null) Color(0xFFEF4444) else scheme.islandBorder,
-                                shape = RoundedCornerShape(22.dp)
-                            )
-                            .padding(horizontal = 18.dp, vertical = 14.dp),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (input.isEmpty()) {
-                            Text(
-                                text = if (isRu) "Введите пароль" else "Enter password",
-                                color = scheme.textMuted,
-                                fontSize = 15.sp
+                        if (biometricsEnabled) {
+                            AnimatedBlueBiometricButton(
+                                onClick = { launchBiometricPrompt() }
+                            )
+                            Spacer(modifier = Modifier.width(10.dp))
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(22.dp))
+                                .background(scheme.card.copy(alpha = 0.85f))
+                                .border(
+                                    width = 1.dp,
+                                    color = if (errorText != null) Color(0xFFEF4444) else scheme.islandBorder,
+                                    shape = RoundedCornerShape(22.dp)
+                                )
+                                .padding(horizontal = 18.dp, vertical = 14.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (input.isEmpty()) {
+                                Text(
+                                    text = if (isRu) "Введите пароль" else "Enter password",
+                                    color = scheme.textMuted,
+                                    fontSize = 15.sp
+                                )
+                            }
+                            BasicTextField(
+                                value = input,
+                                onValueChange = {
+                                    input = it
+                                    errorText = null
+                                },
+                                singleLine = true,
+                                visualTransformation = PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Password,
+                                    imeAction = ImeAction.Done
+                                ),
+                                keyboardActions = KeyboardActions(onDone = { submitCreateOrDone() }),
+                                cursorBrush = SolidColor(scheme.accent),
+                                textStyle = TextStyle(
+                                    color = scheme.textPrimary,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    textAlign = TextAlign.Center
+                                ),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .focusRequester(focusRequester)
                             )
                         }
-                        BasicTextField(
-                            value = input,
-                            onValueChange = {
-                                input = it
-                                errorText = null
-                            },
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                            ),
-                            keyboardActions = KeyboardActions(onDone = { submitCreateOrDone() }),
-                            cursorBrush = SolidColor(scheme.accent),
-                            textStyle = TextStyle(
-                                color = scheme.textPrimary,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                textAlign = TextAlign.Center
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .focusRequester(focusRequester)
-                        )
                     }
                 }
 
@@ -475,11 +531,12 @@ fun PasscodeLockOverlay(
                 }
             }
 
-            Spacer(modifier = Modifier.weight(0.55f))
+            Spacer(modifier = Modifier.weight(0.45f))
 
             if (selectedType == PasscodeType.PIN) {
                 CustomNumericKeypad(
                     showConfirmButton = mode == PasscodeScreenMode.CREATE,
+                    showBiometricsInCenterRight = mode == PasscodeScreenMode.UNLOCK && biometricsEnabled,
                     onDigit = { digit ->
                         haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         input += digit
@@ -492,8 +549,9 @@ fun PasscodeLockOverlay(
                         }
                     },
                     onConfirm = { submitCreateOrDone() },
+                    onBiometrics = { launchBiometricPrompt() },
                     canConfirm = input.isNotEmpty(),
-                    modifier = Modifier.padding(bottom = if (biometricsEnabled) 14.dp else 28.dp)
+                    modifier = Modifier.padding(bottom = 68.dp)
                 )
             } else if (mode == PasscodeScreenMode.CREATE) {
                 Button(
@@ -507,7 +565,7 @@ fun PasscodeLockOverlay(
                         .widthIn(max = 320.dp)
                         .fillMaxWidth()
                         .padding(horizontal = 24.dp)
-                        .padding(bottom = if (biometricsEnabled) 14.dp else 28.dp)
+                        .padding(bottom = 24.dp)
                         .height(48.dp)
                 ) {
                     Text(
@@ -521,29 +579,43 @@ fun PasscodeLockOverlay(
                     )
                 }
             } else {
-                Spacer(modifier = Modifier.height(14.dp))
-            }
-
-            if (biometricsEnabled) {
-                Box(
-                    modifier = Modifier
-                        .padding(bottom = 24.dp)
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(scheme.accentSoft)
-                        .border(0.8.dp, scheme.islandBorder, CircleShape)
-                        .clickable { launchBiometricPrompt() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Fingerprint,
-                        contentDescription = if (isRu) "Биометрия" else "Biometrics",
-                        tint = scheme.accent,
-                        modifier = Modifier.size(30.dp)
-                    )
-                }
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun AnimatedBlueBiometricButton(
+    onClick: () -> Unit
+) {
+    val bioBlue = Color(0xFF38BDF8)
+    val transition = rememberInfiniteTransition(label = "bio_pulse")
+    val pulse by transition.animateFloat(
+        initialValue = 0.25f,
+        targetValue = 0.7f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1400, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "bio_alpha"
+    )
+
+    Box(
+        modifier = Modifier
+            .size(50.dp)
+            .clip(CircleShape)
+            .background(bioBlue.copy(alpha = 0.16f + pulse * 0.12f))
+            .border(1.2.dp, bioBlue.copy(alpha = 0.45f + pulse * 0.45f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.Fingerprint,
+            contentDescription = "Biometrics",
+            tint = bioBlue,
+            modifier = Modifier.size(26.dp)
+        )
     }
 }
 
@@ -615,9 +687,11 @@ private fun PasscodeTypeChip(
 @Composable
 private fun CustomNumericKeypad(
     showConfirmButton: Boolean,
+    showBiometricsInCenterRight: Boolean,
     onDigit: (String) -> Unit,
     onBackspace: () -> Unit,
     onConfirm: () -> Unit,
+    onBiometrics: () -> Unit,
     canConfirm: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -687,7 +761,15 @@ private fun CustomNumericKeypad(
                     )
                 }
             } else {
-                Spacer(modifier = Modifier.size(78.dp))
+                // Как в Telegram: слева ⌫, по центру 0, справа Отпечаток (если включён)
+                KeypadButton(onClick = onBackspace) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Outlined.Backspace,
+                        contentDescription = "Backspace",
+                        tint = scheme.textPrimary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
                 KeypadButton(onClick = { onDigit("0") }) {
                     Text(
                         text = "0",
@@ -696,13 +778,20 @@ private fun CustomNumericKeypad(
                         fontWeight = FontWeight.Medium
                     )
                 }
-                KeypadButton(onClick = onBackspace) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.Backspace,
-                        contentDescription = "Backspace",
-                        tint = scheme.textPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
+                if (showBiometricsInCenterRight) {
+                    KeypadButton(
+                        containerColor = scheme.accentSoft,
+                        onClick = onBiometrics
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Fingerprint,
+                            contentDescription = "Biometrics",
+                            tint = scheme.accent,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+                } else {
+                    Spacer(modifier = Modifier.size(78.dp))
                 }
             }
         }

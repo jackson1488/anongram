@@ -24,7 +24,8 @@ object PasscodeStore {
     private const val KEY_PASSCODE_SALT = "key_passcode_salt"
     private const val KEY_PASSCODE_TYPE = "key_passcode_type"
     private const val KEY_DB_SALT = "key_db_salt"
-    private const val ITERATIONS = 100_000
+    private const val VERIFY_ITERATIONS = 15_000
+    private const val DB_KEY_ITERATIONS = 100_000
     private const val KEY_LENGTH_BITS = 256
 
     fun isPasscodeEnabled(context: Context): Boolean {
@@ -48,7 +49,7 @@ object PasscodeStore {
     ) {
         val salt = ByteArray(32)
         SecureRandom().nextBytes(salt)
-        val hash = deriveHash(rawPasscode.toCharArray(), salt)
+        val hash = deriveHash(rawPasscode.toCharArray(), salt, VERIFY_ITERATIONS)
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_PASSCODE_ENABLED, true)
@@ -66,7 +67,7 @@ object PasscodeStore {
         val expectedHashB64 = prefs.getString(KEY_PASSCODE_HASH, null) ?: return false
         val salt = Base64.decode(saltB64, Base64.NO_WRAP)
         val expected = Base64.decode(expectedHashB64, Base64.NO_WRAP)
-        val actual = deriveHash(rawPasscode.toCharArray(), salt)
+        val actual = deriveHash(rawPasscode.toCharArray(), salt, VERIFY_ITERATIONS)
         val matches = MessageDigest.isEqual(expected, actual)
         actual.fill(0)
         expected.fill(0)
@@ -85,7 +86,7 @@ object PasscodeStore {
         } else {
             Base64.decode(existingSaltB64, Base64.NO_WRAP)
         }
-        val key = deriveHash(rawPasscode.toCharArray(), dbSalt)
+        val key = deriveHash(rawPasscode.toCharArray(), dbSalt, DB_KEY_ITERATIONS)
         dbSalt.fill(0)
         return key
     }
@@ -100,8 +101,8 @@ object PasscodeStore {
             .apply()
     }
 
-    private fun deriveHash(password: CharArray, salt: ByteArray): ByteArray {
-        val spec = PBEKeySpec(password, salt, ITERATIONS, KEY_LENGTH_BITS)
+    private fun deriveHash(password: CharArray, salt: ByteArray, iterations: Int): ByteArray {
+        val spec = PBEKeySpec(password, salt, iterations, KEY_LENGTH_BITS)
         return try {
             SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
         } finally {
