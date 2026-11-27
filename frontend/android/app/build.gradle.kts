@@ -75,6 +75,7 @@ android {
     packaging {
         jniLibs {
             useLegacyPackaging = false
+            pickFirsts += listOf("**/libsqlcipher.so")
             excludes += listOf(
                 "**/libanongram_llama.so",
                 "**/libanongram_whisper.so",
