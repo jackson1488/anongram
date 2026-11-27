@@ -47,7 +47,7 @@ jobs:
           git clone --depth 1 --branch v4.6.1 https://github.com/sqlcipher/sqlcipher-android.git /tmp/sqlcipher-android
           JNI_DIR="/tmp/sqlcipher-android/sqlcipher/src/main/jni"
           cp /tmp/sqlcipher/sqlite3.c /tmp/sqlcipher/sqlite3.h "${JNI_DIR}/sqlcipher/"
-          sed -i 's/int rc = strerror_r(errnum, buf, buflen);/char* msg = strerror_r(errnum, buf, buflen); return msg ? msg : "unknown";/' "${JNI_DIR}/sqlcipher/JNIHelp.cpp"
+          sed -i 's/int rc = strerror_r(errnum, buf, buflen);/const char* msg = strerror_r(errnum, buf, buflen); int rc = (msg == nullptr) ? 1 : 0; if (msg \&\& msg != buf) { snprintf(buf, buflen, "%s", msg); }/' "${JNI_DIR}/sqlcipher/JNIHelp.cpp"
 
           cat > "${JNI_DIR}/sqlcipher/Android.mk" <<'EOF'
           LOCAL_PATH := $(call my-dir)
