@@ -3,13 +3,17 @@ package com.anongram.app
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
-import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -38,8 +42,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,8 +59,10 @@ import androidx.compose.ui.zIndex
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.anongram.app.core.db.AnonGramEncryptedDb
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
+import kotlinx.coroutines.delay
 import com.anongram.app.core.theme.AnonGramTheme
 import com.anongram.app.core.theme.SharedPrefsThemeRepository
 import com.anongram.app.core.theme.ThemeController
@@ -86,11 +94,6 @@ class MainActivity : FragmentActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         hasWindowFocus = hasFocus
-        val prefs = applicationContext.getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
-        val showInRecents = prefs.getBoolean("key_show_in_recents", true)
-        if (!showInRecents) {
-            window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        }
     }
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -141,6 +144,9 @@ class MainActivity : FragmentActivity() {
                         is AuthState.Authenticated -> {
                             val lang by LanguageSettingsStore.language.collectAsState()
                             val isRu = lang == AppLanguage.RU
+                            val secPrefs = remember {
+                                applicationContext.getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
+                            }
                             var passcodeEnabled by remember {
                                 mutableStateOf(PasscodeStore.isPasscodeEnabled(applicationContext))
                             }
@@ -148,45 +154,112 @@ class MainActivity : FragmentActivity() {
                             var showEnablePrompt by remember { mutableStateOf(!passcodeEnabled) }
                             var isCreatingPasscode by remember { mutableStateOf(false) }
                             var showInRecents by remember {
-                                mutableStateOf(
-                                    applicationContext.getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
-                                        .getBoolean("key_show_in_recents", true)
-                                )
+                                mutableStateOf(secPrefs.getBoolean("key_show_in_recents", true))
                             }
+                            var autoLockOption by remember {
+                                mutableStateOf(secPrefs.getString("key_autolock_option", "через 1 мин.") ?: "через 1 мин.")
+                            }
+                            var lastInteractionMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
                             val lifecycleOwner = LocalLifecycleOwner.current
                             DisposableEffect(lifecycleOwner) {
                                 val observer = LifecycleEventObserver { _, event ->
-                                    if (event == Lifecycle.Event.ON_START || event == Lifecycle.Event.ON_RESUME) {
-                                        val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
-                                        passcodeEnabled = enabled
-                                        showInRecents = applicationContext
-                                            .getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
-                                            .getBoolean("key_show_in_recents", true)
-                                        if (!enabled) {
-                                            isUnlocked = true
-                                            if (event == Lifecycle.Event.ON_START) {
-                                                showEnablePrompt = true
+                                    when (event) {
+                                        Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME -> {
+                                            val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
+                                            passcodeEnabled = enabled
+                                            showInRecents = secPrefs.getBoolean("key_show_in_recents", true)
+                                            autoLockOption = secPrefs.getString("key_autolock_option", "через 1 мин.")
+                                                ?: "через 1 мин."
+                                            if (!enabled) {
+                                                isUnlocked = true
+                                                if (event == Lifecycle.Event.ON_START) {
+                                                    showEnablePrompt = true
+                                                }
+                                            } else {
+                                                lastInteractionMs = System.currentTimeMillis()
                                             }
                                         }
+                                        Lifecycle.Event.ON_STOP -> {
+                                            val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
+                                            val opt = secPrefs.getString("key_autolock_option", "через 1 мин.")
+                                                ?: "через 1 мин."
+                                            val isDisabledOpt = opt.equals("выключена", ignoreCase = true) ||
+                                                opt.equals("Disabled", ignoreCase = true)
+                                            if (enabled && !isDisabledOpt) {
+                                                isUnlocked = false
+                                                AnonGramEncryptedDb.lock()
+                                            }
+                                        }
+                                        else -> Unit
                                     }
                                 }
                                 lifecycleOwner.lifecycle.addObserver(observer)
                                 onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                             }
 
-                            val shouldBlurRecents = !hasWindowFocus && !showInRecents && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                            // Адаптивная автоблокировка при бездействии внутри приложения (макс 15 мин)
+                            LaunchedEffect(passcodeEnabled, isUnlocked, autoLockOption) {
+                                if (!passcodeEnabled || !isUnlocked) return@LaunchedEffect
+                                val timeoutMs = parseAutoLockTimeoutMs(autoLockOption) ?: return@LaunchedEffect
+                                while (true) {
+                                    delay(1000)
+                                    val liveEnabled = PasscodeStore.isPasscodeEnabled(applicationContext)
+                                    val liveOpt = secPrefs.getString("key_autolock_option", autoLockOption) ?: autoLockOption
+                                    if (!liveEnabled) break
+                                    val liveTimeout = parseAutoLockTimeoutMs(liveOpt) ?: break
+                                    if (System.currentTimeMillis() - lastInteractionMs >= liveTimeout) {
+                                        isUnlocked = false
+                                        AnonGramEncryptedDb.lock()
+                                        break
+                                    }
+                                    if (liveTimeout != timeoutMs) {
+                                        autoLockOption = liveOpt
+                                    }
+                                }
+                            }
 
-                            Box(modifier = Modifier.fillMaxSize()) {
+                            val shouldBlurRecents = !hasWindowFocus && !showInRecents
+                            val blurRadius by animateDpAsState(
+                                targetValue = if (shouldBlurRecents && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 26.dp else 0.dp,
+                                animationSpec = tween(durationMillis = 180),
+                                label = "recents_blur"
+                            )
+                            val veilAlpha by animateFloatAsState(
+                                targetValue = if (shouldBlurRecents) 0.35f else 0f,
+                                animationSpec = tween(durationMillis = 180),
+                                label = "recents_veil"
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                awaitPointerEvent(PointerEventPass.Initial)
+                                                lastInteractionMs = System.currentTimeMillis()
+                                            }
+                                        }
+                                    }
+                            ) {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .then(if (shouldBlurRecents) Modifier.blur(26.dp) else Modifier)
+                                        .then(if (blurRadius > 0.dp) Modifier.blur(blurRadius) else Modifier)
                                 ) {
                                     MainAppShell(
                                         themeController = themeController,
                                         widthSizeClass = windowSizeClass.widthSizeClass,
                                         onLogout = { authViewModel.logout() }
+                                    )
+                                }
+
+                                if (veilAlpha > 0.01f) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(scheme.background.copy(alpha = veilAlpha))
                                     )
                                 }
 
@@ -352,5 +425,20 @@ class MainActivity : FragmentActivity() {
             }
             com.anongram.app.features.chats.tools.IncomingShareBus.emit(sharedText, resolved)
         }.start()
+    }
+}
+
+private fun parseAutoLockTimeoutMs(option: String): Long? {
+    val norm = option.lowercase()
+    return when {
+        norm.contains("выкл") || norm.contains("disabled") -> null
+        norm.contains("30") && (norm.contains("сек") || norm.contains("sec")) -> 30_000L
+        norm.contains("15") -> 15 * 60_000L
+        norm.contains("10") -> 10 * 60_000L
+        norm.contains("5") -> 5 * 60_000L
+        norm.contains("3") -> 3 * 60_000L
+        norm.contains("2") -> 2 * 60_000L
+        norm.contains("1") -> 60_000L
+        else -> 60_000L
     }
 }

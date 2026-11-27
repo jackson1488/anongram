@@ -85,6 +85,7 @@ import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
 import com.anongram.app.core.ui.safeNavigationBarPadding
 import com.anongram.app.core.ui.safeStatusBarPadding
+import com.anongram.app.features.auth.ui.welcome.WelcomeShieldAnimation
 import com.anongram.app.features.settings.security.data.PasscodeStore
 import com.anongram.app.features.settings.security.data.PasscodeType
 import kotlinx.coroutines.Dispatchers
@@ -102,7 +103,7 @@ enum class PasscodeScreenMode {
 /**
  * Кастомный экран ввода или создания код-пароля:
  * - Полная изоляция касаний (клики по фону не проходят к экранам под ним)
- * - Базовый FLAG_SECURE на время показа экрана код-пароля
+ * - Базовый FLAG_SECURE только на время показа экрана код-пароля
  * - Поднятая цифровая клавиатура (⌫ | 0 | Отпечаток при включённой биометрии)
  * - Для текстового пароля: клавиатура открыта сразу и не опускается + синяя пульсирующая кнопка биометрии слева
  */
@@ -132,17 +133,14 @@ fun PasscodeLockOverlay(
         }
     }
 
-    // Базовый запрет скриншотов на экране ввода/создания код-пароля
+    // Запрет скриншотов действует только на самом экране код-пароля
     DisposableEffect(Unit) {
         val window = (context as? Activity)?.window
         val hadFlagBefore = window != null &&
             (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
         window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
         onDispose {
-            val prefs = context.applicationContext
-                .getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
-            val showInRecents = prefs.getBoolean("key_show_in_recents", true)
-            if (!hadFlagBefore && showInRecents) {
+            if (!hadFlagBefore) {
                 window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
         }
@@ -236,9 +234,8 @@ fun PasscodeLockOverlay(
         firstStepPasscode == null -> if (isRu) "Создайте код-пароль" else "Create Passcode"
         else -> if (isRu) "Повторите код-пароль" else "Confirm Passcode"
     }
-    val subtitle = subtitleOverride ?: when {
-        mode == PasscodeScreenMode.UNLOCK ->
-            if (isRu) "Откроется автоматически при верном вводе" else "Unlocks automatically on match"
+    val subtitle: String? = subtitleOverride ?: when {
+        mode == PasscodeScreenMode.UNLOCK -> null
         firstStepPasscode == null ->
             if (isRu) "Любая длина без ограничений" else "Any length, no character limit"
         else ->
@@ -361,23 +358,9 @@ fun PasscodeLockOverlay(
                     .padding(horizontal = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(58.dp)
-                        .clip(CircleShape)
-                        .background(scheme.accentSoft)
-                        .border(0.8.dp, scheme.islandBorder, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Lock,
-                        contentDescription = title,
-                        tint = scheme.accent,
-                        modifier = Modifier.size(27.dp)
-                    )
-                }
+                WelcomeShieldAnimation(size = 76.dp)
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
                     text = title,
@@ -387,14 +370,15 @@ fun PasscodeLockOverlay(
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = subtitle,
-                    color = scheme.textSecondary,
-                    fontSize = 13.sp,
-                    textAlign = TextAlign.Center
-                )
+                if (!subtitle.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = subtitle,
+                        color = scheme.textSecondary,
+                        fontSize = 13.sp,
+                        textAlign = TextAlign.Center
+                    )
+                }
 
                 if (mode == PasscodeScreenMode.CREATE && firstStepPasscode == null) {
                     Spacer(modifier = Modifier.height(14.dp))
@@ -436,14 +420,7 @@ fun PasscodeLockOverlay(
                             .animateContentSize(),
                         contentAlignment = Alignment.Center
                     ) {
-                        if (input.isEmpty()) {
-                            Text(
-                                text = "•  •  •",
-                                color = scheme.textMuted.copy(alpha = 0.4f),
-                                fontSize = 18.sp,
-                                letterSpacing = 4.sp
-                            )
-                        } else {
+                        if (input.isNotEmpty()) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                                 verticalAlignment = Alignment.CenterVertically

@@ -23,8 +23,10 @@ object PasscodeStore {
     private const val KEY_PASSCODE_HASH = "key_passcode_hash"
     private const val KEY_PASSCODE_SALT = "key_passcode_salt"
     private const val KEY_PASSCODE_TYPE = "key_passcode_type"
+    private const val KEY_PASSCODE_ITERATIONS = "key_passcode_iterations"
     private const val KEY_DB_SALT = "key_db_salt"
     private const val VERIFY_ITERATIONS = 15_000
+    private const val LEGACY_ITERATIONS = 100_000
     private const val DB_KEY_ITERATIONS = 100_000
     private const val KEY_LENGTH_BITS = 256
 
@@ -54,6 +56,7 @@ object PasscodeStore {
             .edit()
             .putBoolean(KEY_PASSCODE_ENABLED, true)
             .putString(KEY_PASSCODE_TYPE, type.name)
+            .putInt(KEY_PASSCODE_ITERATIONS, VERIFY_ITERATIONS)
             .putString(KEY_PASSCODE_SALT, Base64.encodeToString(salt, Base64.NO_WRAP))
             .putString(KEY_PASSCODE_HASH, Base64.encodeToString(hash, Base64.NO_WRAP))
             .apply()
@@ -67,12 +70,38 @@ object PasscodeStore {
         val expectedHashB64 = prefs.getString(KEY_PASSCODE_HASH, null) ?: return false
         val salt = Base64.decode(saltB64, Base64.NO_WRAP)
         val expected = Base64.decode(expectedHashB64, Base64.NO_WRAP)
-        val actual = deriveHash(rawPasscode.toCharArray(), salt, VERIFY_ITERATIONS)
-        val matches = MessageDigest.isEqual(expected, actual)
-        actual.fill(0)
-        expected.fill(0)
-        salt.fill(0)
-        return matches
+        val storedIterations = prefs.getInt(KEY_PASSCODE_ITERATIONS, -1)
+
+        val chars = rawPasscode.toCharArray()
+        return try {
+            if (storedIterations > 0) {
+                val actual = deriveHash(chars, salt, storedIterations)
+                val matches = MessageDigest.isEqual(expected, actual)
+                actual.fill(0)
+                matches
+            } else {
+                // Совместимость со старыми паролями (100k итераций) и новыми (15k)
+                val fastActual = deriveHash(chars, salt, VERIFY_ITERATIONS)
+                val fastMatch = MessageDigest.isEqual(expected, fastActual)
+                fastActual.fill(0)
+                if (fastMatch) {
+                    prefs.edit().putInt(KEY_PASSCODE_ITERATIONS, VERIFY_ITERATIONS).apply()
+                    true
+                } else {
+                    val legacyActual = deriveHash(chars, salt, LEGACY_ITERATIONS)
+                    val legacyMatch = MessageDigest.isEqual(expected, legacyActual)
+                    legacyActual.fill(0)
+                    if (legacyMatch) {
+                        setPasscode(context, rawPasscode, getPasscodeType(context))
+                    }
+                    legacyMatch
+                }
+            }
+        } finally {
+            chars.fill('\u0000')
+            expected.fill(0)
+            salt.fill(0)
+        }
     }
 
     fun deriveDbKeyBytes(context: Context, rawPasscode: String): ByteArray {
@@ -98,6 +127,7 @@ object PasscodeStore {
             .remove(KEY_PASSCODE_HASH)
             .remove(KEY_PASSCODE_SALT)
             .remove(KEY_PASSCODE_TYPE)
+            .remove(KEY_PASSCODE_ITERATIONS)
             .apply()
     }
 

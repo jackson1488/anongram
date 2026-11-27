@@ -369,12 +369,6 @@ fun SecuritySettingsScreen(
                         onCheckedChange = { enabled ->
                             showInRecents = enabled
                             prefs.edit().putBoolean("key_show_in_recents", enabled).apply()
-                            val window = (context as? Activity)?.window
-                            if (enabled) {
-                                window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                            } else {
-                                window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-                            }
                         },
                         colors = switchColors
                     )
@@ -383,9 +377,9 @@ fun SecuritySettingsScreen(
 
             Text(
                 text = if (isRu) {
-                    "Если выключено, чаты не будут видны в окне переключения задач, но Вы не сможете делать скриншоты приложения."
+                    "Если выключено, экран приложения будет размываться в окне переключения задач."
                 } else {
-                    "When disabled, chats will be hidden in the task switcher, and screenshots will be blocked."
+                    "When disabled, the app screen will be blurred in the task switcher."
                 },
                 color = scheme.textSecondary,
                 fontSize = 12.5.sp,
@@ -500,12 +494,30 @@ private fun AutoLockWheelDialog(
 
     val options = remember(isRu) {
         if (isRu) {
-            listOf("выключена", "через 1 мин.", "через 5 мин.", "через 1 час", "через 5 часов")
+            listOf(
+                "выключена",
+                "через 30 сек.",
+                "через 1 мин.",
+                "через 2 мин.",
+                "через 3 мин.",
+                "через 5 мин.",
+                "через 10 мин.",
+                "через 15 мин."
+            )
         } else {
-            listOf("Disabled", "in 1 min", "in 5 min", "in 1 hour", "in 5 hours")
+            listOf(
+                "Disabled",
+                "in 30 sec",
+                "in 1 min",
+                "in 2 min",
+                "in 3 min",
+                "in 5 min",
+                "in 10 min",
+                "in 15 min"
+            )
         }
     }
-    val initialIdx = options.indexOf(current).coerceAtLeast(1)
+    val initialIdx = options.indexOf(current).let { if (it >= 0) it else 2 }
     val totalVirtual = Int.MAX_VALUE
     val startVirtual = remember(options.size, initialIdx) {
         val mid = totalVirtual / 2
