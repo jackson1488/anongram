@@ -110,7 +110,7 @@ fun SecuritySettingsScreen(
     var passcodeEnabled by remember { mutableStateOf(PasscodeStore.isPasscodeEnabled(context)) }
     var biometricsEnabled by remember { mutableStateOf(false) }
     var autoLockOption by remember { mutableStateOf("через 1 мин.") }
-    var showInRecents by remember { mutableStateOf(false) }
+    var blurInRecents by remember { mutableStateOf(true) }
     var twoFactorEnabled by remember { mutableStateOf(false) }
 
     var subScreen by remember { mutableStateOf(SecuritySubScreen.MAIN) }
@@ -131,7 +131,7 @@ fun SecuritySettingsScreen(
         biometricsEnabled = prefs.getBoolean("key_biometrics_enabled", false)
         autoLockOption = prefs.getString("key_autolock_option", if (isRu) "через 1 мин." else "in 1 min")
             ?: if (isRu) "через 1 мин." else "in 1 min"
-        showInRecents = prefs.getBoolean("key_show_in_recents", false)
+        blurInRecents = prefs.getBoolean("key_blur_in_recents", true)
         twoFactorEnabled = prefs.getBoolean("key_two_factor_enabled", false)
     }
 
@@ -375,7 +375,7 @@ fun SecuritySettingsScreen(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Text(
-                    text = if (isRu) "Просмотр при переключении задач" else "Show App Content in Task Switcher",
+                    text = if (isRu) "Недавние задачи" else "Task Switcher",
                     color = scheme.accent,
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.SemiBold
@@ -386,17 +386,17 @@ fun SecuritySettingsScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (isRu) "Показывать" else "Show",
+                        text = if (isRu) "Размывать экран" else "Blur App Content",
                         color = scheme.textPrimary,
                         fontSize = 15.5.sp,
                         fontWeight = FontWeight.Medium,
                         modifier = Modifier.weight(1f)
                     )
                     Switch(
-                        checked = showInRecents,
+                        checked = blurInRecents,
                         onCheckedChange = { enabled ->
-                            showInRecents = enabled
-                            prefs.edit().putBoolean("key_show_in_recents", enabled).apply()
+                            blurInRecents = enabled
+                            prefs.edit().putBoolean("key_blur_in_recents", enabled).apply()
                         },
                         colors = switchColors
                     )
@@ -405,9 +405,9 @@ fun SecuritySettingsScreen(
 
             Text(
                 text = if (isRu) {
-                    "Если выключено, экран приложения будет размываться в окне переключения задач."
+                    "Если включено, экран приложения размывается в окне недавних задач. Скриншоты в чатах работают, кроме экрана блокировки."
                 } else {
-                    "When disabled, the app screen will be blurred in the task switcher."
+                    "When enabled, the app screen blurs in Recents. Screenshots still work in chats, except on the lock screen."
                 },
                 color = scheme.textSecondary,
                 fontSize = 12.5.sp,

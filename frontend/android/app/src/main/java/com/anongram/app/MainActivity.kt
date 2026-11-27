@@ -91,10 +91,26 @@ import com.anongram.app.features.settings.security.ui.components.PasscodeScreenM
 class MainActivity : FragmentActivity() {
 
     private var hasWindowFocus by mutableStateOf(true)
+    private var isInRecentsOrPaused by mutableStateOf(false)
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         hasWindowFocus = hasFocus
+    }
+
+    override fun onUserLeaveHint() {
+        isInRecentsOrPaused = true
+        super.onUserLeaveHint()
+    }
+
+    override fun onPause() {
+        isInRecentsOrPaused = true
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        isInRecentsOrPaused = false
     }
 
     @OptIn(ExperimentalMaterial3WindowSizeClassApi::class)
@@ -154,26 +170,19 @@ class MainActivity : FragmentActivity() {
                             var isUnlocked by remember { mutableStateOf(!passcodeEnabled) }
                             var showEnablePrompt by remember { mutableStateOf(!passcodeEnabled) }
                             var isCreatingPasscode by remember { mutableStateOf(false) }
-                            var showInRecents by remember {
-                                mutableStateOf(secPrefs.getBoolean("key_show_in_recents", false))
+                            var blurInRecents by remember {
+                                mutableStateOf(secPrefs.getBoolean("key_blur_in_recents", true))
                             }
-                            var isPaused by remember { mutableStateOf(false) }
                             var autoLockOption by remember {
                                 mutableStateOf(secPrefs.getString("key_autolock_option", "через 1 мин.") ?: "через 1 мин.")
                             }
                             var lastInteractionMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-                            LaunchedEffect(showInRecents) {
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    this@MainActivity.setRecentsScreenshotEnabled(showInRecents)
-                                }
-                            }
-
                             DisposableEffect(secPrefs) {
                                 val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
                                     when (key) {
-                                        "key_show_in_recents" -> {
-                                            showInRecents = prefs.getBoolean("key_show_in_recents", false)
+                                        "key_blur_in_recents" -> {
+                                            blurInRecents = prefs.getBoolean("key_blur_in_recents", true)
                                         }
                                         "key_autolock_option" -> {
                                             autoLockOption = prefs.getString("key_autolock_option", "через 1 мин.")
@@ -190,10 +199,10 @@ class MainActivity : FragmentActivity() {
                                 val observer = LifecycleEventObserver { _, event ->
                                     when (event) {
                                         Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME -> {
-                                            isPaused = false
+                                            isInRecentsOrPaused = false
                                             val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
                                             passcodeEnabled = enabled
-                                            showInRecents = secPrefs.getBoolean("key_show_in_recents", false)
+                                            blurInRecents = secPrefs.getBoolean("key_blur_in_recents", true)
                                             autoLockOption = secPrefs.getString("key_autolock_option", "через 1 мин.")
                                                 ?: "через 1 мин."
                                             if (!enabled) {
@@ -206,10 +215,10 @@ class MainActivity : FragmentActivity() {
                                             }
                                         }
                                         Lifecycle.Event.ON_PAUSE -> {
-                                            isPaused = true
+                                            isInRecentsOrPaused = true
                                         }
                                         Lifecycle.Event.ON_STOP -> {
-                                            isPaused = true
+                                            isInRecentsOrPaused = true
                                             val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
                                             val opt = secPrefs.getString("key_autolock_option", "через 1 мин.")
                                                 ?: "через 1 мин."
@@ -248,9 +257,7 @@ class MainActivity : FragmentActivity() {
                                 }
                             }
 
-                            val shouldBlurRecents = (!hasWindowFocus || isPaused) &&
-                                !showInRecents &&
-                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                            val shouldBlurRecents = (!hasWindowFocus || isInRecentsOrPaused) && blurInRecents
 
                             Box(
                                 modifier = Modifier
@@ -267,12 +274,26 @@ class MainActivity : FragmentActivity() {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .then(if (shouldBlurRecents) Modifier.blur(32.dp) else Modifier)
+                                        .then(
+                                            if (shouldBlurRecents && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                                Modifier.blur(36.dp)
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
                                 ) {
                                     MainAppShell(
                                         themeController = themeController,
                                         widthSizeClass = windowSizeClass.widthSizeClass,
                                         onLogout = { authViewModel.logout() }
+                                    )
+                                }
+
+                                if (shouldBlurRecents) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(scheme.background.copy(alpha = 0.36f))
                                     )
                                 }
 
