@@ -19,6 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.anongram.app.core.ui.AnonGramScreenSurface
+import com.anongram.app.features.settings.security.data.PasscodeStore
+import com.anongram.app.features.settings.security.ui.components.PasscodeLockOverlay
+import com.anongram.app.features.settings.security.ui.components.PasscodeScreenMode
 import com.anongram.app.features.settings.security.ui.components.SecurityCryptoCard
 import com.anongram.app.features.settings.security.ui.components.SecurityPasscodeCard
 import com.anongram.app.features.settings.security.ui.components.SecurityTopBar
@@ -42,16 +45,34 @@ fun SecuritySettingsScreen(
     var autoLockOption by remember { mutableStateOf("1 мин") }
     var screenProtectionEnabled by remember { mutableStateOf(false) }
     var twoFactorEnabled by remember { mutableStateOf(false) }
+    var pendingPasscodeMode by remember { mutableStateOf<PasscodeScreenMode?>(null) }
 
     LaunchedEffect(Unit) {
-        passcodeEnabled = prefs.getBoolean("key_passcode_enabled", false)
+        passcodeEnabled = PasscodeStore.isPasscodeEnabled(context)
         biometricsEnabled = prefs.getBoolean("key_biometrics_enabled", false)
         autoLockOption = prefs.getString("key_autolock_option", "1 мин") ?: "1 мин"
         screenProtectionEnabled = prefs.getBoolean("key_screen_protection", false)
         twoFactorEnabled = prefs.getBoolean("key_two_factor_enabled", false)
     }
 
-    // Обработка системного жеста «Назад»
+    if (pendingPasscodeMode != null) {
+        PasscodeLockOverlay(
+            mode = pendingPasscodeMode!!,
+            onSuccess = {
+                if (pendingPasscodeMode == PasscodeScreenMode.CREATE) {
+                    passcodeEnabled = true
+                } else {
+                    PasscodeStore.clearPasscode(context)
+                    passcodeEnabled = false
+                }
+                pendingPasscodeMode = null
+            },
+            onBack = {
+                pendingPasscodeMode = null
+            }
+        )
+        return
+    }
 
     com.anongram.app.features.settings.common.ui.SettingsGlassScaffold(
         title = "Безопасность",
@@ -62,8 +83,14 @@ fun SecuritySettingsScreen(
         SecurityPasscodeCard(
             passcodeEnabled = passcodeEnabled,
             onPasscodeChange = { enabled ->
-                passcodeEnabled = enabled
-                prefs.edit().putBoolean("key_passcode_enabled", enabled).apply()
+                if (enabled) {
+                    pendingPasscodeMode = PasscodeScreenMode.CREATE
+                } else if (PasscodeStore.isPasscodeEnabled(context)) {
+                    pendingPasscodeMode = PasscodeScreenMode.UNLOCK
+                } else {
+                    PasscodeStore.clearPasscode(context)
+                    passcodeEnabled = false
+                }
             },
             biometricsEnabled = biometricsEnabled,
             onBiometricsChange = { enabled ->

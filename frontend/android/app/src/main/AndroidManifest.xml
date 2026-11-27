@@ -44,6 +44,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.AnonGram"
+        android:manageSpaceActivity="com.anongram.app.ManageSpaceActivity"
         android:hardwareAccelerated="true"
         android:enableOnBackInvokedCallback="true">
 
@@ -88,6 +89,14 @@
                 <data android:mimeType="*/*" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name="com.anongram.app.ManageSpaceActivity"
+            android:exported="true"
+            android:taskAffinity="com.anongram.app.manage_space"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:windowSoftInputMode="adjustResize" />
 
         <!-- Сервис воспроизведения музыки в фоне и шторке уведомлений -->
         <service
