@@ -219,17 +219,7 @@ class MainActivity : FragmentActivity() {
                                 }
                             }
 
-                            val shouldBlurRecents = !hasWindowFocus && !showInRecents
-                            val blurRadius by animateDpAsState(
-                                targetValue = if (shouldBlurRecents && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 26.dp else 0.dp,
-                                animationSpec = tween(durationMillis = 180),
-                                label = "recents_blur"
-                            )
-                            val veilAlpha by animateFloatAsState(
-                                targetValue = if (shouldBlurRecents) 0.35f else 0f,
-                                animationSpec = tween(durationMillis = 180),
-                                label = "recents_veil"
-                            )
+                            val shouldBlurRecents = !hasWindowFocus && !showInRecents && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
                             Box(
                                 modifier = Modifier
@@ -246,20 +236,12 @@ class MainActivity : FragmentActivity() {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .then(if (blurRadius > 0.dp) Modifier.blur(blurRadius) else Modifier)
+                                        .then(if (shouldBlurRecents) Modifier.blur(28.dp) else Modifier)
                                 ) {
                                     MainAppShell(
                                         themeController = themeController,
                                         widthSizeClass = windowSizeClass.widthSizeClass,
                                         onLogout = { authViewModel.logout() }
-                                    )
-                                }
-
-                                if (veilAlpha > 0.01f) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(scheme.background.copy(alpha = veilAlpha))
                                     )
                                 }
 
@@ -333,6 +315,7 @@ class MainActivity : FragmentActivity() {
                                 if (isCreatingPasscode) {
                                     PasscodeLockOverlay(
                                         mode = PasscodeScreenMode.CREATE,
+                                        hasWindowFocus = hasWindowFocus,
                                         onSuccess = {
                                             passcodeEnabled = true
                                             isUnlocked = true
@@ -348,7 +331,11 @@ class MainActivity : FragmentActivity() {
                                     PasscodeLockOverlay(
                                         mode = PasscodeScreenMode.UNLOCK,
                                         allowBack = false,
-                                        onSuccess = { isUnlocked = true },
+                                        hasWindowFocus = hasWindowFocus,
+                                        onSuccess = {
+                                            lastInteractionMs = System.currentTimeMillis()
+                                            isUnlocked = true
+                                        },
                                         onBack = {},
                                         modifier = Modifier.zIndex(80f)
                                     )

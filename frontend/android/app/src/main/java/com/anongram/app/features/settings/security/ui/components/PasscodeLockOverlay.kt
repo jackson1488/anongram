@@ -52,6 +52,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -112,6 +113,7 @@ fun PasscodeLockOverlay(
     mode: PasscodeScreenMode,
     subtitleOverride: String? = null,
     allowBack: Boolean = true,
+    hasWindowFocus: Boolean = true,
     onSuccess: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
@@ -133,16 +135,16 @@ fun PasscodeLockOverlay(
         }
     }
 
-    // Запрет скриншотов действует только на самом экране код-пароля
-    DisposableEffect(Unit) {
+    // Запрет скриншотов действует только пока экран код-пароля в фокусе (в Recents снимаем, чтобы работал блюр без серого экрана)
+    DisposableEffect(hasWindowFocus) {
         val window = (context as? Activity)?.window
-        val hadFlagBefore = window != null &&
-            (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
-        window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        if (hasWindowFocus) {
+            window?.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        }
         onDispose {
-            if (!hadFlagBefore) {
-                window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-            }
+            window?.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
 
@@ -167,7 +169,39 @@ fun PasscodeLockOverlay(
     var input by remember { mutableStateOf("") }
     var errorText by remember { mutableStateOf<String?>(null) }
 
+    val bruteForceEnabled = remember(mode) {
+        mode == PasscodeScreenMode.UNLOCK && PasscodeStore.isBruteForceEnabled(context)
+    }
+    val expectedLength = remember(mode) {
+        if (mode == PasscodeScreenMode.UNLOCK) PasscodeStore.getPasscodeLength(context) else 0
+    }
+    var lockoutRemainingSec by remember(mode) {
+        mutableLongStateOf(
+            if (bruteForceEnabled) PasscodeStore.getLockoutRemainingSeconds(context) else 0L
+        )
+    }
+
+    LaunchedEffect(lockoutRemainingSec, bruteForceEnabled) {
+        if (!bruteForceEnabled || lockoutRemainingSec <= 0L) return@LaunchedEffect
+        while (lockoutRemainingSec > 0L) {
+            delay(1000)
+            lockoutRemainingSec = PasscodeStore.getLockoutRemainingSeconds(context)
+        }
+    }
+
+    fun openDbInBackground(passcode: String) {
+        val appCtx = context.applicationContext
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                val dbKey = PasscodeStore.deriveDbKeyBytes(appCtx, passcode)
+                AnonGramEncryptedDb.openWithKey(appCtx, dbKey)
+                dbKey.fill(0)
+            }
+        }
+    }
+
     fun launchBiometricPrompt() {
+        if (lockoutRemainingSec > 0L) return
         val activity = context as? FragmentActivity ?: return
         val executor = ContextCompat.getMainExecutor(activity)
         val prompt = BiometricPrompt(
@@ -176,6 +210,7 @@ fun PasscodeLockOverlay(
             object : BiometricPrompt.AuthenticationCallback() {
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
+                    PasscodeStore.resetFailedAttempts(context)
                     onSuccess()
                 }
             }
@@ -190,15 +225,15 @@ fun PasscodeLockOverlay(
 
     // Автоматический вызов биометрии при входе на экран блокировки, если включена
     LaunchedEffect(mode, biometricsEnabled) {
-        if (mode == PasscodeScreenMode.UNLOCK && biometricsEnabled) {
+        if (mode == PasscodeScreenMode.UNLOCK && biometricsEnabled && lockoutRemainingSec <= 0L) {
             delay(180)
             launchBiometricPrompt()
         }
     }
 
     // Держим системную клавиатуру открытой для текстового пароля
-    LaunchedEffect(mode, selectedType) {
-        if (selectedType == PasscodeType.PASSWORD) {
+    LaunchedEffect(mode, selectedType, lockoutRemainingSec) {
+        if (selectedType == PasscodeType.PASSWORD && lockoutRemainingSec <= 0L) {
             delay(80)
             runCatching {
                 focusRequester.requestFocus()
@@ -207,24 +242,28 @@ fun PasscodeLockOverlay(
         }
     }
 
-    // Быстрая авторазблокировка в режиме UNLOCK сразу при верном вводе
-    LaunchedEffect(input, mode) {
-        if (mode == PasscodeScreenMode.UNLOCK && input.isNotEmpty()) {
+    // Мгновенная авторазблокировка в режиме UNLOCK и проверка защиты от перебора
+    LaunchedEffect(input, mode, lockoutRemainingSec) {
+        if (mode == PasscodeScreenMode.UNLOCK && lockoutRemainingSec <= 0L && input.isNotEmpty()) {
             val candidate = input
             val ok = withContext(Dispatchers.Default) {
                 PasscodeStore.verifyPasscode(context, candidate)
             }
             if (ok && input == candidate) {
-                withContext(Dispatchers.IO) {
-                    runCatching {
-                        val dbKey = PasscodeStore.deriveDbKeyBytes(context, candidate)
-                        AnonGramEncryptedDb.openWithKey(context, dbKey)
-                        dbKey.fill(0)
-                    }
-                }
+                PasscodeStore.resetFailedAttempts(context)
                 input = ""
                 errorText = null
+                openDbInBackground(candidate)
                 onSuccess()
+            } else if (!ok && input == candidate && bruteForceEnabled && expectedLength > 0 && candidate.length >= expectedLength) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                PasscodeStore.recordFailedAttempt(context)
+                val rem = PasscodeStore.getLockoutRemainingSeconds(context)
+                if (rem > 0L) {
+                    lockoutRemainingSec = rem
+                }
+                input = ""
+                errorText = if (isRu) "Неверный код-пароль" else "Incorrect passcode"
             }
         }
     }
@@ -251,15 +290,9 @@ fun PasscodeLockOverlay(
                     PasscodeStore.verifyPasscode(context, current)
                 }
                 if (ok) {
-                    withContext(Dispatchers.IO) {
-                        runCatching {
-                            val dbKey = PasscodeStore.deriveDbKeyBytes(context, current)
-                            AnonGramEncryptedDb.openWithKey(context, dbKey)
-                            dbKey.fill(0)
-                        }
-                    }
                     input = ""
                     errorText = null
+                    openDbInBackground(current)
                     onSuccess()
                 } else {
                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -557,6 +590,69 @@ fun PasscodeLockOverlay(
                 }
             } else {
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+        }
+
+        if (lockoutRemainingSec > 0L) {
+            val hrs = lockoutRemainingSec / 3600L
+            val mins = (lockoutRemainingSec % 3600L) / 60L
+            val secs = lockoutRemainingSec % 60L
+            val timeFormatted = if (hrs > 0L) {
+                String.format(java.util.Locale.US, "%02d:%02d:%02d", hrs, mins, secs)
+            } else {
+                String.format(java.util.Locale.US, "%02d:%02d", mins, secs)
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.72f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {},
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 310.dp)
+                        .padding(horizontal = 24.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(scheme.card)
+                        .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
+                        .padding(horizontal = 24.dp, vertical = 22.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Lock,
+                        contentDescription = null,
+                        tint = Color(0xFFEF4444),
+                        modifier = Modifier.size(34.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = if (isRu) "Введён неверный пароль" else "Incorrect passcode entered",
+                        color = scheme.textPrimary,
+                        fontSize = 16.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (isRu) "Попробуйте снова через" else "Try again in",
+                        color = scheme.textSecondary,
+                        fontSize = 13.5.sp,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = timeFormatted,
+                        color = scheme.accent,
+                        fontSize = 26.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                }
             }
         }
     }
