@@ -1,6 +1,7 @@
 package com.anongram.app
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -154,21 +155,45 @@ class MainActivity : FragmentActivity() {
                             var showEnablePrompt by remember { mutableStateOf(!passcodeEnabled) }
                             var isCreatingPasscode by remember { mutableStateOf(false) }
                             var showInRecents by remember {
-                                mutableStateOf(secPrefs.getBoolean("key_show_in_recents", true))
+                                mutableStateOf(secPrefs.getBoolean("key_show_in_recents", false))
                             }
+                            var isPaused by remember { mutableStateOf(false) }
                             var autoLockOption by remember {
                                 mutableStateOf(secPrefs.getString("key_autolock_option", "через 1 мин.") ?: "через 1 мин.")
                             }
                             var lastInteractionMs by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+                            LaunchedEffect(showInRecents) {
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                    this@MainActivity.setRecentsScreenshotEnabled(showInRecents)
+                                }
+                            }
+
+                            DisposableEffect(secPrefs) {
+                                val listener = SharedPreferences.OnSharedPreferenceChangeListener { prefs, key ->
+                                    when (key) {
+                                        "key_show_in_recents" -> {
+                                            showInRecents = prefs.getBoolean("key_show_in_recents", false)
+                                        }
+                                        "key_autolock_option" -> {
+                                            autoLockOption = prefs.getString("key_autolock_option", "через 1 мин.")
+                                                ?: "через 1 мин."
+                                        }
+                                    }
+                                }
+                                secPrefs.registerOnSharedPreferenceChangeListener(listener)
+                                onDispose { secPrefs.unregisterOnSharedPreferenceChangeListener(listener) }
+                            }
 
                             val lifecycleOwner = LocalLifecycleOwner.current
                             DisposableEffect(lifecycleOwner) {
                                 val observer = LifecycleEventObserver { _, event ->
                                     when (event) {
                                         Lifecycle.Event.ON_START, Lifecycle.Event.ON_RESUME -> {
+                                            isPaused = false
                                             val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
                                             passcodeEnabled = enabled
-                                            showInRecents = secPrefs.getBoolean("key_show_in_recents", true)
+                                            showInRecents = secPrefs.getBoolean("key_show_in_recents", false)
                                             autoLockOption = secPrefs.getString("key_autolock_option", "через 1 мин.")
                                                 ?: "через 1 мин."
                                             if (!enabled) {
@@ -180,7 +205,11 @@ class MainActivity : FragmentActivity() {
                                                 lastInteractionMs = System.currentTimeMillis()
                                             }
                                         }
+                                        Lifecycle.Event.ON_PAUSE -> {
+                                            isPaused = true
+                                        }
                                         Lifecycle.Event.ON_STOP -> {
+                                            isPaused = true
                                             val enabled = PasscodeStore.isPasscodeEnabled(applicationContext)
                                             val opt = secPrefs.getString("key_autolock_option", "через 1 мин.")
                                                 ?: "через 1 мин."
@@ -219,7 +248,9 @@ class MainActivity : FragmentActivity() {
                                 }
                             }
 
-                            val shouldBlurRecents = !hasWindowFocus && !showInRecents && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                            val shouldBlurRecents = (!hasWindowFocus || isPaused) &&
+                                !showInRecents &&
+                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
                             Box(
                                 modifier = Modifier
@@ -236,7 +267,7 @@ class MainActivity : FragmentActivity() {
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
-                                        .then(if (shouldBlurRecents) Modifier.blur(28.dp) else Modifier)
+                                        .then(if (shouldBlurRecents) Modifier.blur(32.dp) else Modifier)
                                 ) {
                                     MainAppShell(
                                         themeController = themeController,

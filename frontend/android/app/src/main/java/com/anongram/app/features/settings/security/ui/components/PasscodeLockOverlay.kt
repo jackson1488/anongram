@@ -2,8 +2,10 @@ package com.anongram.app.features.settings.security.ui.components
 
 import android.app.Activity
 import android.content.Context
+import android.os.Build
 import android.view.WindowManager
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.draw.blur
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.animation.animateContentSize
@@ -242,9 +244,11 @@ fun PasscodeLockOverlay(
         }
     }
 
-    // Мгновенная авторазблокировка в режиме UNLOCK и проверка защиты от перебора
-    LaunchedEffect(input, mode, lockoutRemainingSec) {
-        if (mode == PasscodeScreenMode.UNLOCK && lockoutRemainingSec <= 0L && input.isNotEmpty()) {
+    // Мгновенная авторазблокировка в режиме UNLOCK, проверка защиты от перебора,
+    // и мгновенное подтверждение / сброс на шаг 1 при создании код-пароля
+    LaunchedEffect(input, mode, lockoutRemainingSec, firstStepPasscode) {
+        if (lockoutRemainingSec > 0L || input.isEmpty()) return@LaunchedEffect
+        if (mode == PasscodeScreenMode.UNLOCK) {
             val candidate = input
             val ok = withContext(Dispatchers.Default) {
                 PasscodeStore.verifyPasscode(context, candidate)
@@ -264,6 +268,29 @@ fun PasscodeLockOverlay(
                 }
                 input = ""
                 errorText = if (isRu) "Неверный код-пароль" else "Incorrect passcode"
+            }
+        } else if (mode == PasscodeScreenMode.CREATE && firstStepPasscode != null) {
+            val target = firstStepPasscode!!
+            if (input == target) {
+                val chosenType = selectedType
+                PasscodeStore.setPasscode(context, input, chosenType)
+                val confirmed = input
+                scope.launch(Dispatchers.IO) {
+                    runCatching {
+                        val dbKey = PasscodeStore.deriveDbKeyBytes(context, confirmed)
+                        AnonGramEncryptedDb.rekey(context, dbKey)
+                        dbKey.fill(0)
+                    }
+                }
+                input = ""
+                firstStepPasscode = null
+                errorText = null
+                onSuccess()
+            } else if (input.length >= target.length) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                input = ""
+                firstStepPasscode = null
+                errorText = if (isRu) "Не совпадает, введите заново" else "Does not match, enter again"
             }
         }
     }
@@ -352,15 +379,26 @@ fun PasscodeLockOverlay(
                 }
             }
     ) {
-        AnimatedLockShaderBackground(
-            accent = scheme.accent,
-            accentSoft = scheme.accentSoft,
-            background = scheme.background
-        )
-
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
+                .then(
+                    if (lockoutRemainingSec > 0L && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        Modifier.blur(38.dp)
+                    } else {
+                        Modifier
+                    }
+                )
+        ) {
+            AnimatedLockShaderBackground(
+                accent = scheme.accent,
+                accentSoft = scheme.accentSoft,
+                background = scheme.background
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
                 .safeStatusBarPadding()
                 .safeNavigationBarPadding()
                 .then(if (selectedType == PasscodeType.PASSWORD) Modifier.imePadding() else Modifier),
@@ -592,6 +630,7 @@ fun PasscodeLockOverlay(
                 Spacer(modifier = Modifier.height(16.dp))
             }
         }
+        }
 
         if (lockoutRemainingSec > 0L) {
             val hrs = lockoutRemainingSec / 3600L
@@ -606,7 +645,7 @@ fun PasscodeLockOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.72f))
+                    .background(Color.Black.copy(alpha = 0.62f))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null
@@ -614,42 +653,24 @@ fun PasscodeLockOverlay(
                 contentAlignment = Alignment.Center
             ) {
                 Column(
-                    modifier = Modifier
-                        .widthIn(max = 310.dp)
-                        .padding(horizontal = 24.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(scheme.card)
-                        .border(0.8.dp, scheme.islandBorder, RoundedCornerShape(24.dp))
-                        .padding(horizontal = 24.dp, vertical = 22.dp),
+                    modifier = Modifier.padding(horizontal = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Lock,
-                        contentDescription = null,
-                        tint = Color(0xFFEF4444),
-                        modifier = Modifier.size(34.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = if (isRu) "Введён неверный пароль" else "Incorrect passcode entered",
-                        color = scheme.textPrimary,
-                        fontSize = 16.5.sp,
-                        fontWeight = FontWeight.Bold,
+                        text = if (isRu) "Введён неверный пароль" else "Incorrect passcode",
+                        color = Color.White.copy(alpha = 0.92f),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 1,
                         textAlign = TextAlign.Center
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = if (isRu) "Попробуйте снова через" else "Try again in",
-                        color = scheme.textSecondary,
-                        fontSize = 13.5.sp,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
                         text = timeFormatted,
-                        color = scheme.accent,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
                         textAlign = TextAlign.Center
                     )
                 }

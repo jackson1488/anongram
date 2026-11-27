@@ -110,7 +110,7 @@ fun SecuritySettingsScreen(
     var passcodeEnabled by remember { mutableStateOf(PasscodeStore.isPasscodeEnabled(context)) }
     var biometricsEnabled by remember { mutableStateOf(false) }
     var autoLockOption by remember { mutableStateOf("через 1 мин.") }
-    var showInRecents by remember { mutableStateOf(true) }
+    var showInRecents by remember { mutableStateOf(false) }
     var twoFactorEnabled by remember { mutableStateOf(false) }
 
     var subScreen by remember { mutableStateOf(SecuritySubScreen.MAIN) }
@@ -131,7 +131,7 @@ fun SecuritySettingsScreen(
         biometricsEnabled = prefs.getBoolean("key_biometrics_enabled", false)
         autoLockOption = prefs.getString("key_autolock_option", if (isRu) "через 1 мин." else "in 1 min")
             ?: if (isRu) "через 1 мин." else "in 1 min"
-        showInRecents = prefs.getBoolean("key_show_in_recents", true)
+        showInRecents = prefs.getBoolean("key_show_in_recents", false)
         twoFactorEnabled = prefs.getBoolean("key_two_factor_enabled", false)
     }
 
@@ -1080,7 +1080,7 @@ private fun BruteForceTimerDialog(
     val scheme = LocalAnonGramScheme.current
     val presets = remember {
         listOf(
-            30, 60, 180, 300, 600, 900, 1800,
+            5, 10, 15, 30, 60, 180, 300, 600, 900, 1800,
             3600, 7200, 10800, 18000, 28800, 36000,
             43200, 50400, 57600, 64800, 72000, 79200, 86400
         )
