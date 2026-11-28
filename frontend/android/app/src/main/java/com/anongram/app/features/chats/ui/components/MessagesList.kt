@@ -406,8 +406,12 @@ internal fun MessagesList(
                         }
                     },
                     onEnterAlbumPhotoSelection = { subIdx ->
-                        val prefix = groupCountAndPrefix?.second ?: "photo"
-                        onEnterAlbumPhotoSelection("${item.message.id}#${prefix}_$subIdx")
+                        val prefix = when (att) {
+                            is MessageAttachment.FileGroup -> "file"
+                            is MessageAttachment.MusicGroup -> "music"
+                            else -> "photo"
+                        }
+                        onEnterAlbumPhotoSelection("$msgId#${prefix}_$subIdx")
                     },
                     onPin = { onPinMessage(item.message.id) },
                     onEdit = { onEditMessage(item.message, null) },
