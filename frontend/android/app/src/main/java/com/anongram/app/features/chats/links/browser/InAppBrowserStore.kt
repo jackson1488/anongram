@@ -5,12 +5,17 @@ import android.content.Intent
 import android.net.Uri
 import android.webkit.CookieManager
 import android.webkit.WebView
+import com.anongram.app.core.db.AnonGramEncryptedDb
+import com.anongram.app.core.db.schema.core.SecureKvDao
 import com.anongram.app.core.theme.ChatTextSettingsStore
 import com.anongram.app.features.chats.links.preview.LinkPreviewData
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -56,13 +61,27 @@ object InAppBrowserStore {
     private const val KEY_EXCLUDED = "excluded_domains_json"
     private const val KEY_SEARCH_ENGINE = "search_engine"
 
+    private val ioScope = CoroutineScope(Dispatchers.IO)
     private val _state = MutableStateFlow(InAppBrowserState())
     val state: StateFlow<InAppBrowserState> = _state.asStateFlow()
 
     @Volatile
     private var initialized = false
+    @Volatile
+    private var appContext: Context? = null
+
+    init {
+        ioScope.launch {
+            AnonGramEncryptedDb.unlockedFlow.collect { unlocked ->
+                if (unlocked) {
+                    appContext?.let { syncAndMigrateWithDb(it) }
+                }
+            }
+        }
+    }
 
     fun ensureInitialized(context: Context) {
+        appContext = context.applicationContext
         if (initialized) return
         initialized = true
         val appCtx = context.applicationContext
@@ -252,11 +271,15 @@ object InAppBrowserStore {
 
     fun setSearchEngine(context: Context, engine: BrowserSearchEngine) {
         _state.update { it.copy(searchEngine = engine) }
-        context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_SEARCH_ENGINE, engine.name)
-            .apply()
+        if (AnonGramEncryptedDb.isUnlocked()) {
+            ioScope.launch { SecureKvDao.put("browser.$KEY_SEARCH_ENGINE", engine.name) }
+        } else {
+            context.applicationContext
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_SEARCH_ENGINE, engine.name)
+                .apply()
+        }
     }
 
     fun clearCookies(context: Context) {
@@ -322,11 +345,16 @@ object InAppBrowserStore {
                 }
             )
         }
-        context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(key, arr.toString())
-            .apply()
+        val json = arr.toString()
+        if (AnonGramEncryptedDb.isUnlocked()) {
+            ioScope.launch { SecureKvDao.put("browser.$key", json) }
+        } else {
+            context.applicationContext
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(key, json)
+                .apply()
+        }
     }
 
     private fun parseEntries(raw: String?): List<BrowserPageEntry> {
@@ -345,11 +373,16 @@ object InAppBrowserStore {
     private fun saveStrings(context: Context, key: String, list: List<String>) {
         val arr = JSONArray()
         list.forEach { arr.put(it) }
-        context.applicationContext
-            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(key, arr.toString())
-            .apply()
+        val json = arr.toString()
+        if (AnonGramEncryptedDb.isUnlocked()) {
+            ioScope.launch { SecureKvDao.put("browser.$key", json) }
+        } else {
+            context.applicationContext
+                .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(key, json)
+                .apply()
+        }
     }
 
     private fun parseStrings(raw: String?): List<String> {
@@ -358,5 +391,35 @@ object InAppBrowserStore {
             val arr = JSONArray(raw)
             (0 until arr.length()).mapNotNull { i -> arr.optString(i).takeIf { it.isNotBlank() } }
         }.getOrDefault(emptyList())
+    }
+
+    private fun syncAndMigrateWithDb(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val keys = listOf(KEY_HISTORY, KEY_BOOKMARKS, KEY_EXCLUDED, KEY_SEARCH_ENGINE)
+        var migrated = false
+        keys.forEach { k ->
+            val v = prefs.getString(k, null)
+            if (!v.isNullOrEmpty() && SecureKvDao.get("browser.$k") == null) {
+                SecureKvDao.put("browser.$k", v)
+                migrated = true
+            }
+        }
+        if (migrated) {
+            prefs.edit().clear().apply()
+        }
+        val history = parseEntries(SecureKvDao.get("browser.$KEY_HISTORY"))
+        val bookmarks = parseEntries(SecureKvDao.get("browser.$KEY_BOOKMARKS"))
+        val excluded = parseStrings(SecureKvDao.get("browser.$KEY_EXCLUDED"))
+        val engineName = SecureKvDao.get("browser.$KEY_SEARCH_ENGINE")
+        val engine = BrowserSearchEngine.entries.firstOrNull { it.name == engineName } ?: _state.value.searchEngine
+
+        _state.update { current ->
+            current.copy(
+                history = if (history.isNotEmpty()) history else current.history,
+                bookmarks = if (bookmarks.isNotEmpty()) bookmarks else current.bookmarks,
+                excludedDomains = if (excluded.isNotEmpty()) excluded else current.excludedDomains,
+                searchEngine = engine
+            )
+        }
     }
 }

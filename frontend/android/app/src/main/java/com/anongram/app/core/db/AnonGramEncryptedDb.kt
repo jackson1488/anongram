@@ -3,7 +3,16 @@ package com.anongram.app.core.db
 import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import com.anongram.app.core.db.schema.auth.AuthContactsSchema
+import com.anongram.app.core.db.schema.chats.ChatsTableSchema
+import com.anongram.app.core.db.schema.chats.MessagesTableSchema
+import com.anongram.app.core.db.schema.core.CoreKvSchema
+import com.anongram.app.core.db.schema.media.MediaIndexSchema
+import com.anongram.app.core.db.schema.profile.ProfileSchema
 import com.anongram.app.features.settings.security.data.PasscodeStore
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 import java.io.File
 
@@ -12,13 +21,13 @@ import java.io.File
  *
  * - Из коробки шифруется 256-битным ключом из Android Keystore ([KeystoreDbKeyProvider]).
  * - При установке код-пароля база перешифровывается на ключ от код-пароля через `PRAGMA rekey`.
- * - Таблицы и миграции подключаются модульно через [DbSchemaModule].
+ * - Таблицы и миграции подключаются модульно через [DbSchemaModule] из `core/db/schema/`.
  */
 object AnonGramEncryptedDb {
 
     private const val LEGACY_DB_NAME = "anongram_secure.db"
     private const val DB_NAME = "anongram.db"
-    private const val DB_VERSION = 1
+    private const val DB_VERSION = 2
 
     @Volatile
     private var libraryLoaded = false
@@ -29,7 +38,17 @@ object AnonGramEncryptedDb {
     @Volatile
     private var activeKeyBytes: ByteArray? = null
 
-    private val schemaModules = mutableListOf<DbSchemaModule>(CoreKvDbModule)
+    private val _unlockedFlow = MutableStateFlow(false)
+    val unlockedFlow: StateFlow<Boolean> = _unlockedFlow.asStateFlow()
+
+    private val schemaModules = mutableListOf<DbSchemaModule>(
+        CoreKvSchema,
+        ChatsTableSchema,
+        MessagesTableSchema,
+        MediaIndexSchema,
+        ProfileSchema,
+        AuthContactsSchema
+    )
 
     @Synchronized
     fun registerModule(module: DbSchemaModule) {
@@ -111,7 +130,10 @@ object AnonGramEncryptedDb {
                     oldVersion: Int,
                     newVersion: Int
                 ) {
-                    modulesSnapshot.forEach { it.onUpgrade(db, oldVersion, newVersion) }
+                    modulesSnapshot.forEach {
+                        it.onCreate(db)
+                        it.onUpgrade(db, oldVersion, newVersion)
+                    }
                 }
             })
             .build()
@@ -121,6 +143,7 @@ object AnonGramEncryptedDb {
         val writable = helper.writableDatabase
         // Гарантируем, что таблицы модулей, добавленных после первого создания, также существуют.
         modulesSnapshot.forEach { it.onCreate(writable) }
+        _unlockedFlow.value = true
         return writable
     }
 
@@ -132,6 +155,7 @@ object AnonGramEncryptedDb {
         db.execSQL("PRAGMA rekey = \"x'$hex'\"")
         activeKeyBytes?.fill(0)
         activeKeyBytes = newKeyBytes.copyOf()
+        _unlockedFlow.value = true
     }
 
     @Synchronized
@@ -139,6 +163,7 @@ object AnonGramEncryptedDb {
 
     @Synchronized
     fun lock() {
+        _unlockedFlow.value = false
         runCatching { activeHelper?.close() }
         activeHelper = null
         activeKeyBytes?.fill(0)

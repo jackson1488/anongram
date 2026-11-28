@@ -152,6 +152,10 @@ jobs:
           ./gradlew :translate-kit:assembleRelease -PtestAbi=arm64-v8a --no-daemon
           cp translate-kit/build/outputs/aar/translate-kit-release.aar "$GITHUB_WORKSPACE/frontend/android/app/libs/translate-kit-release.aar"
 
+      - name: 🧪 Run Unit Tests & Encryption Benchmarks
+        working-directory: frontend/android
+        run: gradle testDebugUnitTest --console=plain --stacktrace
+
       - name: 🛠️ Build Signed APK
         working-directory: frontend/android
         run: |
