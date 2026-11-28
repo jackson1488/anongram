@@ -90,6 +90,9 @@ internal object HardwareVideoTranscoder {
             decodeSurface = OutputOesSurface()
 
             val videoMime = videoFormat.getString(MediaFormat.KEY_MIME) ?: return false
+            if (videoFormat.containsKey(MediaFormat.KEY_ROTATION)) {
+                videoFormat.setInteger(MediaFormat.KEY_ROTATION, 0)
+            }
             decoder = MediaCodec.createDecoderByType(videoMime)
             decoder.configure(videoFormat, decodeSurface.surface, null, 0)
             decoder.start()

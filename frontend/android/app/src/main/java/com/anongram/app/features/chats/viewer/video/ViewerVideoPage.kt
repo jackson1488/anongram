@@ -125,6 +125,7 @@ internal fun ViewerVideoPage(
     val parsedUri = remember(uriString) { runCatching { Uri.parse(uriString) }.getOrNull() }
 
     var videoAspect by remember(uriString) { mutableFloatStateOf(16f / 9f) }
+    var videoRotation by remember(uriString) { mutableIntStateOf(0) }
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     var mediaPlayer by remember(uriString) { mutableStateOf<MediaPlayer?>(null) }
@@ -145,24 +146,26 @@ internal fun ViewerVideoPage(
         if (parsedUri != null) {
             val quickThumb = withContext(Dispatchers.IO) { loadMediaThumbnail(context, parsedUri) }
             if (quickThumb != null) previewThumb = quickThumb.asImageBitmap()
-            val aspect = withContext(Dispatchers.IO) {
+            val (aspect, detectedRot) = withContext(Dispatchers.IO) {
                 val retriever = MediaMetadataRetriever()
                 try {
                     retriever.setDataSource(context, parsedUri)
                     val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
                     val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                     val rot = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_ROTATION)?.toIntOrNull() ?: 0
-                    if (w > 0 && h > 0) {
+                    val computedAspect = if (w > 0 && h > 0) {
                         val realW = if (rot == 90 || rot == 270) h else w
                         val realH = if (rot == 90 || rot == 270) w else h
                         (realW.toFloat() / realH.toFloat()).coerceIn(0.35f, 3.0f)
                     } else 16f / 9f
+                    computedAspect to rot
                 } catch (_: Exception) {
-                    16f / 9f
+                    (16f / 9f) to 0
                 } finally {
                     runCatching { retriever.release() }
                 }
             }
+            videoRotation = detectedRot
             videoAspect = aspect
         }
     }
@@ -421,7 +424,9 @@ internal fun ViewerVideoPage(
                                             val vw = preparedMp.videoWidth
                                             val vh = preparedMp.videoHeight
                                             if (vw > 0 && vh > 0) {
-                                                videoAspect = (vw.toFloat() / vh.toFloat()).coerceIn(0.35f, 3.0f)
+                                                val realW = if (videoRotation == 90 || videoRotation == 270) vh else vw
+                                                val realH = if (videoRotation == 90 || videoRotation == 270) vw else vh
+                                                videoAspect = (realW.toFloat() / realH.toFloat()).coerceIn(0.35f, 3.0f)
                                             }
                                             playbackState.durationMs = preparedMp.duration.toLong().coerceAtLeast(0L)
                                             isPrepared = true

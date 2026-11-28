@@ -196,7 +196,7 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
                 if (unsaved.isNotEmpty()) {
                     ChatsDbDao.upsertMessagesBatch(sessionId, unsaved)
                 }
-                val merged = (fromDb + unsaved).sortedBy { it.epochMs }
+                val merged = (fromDb + unsaved).distinctBy { it.id }.sortedBy { it.epochMs }
                 synchronized(threads) {
                     threads[sessionId] = merged.toMutableList()
                 }
@@ -222,7 +222,7 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
             counter += 1
             time -= 5 * 60_000L * (i + 1)
             ChatMessage(
-                id = "old_${sessionId}_$counter",
+                id = "old_${sessionId}_${System.currentTimeMillis()}_$counter",
                 direction = if (i % 2 == 0) MessageDirection.INCOMING else MessageDirection.OUTGOING,
                 text = olderTexts[Random.nextInt(olderTexts.size)],
                 epochMs = time
@@ -304,10 +304,11 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
         val index = (replyIndex[sessionId] ?: 0) % cannedReplies.size
         replyIndex[sessionId] = index + 1
         counter += 1
+        val uniqueId = "reply_${sessionId}_${System.currentTimeMillis()}_$counter"
         val asVoice = Random.nextInt(100) < 25
         return if (asVoice) {
             ChatMessage(
-                id = "reply_$counter",
+                id = uniqueId,
                 direction = MessageDirection.INCOMING,
                 text = "",
                 epochMs = System.currentTimeMillis(),
@@ -319,7 +320,7 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
             )
         } else {
             ChatMessage(
-                id = "reply_$counter",
+                id = uniqueId,
                 direction = MessageDirection.INCOMING,
                 text = cannedReplies[index],
                 epochMs = System.currentTimeMillis()
