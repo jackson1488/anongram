@@ -25,7 +25,6 @@ import java.io.File
  */
 object AnonGramEncryptedDb {
 
-    private const val LEGACY_DB_NAME = "anongram_secure.db"
     private const val DB_NAME = "anongram.db"
     private const val DB_VERSION = 2
 
@@ -72,24 +71,6 @@ object AnonGramEncryptedDb {
         }
     }
 
-    private fun migrateLegacyDbFileIfNeeded(context: Context) {
-        val appCtx = context.applicationContext
-        val newDb = appCtx.getDatabasePath(DB_NAME)
-        val oldDb = appCtx.getDatabasePath(LEGACY_DB_NAME)
-        if (!newDb.exists() && oldDb.exists()) {
-            newDb.parentFile?.mkdirs()
-            if (oldDb.renameTo(newDb)) {
-                listOf("-wal", "-shm", "-journal").forEach { suffix ->
-                    val oldAux = File(oldDb.parentFile, LEGACY_DB_NAME + suffix)
-                    val newAux = File(newDb.parentFile, DB_NAME + suffix)
-                    if (oldAux.exists() && !newAux.exists()) {
-                        oldAux.renameTo(newAux)
-                    }
-                }
-            }
-        }
-    }
-
     @Synchronized
     fun ensureOpenWithoutPasscode(context: Context): SupportSQLiteDatabase? {
         activeHelper?.let { return it.writableDatabase }
@@ -124,7 +105,6 @@ object AnonGramEncryptedDb {
             runCatching { existing.close() }
             activeHelper = null
         }
-        migrateLegacyDbFileIfNeeded(context)
 
         val keyCopy = keyBytes.copyOf()
         activeKeyBytes = keyCopy

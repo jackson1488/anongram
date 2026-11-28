@@ -34,7 +34,6 @@ object PasscodeStore {
     private const val KEY_LOCKOUT_UNTIL_MS = "key_lockout_until_ms"
 
     private const val VERIFY_ITERATIONS = 15_000
-    private const val LEGACY_ITERATIONS = 100_000
     private const val DB_KEY_ITERATIONS = 100_000
     private const val KEY_LENGTH_BITS = 256
 
@@ -166,35 +165,14 @@ object PasscodeStore {
         val expectedHashB64 = prefs.getString(KEY_PASSCODE_HASH, null) ?: return false
         val salt = Base64.decode(saltB64, Base64.NO_WRAP)
         val expected = Base64.decode(expectedHashB64, Base64.NO_WRAP)
-        val storedIterations = prefs.getInt(KEY_PASSCODE_ITERATIONS, -1)
+        val storedIterations = prefs.getInt(KEY_PASSCODE_ITERATIONS, VERIFY_ITERATIONS)
+            .let { if (it > 0) it else VERIFY_ITERATIONS }
 
         val chars = rawPasscode.toCharArray()
         return try {
-            val matched = if (storedIterations > 0) {
-                val actual = deriveHash(chars, salt, storedIterations)
-                val matches = MessageDigest.isEqual(expected, actual)
-                actual.fill(0)
-                matches
-            } else {
-                val fastActual = deriveHash(chars, salt, VERIFY_ITERATIONS)
-                val fastMatch = MessageDigest.isEqual(expected, fastActual)
-                fastActual.fill(0)
-                if (fastMatch) {
-                    prefs.edit()
-                        .putInt(KEY_PASSCODE_ITERATIONS, VERIFY_ITERATIONS)
-                        .putInt(KEY_PASSCODE_LENGTH, rawPasscode.length)
-                        .apply()
-                    true
-                } else {
-                    val legacyActual = deriveHash(chars, salt, LEGACY_ITERATIONS)
-                    val legacyMatch = MessageDigest.isEqual(expected, legacyActual)
-                    legacyActual.fill(0)
-                    if (legacyMatch) {
-                        setPasscode(context, rawPasscode, getPasscodeType(context))
-                    }
-                    legacyMatch
-                }
-            }
+            val actual = deriveHash(chars, salt, storedIterations)
+            val matched = MessageDigest.isEqual(expected, actual)
+            actual.fill(0)
             if (matched && prefs.getInt(KEY_PASSCODE_LENGTH, 0) == 0) {
                 prefs.edit().putInt(KEY_PASSCODE_LENGTH, rawPasscode.length).apply()
             }

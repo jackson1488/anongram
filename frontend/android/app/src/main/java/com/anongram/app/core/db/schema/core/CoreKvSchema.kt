@@ -22,16 +22,6 @@ object CoreKvSchema : DbSchemaModule {
             )
             """.trimIndent()
         )
-        db.execSQL(
-            """
-            CREATE TABLE IF NOT EXISTS chats_meta (
-                chat_id TEXT PRIMARY KEY NOT NULL,
-                title TEXT NOT NULL,
-                is_muted INTEGER NOT NULL DEFAULT 0,
-                updated_at INTEGER NOT NULL
-            )
-            """.trimIndent()
-        )
     }
 }
 
