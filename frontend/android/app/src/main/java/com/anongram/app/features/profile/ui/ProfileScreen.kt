@@ -198,8 +198,10 @@ fun ProfileScreen(
     LaunchedEffect(Unit) {
         ProfileAvatarStore.ensureLoaded(context)
         ProfileAppearanceStore.ensureLoaded(context)
+        com.anongram.app.features.profile.data.ProfileMetaStore.ensureLoaded(context)
     }
 
+    val storedProfile by com.anongram.app.features.profile.data.ProfileMetaStore.profileFlow.collectAsState()
     val avatars by ProfileAvatarStore.avatars.collectAsState()
     val primaryAvatar = avatars.firstOrNull() ?: ProfileAvatar.None
     val appearance by ProfileAppearanceStore.myAppearance.collectAsState()
@@ -215,19 +217,41 @@ fun ProfileScreen(
     }
 
     var displayName by remember {
-        mutableStateOf(prefs.getString("display_name", null) ?: identity?.nickname ?: "AnonUser")
+        mutableStateOf(
+            storedProfile?.displayName?.takeIf { it.isNotBlank() }
+                ?: prefs.getString("display_name", null)
+                ?: identity?.nickname
+                ?: "AnonUser"
+        )
     }
     var handle by remember {
         mutableStateOf(
-            prefs.getString("handle", null)
+            storedProfile?.username?.takeIf { it.isNotBlank() }
+                ?: prefs.getString("handle", null)
                 ?: "@${(identity?.nickname ?: "ANONUSER").uppercase().replace(" ", "")}"
         )
     }
     var bio by remember {
-        mutableStateOf(prefs.getString("bio", null) ?: strings.defaultBio)
+        mutableStateOf(
+            storedProfile?.bio?.takeIf { it.isNotBlank() }
+                ?: prefs.getString("bio", null)
+                ?: strings.defaultBio
+        )
     }
     var birthday by remember {
-        mutableStateOf(prefs.getString("birthday", null) ?: strings.defaultBirthday)
+        mutableStateOf(
+            storedProfile?.birthday?.takeIf { it.isNotBlank() }
+                ?: prefs.getString("birthday", null)
+                ?: strings.defaultBirthday
+        )
+    }
+    LaunchedEffect(storedProfile) {
+        storedProfile?.let { p ->
+            if (p.displayName.isNotBlank()) displayName = p.displayName
+            if (p.username.isNotBlank()) handle = p.username
+            if (p.bio.isNotBlank()) bio = p.bio
+            if (p.birthday.isNotBlank()) birthday = p.birthday
+        }
     }
     val appLanguage by LanguageSettingsStore.language.collectAsState()
     val isRu = appLanguage == AppLanguage.RU
@@ -786,6 +810,7 @@ fun ProfileScreen(
                                                 .remove("birthday_year")
                                                 .remove("birthday")
                                                 .apply()
+                                            com.anongram.app.features.profile.data.ProfileMetaStore.saveFields(context, birthday = "")
                                             birthday = strings.defaultBirthday
                                         }
                                     )
@@ -1478,7 +1503,7 @@ fun ProfileScreen(
                     initialUsername = handle,
                     onSave = { newHandle ->
                         handle = "@${newHandle.removePrefix("@").uppercase()}"
-                        prefs.edit().putString("handle", handle).apply()
+                        com.anongram.app.features.profile.data.ProfileMetaStore.saveFields(context, username = handle)
                         showQuickUsernameEditor = false
                     },
                     onBack = { showQuickUsernameEditor = false }
@@ -1497,8 +1522,8 @@ fun ProfileScreen(
                             .putInt("birthday_day", d)
                             .putInt("birthday_month", m)
                             .putInt("birthday_year", y)
-                            .putString("birthday", formatted)
                             .apply()
+                        com.anongram.app.features.profile.data.ProfileMetaStore.saveFields(context, birthday = formatted)
                         birthday = formatted
                         showQuickBirthdaySheet = false
                     },
@@ -1510,6 +1535,7 @@ fun ProfileScreen(
                                 .remove("birthday_year")
                                 .remove("birthday")
                                 .apply()
+                            com.anongram.app.features.profile.data.ProfileMetaStore.saveFields(context, birthday = "")
                             birthday = strings.defaultBirthday
                             showQuickBirthdaySheet = false
                         }

@@ -37,6 +37,11 @@ object AnonGramEncryptedDb {
     @Volatile
     private var activeKeyBytes: ByteArray? = null
 
+    @Volatile
+    private var appContext: Context? = null
+
+    fun getAppContextOrNull(): Context? = appContext
+
     private val _unlockedFlow = MutableStateFlow(false)
     val unlockedFlow: StateFlow<Boolean> = _unlockedFlow.asStateFlow()
 
@@ -98,6 +103,7 @@ object AnonGramEncryptedDb {
 
     @Synchronized
     fun openWithKey(context: Context, keyBytes: ByteArray): SupportSQLiteDatabase {
+        appContext = context.applicationContext
         ensureNativeLoaded()
         activeHelper?.let { existing ->
             val existingDb = runCatching { existing.writableDatabase }.getOrNull()

@@ -92,14 +92,30 @@ object ChatsDbDao {
     fun markMessageDeleted(messageId: String) {
         val db = AnonGramEncryptedDb.getDbOrNull() ?: return
         runCatching {
-            db.execSQL("UPDATE messages SET is_deleted = 1 WHERE message_id = ?", arrayOf(messageId))
+            // Удаляем связанные зашифрованные медиафайлы с диска и из media_index
+            var payloadRaw: String? = null
+            db.query("SELECT payload_json FROM messages WHERE message_id = ? LIMIT 1", arrayOf(messageId)).use { c ->
+                if (c.moveToFirst()) payloadRaw = c.getString(0)
+            }
+            payloadRaw?.let { raw ->
+                val regex = Regex("content://com\\.anongram\\.app\\.vault/([a-zA-Z0-9-]+)")
+                regex.findAll(raw).forEach { match ->
+                    com.anongram.app.features.chats.media.data.MediaVaultManager.deleteMediaFile(match.groupValues[1])
+                }
+            }
+            db.delete("messages", "message_id = ?", arrayOf(messageId))
+            db.delete("messages_fts", "message_id = ?", arrayOf(messageId))
         }
     }
 
     fun clearChatMessages(chatId: String) {
         val db = AnonGramEncryptedDb.getDbOrNull() ?: return
         runCatching {
+            AnonGramEncryptedDb.getAppContextOrNull()?.let { ctx ->
+                com.anongram.app.features.chats.media.data.MediaVaultManager.clearChatMedia(ctx, chatId)
+            }
             db.delete("messages", "chat_id = ?", arrayOf(chatId))
+            db.delete("messages_fts", "chat_id = ?", arrayOf(chatId))
         }
     }
 

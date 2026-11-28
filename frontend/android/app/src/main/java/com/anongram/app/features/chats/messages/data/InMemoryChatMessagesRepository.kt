@@ -233,9 +233,34 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
     override suspend fun hasMoreOlder(sessionId: String): Boolean =
         (olderPagesLeft[sessionId] ?: 0) > 0
 
+    private fun persistWithMediaEncryption(sessionId: String, message: ChatMessage) {
+        val ctx = AnonGramEncryptedDb.getAppContextOrNull()
+        val encryptedAtt = if (ctx != null && message.attachment != null) {
+            com.anongram.app.features.chats.media.data.MediaVaultManager.encryptAttachment(
+                ctx, sessionId, message.attachment
+            )
+        } else {
+            message.attachment
+        }
+        val finalMsg = if (encryptedAtt != message.attachment) {
+            message.copy(attachment = encryptedAtt).also { vaulted ->
+                synchronized(threads) {
+                    val list = threads[sessionId]
+                    val idx = list?.indexOfFirst { it.id == vaulted.id } ?: -1
+                    if (list != null && idx >= 0) {
+                        list[idx] = vaulted
+                    }
+                }
+            }
+        } else {
+            message
+        }
+        ChatsDbDao.upsertMessage(sessionId, finalMsg)
+    }
+
     override suspend fun addMessage(sessionId: String, message: ChatMessage) {
         thread(sessionId).add(message)
-        ioScope.launch { ChatsDbDao.upsertMessage(sessionId, message) }
+        ioScope.launch { persistWithMediaEncryption(sessionId, message) }
     }
 
     override suspend fun updateStatus(sessionId: String, messageId: String, status: MessageStatus) {
@@ -253,7 +278,7 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
         val index = list.indexOfFirst { it.id == message.id }
         if (index >= 0) {
             list[index] = message
-            ioScope.launch { ChatsDbDao.upsertMessage(sessionId, message) }
+            ioScope.launch { persistWithMediaEncryption(sessionId, message) }
         }
     }
 

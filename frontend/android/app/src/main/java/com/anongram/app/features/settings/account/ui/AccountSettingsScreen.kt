@@ -206,22 +206,27 @@ fun AccountSettingsScreen(
                                     strings.defaultBirthday
                                 }
 
+                                val normalizedHandle = "@${cleanHandle.uppercase()}"
+                                val storedBirthday = if (bDay != null && bMonth != null && bYear != null) birthdayFormatted else ""
+                                com.anongram.app.features.profile.data.ProfileMetaStore.saveFields(
+                                    context = context,
+                                    displayName = combinedName,
+                                    username = normalizedHandle,
+                                    bio = cleanBio,
+                                    birthday = storedBirthday
+                                )
+
                                 prefs.edit().apply {
                                     putString("first_name", cleanFirst)
                                     putString("last_name", cleanLast)
-                                    putString("display_name", combinedName)
-                                    putString("handle", "@${cleanHandle.uppercase()}")
-                                    if (cleanBio.isNotBlank()) putString("bio", cleanBio) else remove("bio")
                                     if (bDay != null && bMonth != null && bYear != null) {
                                         putInt("birthday_day", bDay!!)
                                         putInt("birthday_month", bMonth!!)
                                         putInt("birthday_year", bYear!!)
-                                        putString("birthday", birthdayFormatted)
                                     } else {
                                         remove("birthday_day")
                                         remove("birthday_month")
                                         remove("birthday_year")
-                                        remove("birthday")
                                     }
                                     apply()
                                 }

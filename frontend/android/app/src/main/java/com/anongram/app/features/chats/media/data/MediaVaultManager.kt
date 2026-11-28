@@ -3,8 +3,10 @@ package com.anongram.app.features.chats.media.data
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.net.Uri
 import android.util.LruCache
 import com.anongram.app.core.db.AnonGramEncryptedDb
+import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileInputStream
@@ -216,6 +218,141 @@ object MediaVaultManager {
         val db = AnonGramEncryptedDb.getDbOrNull() ?: return
         runCatching {
             db.delete("media_index", "media_type = ?", arrayOf(category.folderName))
+        }
+    }
+
+    const val VAULT_URI_PREFIX = "content://com.anongram.app.vault/"
+
+    fun extractFileId(uri: String?): String? {
+        if (uri.isNullOrBlank() || !uri.startsWith(VAULT_URI_PREFIX)) return null
+        return uri.removePrefix(VAULT_URI_PREFIX).substringBefore("?").ifBlank { null }
+    }
+
+    fun getMimeType(fileId: String): String? {
+        val db = AnonGramEncryptedDb.getDbOrNull() ?: return null
+        return runCatching {
+            db.query("SELECT mime_type FROM media_index WHERE file_id = ? LIMIT 1", arrayOf(fileId)).use { c ->
+                if (c.moveToFirst()) c.getString(0) else null
+            }
+        }.getOrNull()
+    }
+
+    fun deleteMediaFile(fileId: String) {
+        thumbCache.remove(fileId)
+        val db = AnonGramEncryptedDb.getDbOrNull() ?: return
+        runCatching {
+            var encPath: String? = null
+            db.query("SELECT enc_path FROM media_index WHERE file_id = ? LIMIT 1", arrayOf(fileId)).use { c ->
+                if (c.moveToFirst()) encPath = c.getString(0)
+            }
+            if (!encPath.isNullOrBlank()) {
+                File(encPath!!).delete()
+            }
+            db.delete("media_index", "file_id = ?", arrayOf(fileId))
+        }
+    }
+
+    fun clearChatMedia(context: Context, chatId: String) {
+        val db = AnonGramEncryptedDb.getDbOrNull()
+        if (db != null) {
+            runCatching {
+                db.query("SELECT file_id, enc_path FROM media_index WHERE chat_id = ?", arrayOf(chatId)).use { c ->
+                    while (c.moveToNext()) {
+                        thumbCache.remove(c.getString(0))
+                        File(c.getString(1)).delete()
+                    }
+                }
+                db.delete("media_index", "chat_id = ?", arrayOf(chatId))
+            }
+        }
+        val safeChat = sanitizeSegment(chatId)
+        MediaVaultCategory.entries.forEach { cat ->
+            val chatDir = File(File(File(context.applicationContext.filesDir, ROOT_DIR), cat.folderName), safeChat)
+            if (chatDir.exists()) chatDir.deleteRecursively()
+        }
+    }
+
+    fun encryptFromUri(
+        context: Context,
+        chatId: String,
+        category: MediaVaultCategory,
+        uriString: String?,
+        durationMs: Long = 0L
+    ): String? {
+        if (uriString.isNullOrBlank()) return uriString
+        if (uriString.startsWith(VAULT_URI_PREFIX) || uriString.startsWith("android.resource://")) {
+            return uriString
+        }
+        val appCtx = context.applicationContext
+        val parsed = runCatching { Uri.parse(uriString) }.getOrNull() ?: return uriString
+        val mime = runCatching { appCtx.contentResolver.getType(parsed) }.getOrNull()
+            ?: when (category) {
+                MediaVaultCategory.PHOTO -> "image/jpeg"
+                MediaVaultCategory.VIDEO, MediaVaultCategory.VIDEO_NOTES -> "video/mp4"
+                MediaVaultCategory.VOICE -> "audio/mp4"
+                MediaVaultCategory.MUSIC -> "audio/mpeg"
+                MediaVaultCategory.FILES -> "application/octet-stream"
+            }
+        val stream: InputStream = when (parsed.scheme) {
+            "content" -> runCatching { appCtx.contentResolver.openInputStream(parsed) }.getOrNull()
+            "file", null -> parsed.path?.let { path ->
+                val f = File(path)
+                if (f.exists() && f.isFile) FileInputStream(f) else null
+            }
+            else -> null
+        } ?: return uriString
+
+        val entry = stream.use { s ->
+            encryptAndStore(
+                context = appCtx,
+                chatId = chatId,
+                category = category,
+                source = s,
+                mimeType = mime,
+                durationMs = durationMs
+            )
+        }
+        return if (entry != null) "$VAULT_URI_PREFIX${entry.fileId}" else uriString
+    }
+
+    fun encryptAttachment(context: Context, chatId: String, att: MessageAttachment?): MessageAttachment? {
+        if (att == null) return null
+        return when (att) {
+            is MessageAttachment.Photo -> {
+                val cat = if (att.isVideo) MediaVaultCategory.VIDEO else MediaVaultCategory.PHOTO
+                att.copy(
+                    uri = encryptFromUri(context, chatId, cat, att.uri),
+                    coverUri = encryptFromUri(context, chatId, MediaVaultCategory.PHOTO, att.coverUri)
+                )
+            }
+            is MessageAttachment.MediaAlbum -> att.copy(
+                items = att.items.map { item ->
+                    val cat = if (item.isVideo) MediaVaultCategory.VIDEO else MediaVaultCategory.PHOTO
+                    item.copy(
+                        uri = encryptFromUri(context, chatId, cat, item.uri) ?: item.uri,
+                        coverUri = encryptFromUri(context, chatId, MediaVaultCategory.PHOTO, item.coverUri)
+                    )
+                }
+            )
+            is MessageAttachment.File -> att.copy(
+                uri = encryptFromUri(context, chatId, MediaVaultCategory.FILES, att.uri)
+            )
+            is MessageAttachment.FileGroup -> att.copy(
+                items = att.items.map { it.copy(uri = encryptFromUri(context, chatId, MediaVaultCategory.FILES, it.uri)) }
+            )
+            is MessageAttachment.Music -> att.copy(
+                uri = encryptFromUri(context, chatId, MediaVaultCategory.MUSIC, att.uri)
+            )
+            is MessageAttachment.MusicGroup -> att.copy(
+                items = att.items.map { it.copy(uri = encryptFromUri(context, chatId, MediaVaultCategory.MUSIC, it.uri)) }
+            )
+            is MessageAttachment.Voice -> att.copy(
+                uri = encryptFromUri(context, chatId, MediaVaultCategory.VOICE, att.uri)
+            )
+            is MessageAttachment.VideoCircle -> att.copy(
+                uri = encryptFromUri(context, chatId, MediaVaultCategory.VIDEO_NOTES, att.uri)
+            )
+            else -> att
         }
     }
 }

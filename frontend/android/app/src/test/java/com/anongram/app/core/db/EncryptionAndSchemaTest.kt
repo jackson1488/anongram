@@ -97,4 +97,17 @@ class EncryptionAndSchemaTest {
         assertEquals("Привет, это тест", draft.previewText)
         assertTrue(ChatDraft(chatId = "empty").isEmpty)
     }
+
+    @Test
+    fun vaultUriExtractionAndDeletionRegex() {
+        val fileId = "550e8400-e29b-41d4-a716-446655440000"
+        val vaultUri = "${com.anongram.app.features.chats.media.data.MediaVaultManager.VAULT_URI_PREFIX}$fileId"
+        assertEquals(fileId, com.anongram.app.features.chats.media.data.MediaVaultManager.extractFileId(vaultUri))
+        assertEquals(null, com.anongram.app.features.chats.media.data.MediaVaultManager.extractFileId("content://media/external/images/1"))
+
+        val payload = """{"attachment":{"type":"photo","uri":"$vaultUri"}}"""
+        val regex = Regex("content://com\\.anongram\\.app\\.vault/([a-zA-Z0-9-]+)")
+        val ids = regex.findAll(payload).map { it.groupValues[1] }.toList()
+        assertEquals(listOf(fileId), ids)
+    }
 }

@@ -55,12 +55,12 @@ fun MainFloatingIsland(
     val context = LocalContext.current
     LaunchedEffect(Unit) {
         ProfileAvatarStore.ensureLoaded(context)
+        com.anongram.app.features.profile.data.ProfileMetaStore.ensureLoaded(context)
     }
     val profileAvatar by ProfileAvatarStore.avatar.collectAsState()
-    val profileName = remember {
-        context.applicationContext
-            .getSharedPreferences("anongram_profile_meta", android.content.Context.MODE_PRIVATE)
-            .getString("display_name", null)
+    val storedProfile by com.anongram.app.features.profile.data.ProfileMetaStore.profileFlow.collectAsState()
+    val profileName = remember(storedProfile?.displayName) {
+        storedProfile?.displayName?.takeIf { it.isNotBlank() }
             ?: KeystoreVault(context).loadIdentity()?.nickname
             ?: "Anon"
     }

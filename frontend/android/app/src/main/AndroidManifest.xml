@@ -115,5 +115,11 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <provider
+            android:name="com.anongram.app.features.chats.media.data.EncryptedMediaProvider"
+            android:authorities="com.anongram.app.vault"
+            android:exported="false"
+            android:grantUriPermissions="true" />
+
     </application>
 </manifest>
