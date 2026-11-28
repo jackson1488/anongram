@@ -283,6 +283,9 @@ internal fun MessagesList(
         }
     }
 
+    val isSelectionMode = selection.isNotEmpty()
+    val hasAnyAnimating = animatingIds.isNotEmpty()
+
     CompositionLocalProvider(
         LocalIsListScrollingState provides scrollingState,
         LocalMessageTextSizeSp provides messageTextSizeSp,
@@ -311,6 +314,7 @@ internal fun MessagesList(
                 item.message.attachment?.let { it::class.java } ?: String::class.java
             }
         ) { _, item ->
+            val msgId = item.message.id
             Column(
                 modifier = Modifier.padding(top = item.spacingAboveDp.dp)
             ) {
@@ -323,46 +327,42 @@ internal fun MessagesList(
                 }
 
                 val att = item.message.attachment
-                val groupCountAndPrefix: Pair<Int, String>? = when (att) {
-                    is MessageAttachment.MediaAlbum -> att.items.size to "photo"
-                    is MessageAttachment.FileGroup -> att.items.size to "file"
-                    is MessageAttachment.MusicGroup -> att.items.size to "music"
-                    else -> null
-                }
-
-                val selectedSubIndices = if (groupCountAndPrefix != null && selection.isNotEmpty()) {
-                    val (count, prefix) = groupCountAndPrefix
-                    if (item.message.id in selection) {
+                val selectedSubIndices = if (isSelectionMode && (att is MessageAttachment.MediaAlbum || att is MessageAttachment.FileGroup || att is MessageAttachment.MusicGroup)) {
+                    val (count, prefix) = when (att) {
+                        is MessageAttachment.MediaAlbum -> att.items.size to "photo"
+                        is MessageAttachment.FileGroup -> att.items.size to "file"
+                        is MessageAttachment.MusicGroup -> att.items.size to "music"
+                        else -> 0 to ""
+                    }
+                    if (msgId in selection) {
                         (0 until count).toSet()
                     } else {
                         (0 until count).filter { idx ->
-                            "${item.message.id}#${prefix}_$idx" in selection
+                            "$msgId#${prefix}_$idx" in selection
                         }.toSet()
                     }
                 } else {
                     emptySet()
                 }
 
-                val isBubbleSelected = if (groupCountAndPrefix != null) {
-                    val (count, _) = groupCountAndPrefix
-                    (item.message.id in selection) || (count > 0 && selectedSubIndices.size == count)
+                val isBubbleSelected = if (isSelectionMode) {
+                    when (att) {
+                        is MessageAttachment.MediaAlbum -> (msgId in selection) || (att.items.isNotEmpty() && selectedSubIndices.size == att.items.size)
+                        is MessageAttachment.FileGroup -> (msgId in selection) || (att.items.isNotEmpty() && selectedSubIndices.size == att.items.size)
+                        is MessageAttachment.MusicGroup -> (msgId in selection) || (att.items.isNotEmpty() && selectedSubIndices.size == att.items.size)
+                        else -> msgId in selection
+                    }
                 } else {
-                    item.message.id in selection
+                    false
                 }
 
-                MessageBubble(
-                    item = item,
-                    replyTo = item.message.replyToId?.let { originalId -> messageById[originalId] },
-                    peerName = peerName,
-                    searchQuery = searchQuery,
-                    isSelectionMode = selection.isNotEmpty(),
-                    isSelected = isBubbleSelected,
-                    selectedPhotoIndices = selectedSubIndices,
-                    isHighlighted = item.message.id == highlightedMessageId,
-                    isPinned = item.message.id in pinnedIds,
-                    shouldAnimateAppear = animatingIds.containsKey(item.message.id),
-                    onAppearAnimationFinished = { animatingIds.remove(item.message.id) },
-                    onQuoteClick = { originalId ->
+                val replyMsg = remember(item.message.replyToId, messageById) {
+                    item.message.replyToId?.let { messageById[it] }
+                }
+                val shouldAnimateAppear = if (hasAnyAnimating) animatingIds.containsKey(msgId) else false
+                val onAppearFinished = remember(msgId) { { animatingIds.remove(msgId); Unit } }
+                val onQuoteClickStable: (String) -> Unit = remember(msgId, displayIndexById) {
+                    { originalId ->
                         onHighlightMessage(originalId)
                         val index = displayIndexById[originalId]
                         if (index != null) {
@@ -372,7 +372,22 @@ internal fun MessagesList(
                                 }
                             }
                         }
-                    },
+                    }
+                }
+
+                MessageBubble(
+                    item = item,
+                    replyTo = replyMsg,
+                    peerName = peerName,
+                    searchQuery = searchQuery,
+                    isSelectionMode = isSelectionMode,
+                    isSelected = isBubbleSelected,
+                    selectedPhotoIndices = selectedSubIndices,
+                    isHighlighted = msgId == highlightedMessageId,
+                    isPinned = pinnedIds.isNotEmpty() && msgId in pinnedIds,
+                    shouldAnimateAppear = shouldAnimateAppear,
+                    onAppearAnimationFinished = onAppearFinished,
+                    onQuoteClick = onQuoteClickStable,
                     onClick = { topY, bottomY -> onClick(item.message, topY, bottomY) },
                     onLongClick = { onLongClick(item.message) },
                     onSwipeReply = { onSwipeReply(item.message) },

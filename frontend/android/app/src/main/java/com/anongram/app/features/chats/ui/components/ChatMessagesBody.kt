@@ -121,7 +121,7 @@ internal fun ChatMessagesBody(
                 selection = state.selection,
                 firstUnreadId = state.firstUnreadId,
                 highlightedMessageId = state.highlightedMessageId,
-                pinnedIds = state.pinnedIds.toSet(),
+                pinnedIds = remember(state.pinnedIds) { state.pinnedIds.toSet() },
                 isVideoCircleExpanded = isVideoCircleExpanded,
                 topPadding = topListPadding,
                 bottomPadding = bottomListPadding,

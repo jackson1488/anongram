@@ -1,5 +1,7 @@
 package com.anongram.app.features.chats.messages.data
 
+import com.anongram.app.core.db.AnonGramEncryptedDb
+import com.anongram.app.core.db.schema.chats.ChatsDbDao
 import com.anongram.app.features.chats.data.DEV_TEST_DATA_ENABLED
 import com.anongram.app.features.chats.messages.domain.ChatMessage
 import com.anongram.app.features.chats.messages.domain.FileKind
@@ -7,14 +9,20 @@ import com.anongram.app.features.chats.messages.domain.LinkPreview
 import com.anongram.app.features.chats.messages.domain.MessageAttachment
 import com.anongram.app.features.chats.messages.domain.MessageDirection
 import com.anongram.app.features.chats.messages.domain.MessageStatus
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.random.Random
 
 /**
- * FakeRepository переписок: демо-тред со всеми типами сообщений (текст, цитата,
- * «изменено», переслано, голосовое, фото, файл, музыка, контакт, гео, ссылка,
- * стикер, реакции, непрочитанные), постраничная история и пул автоответов.
+ * Хранилище переписок поверх зашифрованной `anongram.db` (с предзаполнением демо-чатов,
+ * включая 1000 сообщений у Алисы для нагрузочного теста скролла и шифрования).
  */
 class InMemoryChatMessagesRepository : ChatMessagesRepository {
+
+    private val ioScope = CoroutineScope(Dispatchers.IO)
+    private val dbHydratedSessions = mutableSetOf<String>()
 
     private val threads = mutableMapOf<String, MutableList<ChatMessage>>()
     private val replyIndex = mutableMapOf<String, Int>()
@@ -163,8 +171,25 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
     private fun thread(sessionId: String): MutableList<ChatMessage> =
         threads.getOrPut(sessionId) { mutableListOf() }
 
-    override suspend fun loadMessages(sessionId: String): List<ChatMessage> =
-        thread(sessionId).toList()
+    override suspend fun loadMessages(sessionId: String): List<ChatMessage> {
+        if (AnonGramEncryptedDb.isUnlocked() && dbHydratedSessions.add(sessionId)) {
+            val fromDb = withContext(Dispatchers.IO) {
+                if (ChatsDbDao.hasMessages(sessionId)) {
+                    ChatsDbDao.loadMessages(sessionId, limit = 1500)
+                } else {
+                    val seed = thread(sessionId).toList()
+                    if (seed.isNotEmpty()) {
+                        ChatsDbDao.upsertMessagesBatch(sessionId, seed)
+                    }
+                    null
+                }
+            }
+            if (!fromDb.isNullOrEmpty()) {
+                threads[sessionId] = fromDb.toMutableList()
+            }
+        }
+        return thread(sessionId).toList()
+    }
 
     override suspend fun loadOlder(sessionId: String, beforeEpochMs: Long): List<ChatMessage> {
         val left = olderPagesLeft[sessionId] ?: 0
@@ -188,22 +213,31 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
 
     override suspend fun addMessage(sessionId: String, message: ChatMessage) {
         thread(sessionId).add(message)
+        ioScope.launch { ChatsDbDao.upsertMessage(sessionId, message) }
     }
 
     override suspend fun updateStatus(sessionId: String, messageId: String, status: MessageStatus) {
         val list = thread(sessionId)
         val index = list.indexOfFirst { it.id == messageId }
-        if (index >= 0) list[index] = list[index].copy(status = status)
+        if (index >= 0) {
+            val updated = list[index].copy(status = status)
+            list[index] = updated
+            ioScope.launch { ChatsDbDao.upsertMessage(sessionId, updated) }
+        }
     }
 
     override suspend fun updateMessage(sessionId: String, message: ChatMessage) {
         val list = thread(sessionId)
         val index = list.indexOfFirst { it.id == message.id }
-        if (index >= 0) list[index] = message
+        if (index >= 0) {
+            list[index] = message
+            ioScope.launch { ChatsDbDao.upsertMessage(sessionId, message) }
+        }
     }
 
     override suspend fun deleteMessage(sessionId: String, messageId: String) {
         thread(sessionId).removeAll { it.id == messageId }
+        ioScope.launch { ChatsDbDao.markMessageDeleted(messageId) }
     }
 
     override suspend fun markAllRead(sessionId: String) {
@@ -211,10 +245,12 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
         for (i in list.indices) {
             if (list[i].isUnread) list[i] = list[i].copy(isUnread = false)
         }
+        ioScope.launch { ChatsDbDao.markAllRead(sessionId) }
     }
 
     override suspend fun clearHistory(sessionId: String) {
         thread(sessionId).clear()
+        ioScope.launch { ChatsDbDao.clearChatMessages(sessionId) }
     }
 
     override suspend fun generateAutoReply(sessionId: String): ChatMessage? {
@@ -250,7 +286,26 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
         val d = 86_400_000L
         val list = mutableListOf<ChatMessage>()
 
-        // --- День 4 назад (сообщения 1..20) ---
+        // --- Предзаполнение до 1000 сообщений у Алисы для теста скролла и шифрования БД ---
+        val bulkSamples = listOf(
+            "Проверка связи через зашифрованный канал.",
+            "Пакеты доходят стабильно, задержек нет.",
+            "Синхронизировал ключи в локальном хранилище.",
+            "Ок, посмотрим как держит нагрузку на скролле.",
+            "Скорость шифрования AES-256 отличная.",
+            "Всё сохраняется локально без облака.",
+            "Подтверди получение тестового сообщения.",
+            "Получено! Работает максимально плавно."
+        )
+        val bulkStart = now - 14 * d
+        val bulkCount = 900
+        for (idx in 0 until bulkCount) {
+            val ts = bulkStart + idx * (9 * d / bulkCount)
+            val dir = if (idx % 2 == 0) MessageDirection.INCOMING else MessageDirection.OUTGOING
+            list.add(msg(dir, "${bulkSamples[idx % bulkSamples.size]} (#${idx + 1})", ts))
+        }
+
+        // --- День 4 назад (сообщения 901..920) ---
         val t4 = now - 4 * d
         val m1 = msg(MessageDirection.INCOMING, "Привет! Инициализирую тестовый канал связи.", t4 + 10 * m)
         list.add(m1)
