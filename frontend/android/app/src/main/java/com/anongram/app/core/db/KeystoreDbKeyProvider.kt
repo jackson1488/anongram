@@ -125,6 +125,13 @@ object KeystoreDbKeyProvider {
     }
 
     @Synchronized
+    fun hasBioDbKey(context: Context): Boolean {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return !prefs.getString(PREF_BIO_WRAPPED_KEY, null).isNullOrEmpty() &&
+            !prefs.getString(PREF_BIO_WRAPPED_IV, null).isNullOrEmpty()
+    }
+
+    @Synchronized
     fun clearBioDbKey(context: Context) {
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()

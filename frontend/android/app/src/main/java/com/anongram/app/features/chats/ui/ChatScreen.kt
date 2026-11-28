@@ -187,6 +187,9 @@ fun ChatScreen(
             val isOutgoing = lastMessage?.direction == MessageDirection.OUTGOING
             val isNearBottom = listState.firstVisibleItemIndex <= 1
             if (isOutgoing || isNearBottom) {
+                if (listState.firstVisibleItemIndex > 12) {
+                    listState.scrollToItem(12)
+                }
                 listState.animateScrollToItem(0)
                 if (isNearBottom) {
                     viewModel.clearUnreadBadge()

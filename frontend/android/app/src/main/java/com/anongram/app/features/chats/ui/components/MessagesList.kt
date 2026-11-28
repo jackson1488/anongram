@@ -124,19 +124,19 @@ internal fun MessagesList(
     val animatingIds = remember { mutableStateMapOf<String, Boolean>() }
     val initializedHistory = remember { mutableStateOf(false) }
 
-    remember(messages) {
+    remember(messages.size, messages.lastOrNull()?.id) {
         if (!initializedHistory.value) {
             if (messages.isNotEmpty()) {
                 messages.forEach { knownIds.add(it.id) }
                 initializedHistory.value = true
             }
-        } else {
+        } else if (messages.isNotEmpty()) {
             val now = System.currentTimeMillis()
-            messages.forEach { msg ->
-                if (knownIds.add(msg.id)) {
-                    if (now - msg.epochMs <= 5_000L || msg.epochMs == 0L) {
-                        animatingIds[msg.id] = true
-                    }
+            val tailStart = (messages.size - 5).coerceAtLeast(0)
+            for (i in tailStart until messages.size) {
+                val msg = messages[i]
+                if (knownIds.add(msg.id) && (now - msg.epochMs <= 5_000L || msg.epochMs == 0L)) {
+                    animatingIds[msg.id] = true
                 }
             }
         }

@@ -153,6 +153,7 @@ fun PasscodeLockOverlay(
 
     val biometricsEnabled = remember(mode) {
         mode == PasscodeScreenMode.UNLOCK &&
+            KeystoreDbKeyProvider.hasBioDbKey(context) &&
             context.applicationContext
                 .getSharedPreferences("anongram_security_settings", Context.MODE_PRIVATE)
                 .getBoolean("key_biometrics_enabled", false) &&

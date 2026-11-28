@@ -168,27 +168,49 @@ class InMemoryChatMessagesRepository : ChatMessagesRepository {
         threads[sessionId] = messages.toMutableList()
     }
 
-    private fun thread(sessionId: String): MutableList<ChatMessage> =
-        threads.getOrPut(sessionId) { mutableListOf() }
-
-    override suspend fun loadMessages(sessionId: String): List<ChatMessage> {
-        if (AnonGramEncryptedDb.isUnlocked() && dbHydratedSessions.add(sessionId)) {
-            val fromDb = withContext(Dispatchers.IO) {
-                if (ChatsDbDao.hasMessages(sessionId)) {
-                    ChatsDbDao.loadMessages(sessionId, limit = 1500)
-                } else {
-                    val seed = thread(sessionId).toList()
-                    if (seed.isNotEmpty()) {
-                        ChatsDbDao.upsertMessagesBatch(sessionId, seed)
-                    }
-                    null
+    init {
+        ioScope.launch {
+            AnonGramEncryptedDb.unlockedFlow.collect { unlocked ->
+                if (unlocked) {
+                    val keys = synchronized(threads) { threads.keys.toList() }
+                    keys.forEach { syncSessionWithDb(it) }
                 }
             }
-            if (!fromDb.isNullOrEmpty()) {
-                threads[sessionId] = fromDb.toMutableList()
-            }
         }
-        return thread(sessionId).toList()
+    }
+
+    private fun thread(sessionId: String): MutableList<ChatMessage> =
+        synchronized(threads) { threads.getOrPut(sessionId) { mutableListOf() } }
+
+    private fun syncSessionWithDb(sessionId: String) {
+        if (!AnonGramEncryptedDb.isUnlocked()) return
+        synchronized(dbHydratedSessions) {
+            if (!dbHydratedSessions.add(sessionId)) return
+        }
+        val currentInMem = synchronized(threads) { threads[sessionId]?.toList().orEmpty() }
+        if (ChatsDbDao.hasMessages(sessionId)) {
+            val fromDb = ChatsDbDao.loadMessages(sessionId, limit = 1500)
+            if (fromDb.isNotEmpty()) {
+                val dbIds = fromDb.mapTo(HashSet(fromDb.size)) { it.id }
+                val unsaved = currentInMem.filter { it.id !in dbIds && !it.id.startsWith("seed_") }
+                if (unsaved.isNotEmpty()) {
+                    ChatsDbDao.upsertMessagesBatch(sessionId, unsaved)
+                }
+                val merged = (fromDb + unsaved).sortedBy { it.epochMs }
+                synchronized(threads) {
+                    threads[sessionId] = merged.toMutableList()
+                }
+            }
+        } else if (currentInMem.isNotEmpty()) {
+            ChatsDbDao.upsertMessagesBatch(sessionId, currentInMem)
+        }
+    }
+
+    override suspend fun loadMessages(sessionId: String): List<ChatMessage> {
+        if (AnonGramEncryptedDb.isUnlocked()) {
+            withContext(Dispatchers.IO) { syncSessionWithDb(sessionId) }
+        }
+        return synchronized(threads) { thread(sessionId).toList() }
     }
 
     override suspend fun loadOlder(sessionId: String, beforeEpochMs: Long): List<ChatMessage> {
