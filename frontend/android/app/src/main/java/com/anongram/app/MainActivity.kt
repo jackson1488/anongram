@@ -63,7 +63,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.anongram.app.core.db.AnonGramEncryptedDb
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import com.anongram.app.core.theme.AnonGramTheme
 import com.anongram.app.core.theme.SharedPrefsThemeRepository
 import com.anongram.app.core.theme.ThemeController
@@ -253,6 +255,16 @@ class MainActivity : FragmentActivity() {
                                     }
                                     if (liveTimeout != timeoutMs) {
                                         autoLockOption = liveOpt
+                                    }
+                                }
+                            }
+
+                            LaunchedEffect(passcodeEnabled) {
+                                if (!passcodeEnabled) {
+                                    withContext(Dispatchers.IO) {
+                                        runCatching {
+                                            AnonGramEncryptedDb.ensureOpenWithoutPasscode(applicationContext)
+                                        }
                                     }
                                 }
                             }

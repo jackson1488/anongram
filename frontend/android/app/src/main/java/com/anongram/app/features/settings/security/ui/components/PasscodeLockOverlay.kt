@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.anongram.app.core.db.AnonGramEncryptedDb
+import com.anongram.app.core.db.KeystoreDbKeyProvider
 import com.anongram.app.core.i18n.AppLanguage
 import com.anongram.app.core.i18n.LanguageSettingsStore
 import com.anongram.app.core.theme.LocalAnonGramScheme
@@ -202,6 +203,26 @@ fun PasscodeLockOverlay(
         }
     }
 
+    fun rekeyDbInBackground(passcode: String) {
+        val appCtx = context.applicationContext
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                if (!AnonGramEncryptedDb.isUnlocked() && KeystoreDbKeyProvider.hasWrappedKey(appCtx)) {
+                    val ksKey = KeystoreDbKeyProvider.getOrCreateKeyBytes(appCtx)
+                    try {
+                        AnonGramEncryptedDb.openWithKey(appCtx, ksKey)
+                    } finally {
+                        ksKey.fill(0)
+                    }
+                }
+                val dbKey = PasscodeStore.deriveDbKeyBytes(appCtx, passcode)
+                AnonGramEncryptedDb.rekey(appCtx, dbKey)
+                dbKey.fill(0)
+                KeystoreDbKeyProvider.clearKey(appCtx)
+            }
+        }
+    }
+
     fun launchBiometricPrompt() {
         if (lockoutRemainingSec > 0L) return
         val activity = context as? FragmentActivity ?: return
@@ -274,14 +295,7 @@ fun PasscodeLockOverlay(
             if (input == target) {
                 val chosenType = selectedType
                 PasscodeStore.setPasscode(context, input, chosenType)
-                val confirmed = input
-                scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        val dbKey = PasscodeStore.deriveDbKeyBytes(context, confirmed)
-                        AnonGramEncryptedDb.rekey(context, dbKey)
-                        dbKey.fill(0)
-                    }
-                }
+                rekeyDbInBackground(input)
                 input = ""
                 firstStepPasscode = null
                 errorText = null
@@ -342,13 +356,7 @@ fun PasscodeLockOverlay(
             if (current == firstStepPasscode) {
                 val chosenType = selectedType
                 PasscodeStore.setPasscode(context, current, chosenType)
-                scope.launch(Dispatchers.IO) {
-                    runCatching {
-                        val dbKey = PasscodeStore.deriveDbKeyBytes(context, current)
-                        AnonGramEncryptedDb.rekey(context, dbKey)
-                        dbKey.fill(0)
-                    }
-                }
+                rekeyDbInBackground(current)
                 input = ""
                 firstStepPasscode = null
                 errorText = null

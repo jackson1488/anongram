@@ -522,6 +522,17 @@ fun SecuritySettingsScreen(
                     .border(0.7.dp, scheme.islandBorder, RoundedCornerShape(20.dp))
                     .clickable {
                         PasscodeStore.clearPasscode(context)
+                        val appCtx = context.applicationContext
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                            runCatching {
+                                val ksKey = com.anongram.app.core.db.KeystoreDbKeyProvider.getOrCreateKeyBytes(appCtx)
+                                try {
+                                    com.anongram.app.core.db.AnonGramEncryptedDb.rekey(appCtx, ksKey)
+                                } finally {
+                                    ksKey.fill(0)
+                                }
+                            }
+                        }
                         passcodeEnabled = false
                         biometricsEnabled = false
                         prefs.edit().putBoolean("key_biometrics_enabled", false).apply()

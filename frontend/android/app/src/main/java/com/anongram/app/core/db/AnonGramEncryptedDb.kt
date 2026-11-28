@@ -3,17 +3,21 @@ package com.anongram.app.core.db
 import android.content.Context
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
+import com.anongram.app.features.settings.security.data.PasscodeStore
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
+import java.io.File
 
 /**
- * Локальная зашифрованная база данных AnonGram на базе SQLCipher (AES-256).
+ * Локальная зашифрованная база данных AnonGram (`anongram.db`) на базе SQLCipher (AES-256).
  *
- * - Когда код-пароль установлен, ключ выводится в RAM через PBKDF2 и затирается при [lock].
- * - При установке или смене код-пароля база перешифровывается на лету через PRAGMA rekey.
+ * - Из коробки шифруется 256-битным ключом из Android Keystore ([KeystoreDbKeyProvider]).
+ * - При установке код-пароля база перешифровывается на ключ от код-пароля через `PRAGMA rekey`.
+ * - Таблицы и миграции подключаются модульно через [DbSchemaModule].
  */
 object AnonGramEncryptedDb {
 
-    private const val DB_NAME = "anongram_secure.db"
+    private const val LEGACY_DB_NAME = "anongram_secure.db"
+    private const val DB_NAME = "anongram.db"
     private const val DB_VERSION = 1
 
     @Volatile
@@ -24,6 +28,19 @@ object AnonGramEncryptedDb {
 
     @Volatile
     private var activeKeyBytes: ByteArray? = null
+
+    private val schemaModules = mutableListOf<DbSchemaModule>(CoreKvDbModule)
+
+    @Synchronized
+    fun registerModule(module: DbSchemaModule) {
+        if (schemaModules.none { it.moduleId == module.moduleId }) {
+            schemaModules.add(module)
+            // Если база уже открыта на момент ленивой регистрации, гарантируем создание таблиц модуля.
+            activeHelper?.writableDatabase?.let { db ->
+                module.onCreate(db)
+            }
+        }
+    }
 
     private fun ensureNativeLoaded() {
         if (!libraryLoaded) {
@@ -36,52 +53,75 @@ object AnonGramEncryptedDb {
         }
     }
 
+    private fun migrateLegacyDbFileIfNeeded(context: Context) {
+        val appCtx = context.applicationContext
+        val newDb = appCtx.getDatabasePath(DB_NAME)
+        val oldDb = appCtx.getDatabasePath(LEGACY_DB_NAME)
+        if (!newDb.exists() && oldDb.exists()) {
+            newDb.parentFile?.mkdirs()
+            if (oldDb.renameTo(newDb)) {
+                listOf("-wal", "-shm", "-journal").forEach { suffix ->
+                    val oldAux = File(oldDb.parentFile, LEGACY_DB_NAME + suffix)
+                    val newAux = File(newDb.parentFile, DB_NAME + suffix)
+                    if (oldAux.exists() && !newAux.exists()) {
+                        oldAux.renameTo(newAux)
+                    }
+                }
+            }
+        }
+    }
+
+    @Synchronized
+    fun ensureOpenWithoutPasscode(context: Context): SupportSQLiteDatabase? {
+        activeHelper?.let { return it.writableDatabase }
+        if (PasscodeStore.isPasscodeEnabled(context)) return null
+        val key = KeystoreDbKeyProvider.getOrCreateKeyBytes(context)
+        return try {
+            openWithKey(context, key)
+        } finally {
+            key.fill(0)
+        }
+    }
+
+    @Synchronized
+    fun getDbOrNull(): SupportSQLiteDatabase? = activeHelper?.writableDatabase
+
     @Synchronized
     fun openWithKey(context: Context, keyBytes: ByteArray): SupportSQLiteDatabase {
         ensureNativeLoaded()
         activeHelper?.let { existing ->
             return existing.writableDatabase
         }
+        migrateLegacyDbFileIfNeeded(context)
+
         val keyCopy = keyBytes.copyOf()
         activeKeyBytes = keyCopy
 
+        val modulesSnapshot = schemaModules.toList()
         val factory = SupportOpenHelperFactory(keyCopy)
         val config = SupportSQLiteOpenHelper.Configuration.builder(context.applicationContext)
             .name(DB_NAME)
             .callback(object : SupportSQLiteOpenHelper.Callback(DB_VERSION) {
                 override fun onCreate(db: SupportSQLiteDatabase) {
-                    db.execSQL(
-                        """
-                        CREATE TABLE IF NOT EXISTS secure_kv (
-                            k TEXT PRIMARY KEY NOT NULL,
-                            v TEXT NOT NULL,
-                            updated_at INTEGER NOT NULL
-                        )
-                        """.trimIndent()
-                    )
-                    db.execSQL(
-                        """
-                        CREATE TABLE IF NOT EXISTS chats_meta (
-                            chat_id TEXT PRIMARY KEY NOT NULL,
-                            title TEXT NOT NULL,
-                            is_muted INTEGER NOT NULL DEFAULT 0,
-                            updated_at INTEGER NOT NULL
-                        )
-                        """.trimIndent()
-                    )
+                    modulesSnapshot.forEach { it.onCreate(db) }
                 }
 
                 override fun onUpgrade(
                     db: SupportSQLiteDatabase,
                     oldVersion: Int,
                     newVersion: Int
-                ) = Unit
+                ) {
+                    modulesSnapshot.forEach { it.onUpgrade(db, oldVersion, newVersion) }
+                }
             })
             .build()
 
         val helper = factory.create(config)
         activeHelper = helper
-        return helper.writableDatabase
+        val writable = helper.writableDatabase
+        // Гарантируем, что таблицы модулей, добавленных после первого создания, также существуют.
+        modulesSnapshot.forEach { it.onCreate(writable) }
+        return writable
     }
 
     @Synchronized
