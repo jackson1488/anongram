@@ -103,13 +103,26 @@ object AnonGramEncryptedDb {
     }
 
     @Synchronized
-    fun getDbOrNull(): SupportSQLiteDatabase? = activeHelper?.writableDatabase
+    fun getDbOrNull(): SupportSQLiteDatabase? =
+        runCatching { activeHelper?.writableDatabase }.getOrNull()
+
+    private fun deleteDbFiles(context: Context) {
+        val appCtx = context.applicationContext
+        val dbFile = appCtx.getDatabasePath(DB_NAME)
+        runCatching { dbFile.delete() }
+        listOf("-wal", "-shm", "-journal").forEach { suffix ->
+            runCatching { File(dbFile.parentFile, DB_NAME + suffix).delete() }
+        }
+    }
 
     @Synchronized
     fun openWithKey(context: Context, keyBytes: ByteArray): SupportSQLiteDatabase {
         ensureNativeLoaded()
         activeHelper?.let { existing ->
-            return existing.writableDatabase
+            val existingDb = runCatching { existing.writableDatabase }.getOrNull()
+            if (existingDb != null) return existingDb
+            runCatching { existing.close() }
+            activeHelper = null
         }
         migrateLegacyDbFileIfNeeded(context)
 
@@ -117,30 +130,42 @@ object AnonGramEncryptedDb {
         activeKeyBytes = keyCopy
 
         val modulesSnapshot = schemaModules.toList()
-        val factory = SupportOpenHelperFactory(keyCopy)
-        val config = SupportSQLiteOpenHelper.Configuration.builder(context.applicationContext)
-            .name(DB_NAME)
-            .callback(object : SupportSQLiteOpenHelper.Callback(DB_VERSION) {
-                override fun onCreate(db: SupportSQLiteDatabase) {
-                    modulesSnapshot.forEach { it.onCreate(db) }
-                }
-
-                override fun onUpgrade(
-                    db: SupportSQLiteDatabase,
-                    oldVersion: Int,
-                    newVersion: Int
-                ) {
-                    modulesSnapshot.forEach {
-                        it.onCreate(db)
-                        it.onUpgrade(db, oldVersion, newVersion)
+        fun buildHelper(key: ByteArray): SupportSQLiteOpenHelper {
+            val factory = SupportOpenHelperFactory(key)
+            val config = SupportSQLiteOpenHelper.Configuration.builder(context.applicationContext)
+                .name(DB_NAME)
+                .callback(object : SupportSQLiteOpenHelper.Callback(DB_VERSION) {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        modulesSnapshot.forEach { it.onCreate(db) }
                     }
-                }
-            })
-            .build()
 
-        val helper = factory.create(config)
+                    override fun onUpgrade(
+                        db: SupportSQLiteDatabase,
+                        oldVersion: Int,
+                        newVersion: Int
+                    ) {
+                        modulesSnapshot.forEach {
+                            it.onCreate(db)
+                            it.onUpgrade(db, oldVersion, newVersion)
+                        }
+                    }
+                })
+                .build()
+            return factory.create(config)
+        }
+
+        var helper = buildHelper(keyCopy)
+        val writable = try {
+            helper.writableDatabase
+        } catch (t: Throwable) {
+            runCatching { helper.close() }
+            // Если старый файл anongram_secure.db/anongram.db зашифрован несовместимым ключом (code 26),
+            // пересоздаём чистую зашифрованную anongram.db актуальным ключом без падения приложения.
+            deleteDbFiles(context)
+            helper = buildHelper(keyBytes.copyOf())
+            helper.writableDatabase
+        }
         activeHelper = helper
-        val writable = helper.writableDatabase
         // Гарантируем, что таблицы модулей, добавленных после первого создания, также существуют.
         modulesSnapshot.forEach { it.onCreate(writable) }
         _unlockedFlow.value = true
