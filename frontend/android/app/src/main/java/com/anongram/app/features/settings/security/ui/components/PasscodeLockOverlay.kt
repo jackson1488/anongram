@@ -197,8 +197,26 @@ fun PasscodeLockOverlay(
         kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
             runCatching {
                 val dbKey = PasscodeStore.deriveDbKeyBytes(appCtx, passcode)
-                AnonGramEncryptedDb.openWithKey(appCtx, dbKey)
-                dbKey.fill(0)
+                try {
+                    AnonGramEncryptedDb.openWithKey(appCtx, dbKey)
+                    KeystoreDbKeyProvider.saveBioDbKey(appCtx, dbKey)
+                } finally {
+                    dbKey.fill(0)
+                }
+            }
+        }
+    }
+
+    fun openDbWithBiometricsInBackground() {
+        val appCtx = context.applicationContext
+        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                val dbKey = KeystoreDbKeyProvider.getBioDbKeyBytes(appCtx) ?: return@launch
+                try {
+                    AnonGramEncryptedDb.openWithKey(appCtx, dbKey)
+                } finally {
+                    dbKey.fill(0)
+                }
             }
         }
     }
@@ -216,8 +234,12 @@ fun PasscodeLockOverlay(
                     }
                 }
                 val dbKey = PasscodeStore.deriveDbKeyBytes(appCtx, passcode)
-                AnonGramEncryptedDb.rekey(appCtx, dbKey)
-                dbKey.fill(0)
+                try {
+                    AnonGramEncryptedDb.rekey(appCtx, dbKey)
+                    KeystoreDbKeyProvider.saveBioDbKey(appCtx, dbKey)
+                } finally {
+                    dbKey.fill(0)
+                }
                 KeystoreDbKeyProvider.clearKey(appCtx)
             }
         }
@@ -234,6 +256,7 @@ fun PasscodeLockOverlay(
                 override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
                     super.onAuthenticationSucceeded(result)
                     PasscodeStore.resetFailedAttempts(context)
+                    openDbWithBiometricsInBackground()
                     onSuccess()
                 }
             }

@@ -90,4 +90,46 @@ object KeystoreDbKeyProvider {
             .remove(PREF_WRAPPED_IV)
             .apply()
     }
+
+    private const val PREF_BIO_WRAPPED_KEY = "key_bio_db_wrapped_key"
+    private const val PREF_BIO_WRAPPED_IV = "key_bio_db_wrapped_iv"
+
+    @Synchronized
+    fun saveBioDbKey(context: Context, rawDbKey: ByteArray) {
+        if (rawDbKey.isEmpty()) return
+        runCatching {
+            val secretKey = getOrCreateKeystoreKey()
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+            val wrapped = cipher.doFinal(rawDbKey)
+            context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putString(PREF_BIO_WRAPPED_KEY, Base64.encodeToString(wrapped, Base64.NO_WRAP))
+                .putString(PREF_BIO_WRAPPED_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
+                .apply()
+        }
+    }
+
+    @Synchronized
+    fun getBioDbKeyBytes(context: Context): ByteArray? {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val encB64 = prefs.getString(PREF_BIO_WRAPPED_KEY, null) ?: return null
+        val ivB64 = prefs.getString(PREF_BIO_WRAPPED_IV, null) ?: return null
+        return runCatching {
+            val secretKey = getOrCreateKeystoreKey()
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            val iv = Base64.decode(ivB64, Base64.NO_WRAP)
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, GCMParameterSpec(128, iv))
+            cipher.doFinal(Base64.decode(encB64, Base64.NO_WRAP))
+        }.getOrNull()
+    }
+
+    @Synchronized
+    fun clearBioDbKey(context: Context) {
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .remove(PREF_BIO_WRAPPED_KEY)
+            .remove(PREF_BIO_WRAPPED_IV)
+            .apply()
+    }
 }

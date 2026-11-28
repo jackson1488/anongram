@@ -523,6 +523,7 @@ fun SecuritySettingsScreen(
                     .clickable {
                         PasscodeStore.clearPasscode(context)
                         val appCtx = context.applicationContext
+                        com.anongram.app.core.db.KeystoreDbKeyProvider.clearBioDbKey(appCtx)
                         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                             runCatching {
                                 val ksKey = com.anongram.app.core.db.KeystoreDbKeyProvider.getOrCreateKeyBytes(appCtx)
